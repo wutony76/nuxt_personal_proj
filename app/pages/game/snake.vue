@@ -13,6 +13,11 @@ type SnakeSnapshot = {
   level: number
   fruitCount: number
 }
+type SnakeStepResult = {
+  gameOver: boolean
+  ate: boolean
+  boardFull?: boolean
+}
 
 class SnakeEngine {
   private bodies: Position[] = []
@@ -31,9 +36,9 @@ class SnakeEngine {
   }
 
   reset() {
-    const spawn = this.randomFood([])
+    const spawn = this.randomFood([]) ?? { x: 0, y: 0 }
     this.bodies = [spawn]
-    this.food = this.randomFood(this.bodies)
+    this.food = this.randomFood(this.bodies) ?? { x: 0, y: 0 }
     this.direction = 'right'
     this.nextDirection = null
     this.score = 0
@@ -53,7 +58,7 @@ class SnakeEngine {
     }
   }
 
-  step() {
+  step(): SnakeStepResult {
     if (this.nextDirection) {
       this.direction = this.nextDirection
       this.nextDirection = null
@@ -61,22 +66,30 @@ class SnakeEngine {
 
     const head = this.bodies[0]
     if (!head) {
-      return { gameOver: true }
+      return { gameOver: true, ate: false }
     }
 
     const nextHead = this.getNextHead(head, this.direction)
+    const ate = nextHead.x === this.food.x && nextHead.y === this.food.y
 
-    if (this.bodies.some((b) => b.x === nextHead.x && b.y === nextHead.y)) {
-      return { gameOver: true }
+    // If not eating, tail moves away this tick, so it should not count as collision.
+    const collisionTargets = ate ? this.bodies : this.bodies.slice(0, -1)
+    if (collisionTargets.some((b) => b.x === nextHead.x && b.y === nextHead.y)) {
+      return { gameOver: true, ate: false }
     }
 
     const nextBodies = [nextHead, ...this.bodies]
-    const ate = nextHead.x === this.food.x && nextHead.y === this.food.y
+    let boardFull = false
 
     if (!ate) {
       nextBodies.pop()
     } else {
-      this.food = this.randomFood(nextBodies)
+      const nextFood = this.randomFood(nextBodies)
+      if (nextFood) {
+        this.food = nextFood
+      } else {
+        boardFull = true
+      }
       this.fruitCount += 1
     }
 
@@ -84,7 +97,7 @@ class SnakeEngine {
     this.score = Math.max(nextBodies.length - 1, 0)
     this.level = this.calcLevelByLength(this.score)
 
-    return { gameOver: false }
+    return { gameOver: boardFull, ate, boardFull }
   }
 
   getTickSpeed() {
@@ -118,16 +131,35 @@ class SnakeEngine {
     return nextHead
   }
 
-  private randomFood(occupied: Position[]) {
-    while (true) {
-      const next = {
+  private randomFood(occupied: Position[]): Position | null {
+    const capacity = this.boardSize * this.boardSize
+    if (occupied.length >= capacity) {
+      return null
+    }
+
+    const occupiedSet = new Set(occupied.map((b) => `${b.x},${b.y}`))
+
+    // Try random first for natural distribution.
+    for (let i = 0; i < capacity; i += 1) {
+      const candidate = {
         x: Math.floor(Math.random() * this.boardSize),
         y: Math.floor(Math.random() * this.boardSize)
       }
-      if (!occupied.some((b) => b.x === next.x && b.y === next.y)) {
-        return next
+      if (!occupiedSet.has(`${candidate.x},${candidate.y}`)) {
+        return candidate
       }
     }
+
+    // Fallback deterministic scan to guarantee finding a free slot.
+    for (let y = 0; y < this.boardSize; y += 1) {
+      for (let x = 0; x < this.boardSize; x += 1) {
+        if (!occupiedSet.has(`${x},${y}`)) {
+          return { x, y }
+        }
+      }
+    }
+
+    return null
   }
 
   private calcLevelByLength(len: number) {
@@ -177,11 +209,13 @@ const snakeFruitCount = ref(0)
 const snakeMessage = ref('點「開始」遊玩，使用方向鍵或 WASD 控制。')
 let snakeTimer: ReturnType<typeof setTimeout> | null = null
 let readyTimer: ReturnType<typeof setInterval> | null = null
-let snakeNextDirection: Direction | null = null
 const waitingOverlayVisible = ref(true)
 const readyOverlayVisible = ref(false)
 const readyCountdownValue = ref(3)
 const resultOverlayVisible = ref(false)
+const fruitFlashActive = ref(false)
+const stageShakeActive = ref(false)
+let fruitEffectTimer: ReturnType<typeof setTimeout> | null = null
 
 const snakeBoardStyle = computed(() => ({
   width: `${STAGE_OUTER_PX}px`,
@@ -240,6 +274,24 @@ const stopReadyTimer = () => {
   }
 }
 
+const stopFruitEffectTimer = () => {
+  if (fruitEffectTimer) {
+    clearTimeout(fruitEffectTimer)
+    fruitEffectTimer = null
+  }
+}
+
+const triggerEatEffect = () => {
+  stopFruitEffectTimer()
+  fruitFlashActive.value = true
+  stageShakeActive.value = true
+  fruitEffectTimer = setTimeout(() => {
+    fruitFlashActive.value = false
+    stageShakeActive.value = false
+    fruitEffectTimer = null
+  }, 180)
+}
+
 const runReadyCountdown = (onDone: () => void) => {
   stopReadyTimer()
   readyOverlayVisible.value = true
@@ -261,12 +313,15 @@ const snakeStep = () => {
   const stepResult = snakeEngine.step()
   if (stepResult.gameOver) {
     snakeStatus.value = 'gameover'
-    snakeMessage.value = '撞到自己了，遊戲結束。'
+    snakeMessage.value = stepResult.boardFull ? '恭喜通關！棋盤已滿。' : '撞到自己了，遊戲結束。'
     resultOverlayVisible.value = true
     stopSnakeTimer()
     return
   }
   syncSnakeState()
+  if (stepResult.ate) {
+    triggerEatEffect()
+  }
 }
 
 const snakeLoop = () => {
@@ -278,12 +333,15 @@ const snakeLoop = () => {
 const resetSnake = () => {
   stopSnakeTimer()
   stopReadyTimer()
+  stopFruitEffectTimer()
   snakeEngine.reset()
   syncSnakeState()
   snakeStatus.value = 'ready'
   waitingOverlayVisible.value = true
   resultOverlayVisible.value = false
   readyOverlayVisible.value = false
+  fruitFlashActive.value = false
+  stageShakeActive.value = false
   snakeMessage.value = '點「開始」遊玩，使用方向鍵或 WASD 控制。'
 }
 
@@ -294,10 +352,26 @@ const updateSnakeDirection = (dir: Direction) => {
 const onSnakeKeydown = (event: KeyboardEvent) => {
   if (waitingOverlayVisible.value || readyOverlayVisible.value || resultOverlayVisible.value) return
   const key = event.key.toLowerCase()
-  if (key === 'arrowup' || key === 'w') updateSnakeDirection('up')
-  if (key === 'arrowdown' || key === 's') updateSnakeDirection('down')
-  if (key === 'arrowleft' || key === 'a') updateSnakeDirection('left')
-  if (key === 'arrowright' || key === 'd') updateSnakeDirection('right')
+  let handled = false
+  if (key === 'arrowup' || key === 'w') {
+    updateSnakeDirection('up')
+    handled = true
+  }
+  if (key === 'arrowdown' || key === 's') {
+    updateSnakeDirection('down')
+    handled = true
+  }
+  if (key === 'arrowleft' || key === 'a') {
+    updateSnakeDirection('left')
+    handled = true
+  }
+  if (key === 'arrowright' || key === 'd') {
+    updateSnakeDirection('right')
+    handled = true
+  }
+  if (handled) {
+    event.preventDefault()
+  }
 }
 
 const startSnake = () => {
@@ -338,8 +412,21 @@ const startFromWaiting = () => {
   startSnake()
 }
 
-const exitGame = () => {
-  router.push('/game-hall')
+const endGameNow = () => {
+  stopSnakeTimer()
+  stopReadyTimer()
+  stopFruitEffectTimer()
+  fruitFlashActive.value = false
+  stageShakeActive.value = false
+  waitingOverlayVisible.value = false
+  readyOverlayVisible.value = false
+  snakeStatus.value = 'gameover'
+  snakeMessage.value = '本局已結束。'
+  resultOverlayVisible.value = true
+}
+
+const exitResultToWelcome = () => {
+  router.replace('/game-hall')
 }
 
 onMounted(() => {
@@ -353,6 +440,7 @@ onMounted(() => {
 onUnmounted(() => {
   stopSnakeTimer()
   stopReadyTimer()
+  stopFruitEffectTimer()
   if (typeof window !== 'undefined') {
     window.removeEventListener('keydown', onSnakeKeydown)
   }
@@ -360,7 +448,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="snake-page">
+  <main class="snake-page" :class="`state-${snakeStatus}`">
     <div class="snake-overlay" />
     <div v-if="waitingOverlayVisible" class="game-mask waiting-mask">
       <div class="mask-title">WELCOME</div>
@@ -380,7 +468,7 @@ onUnmounted(() => {
       </div>
       <div class="result-actions">
         <button class="snake-btn" type="button" @click="playAgain">AGAIN</button>
-        <button class="snake-btn danger" type="button" @click="exitGame">EXIT</button>
+        <button class="snake-btn danger" type="button" @click="exitResultToWelcome">EXIT</button>
       </div>
     </div>
     <section class="snake-shell">
@@ -388,7 +476,7 @@ onUnmounted(() => {
         <button class="snake-btn" type="button" :disabled="!canResumeFromPause" @click="resumeSnake">START</button>
         <button class="snake-btn" type="button" :disabled="!canPauseWhilePlaying" @click="pauseSnake">PAUSE</button>
         <button class="snake-btn" type="button" @click="resetSnake">REPLAY</button>
-        <NuxtLink class="snake-btn link" to="/game-hall">BACK</NuxtLink>
+        <button class="snake-btn link" type="button" @click="endGameNow">END</button>
       </aside>
 
       <section class="snake-center">
@@ -398,7 +486,8 @@ onUnmounted(() => {
         </header>
 
         <div class="snake-frame">
-          <div class="snake-stage" :style="snakeBoardStyle">
+          <div class="snake-stage" :class="{ 'fruit-flash': fruitFlashActive, 'stage-shake': stageShakeActive }"
+            :style="snakeBoardStyle">
             <i class="snake-scan" :class="{ active: snakeStatus === 'playing' }" />
             <div class="snake-food" :style="snakeCellStyle(snakeFood)" />
             <div v-for="(body, idx) in snakeBodies" :key="`${body.x}-${body.y}-${idx}`" class="snake-segment"
@@ -433,8 +522,30 @@ onUnmounted(() => {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at top, #102510, #030603 60%);
+  // background: radial-gradient(circle at top, #102510, #030603 60%);
   overflow: hidden;
+  isolation: isolate;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -20%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  &::before {
+    background: radial-gradient(circle at 20% 20%, rgba(24, 255, 120, 0.18), transparent 45%),
+      radial-gradient(circle at 80% 70%, rgba(32, 180, 255, 0.12), transparent 40%);
+    filter: blur(40px);
+    animation: ambient-drift 12s ease-in-out infinite alternate;
+  }
+
+  &::after {
+    background: linear-gradient(115deg, rgba(50, 255, 180, 0.04), rgba(0, 0, 0, 0));
+    animation: ambient-pulse 4.6s ease-in-out infinite;
+  }
 
   .snake-overlay {
     position: absolute;
@@ -444,6 +555,8 @@ onUnmounted(() => {
       linear-gradient(90deg, rgba(0, 255, 120, 0.05) 1px, transparent 1px);
     background-size: 28px 28px;
     pointer-events: none;
+    z-index: 0;
+    animation: grid-drift 14s linear infinite;
   }
 
   .game-mask {
@@ -527,6 +640,8 @@ onUnmounted(() => {
   }
 
   .snake-btn {
+    position: relative;
+    overflow: hidden;
     border: 1px solid rgba(0, 255, 100, 0.4);
     border-radius: 6px;
     padding: 10px 12px;
@@ -534,10 +649,26 @@ onUnmounted(() => {
     color: #23ff23;
     font-weight: 700;
     letter-spacing: 0.5px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(105deg, transparent 35%, rgba(200, 255, 200, 0.25) 50%, transparent 65%);
+      transform: translateX(-150%);
+      transition: transform 0.35s ease;
+      pointer-events: none;
+    }
 
     &:hover {
       border-color: #22ff22;
       box-shadow: 0 0 12px rgba(34, 255, 34, 0.35);
+      transform: translateY(-1px);
+
+      &::after {
+        transform: translateX(150%);
+      }
     }
 
     &:disabled {
@@ -570,6 +701,8 @@ onUnmounted(() => {
       font-size: clamp(2rem, 6vw, 3.6rem);
       letter-spacing: 0.2rem;
       font-weight: 900;
+      text-shadow: 0 0 14px rgba(32, 255, 32, 0.42);
+      animation: title-float 2.6s ease-in-out infinite;
     }
 
     .snake-status {
@@ -596,12 +729,14 @@ onUnmounted(() => {
       height: 420px;
       margin: 12px auto 0;
       background: #b7d4a8;
-      border: 10px solid #101010;
+      border: 10px solid #86c896;
       border-radius: 18px;
       display: flex;
       flex-direction: column;
       justify-content: space-around;
       align-items: center;
+      box-shadow: 0 0 0 1px rgba(160, 210, 130, 0.2), 0 0 24px rgba(20, 255, 80, 0.14);
+      animation: frame-glow 5.4s ease-in-out infinite, frame-border-breathe 14s ease-in-out infinite;
     }
 
     .snake-stage {
@@ -609,6 +744,14 @@ onUnmounted(() => {
       border: 2px solid #111;
       background: #b7d4a8;
       overflow: hidden;
+
+      &.fruit-flash {
+        animation: stage-flash 180ms ease-out;
+      }
+
+      &.stage-shake {
+        animation: stage-shake 170ms ease-out;
+      }
 
       .snake-food,
       .snake-segment {
@@ -639,7 +782,7 @@ onUnmounted(() => {
         transform: translateY(-120%) rotate(-24deg);
         background-image: linear-gradient(to bottom,
             rgba(255, 255, 255, 0),
-            rgba(240, 255, 220, 0.18),
+            rgba(120, 190, 255, 0.22),
             rgba(255, 255, 255, 0));
 
         &.active {
@@ -649,17 +792,30 @@ onUnmounted(() => {
     }
 
     .snake-panel {
+      position: relative;
+      overflow: hidden;
       width: 304px;
       display: flex;
       justify-content: space-between;
       color: #f00;
       font-weight: 800;
+      text-shadow: 0 0 6px rgba(255, 0, 0, 0.45);
+
+      &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(120, 200, 255, 0.28), transparent);
+        transform: translateX(-120%);
+        animation: hud-scan 3.4s linear infinite;
+      }
     }
 
     .snake-message {
       margin-top: 14px;
       color: #76ff76;
       font-size: 0.85rem;
+      animation: subtle-fade 2.8s ease-in-out infinite;
     }
   }
 
@@ -714,6 +870,137 @@ onUnmounted(() => {
 
   100% {
     transform: translateY(120%) rotate(-24deg);
+  }
+}
+
+@keyframes ambient-drift {
+  0% {
+    transform: translate(-1.5%, -1%) scale(1);
+  }
+
+  100% {
+    transform: translate(1.5%, 1%) scale(1.06);
+  }
+}
+
+@keyframes ambient-pulse {
+
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 0.75;
+  }
+}
+
+@keyframes grid-drift {
+  0% {
+    transform: translate(0, 0);
+  }
+
+  100% {
+    transform: translate(14px, 14px);
+  }
+}
+
+@keyframes title-float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes frame-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(160, 210, 130, 0.24), 0 0 28px rgba(20, 255, 80, 0.18);
+  }
+
+  35% {
+    box-shadow: 0 0 0 1px rgba(190, 240, 150, 0.42), 0 0 46px rgba(55, 255, 120, 0.34);
+  }
+
+  70% {
+    box-shadow: 0 0 0 1px rgba(150, 230, 190, 0.36), 0 0 40px rgba(60, 230, 170, 0.28);
+  }
+}
+
+@keyframes frame-border-breathe {
+  0%,
+  100% {
+    border-color: #7fbf8f;
+  }
+
+  35% {
+    border-color: #93d5a4;
+  }
+
+  70% {
+    border-color: #7dc8a9;
+  }
+}
+
+@keyframes stage-flash {
+  0% {
+    box-shadow: inset 0 0 0 0 rgba(255, 255, 210, 0.95);
+    filter: brightness(1.32) saturate(1.15);
+  }
+
+  100% {
+    box-shadow: inset 0 0 0 22px rgba(255, 255, 210, 0);
+    filter: brightness(1) saturate(1);
+  }
+}
+
+@keyframes stage-shake {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  25% {
+    transform: translate3d(-2px, 1px, 0);
+  }
+
+  50% {
+    transform: translate3d(2px, -1px, 0);
+  }
+
+  75% {
+    transform: translate3d(-1px, 1px, 0);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes hud-scan {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes subtle-fade {
+
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+
+  50% {
+    opacity: 1;
   }
 }
 
