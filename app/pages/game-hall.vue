@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineAsyncComponent, ref } from 'vue'
+import { ref } from 'vue'
 
 type HallTab = 'lobby' | 'lottery' | 'taiwan'
 type GameSlot = {
@@ -11,12 +11,11 @@ type GameSlot = {
 }
 
 const activeTab = ref<HallTab>('lobby')
-const GameMachineCard = defineAsyncComponent(() => import('../components/GameMachineCard.vue'))
 
 const gameSlots = ref<GameSlot[]>([
   { id: 1, name: 'SNAKE', description: '經典像素貪吃蛇遊戲', status: 'open', path: '/game/snake' },
   { id: 2, name: 'RACING', description: '經典像素閃避賽車，可以跑多遠', status: 'open', path: '/game/racing' },
-  { id: 3, name: '遊戲 03', description: '放你的第三個遊戲', status: 'coming' },
+  { id: 3, name: 'TETRIMINOS', description: '經典俄羅斯方塊，支援旋轉與消行', status: 'open', path: '/game/tetriminos' },
   { id: 4, name: '遊戲 04', description: '預留遊戲位置', status: 'coming' },
   { id: 5, name: '遊戲 05', description: '預留遊戲位置', status: 'coming' },
   { id: 6, name: '遊戲 06', description: '預留遊戲位置', status: 'coming' },

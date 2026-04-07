@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 type GameSlot = {
   id: number
   name: string
@@ -7,9 +9,17 @@ type GameSlot = {
   path?: string
 }
 
-defineProps<{
+const props = defineProps<{
   game: GameSlot
 }>()
+
+const cuteIcon = computed(() => {
+  const name = props.game.name.toUpperCase()
+  if (name.includes('SNAKE')) return '🐍'
+  if (name.includes('RACING')) return '🏎️'
+  if (name.includes('TETRIMINOS')) return '🧩'
+  return '🎮'
+})
 </script>
 
 <template>
@@ -25,6 +35,9 @@ defineProps<{
         </span>
       </div>
       <p class="min-h-[42px] text-xs leading-5 text-slate-300">{{ game.description }}</p>
+      <div class="cute-preview">
+        <span class="icon">{{ cuteIcon }}</span>
+      </div>
     </div>
 
     <div class="mt-3 flex items-center justify-between px-1">
@@ -105,6 +118,21 @@ defineProps<{
       background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(56, 189, 248, 0.16), rgba(255, 255, 255, 0));
       transform: translateY(-120%);
       animation: screen-scan 3.8s linear infinite;
+    }
+
+    .cute-preview {
+      margin-top: 8px;
+      height: 36px;
+      border: 1px dashed rgba(148, 163, 184, 0.4);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: rgba(15, 23, 42, 0.55);
+
+      .icon {
+        font-size: 1.3rem;
+        filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.45));
+      }
     }
   }
 
