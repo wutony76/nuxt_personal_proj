@@ -19,7 +19,7 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <div :class="isImmersiveGameRoute ? 'min-h-screen bg-black' : 'min-h-screen bg-slate-50'">
+  <!-- <div :class="isImmersiveGameRoute ? 'min-h-screen bg-black' : 'min-h-screen bg-slate-50'">
     <NuxtRouteAnnouncer />
     <AppTopbar
       v-if="!isImmersiveGameRoute"
@@ -29,5 +29,11 @@ const handleLogout = () => {
     />
 
     <NuxtPage />
+  </div> -->
+
+  <div>
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
   </div>
 </template>

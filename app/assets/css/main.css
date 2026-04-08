@@ -5,3 +5,9 @@
     @apply bg-slate-50 text-slate-900 antialiased;
   }
 }
+
+@layer components {
+  .lottery-bg {
+    @apply min-h-screen bg-red-200;
+  }
+}

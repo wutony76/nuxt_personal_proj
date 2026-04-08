@@ -1,18 +1,25 @@
 <script setup lang="ts">
-defineProps<{
-  isLoggedIn: boolean
-  userName?: string
-}>()
+import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuth } from '../composables/useAuth'
 
-defineEmits<{
-  logout: []
-}>()
+const router = useRouter()
+const { user, isLoggedIn, init, logout } = useAuth()
+
+onMounted(() => {
+  init()
+})
+
+const handleLogout = () => {
+  logout()
+  router.push('/')
+}
 </script>
 
 <template>
   <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
     <div class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3">
-      <NuxtLink to="/" class="text-base font-bold text-slate-900"> HAPPY-FAT-YOYO </NuxtLink>
+      <NuxtLink to="/" class="text-base font-bold text-slate-900"> HFYY </NuxtLink>
 
       <nav class="flex items-center gap-2 sm:gap-3">
         <NuxtLink to="/" class="rounded-md px-2 py-1 text-slate-900 hover:bg-indigo-50">
@@ -36,8 +43,8 @@ defineEmits<{
           登入
         </NuxtLink>
         <button v-else type="button" class="rounded-md px-2 py-1 text-slate-900 hover:bg-indigo-50"
-          @click="$emit('logout')">
-          登出 {{ userName }}
+          @click="handleLogout">
+          登出 {{ user?.name }}
         </button>
       </nav>
     </div>
