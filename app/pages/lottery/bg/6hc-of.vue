@@ -15,15 +15,18 @@ const state = reactive({
   lotteryInfo: GET_CONT.lotteryById(LOTTERY['6HC'].id),
 })
 
-// const use6hc = provide6hcOfficial()
+const use6hc = use6hcOfficial()
 const playMap = {
-  single: SinglePlay,
-  duplex: DuplexPlay,
-  dantuo: DantuoPlay,
-  number: NumberPlay
+  SINGLE: SinglePlay,
+  DUPLEX: DuplexPlay,
+  DANTUO: DantuoPlay,
+  NUMBER: NumberPlay
 }
 
-// const currentPlay = computed(() => playMap[use6hc.state.mode] ?? SinglePlay)
+const currentPlay = computed(() => {
+  const key = (use6hc.state || 'single') as keyof typeof playMap
+  return playMap[key] ?? SinglePlay
+})
 
 </script>
 
@@ -60,10 +63,9 @@ const playMap = {
 
       </div>
       <BarTabs />
-
-      <!-- <section class="a6-content">
+      <section class="play-warp" style="margin-top: 10px;">
         <component :is="currentPlay" />
-      </section> -->
+      </section>
     </main>
   </div>
 </template>
