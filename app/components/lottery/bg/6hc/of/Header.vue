@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import Ball from '~/components/lottery/bg/6hc/of/Ball.vue'
 
 type OpenCodeItem = string | number | { num?: string | number; animal?: string }
 
@@ -24,7 +25,7 @@ const DEFAULT_HEADER_DATA: Required<HeaderData> = {
   totalJackpot: '1,000,000,000',
   estimatedJackpot: '1,000,000',
   winRate: '98.76%',
-  openCode: ['99', '99', '99', '99', '99', '99', '99']
+  openCode: ['1', '2', '3', '4', '5', '6', '14']
 }
 
 const props = defineProps<{
@@ -79,45 +80,52 @@ const openBalls = computed(() => {
 
 <template>
   <header class="header-warp">
-    <div class="header-warp-left">
-      <div class="header-warp-main">
-        <h1 class="header-warp-title">{{ lotteryName }}</h1>
-        <p class="header-warp-sub">官方玩法</p>
-        <p class="header-warp-id">LOTTERY_ID: {{ lotteryId }}</p>
+    <div class="left">
+      <div class="info">
+        <h1 class="title">{{ lotteryName }}</h1>
+        <p class="sub">官方玩法</p>
+        <p class="lotteryId">LOTTERY_ID: {{ lotteryId }}</p>
       </div>
-      <div class="header-warp-stats">
-        <div class="header-warp-row">
-          <span class="header-warp-label">總獎金</span>
-          <span class="header-warp-val header-warp-val-big">{{ totalJackpot }}</span>
+      <div class="info-bonus">
+        <div class="row">
+          <span class="label">總獎金</span>
+          <span class="val val-big">{{ totalJackpot }}</span>
         </div>
-        <div class="header-warp-row">
-          <span class="header-warp-label">預估頭獎</span>
-          <span class="header-warp-val header-warp-val-big">{{ estimatedJackpot }}</span>
+        <div class="row">
+          <span class="label">預估頭獎</span>
+          <span class="val val-big">{{ estimatedJackpot }}</span>
         </div>
-        <div class="header-warp-row">
-          <span class="header-warp-label">中獎機率</span>
-          <span class="header-warp-accent">{{ winRate }}</span>
+        <div class="row">
+          <span class="label">中獎機率</span>
+          <span class="accent">{{ winRate }}</span>
         </div>
       </div>
     </div>
 
-    <div class="header-warp-right">
-      <div class="header-warp-wrap">
-        <div class="header-warp-cd header-warp-cd-narrow">
-          <div class="header-warp-issue">第{{ issueCurrent }}期 開獎中</div>
-          <div class="header-warp-clock">
+    <div class="right">
+      <div class="inner">
+        <div class="timer">
+          <div class="issue">第{{ issueCurrent }}期 開獎中</div>
+          <div class="countdown">
             {{ countdown }}
           </div>
         </div>
-        <div class="header-warp-open">
-          <div class="header-warp-issue">第{{ issueLatest }}期 開獎</div>
-          <div class="header-warp-list">
-            <div v-for="(ball, idx) in openBalls" :key="`${idx}-${ball.num}-${ball.animal}`" class="header-warp-item">
-              <span v-if="idx === openBalls.length - 1" class="header-warp-plus">+</span>
-              <div class="header-warp-ball">
-                <div class="header-warp-num">{{ ball.num }}</div>
-                <div class="header-warp-animal">{{ ball.animal }}</div>
+        <div class="open-code">
+          <div class="issue">第{{ issueLatest }}期 開獎</div>
+          <div class="main">
+            <div class="ball-legend">
+              <div class="ball-legend-title">
+                <span>號碼</span>
               </div>
+              <div class="ball-legend-counts">
+                <div class="ball-legend-count">相隔期數</div>
+                <div class="ball-legend-count">攪出次數</div>
+              </div>
+            </div>
+
+            <div v-for="(ball, idx) in openBalls" :key="`${idx}-${ball.num}-${ball.animal}`" class="ball-warp">
+              <span v-if="idx === openBalls.length - 1" class="plus">+</span>
+              <Ball :data="{ label: ball.num, num: ball.num, selected: true, countIssue: 10, countShow: 20 }" />
             </div>
           </div>
         </div>
@@ -125,3 +133,253 @@ const openBalls = computed(() => {
     </div>
   </header>
 </template>
+
+<style scoped lang="scss">
+.header-warp {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border: 7px solid #b91c1c;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 10px 20px;
+  box-shadow: 0 0.1rem 0.325rem rgba(0, 0, 0, 0.07);
+
+  .left {
+    width: 100%;
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 1rem;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    background: unset;
+
+    .info {
+      min-width: 0;
+      flex-shrink: 0;
+
+      .title {
+        margin: 0;
+        font-size: 45px;
+        font-weight: 800;
+        line-height: 1.05;
+        color: var(--color-red-main);
+      }
+
+      .sub {
+        margin: 0.25rem 0 0;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-red-desc);
+      }
+
+      .lotteryId {
+        margin: 0.125rem 0 0;
+        font-size: 13px;
+        color: var(--color-red-desc);
+      }
+    }
+
+    .info-bonus {
+      margin-top: 0.75rem;
+      min-width: 240px;
+      flex: 1;
+      display: grid;
+      gap: 0.375rem;
+      border: 1px solid #fee2e2;
+      border-radius: 0.375rem;
+      padding: 0.625rem;
+      background: unset;
+
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-size: 12px;
+
+        .label {
+          white-space: nowrap;
+          color: var(--color-red-desc);
+        }
+
+        .val {
+          white-space: nowrap;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+          color: var(--color-red-main);
+
+          &.val-big {
+            font-size: 20px;
+            font-weight: 700;
+          }
+        }
+
+        .accent {
+          white-space: nowrap;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+          color: #b91c1c;
+        }
+      }
+    }
+  }
+
+  .right {
+    flex: 1;
+
+    .inner {
+      display: flex;
+      min-height: 140px;
+      height: 100%;
+      overflow: hidden;
+      border: 1px solid #fee2e2;
+      border-radius: 0.375rem;
+      background: #fff;
+
+      .timer {
+        width: 30%;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        background: rgba(254, 242, 242, 0.7);
+        padding: 0 0.75rem;
+
+        .issue {
+          text-align: center;
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--color-red-desc);
+        }
+
+        .countdown {
+          margin-top: 0.5rem;
+          display: flex;
+          flex: 1;
+          align-items: center;
+          justify-content: center;
+          font-size: 30px;
+          font-weight: 900;
+          letter-spacing: 0.02em;
+          color: var(--color-red-main);
+        }
+      }
+
+      .open-code {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        justify-content: center;
+        border-left: 1px solid #fee2e2;
+
+        .issue {
+          text-align: center;
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--color-red-desc);
+        }
+
+        .main {
+          margin-top: 0.75rem;
+          display: flex;
+          flex-direction: row;
+          flex-wrap: nowrap;
+          align-items: center;
+          justify-content: center;
+          gap: 0.3rem;
+          overflow: hidden;
+          white-space: nowrap;
+
+          .ball-legend {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
+            flex-shrink: 0;
+            margin-right: 0.25rem;
+            padding: 0.375rem 0.625rem;
+            background: #fff;
+
+            .ball-legend-title {
+              height: 45px;
+              display: flex;
+              align-items: center;
+              justify-content: start;
+              font-size: 12px;
+              font-weight: 700;
+              color: var(--color-red-main);
+
+              span {
+                border: 1px solid var(--color-red-main);
+                border-radius: 0.25rem;
+                padding: 0 0.25rem;
+              }
+            }
+
+            .ball-legend-counts {
+              margin-top: 6px;
+              display: grid;
+              gap: 2px;
+            }
+
+            .ball-legend-count {
+              text-align: left;
+              font-size: 12px;
+              color: var(--color-red-desc);
+
+              border: 1px solid var(--color-red-desc);
+              border-radius: 0.25rem;
+              padding: 0 0.25rem;
+            }
+          }
+        }
+
+        .ball-warp {
+          display: inline-flex;
+          align-items: center;
+          flex-shrink: 0;
+
+          :deep(.ball) {
+            width: 45px;
+            height: 45px;
+            font-size: 26px;
+          }
+
+          .plus {
+            margin-right: 0.5rem;
+            display: inline-flex;
+            align-items: flex-start;
+            justify-content: start;
+            flex-shrink: 0;
+            height: 60px;
+            font-size: 22px;
+            line-height: 1;
+            font-weight: 700;
+            color: var(--color-black);
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .header-warp {
+    flex-direction: row;
+
+    .left {
+      width: 40%;
+    }
+
+    .info {
+      margin-right: 0.75rem;
+    }
+
+    .open-code {
+      width: 60%;
+    }
+  }
+}
+</style>

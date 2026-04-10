@@ -2,7 +2,7 @@ import { reactive } from 'vue'
 import { GAME_6HC_OF } from '~/config/constants'
 import { PLAYLIST } from '~/config/bg/6hc-of'
 
-type PlayModeKey = 'single' | 'duplex' | 'dantuo' | 'number'
+export type PlayModeKey = 'single' | 'duplex' | 'dantuo' | 'number'
 
 type ModeItem = {
   key: PlayModeKey
@@ -40,7 +40,7 @@ const state = reactive({
 const handle = {
   newGame: (_status?: string | String | null) => {
     if (_status) state.status = String(_status)
-    state.mode = statusToMode(state.status)
+    // state.mode = statusToMode(state.status)
     state.playlist = init.playList(state.status)
     state.playList = state.playlist
   },

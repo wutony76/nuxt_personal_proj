@@ -4,6 +4,11 @@
       :class="[`ball-${color}`, { 'cursor-pointer': isClick }, { selected: selected }, { 'color-y': isColorY }]">
       <span>{{ displayNumber }}</span>
     </div>
+
+    <div v-if="isShowIssue || isShowCount" class="count-wrap">
+      <div v-if="isShowIssue" class="count"> {{ props.data?.countIssue }} </div>
+      <div v-if="isShowCount" class="count"> {{ props.data?.countShow }} </div>
+    </div>
   </div>
 </template>
 
@@ -35,6 +40,15 @@ const isColorY = computed(() => {
   return props.data.colorY || false
 })
 
+const isShowIssue = computed(() => {
+  return props.data?.countIssue >= 0 || false
+})
+const isShowCount = computed(() => {
+  return props.data?.countShow >= 0 || false
+})
+
+
+
 const ui = {
   // BALL COLOR
   getClassColor: (num) => {
@@ -57,6 +71,7 @@ const ui = {
 
 .ball-wrapper {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
 
@@ -65,9 +80,9 @@ const ui = {
   }
 
   .ball {
-    width: 3.8rem;
-    height: 3.8rem;
-    border: vw2rem(0.07) solid var(--cdt-ball-yellow);
+    width: 3.2rem;
+    height: 3.2rem;
+    border: vw2rem(0.07) solid var(--6hcOf-ball-yellow);
 
     display: flex;
     align-items: center;
@@ -83,24 +98,37 @@ const ui = {
     }
 
     &-yellow {
-      border-color: var(--cdt-ball-yellow);
+      border-color: var(--6hcOf-ball-yellow);
     }
 
     &-blue {
-      border-color: var(--cdt-ball-blue);
+      border-color: var(--6hcOf-ball-blue);
     }
 
     &-red {
-      border-color: var(--cdt-ball-red);
+      border-color: var(--6hcOf-ball-red);
     }
 
     &-green {
-      border-color: var(--cdt-ball-green);
+      border-color: var(--6hcOf-ball-green);
     }
 
     &.color-y {
-      border-color: var(--cdt-ball-yellow) !important;
+      border-color: var(--6hcOf-ball-yellow) !important;
       border-width: vw2rem(0.35);
+    }
+  }
+
+  .count-wrap {
+    margin-top: 6px;
+
+    .count {
+      font-size: 12px;
+      color: #6A5A3C;
+    }
+
+    .count+.count {
+      margin-top: 4px;
     }
   }
 }

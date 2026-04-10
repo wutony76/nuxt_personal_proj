@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue'
-import { LOTTERY, GET_CONT } from '~/config/constants'
+import { LOTTERY, GET_CONT, GAME_6HC_OF } from '~/config/constants'
 
 // import { provide6hcOfficial } from '~/composables/use6hcOfficial'
 import SinglePlay from '~/components/lottery/bg/6hc/of/Single.vue'
@@ -24,8 +24,8 @@ const playMap = {
 }
 
 const currentPlay = computed(() => {
-  const key = (use6hc.state || 'single') as keyof typeof playMap
-  return playMap[key] ?? SinglePlay
+  const _key = (use6hc.state.status || GAME_6HC_OF.SINGLE) as keyof typeof playMap
+  return playMap[_key] ?? SinglePlay
 })
 
 </script>
@@ -37,35 +37,133 @@ const currentPlay = computed(() => {
     <main class="main">
       <Header :data="state.lotteryInfo" />
 
-      <div class="info-warp" style="border: 1px solid red; margin-top: 10px; display: flex; ;">
-        <div class="left" style="width: 20%; ">
-          <div class="user-warp"
-            style="border: 1px solid blue; min-height: 200px; height: 100% ; display: flex; flex-direction: column; ">
-            <div
-              style="height:30%; border-bottom: 1px solid red; display: flex; justify-content: center; align-items: center; ">
-              USER </div>
-            <div style=" flex:1;">
-              <div> F幣餘額: 1000
-                <button> 儲值 </button>
-              </div>
-              <div> 當期已投注: 99999</div>
-              <div> 累計已投注: 99999</div>
-              <div> 投注百分比: 多了50% </div>
+      <section class="info-warp">
+        <aside class="info-side">
+          <div class="user-warp">
+            <div class="user-title">
+              USER
             </div>
-            <p> USER_ID: xxxxx</p>
+            <div class="user-content">
+              <div class="row">
+                F幣餘額: 1000
+                <button type="button" class="deposit-btn">儲值</button>
+              </div>
+              <div class="row">當期已投注: 99999</div>
+              <div class="row">累計已投注: 99999</div>
+              <div class="row">投注百分比: 多了50%</div>
+            </div>
+            <p class="user-id">USER_ID: xxxxx</p>
           </div>
-        </div>
-        <div class="right" style="flex:1 ;">
-          <div class="row-warp" style="margin-left: 15px; border: 1px solid green; height: 100% ;">
+        </aside>
+        <div class="info-main">
+          <div class="road-warp">
             ROAD
           </div>
         </div>
+      </section>
 
-      </div>
-      <BarTabs />
-      <section class="play-warp" style="margin-top: 10px;">
+      <section class="play-warp">
+        <BarTabs />
         <component :is="currentPlay" />
       </section>
     </main>
   </div>
 </template>
+
+<style lang="scss">
+.lottery-6hc-of {
+  .info-warp {
+    margin-top: 0.75rem;
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .info-side {
+    width: 22%;
+  }
+
+  .user-warp {
+    min-height: 200px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--color-red-700);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-red-main) 6%, #fff);
+  }
+
+  .user-title {
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid #f6d9de;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--color-red-main);
+  }
+
+  .user-content {
+    flex: 1;
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    font-size: 13px;
+    color: var(--color-red-desc);
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+  }
+
+  .deposit-btn {
+    border: 1px solid #f2b7c1;
+    border-radius: 0.25rem;
+    background: #fff;
+    padding: 0.25rem 0.5rem;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-red-main);
+    cursor: pointer;
+  }
+
+  .user-id {
+    margin: 0;
+    border-top: 1px solid #f6d9de;
+    padding: 0.5rem 0.75rem;
+    font-size: 12px;
+    color: var(--color-red-desc);
+  }
+
+  .info-main {
+    flex: 1;
+  }
+
+  .road-warp {
+    margin-left: 0.5rem;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #f6d9de;
+    border-radius: 0.375rem;
+    background: #fff;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--color-red-main);
+  }
+
+  .play-warp {
+    margin-top: 0.75rem;
+    border: 1px solid var(--color-red-700);
+    border-radius: 0.5rem;
+    background: #fff;
+    padding: 0.75rem;
+    box-shadow: 0 0.1rem 0.325rem rgba(0, 0, 0, 0.07);
+  }
+}
+</style>
