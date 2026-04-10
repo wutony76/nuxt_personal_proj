@@ -1,232 +1,39 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, reactive } from 'vue'
+import { GET_CONT } from '../config/constants'
 import { useRouter } from 'vue-router'
-import { $fetch } from 'ofetch'
-import { useAuth } from '../composables/useAuth'
-
-type LotteryGame = {
-  id: number
-  key: string
-  name: string
-  category: '6hc' | 'a6' | 'bg'
-  minBet: number
-  maxBet: number
-  defaultOdds: number
-  playTypes: string[]
-}
-type BetRecord = {
-  id: string
-  gameName: string
-  betType: string
-  number: string
-  amount: number
-  odds: number
-  potentialPayout: number
-  createdAt: string
-}
+import type { LobbyItem } from '../types/lottery'
 
 const router = useRouter()
-const { user, initialized, isLoggedIn } = useAuth()
 
-const isCheckingAuth = computed(() => !initialized.value)
-
-const games = ref<LotteryGame[]>([])
-const recentBets = ref<BetRecord[]>([])
-const balance = ref(0)
-const loading = ref(false)
-const submitting = ref(false)
-const message = ref('')
-const errorMessage = ref('')
-const issueNo = ref('2026036')
-const countDownSeconds = ref(600)
-let timer: ReturnType<typeof setInterval> | null = null
-
-const categoryOptions = [
-  { key: '6hc' as const, label: '六合彩' },
-  { key: 'a6' as const, label: '官方六合彩' },
-  { key: 'bg' as const, label: 'BG 系列' }
-]
-
-const selectedCategory = ref<'6hc' | 'a6' | 'bg'>('6hc')
-const selectedGameId = ref<number | null>(null)
-const betType = ref('')
-const numberInput = ref('')
-const amount = ref<number>(100)
-
-const filteredGames = computed(() =>
-  games.value.filter((game) => game.category === selectedCategory.value)
-)
-
-const selectedGame = computed(() => {
-  if (!selectedGameId.value) return null
-  return games.value.find((item) => item.id === selectedGameId.value) ?? null
-})
-
-const selectedGameTitle = computed(() => {
-  if (!selectedGame.value) return '-'
-  if (selectedGame.value.name === '快3') return '澳门快三'
-  if (selectedGame.value.name === 'PK10') return '澳门PK10'
-  if (selectedGame.value.name === '時時彩') return '澳门时时彩'
-  return selectedGame.value.name
-})
-
-const potentialPayout = computed(() => {
-  if (!selectedGame.value) return 0
-  return Number((amount.value * selectedGame.value.defaultOdds).toFixed(2))
-})
-
-const countDownDisplay = computed(() => {
-  const total = Math.max(countDownSeconds.value, 0)
-  const hh = String(Math.floor(total / 3600)).padStart(2, '0')
-  const mm = String(Math.floor((total % 3600) / 60)).padStart(2, '0')
-  const ss = String(total % 60).padStart(2, '0')
-  return `${hh}:${mm}:${ss}`
-})
-
-const openNumbers = computed(() => {
-  if (!selectedGame.value) return []
-  if (selectedGame.value.key === 'k3') return ['2', '4', '5']
-  if (selectedGame.value.key === 'pk10') return ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
-  if (selectedGame.value.key === 'ssc') return ['1', '3', '6', '8', '9']
-  return ['01', '02', '03', '04', '05', '06', '07']
-})
-
-const hallTabs = computed(() => {
-  const mapLabel = (name: string) => {
-    if (name === '快3') return '澳门快三'
-    if (name === 'PK10') return '澳门PK10'
-    if (name === '時時彩') return '澳门时时彩'
-    return name
-  }
-
-  return filteredGames.value.map((game) => ({
-    ...game,
-    hallLabel: mapLabel(game.name)
-  }))
-})
-
-const getBallClass = (value: string, index: number) => {
-  if (!selectedGame.value) return 'bg-slate-200 text-slate-800'
-  if (selectedGame.value.key === '6hc' || selectedGame.value.key === 'a6') {
-    if (index === openNumbers.value.length - 1) return 'bg-red-100 text-red-700 ring-2 ring-red-300'
-    const num = Number(value)
-    if (num % 3 === 0) return 'bg-blue-100 text-blue-700 ring-2 ring-blue-300'
-    if (num % 3 === 1) return 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-300'
-    return 'bg-amber-100 text-amber-700 ring-2 ring-amber-300'
-  }
-  return 'bg-sky-100 text-sky-700 ring-2 ring-sky-300'
+const ROUTE_DICT: Record<string, string> = {
+  '6HC-CD': '/lottery/bg/6hc-cd',
+  '6HC-OF': '/lottery/bg/6hc-of'
 }
 
-const loadHallData = async () => {
-  loading.value = true
-  errorMessage.value = ''
-  try {
-    const [gamesResponse, stateResponse] = await Promise.all([
-      $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
-      $fetch<{ balance: number; recentBets: BetRecord[] }>('/api/lottery/state')
-    ])
-
-    games.value = gamesResponse.games
-    const firstCategoryGame = gamesResponse.games.find((game) => game.category === selectedCategory.value)
-    if (!selectedGameId.value && firstCategoryGame) {
-      selectedGameId.value = firstCategoryGame.id
-      betType.value = firstCategoryGame.playTypes[0] || ''
-    } else if (!selectedGameId.value) {
-      const firstGame = gamesResponse.games[0]
-      if (firstGame) {
-        selectedGameId.value = firstGame.id
-        betType.value = firstGame.playTypes[0] || ''
-      }
-    }
-
-    balance.value = stateResponse.balance
-    recentBets.value = stateResponse.recentBets
-  } catch (error) {
-    errorMessage.value = '讀取資料失敗，請稍後重試。'
-  } finally {
-    loading.value = false
-  }
+const state = reactive({
+  list: [] as LobbyItem[],
+})
+const init = () => {
+  state.list = GET_CONT.lotteryAll()
 }
-
-const placeBet = async () => {
-  message.value = ''
-  errorMessage.value = ''
-  if (!selectedGameId.value) {
-    errorMessage.value = '請先選擇遊戲。'
-    return
-  }
-
-  submitting.value = true
-  try {
-    const response = await $fetch<{ message: string; balance: number; bet: BetRecord }>(
-      '/api/lottery/bet',
-      {
-        method: 'POST',
-        body: {
-          gameId: selectedGameId.value,
-          betType: betType.value,
-          number: numberInput.value,
-          amount: amount.value
-        }
-      }
-    )
-
-    balance.value = response.balance
-    recentBets.value = [response.bet, ...recentBets.value].slice(0, 10)
-    message.value = `${response.message}，注單 ${response.bet.id}`
-    numberInput.value = ''
-  } catch (error: any) {
-    errorMessage.value = error?.data?.statusMessage || '下注失敗，請確認輸入內容。'
-  } finally {
-    submitting.value = false
+const click = {
+  start: (key: string) => {
+    const target = ROUTE_DICT[key]
+    if (!target) return
+    router.push(target)
   }
 }
 
 onMounted(() => {
-  if (!isLoggedIn.value) {
-    router.replace('/login')
-    return
-  }
-  loadHallData()
-
-  timer = setInterval(() => {
-    if (countDownSeconds.value <= 0) {
-      countDownSeconds.value = 600
-      return
-    }
-    countDownSeconds.value -= 1
-  }, 1000)
+  init()
 })
 
-onUnmounted(() => {
-  if (timer) clearInterval(timer)
-})
-
-watch(selectedCategory, () => {
-  const nextGame = filteredGames.value[0]
-  if (!nextGame) {
-    selectedGameId.value = null
-    betType.value = ''
-    return
-  }
-  selectedGameId.value = nextGame.id
-  betType.value = nextGame.playTypes[0] || ''
-})
-
-watch(selectedGame, (nextGame) => {
-  if (!nextGame) {
-    betType.value = ''
-    return
-  }
-  if (!nextGame.playTypes.includes(betType.value)) {
-    betType.value = nextGame.playTypes[0] || ''
-  }
-})
 </script>
 
 <template>
   <main class="lottery-bg mx-auto">
-    <section v-if="isCheckingAuth"
+    <!-- <section v-if="isCheckingAuth"
       class="mx-auto mt-6 max-w-[1240px] rounded-2xl border border-slate-200 bg-white p-6 px-3 pb-16 pt-4 text-slate-600">
       正在檢查登入狀態...
     </section>
@@ -238,13 +45,14 @@ watch(selectedGame, (nextGame) => {
       <NuxtLink to="/login" class="mt-4 inline-block font-semibold text-blue-600">
         前往登入
       </NuxtLink>
-    </section>
+    </section> -->
 
-    <section class="w-full h-full">
+    <section class="flex min-h-0 w-full flex-1 flex-col">
       <div class="header">
         <div class="top">
           <div class="container">
             <div class="left">
+              <NuxtLink to="/">HOME</NuxtLink>
               <div class="logo">
                 <!-- <img src="/images/logo.png" alt="logo" /> -->
               </div>
@@ -254,12 +62,36 @@ watch(selectedGame, (nextGame) => {
         </div>
         <div class="center">
           <div class="container">
-            HEADER
+            BG-LOTTERY
           </div>
         </div>
       </div>
 
-      <div class="main"></div>
+      <div class="main">
+        <div class="container">
+          <div class="flex w-full flex-wrap items-center gap-2 p-3">
+            <button v-for="category in state.list" :key="category.key" type="button"
+              class="rounded-md px-3 py-1.5 text-sm font-semibold transition"
+              @click="click.start(`${category.key}-CD`)">
+              {{ category.name }}
+            </button>
+          </div>
+
+          <div class="flex w-full flex-wrap items-center gap-2 p-3">
+            <button v-for="category in state.list" :key="category.key" type="button"
+              class="rounded-md px-3 py-1.5 text-sm font-semibold transition"
+              @click="click.start(`${category.key}-OF`)">
+              {{ category.name }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="container">
+          Copyright © 2026 HappyFatYoYo All Rights Reserved.
+        </div>
+      </div>
     </section>
 
 

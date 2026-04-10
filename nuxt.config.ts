@@ -8,6 +8,9 @@ export default defineNuxtConfig({
     port: 6100
   },
   css: ['~/assets/css/main.css'],
+  alias: {
+    app: new URL('./app', import.meta.url).pathname,
+  },
   vite: {
     plugins: [tailwindcss()]
   }
