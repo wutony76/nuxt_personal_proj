@@ -1,17 +1,11 @@
 <script setup lang="ts">
-type PlayModeKey = 'single' | 'duplex' | 'dantuo' | 'number'
-
-const use6hc = use6hcOfficial()
-
-const onSwitch = (mode: PlayModeKey) => {
-  use6hc.setMode(mode)
-}
+const { state: mxState, handle: mxHandle, click: mxClick } = use6hcOfficial()
 </script>
 
 <template>
   <section class="bar-tabs">
-    <button v-for="mode in use6hc.modeList" :key="mode.key" type="button" class="bar-tabs-btn"
-      :class="{ active: use6hc.state.mode === mode.key }" @click="onSwitch(mode.key)">
+    <button v-for="mode in mxHandle.modeList()" :key="mode.key" type="button" class="bar-tabs-btn"
+      :class="{ active: mxState.status === mode.key }" @click="mxClick.switch(mode.key)">
       {{ mode.label }}
     </button>
   </section>

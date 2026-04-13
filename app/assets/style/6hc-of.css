@@ -1,6 +1,11 @@
 :root {
+  --base-radius: 0.375rem;
+
   --color-red-main: #d53f53;
   --color-red-desc: #a94452;
+  --color-red-bets: #82181a;
+  --color-red-content: #f6d9de;
+  --color-yellow-text: #fecf13;
 
   --6hcOf-ball-red: #ff5a5a;
   --6hcOf-ball-blue: #58a6e8;

@@ -24,7 +24,7 @@ const playMap = {
 }
 
 const currentPlay = computed(() => {
-  const _key = (use6hc.state.status || GAME_6HC_OF.SINGLE) as keyof typeof playMap
+  const _key = (use6hc.state.status || GAME_6HC_OF.SINGLE.key) as keyof typeof playMap
   return playMap[_key] ?? SinglePlay
 })
 
@@ -76,6 +76,8 @@ const currentPlay = computed(() => {
     margin-top: 0.75rem;
     display: flex;
     gap: 0.75rem;
+    min-height: 200px;
+    align-items: stretch;
   }
 
   .info-side {
@@ -140,22 +142,29 @@ const currentPlay = computed(() => {
   }
 
   .info-main {
+    width: 100%;
+    min-height: 100%;
     flex: 1;
+    display: flex;
+    // background: var(--color-red-700);
+
+    .road-warp {
+      flex: 1;
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      // border: 1px solid var(--color-red-main);
+      border-radius: var(--base-radius);
+      // background: #fff;
+      background: var(--color-red-desc);
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
   }
 
-  .road-warp {
-    margin-left: 0.5rem;
-    min-height: 200px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #f6d9de;
-    border-radius: 0.375rem;
-    background: #fff;
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: var(--color-red-main);
-  }
 
   .play-warp {
     margin-top: 0.75rem;

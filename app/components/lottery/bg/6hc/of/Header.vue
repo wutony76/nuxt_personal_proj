@@ -115,7 +115,7 @@ const openBalls = computed(() => {
           <div class="main">
             <div class="ball-legend">
               <div class="ball-legend-title">
-                <span>號碼</span>
+                <span>開獎號碼</span>
               </div>
               <div class="ball-legend-counts">
                 <div class="ball-legend-count">相隔期數</div>
@@ -345,6 +345,7 @@ const openBalls = computed(() => {
             width: 45px;
             height: 45px;
             font-size: 26px;
+            cursor: default;
           }
 
           .plus {

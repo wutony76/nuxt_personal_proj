@@ -1,8 +1,8 @@
 // 定義 CONSTANTS
 export const GAME_6HC_OF = {
-  SINGLE: 'SINGLE',
-  DUPLEX: 'DUPLEX',
-  DANTUO: 'DANTUO',
+  SINGLE: { key: 'SINGLE', name: '自選單式' , sort: 1 },
+  DUPLEX: { key: 'DUPLEX', name: '自選複式' , sort: 2 },
+  DANTUO: { key: 'DANTUO', name: '自選膽拖' , sort: 3 },
 }
 
 export const LOTTERY = {
@@ -26,4 +26,5 @@ export const GET_CONT = {
   lotteryById: (id) => {
     return Object.values(LOTTERY).find((lottery) => lottery.id === id)
   },
+  
 }
