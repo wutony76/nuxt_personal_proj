@@ -59,6 +59,7 @@ const click = {
   gap: 5px;
 
   .footer {
+    height: 23px;
     display: flex;
     justify-content: flex-end;
     background: #fff;
@@ -73,7 +74,7 @@ const click = {
   .group-list {
     flex: 1 1 auto;
     min-height: 0;
-    overflow-y: auto;
+    overflow-y: scroll;
     overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: var(--color-red-desc) #e8e6e6;

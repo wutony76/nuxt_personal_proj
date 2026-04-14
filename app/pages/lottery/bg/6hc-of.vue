@@ -9,6 +9,7 @@ import DantuoPlay from '~/components/lottery/bg/6hc/of/Dantuo.vue'
 import NumberPlay from '~/components/lottery/bg/6hc/of/Number.vue'
 import Header from '~/components/lottery/bg/6hc/of/Header.vue'
 import BarTabs from '~/components/lottery/bg/6hc/of/BarTabs.vue'
+import RecordIssue from '~/components/lottery/bg/6hc/of/RecordIssue.vue'
 
 const state = reactive({
   lotteryId: LOTTERY['6HC'].id,
@@ -31,12 +32,10 @@ const currentPlay = computed(() => {
 </script>
 
 <template>
-  <div class="lottery-6hc-of">
+  <div class="base lottery-6hc-of">
     <LotteryBgBaseTop />
-
     <main class="main">
       <Header :data="state.lotteryInfo" />
-
       <section class="info-warp">
         <aside class="info-side">
           <div class="user-warp">
@@ -61,17 +60,24 @@ const currentPlay = computed(() => {
           </div>
         </div>
       </section>
-
       <section class="play-warp">
         <BarTabs />
         <component :is="currentPlay" />
       </section>
+      <section class="record-warp">
+        <RecordIssue />
+      </section>
     </main>
+    <section class="footer-warp"> footer</section>
   </div>
 </template>
 
 <style lang="scss">
 .lottery-6hc-of {
+  .main {
+    margin-bottom: 0;
+  }
+
   .info-warp {
     margin-top: 0.75rem;
     display: flex;
@@ -174,5 +180,25 @@ const currentPlay = computed(() => {
     padding: 0.75rem;
     box-shadow: 0 0.1rem 0.325rem rgba(0, 0, 0, 0.07);
   }
+
+
+  .record-warp {
+    margin-top: 0.75rem;
+  }
+
+
+  .footer-warp {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1.75rem;
+    min-height: 300px;
+    background: #e1d4d4;
+    border-top: 1px solid #dcb4b4;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
 }
 </style>

@@ -1,1 +1,36 @@
+:root {
+  --base-width: 1240px;
+  --base-radius: 0.375rem;
+
+  --color-red-main: #d53f53;
+  --color-red-desc: #a94452;
+  --color-red-bets: #82181a;
+  --color-red-content: #f6d9de;
+  --color-red-black-btn: #832632;
+  --color-yellow-black-btn: #fecf13;
+  --color-yellow-btn-text: #38300d;
+  --color-yellow-text: #fecf13;
+
+  --text: #1f1f1f;
+  --text-red: #ff5a5a;
+  --text-blue: #58a6e8;
+  --text-green: #00c300;
+  --text-gray: #797979;
+  --text-link: #409eff;
+
+  --6hcOf-ball-red: #ff5a5a;
+  --6hcOf-ball-blue: #58a6e8;
+  --6hcOf-ball-green: #00c66b;
+  --6hcOf-ball-yellow: #fecf13;
+}
+
+.base {
+  .main {
+    max-width: var(--base-width);
+    margin: 0 auto;
+    margin-top: 1rem;
+  }
+}
+
+
 @import "./6hc-of.css";

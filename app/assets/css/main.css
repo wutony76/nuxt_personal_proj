@@ -1,6 +1,4 @@
 @import "tailwindcss";
-@import "./lottery.css";
-@import "./lottery/6hc-of.css";
 
 @layer base {
   body {
