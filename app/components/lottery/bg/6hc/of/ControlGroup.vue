@@ -78,6 +78,10 @@ const click = {
     scrollbar-width: thin;
     scrollbar-color: var(--color-red-desc) #e8e6e6;
 
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+
     &::-webkit-scrollbar {
       width: 8px;
     }

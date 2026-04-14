@@ -1,8 +1,8 @@
 <script setup lang="ts">
-
 const MIN_COIN = 1
 const MAX_COIN = 99999
 const { $dialog } = useNuxtApp()
+const { state: mxState, handle: mxHandle } = use6hcOfficial()
 
 const state = reactive({
   options: [5, 20, 100, 500, 900],
@@ -35,7 +35,13 @@ const click = {
     state.coin = handle.normalizeCoin(state.coin + value)
   },
   bet: () => {
-    console.log('bet')
+    const _bets = mxState.groupList.length
+    console.log('bet.count.', _bets)
+    if (_bets === 0) return $dialog.alert('請先加入注單')
+    const _totalMoney = _bets * state.coin
+    console.log('bet._total.', _totalMoney)
+    // if (_totalMoney > mxState.balance) return $dialog.alert('餘額不足')
+    // mxHandle.submitBet()
   }
 }
 </script>
