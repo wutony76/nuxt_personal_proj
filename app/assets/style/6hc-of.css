@@ -5,10 +5,45 @@
   --color-red-desc: #a94452;
   --color-red-bets: #82181a;
   --color-red-content: #f6d9de;
+  --color-red-black-btn: #832632;
+  --color-yellow-black-btn: #fecf13;
+  --color-yellow-btn-text: #38300d;
   --color-yellow-text: #fecf13;
+
+  --text: #1f1f1f;
+  --text-red: #ff5a5a;
+  --text-blue: #58a6e8;
+  --text-green: #00c300;
+  --text-gray: #797979;
+  --text-link: #409eff;
 
   --6hcOf-ball-red: #ff5a5a;
   --6hcOf-ball-blue: #58a6e8;
   --6hcOf-ball-green: #00c66b;
   --6hcOf-ball-yellow: #fecf13;
+}
+
+.lottery-6hc-of {
+  .action-btn {
+    border: 1px solid var(--color-red-main);
+    border-radius: 4px;
+    background: var(--color-red-main);
+    color: #fff;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+
+    &.ghost {
+      background: #fff;
+      color: var(--color-red-main);
+    }
+
+    &.bet {
+      width: 124px;
+      background: var(--color-yellow-black-btn);
+      border: 1px solid #e98e5c;
+      color: var(--color-yellow-btn-text);
+    }
+  }
 }

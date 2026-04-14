@@ -1,15 +1,21 @@
 <script setup lang="ts">
 import Ball from '~/components/lottery/bg/6hc/of/Ball.vue'
 
+const { $dialog } = useNuxtApp()
 const { state: mxState, handle: mxHandle } = use6hcOfficial()
 
 const selectedCount = computed(() => {
-  return mxState.playList.filter(item => item.selected).length
+  return mxState.isSelector.length
 })
 
-const onPick = (num: number | string) => {
-  mxHandle.toggleSelect(Number(num))
+const click = {
+  select: (play: any) => {
+    const _select = play.selected
+    if (!_select && mxState.limit.max === mxState.isSelector.length) return $dialog.alert('此注選號已滿')
+    play.selected = !play.selected
+  }
 }
+
 </script>
 
 <template>
@@ -19,8 +25,9 @@ const onPick = (num: number | string) => {
       <span class="picked">已選 {{ selectedCount }} 碼</span>
     </div>
     <div class="grid">
-      <button v-for="item in mxState.playList" :key="item.id" type="button" class="ball-btn" @click="onPick(item.num)">
-        <Ball :data="item" />
+      <button v-for="play in mxState.playList" :key="play.id" type="button" class="ball-btn"
+        @click="click.select(play)">
+        <Ball :data="play" />
       </button>
     </div>
   </div>

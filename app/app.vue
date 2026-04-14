@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from './composables/useAuth'
+import Dialog from './components/Dialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,7 +28,6 @@ const handleLogout = () => {
       :user-name="user?.name"
       @logout="handleLogout"
     />
-
     <NuxtPage />
   </div> -->
 
@@ -35,5 +35,6 @@ const handleLogout = () => {
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
+    <Dialog />
   </div>
 </template>

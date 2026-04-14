@@ -1,6 +1,11 @@
 <script setup lang="ts">
+import { cloneDeep } from 'lodash'
+import { _uuid2 } from '~/utils/encrypt'
+import ControlGroup from './ControlGroup.vue';
 import ControlCoin from '~/components/lottery/bg/6hc/of/ControlCoin.vue'
 import { GAME_6HC_OF } from '~/config/constants'
+
+const { $dialog } = useNuxtApp()
 
 const props = withDefaults(defineProps<{
   hint?: string
@@ -8,42 +13,88 @@ const props = withDefaults(defineProps<{
   hint: '單式玩法需選 7 碼'
 })
 
-const emit = defineEmits<{
-  add: []
-}>()
-
 const { state: mxState, handle: mxHandle } = use6hcOfficial()
 
-const onRandom = () => {
-  const count = mxState.status === GAME_6HC_OF.SINGLE.key ? 7 : 8
-  mxHandle.randomSelect(count)
+const handle = {
+  random: (max = 7) => {
+    const targetCount = Math.max(1, Math.min(mxState.playList.length, Number(max) || 7))
+    const selectedSet = new Set(
+      mxState.playList.filter((item) => item.selected).map((item) => Number(item.num))
+    )
+
+    // 如果已達到需求數量，改為整組重新隨機。
+    if (selectedSet.size >= targetCount) {
+      const nextSet = new Set(
+        [...mxState.playList]
+          .sort(() => Math.random() - 0.5)
+          .slice(0, targetCount)
+          .map((item) => Number(item.num))
+      )
+
+      const next = mxState.playList.map((item) => ({ ...item, selected: nextSet.has(Number(item.num)) }))
+      mxState.playList = next
+      return
+    }
+
+    const needCount = targetCount - selectedSet.size
+    const candidates = mxState.playList
+      .filter((item) => !selectedSet.has(Number(item.num)))
+      .sort(() => Math.random() - 0.5)
+      .slice(0, needCount)
+
+    candidates.forEach((item) => {
+      selectedSet.add(Number(item.num))
+    })
+
+    const next = mxState.playList.map((item) => ({ ...item, selected: selectedSet.has(Number(item.num)) }))
+    mxState.playList = next
+  }
 }
 
-const onClear = () => {
-  mxHandle.clearSelect()
+const click = {
+  random: () => {
+    switch (mxState.status) {
+      case GAME_6HC_OF.SINGLE.key:
+        handle.random(7)
+        break
+      case GAME_6HC_OF.DUPLEX.key:
+        // mxHandle.randomSelect(8)
+        break
+    }
+  },
+  clear: () => {
+    mxHandle.clearSelect()
+  },
+  add: () => {
+    const _count = mxState.isSelector.length
+    const _limit = mxState.limit.max
+    if (_count !== _limit) return $dialog.alert('單式玩法需選 7 碼')
+    const _bet = {
+      hashKey: _uuid2(),
+      playList: cloneDeep(mxState.isSelector),
+    }
+    mxState.groupList.push(_bet)
+    mxHandle.clearSelect()
+  }
 }
 
-const onAdd = () => {
-  emit('add')
-}
 </script>
 
 <template>
   <div class="controls">
     <div class="controls-actions">
       <div class="left">
-        <button type="button" class="action-btn" @click="onRandom">隨機選號</button>
-        <button type="button" class="action-btn" @click="onAdd">加入</button>
+        <button type="button" class="action-btn" @click="click.random()">隨機選號</button>
+        <button type="button" class="action-btn" @click="click.add()">加入</button>
       </div>
       <div class="right">
-        <button type="button" class="action-btn ghost" @click="onClear">清空</button>
+        <button type="button" class="action-btn ghost" @click="click.clear()">清空</button>
       </div>
     </div>
 
     <div class="hint">{{ props.hint }}</div>
-    <div class="group">
-      <slot />
-    </div>
+    <!-- <div class="group"> </div> -->
+    <ControlGroup />
     <ControlCoin />
   </div>
 </template>
@@ -53,7 +104,9 @@ const onAdd = () => {
   background: #fff7f8;
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 0 0 28%;
+  width: 28%;
+  min-width: 0;
   border: 1px solid #fee2e2;
   border-radius: 6px;
   padding: 12px;
@@ -91,13 +144,6 @@ const onAdd = () => {
     color: var(--color-red-desc);
   }
 
-  .group {
-    background: #fff;
-    flex: 1;
-    overflow-y: auto;
-    border: 1px solid #fee2e2;
-    border-radius: var(--base-radius);
-    min-height: 120px;
-  }
+
 }
 </style>

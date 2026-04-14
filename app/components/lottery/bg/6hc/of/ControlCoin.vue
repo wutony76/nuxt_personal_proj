@@ -1,6 +1,8 @@
 <script setup lang="ts">
+
 const MIN_COIN = 1
 const MAX_COIN = 99999
+const { $dialog } = useNuxtApp()
 
 const state = reactive({
   options: [5, 20, 100, 500, 900],
@@ -11,37 +13,49 @@ const handle = {
   normalizeCoin: (value: number) => {
     const safe = Number.isFinite(value) ? Math.trunc(value) : MIN_COIN
     return Math.min(MAX_COIN, Math.max(MIN_COIN, safe))
+  },
+  input: (event: Event) => {
+    const target = event.target as HTMLInputElement
+    const value = Number(target.value)
+
+    if (value > MAX_COIN) {
+      state.coin = MAX_COIN
+      target.value = String(MAX_COIN)
+      $dialog.alert('已超過單注最大額')
+      return
+    }
+
+    state.coin = handle.normalizeCoin(value)
+    target.value = String(state.coin)
   }
 }
 
 const click = {
   add: (value: number) => {
     state.coin = handle.normalizeCoin(state.coin + value)
+  },
+  bet: () => {
+    console.log('bet')
   }
-}
-
-const addCoin = (value: number) => {
-  state.coin = handle.normalizeCoin(state.coin + value)
-}
-
-const onCoinInput = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  state.coin = handle.normalizeCoin(Number(target.value))
 }
 </script>
 
 <template>
   <div class="control-coin">
-    <div class="left">
+    <div class="row-1">
       <button v-for="item in state.options" :key="item" type="button" class="coin-btn" @click="click.add(item)">
         +{{ item }}
       </button>
     </div>
-    <div class="right">
-      <label class="coin-label" for="coin-input">投注金額</label>
-      <input id="coin-input" :value="state.coin" type="number" min="1" max="99999" step="1" class="coin-input"
-        @input="onCoinInput" @blur="onCoinInput" />
-      <!-- <span class="coin-tip"> 1 ~ 99999</span> -->
+    <div class="row-2">
+      <div class="left">
+        <label class="coin-label" for="coin-input">投注金額</label>
+        <input id="coin-input" :value="state.coin" type="number" min="1" max="99999" step="1" class="coin-input"
+          @input="handle.input" @blur="handle.input" />
+      </div>
+      <div class="right">
+        <button type="button" class="action-btn bet" @click="click.bet"> 投注 </button>
+      </div>
     </div>
   </div>
 </template>
@@ -53,7 +67,7 @@ const onCoinInput = (event: Event) => {
   gap: 5px;
   background: #fff7f8;
 
-  .left {
+  .row-1 {
     display: flex;
     justify-content: space-between;
     gap: 5px;
@@ -76,32 +90,39 @@ const onCoinInput = (event: Event) => {
     }
   }
 
-  .right {
+  .row-2 {
     display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: space-between;
 
-    .coin-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--color-red-desc);
-    }
+    .left {
+      display: flex;
+      align-items: center;
+      gap: 4px;
 
-    .coin-input {
-      width: 110px;
-      border: 1px solid #f3b7bf;
-      border-radius: 4px;
-      background: #fff;
-      padding: 4px 8px;
-      text-align: right;
-      font-size: 13px;
-      color: var(--color-red-main);
-      outline: none;
-
-      &:focus {
-        border-color: var(--color-red-main);
-        box-shadow: 0 0 0 2px rgba(213, 63, 83, 0.12);
+      .coin-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-red-desc);
       }
+
+      .coin-input {
+        width: 112px;
+        border: 1px solid #f3b7bf;
+        border-radius: 4px;
+        background: #fff;
+        padding: 4px 8px;
+        text-align: right;
+        font-size: 13px;
+        color: var(--color-red-main);
+        outline: none;
+
+        &:focus {
+          border-color: var(--color-red-main);
+          box-shadow: 0 0 0 2px rgba(213, 63, 83, 0.12);
+        }
+      }
+
     }
 
     .coin-tip {
