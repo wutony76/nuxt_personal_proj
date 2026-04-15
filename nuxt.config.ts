@@ -7,7 +7,7 @@ export default defineNuxtConfig({
   devServer: {
     port: 6100
   },
-  css: ['~/assets/style/base.css', '~/assets/css/main.css'],
+  css: ['~/assets/style/base.scss', '~/assets/css/main.css'],
   alias: {
     app: new URL('./app', import.meta.url).pathname,
   },

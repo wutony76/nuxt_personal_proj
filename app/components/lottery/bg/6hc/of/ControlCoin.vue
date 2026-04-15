@@ -128,7 +128,6 @@ const click = {
           box-shadow: 0 0 0 2px rgba(213, 63, 83, 0.12);
         }
       }
-
     }
 
     .coin-tip {
