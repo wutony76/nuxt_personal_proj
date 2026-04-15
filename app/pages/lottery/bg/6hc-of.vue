@@ -74,7 +74,15 @@ const currentPlay = computed(() => {
 
 <style lang="scss">
 .lottery-6hc-of {
-  .main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+
+  >.main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     margin-bottom: 0;
   }
 
@@ -183,6 +191,11 @@ const currentPlay = computed(() => {
 
 
   .record-warp {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 500px;
     margin-top: 0.75rem;
   }
 

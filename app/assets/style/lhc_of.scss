@@ -28,4 +28,95 @@
     border: 1px solid var(--color-red-700);
     border-radius: 0.5rem;
   }
+
+  /* 報表投注明細表（原 pcv2 .lt-table / .table-bet，變數改為本專案色票） */
+  $report-table-border: var(--color-red-content);
+  $report-table-header-bg: color-mix(in srgb, var(--color-red-main) 8%, #fff);
+  $report-table-header-ft: var(--color-red-desc);
+  $report-table-total-bg: color-mix(in srgb, var(--color-red-main) 5%, #f9f9f9);
+
+  .report-table {
+    width: 100%;
+    border: 1px solid $report-table-border;
+    border-collapse: collapse;
+
+    tr {
+      min-height: 35px;
+
+      td,
+      th {
+        border-right: 1px solid $report-table-border;
+        border-bottom: 1px solid $report-table-border;
+        padding: 6px 4px;
+        text-align: center;
+        font-size: 12px;
+
+        &:last-child {
+          border-right: none;
+        }
+      }
+
+      &:first-child th {
+        height: 40px;
+        background: $report-table-header-bg;
+        color: $report-table-header-ft;
+        font-weight: 700;
+      }
+
+      &:last-child td,
+      &:last-child th {
+        border-bottom: none;
+      }
+    }
+
+    tr.total-row td {
+      background: $report-table-total-bg;
+      font-weight: 600;
+    }
+
+    tr.tr-no-records .no-records {
+      height: 120px;
+      color: var(--color-red-desc);
+      vertical-align: middle;
+    }
+  }
+
+  .table-bet {
+    table-layout: fixed;
+
+    .col-id {
+      width: 120px;
+    }
+
+    .col-time {
+      width: 88px;
+    }
+
+    .col-issue {
+      width: 100px;
+    }
+
+    .col-bet {
+      width: 23.5%;
+      padding: 3px 5px;
+      text-align: center;
+    }
+
+    .col-spTpl {
+      width: 40px;
+    }
+
+    .col-status {
+      width: 56px;
+    }
+
+    td:not(.col-id):not(.col-time):not(.col-issue):not(.col-bet):not(.col-spTpl):not(.col-status) {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    &.table-2033 .col-bet {
+      text-align: left;
+    }
+  }
 }

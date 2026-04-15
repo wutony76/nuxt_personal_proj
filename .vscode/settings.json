@@ -2,7 +2,7 @@
   "[vue]": {
     "editor.defaultFormatter": "Vue.volar",
     "editor.inlineSuggest.enabled": true,
-    "editor.inlineSuggest.suppressSuggestions": false,
+    "editor.inlineSuggest.suppressSuggestions": true,
     "editor.tabCompletion": "on",
     "editor.quickSuggestions": {
       "other": true,

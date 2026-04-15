@@ -1,21 +1,23 @@
+<script setup lang="ts">
+import report from '~/components/lottery/bg/6hc/of/ReportIssueBets.vue'
+
+
+</script>
+
 <template>
   <div class="block-main record-issue">
-    <div class="header">RecordIssue</div>
+    <div class="header"> 當期注單 </div>
     <div class="main">
-      MAIN
+      <report />
     </div>
   </div>
 </template>
 
-<script>
-export default {
-
-}
-</script>
-
 <style scoped lang="scss">
 .record-issue {
-  width: 100%;
+  width: 60%;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -29,14 +31,20 @@ export default {
   }
 
   .header {
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--color-red-700);
+    // padding-bottom: 6px;
+    // border-bottom: 1px solid var(--color-red-700);
+    font-size: 14px;
     font-weight: 700;
     color: var(--color-red-main);
   }
 
   .main {
-    min-height: 32px;
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
   }
 
 }
