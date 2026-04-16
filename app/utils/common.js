@@ -29,3 +29,15 @@ export function secureRandomInt(min, max) {
     }
   }
 }
+
+export const actions = {
+  thousands: (val) => {
+    const num = Number(val)
+    if (!Number.isFinite(num)) return '0'
+    return Math.trunc(num).toLocaleString('en-US')
+  }
+}
+
+
+
+

@@ -62,12 +62,17 @@ const click = {
 
 .grid {
   display: grid;
+  margin-top: 30px;
   grid-template-columns: repeat(10, minmax(0, 1fr));
+  align-items: center;
   gap: 10px;
   padding: 12px;
 }
 
 .ball-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
   background: transparent;
   padding: 0;

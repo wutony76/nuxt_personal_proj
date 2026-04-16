@@ -5,9 +5,10 @@
       <span>{{ displayNumber }}</span>
     </div>
 
-    <div v-if="isShowIssue || isShowCount" class="count-wrap">
+    <div v-if="isShowIssue || isShowCount || isShowBetsCount" class="count-wrap">
       <div v-if="isShowIssue" class="count"> {{ props.data?.countIssue }} </div>
       <div v-if="isShowCount" class="count"> {{ props.data?.countShow }} </div>
+      <div v-if="isShowBetsCount" class="count"> {{ props.data?.countBets }} </div>
     </div>
   </div>
 </template>
@@ -45,6 +46,9 @@ const isShowIssue = computed(() => {
 })
 const isShowCount = computed(() => {
   return props.data?.countShow >= 0 || false
+})
+const isShowBetsCount = computed(() => {
+  return props.data?.countBets >= 0 || false
 })
 
 

@@ -24,9 +24,7 @@ const STATUS_MAP = new Map<number, string>([
   [7, 'refund'],
 ])
 
-const state = reactive({
-  detail: [] as ReportIssueBetRow[],
-})
+const { current: mxCurrent } = use6hcOfficial()
 
 // TODO: TTT.TEST.DATA 可調整測試資料筆數（0 = 顯示暫無資料）
 const MOCK_DETAIL_COUNT = 20
@@ -34,7 +32,7 @@ const handle = {}
 const init = {
   run: () => {
     // TODO: TTT.TEST.DATA 後端資料
-    state.detail = Array.from({ length: MOCK_DETAIL_COUNT }, (_, idx) => ({
+    mxCurrent.detail = Array.from({ length: MOCK_DETAIL_COUNT }, (_, idx) => ({
       id: String(1234567890 + idx),
       time: '10:00:00',
       bets: ['1', '2', '3', '4', '5', '6', '7'],
@@ -44,10 +42,10 @@ const init = {
   }
 }
 
-const hasData = computed(() => state.detail.length > 0)
+const hasData = computed(() => mxCurrent.detail.length > 0)
 const betListPage = ref(1)
 const betListPageSize = ref(10)
-const betListTotal = computed(() => state.detail.length)
+const betListTotal = computed(() => mxCurrent.detail.length)
 const tableScrollRef = ref<HTMLElement | null>(null)
 const hasVerticalScroll = ref(false)
 let tableResizeObserver: ResizeObserver | null = null
@@ -77,7 +75,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', syncScrollState)
 })
 
-watch(() => state.detail.length, () => {
+watch(() => mxCurrent.detail.length, () => {
   nextTick(syncScrollState)
 })
 init.run()
@@ -104,7 +102,7 @@ init.run()
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(detail, rowIdx) in state.detail" :key="rowIdx">
+          <tr v-for="(detail, rowIdx) in mxCurrent.detail" :key="rowIdx">
             <td class="col-id">{{ detail.id }}</td>
             <td class="col-time">{{ detail.time }}</td>
             <td class="col-bet">

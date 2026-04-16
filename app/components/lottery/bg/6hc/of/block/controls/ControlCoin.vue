@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { actions } from '~/utils/common'
+
 const MIN_COIN = 1
 const MAX_COIN = 99999
 const { $dialog } = useNuxtApp()
@@ -60,8 +62,15 @@ const click = {
           @input="handle.input" @blur="handle.input" />
       </div>
       <div class="right">
-        <button type="button" class="action-btn bet" @click="click.bet"> 投注 </button>
+        <!-- <button type="button" class="action-btn bet" @click="click.bet"> 投注 </button> -->
+        <div class="total-amount">
+          總投注： {{ actions.thousands(mxState.groupList.length * state.coin) }}
+        </div>
       </div>
+
+    </div>
+    <div>
+      <button type="button" class="action-btn bet" @click="click.bet"> 投注 </button>
     </div>
   </div>
 </template>
@@ -72,6 +81,20 @@ const click = {
   flex-direction: column;
   gap: 5px;
   background: #fff7f8;
+
+  .action-btn.bet {
+    margin-top: 10px;
+
+    width: 100%;
+    height: 45px;
+    font-size: 14px;
+    transition: filter 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+      filter: brightness(1.08) saturate(1.2);
+      transform: translateY(-1px);
+    }
+  }
 
   .row-1 {
     display: flex;
@@ -127,6 +150,14 @@ const click = {
           border-color: var(--color-red-main);
           box-shadow: 0 0 0 2px rgba(213, 63, 83, 0.12);
         }
+      }
+    }
+
+    .right {
+      .total-amount {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-red-desc);
       }
     }
 

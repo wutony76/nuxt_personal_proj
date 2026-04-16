@@ -12,6 +12,13 @@ export const LOTTERY = {
   'SSC':{ id: 4001, key: 'SSC', name: '時時彩', sort: 4 },
 } 
 
+export const SORT = {
+  DEFAULT: 'default',
+  BET_COUNT_USER: 'bet_count_user',
+  OPEN_COUNT_SYSTEM: 'open_count_system',
+  GAP_ISSUE_SYSTEM: 'gap_issue_system',
+}
+
 // CONTROLS ARG
 export const FLAG = {
   OPEN: 1,

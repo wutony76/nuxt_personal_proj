@@ -1,6 +1,6 @@
 import { cloneDeep } from 'lodash'
 import { reactive } from 'vue'
-import { GAME_6HC_OF } from '~/config/constants'
+import { GAME_6HC_OF, SORT } from '~/config/constants'
 import { PLAYLIST } from '~/config/bg/6hc-of'
 
 const state = reactive({
@@ -9,11 +9,29 @@ const state = reactive({
   playList: [] as any[],
   // INFO
   limit: { min: -1, max: -1 },
-  isSelector: [],
+  isSelector: null as any,
   // Controller
   groupList: [] as any[],
   coin: 1,
 })
+const current = reactive({
+  detail: []
+})
+const system = reactive({
+  playList: [] as any[],
+})
+const analyze = reactive({
+  status: SORT.DEFAULT,
+})
+
+const mockSystemCounts = (num: number) => {
+  // Keep SSR/CSR initial render deterministic to avoid hydration mismatch.
+  return {
+    countIssue: (num * 7 + 3) % 40,
+    countShow: (num * 11 + 5) % 99,
+  }
+}
+
 
 const handle = {
   modeList: () => {
@@ -58,15 +76,27 @@ const init = {
         return []
     }
   },
+  run: () => {
+    handle.newGame(state.status)
+    // TEST.DATA
+    system.playList = cloneDeep(PLAYLIST.slice(0, 49)).map((item) => {
+      const num = Number(item.num) || 0
+      const counts = mockSystemCounts(num)
+      return {
+        ...item,
+        ...counts,
+      }
+    })
+    console.log('sys.playList', system.playList)
+  }
 }
 
 state.isSelector = computed(() => {
   return state.playList.filter(item => item.selected)
 })
 
-
-handle.newGame(state.status)
+init.run()
 
 export function use6hcOfficial() {
-  return { state, handle, click }
+  return { state, current, system, analyze, handle, init, click }
 }
