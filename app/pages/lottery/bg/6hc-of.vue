@@ -7,9 +7,10 @@ import SinglePlay from '~/components/lottery/bg/6hc/of/Single.vue'
 import DuplexPlay from '~/components/lottery/bg/6hc/of/Duplex.vue'
 import DantuoPlay from '~/components/lottery/bg/6hc/of/Dantuo.vue'
 import NumberPlay from '~/components/lottery/bg/6hc/of/Number.vue'
-import Header from '~/components/lottery/bg/6hc/of/Header.vue'
-import BarTabs from '~/components/lottery/bg/6hc/of/BarTabs.vue'
-import RecordIssue from '~/components/lottery/bg/6hc/of/RecordIssue.vue'
+import Header from '~/components/lottery/bg/6hc/of/block/Header.vue'
+import BarTabs from '~/components/lottery/bg/6hc/of/base/BarTabs.vue'
+import RecordIssue from '~/components/lottery/bg/6hc/of/block/record/RecordIssue.vue'
+import RecordAnalyze from '~/components/lottery/bg/6hc/of/block/record/RecordAnalyze.vue'
 
 const state = reactive({
   lotteryId: LOTTERY['6HC'].id,
@@ -66,6 +67,7 @@ const currentPlay = computed(() => {
       </section>
       <section class="record-warp">
         <RecordIssue />
+        <RecordAnalyze />
       </section>
     </main>
     <section class="footer-warp"> footer</section>
@@ -193,10 +195,11 @@ const currentPlay = computed(() => {
   .record-warp {
     flex: 1 1 auto;
     display: flex;
-    flex-direction: column;
+    // flex-direction: column;
     min-height: 0;
     height: 500px;
     margin-top: 0.75rem;
+    gap: 0.75rem;
   }
 
 
@@ -204,7 +207,7 @@ const currentPlay = computed(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: 1.75rem;
+    margin-top: 1.2rem;
     min-height: 300px;
     background: #e1d4d4;
     border-top: 1px solid #dcb4b4;

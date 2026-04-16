@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import Ball from '~/components/lottery/bg/6hc/of/Ball.vue'
+import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'
 
 type OpenCodeItem = string | number | { num?: string | number; animal?: string }
 

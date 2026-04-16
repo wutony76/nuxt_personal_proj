@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { GAME_6HC_OF } from '~/config/constants'
-import Controls from '~/components/lottery/bg/6hc/of/Controls.vue'
-import Selector from '~/components/lottery/bg/6hc/of/Selector.vue'
+import Controls from '~/components/lottery/bg/6hc/of/block/controls/Controls.vue'
+import Selector from '~/components/lottery/bg/6hc/of/block/Selector.vue'
 
 const { handle: mxHandle } = use6hcOfficial()
 const state = reactive({

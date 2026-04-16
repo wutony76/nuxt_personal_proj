@@ -26,7 +26,7 @@
   .block-main {
     padding: 0.75rem;
     border: 1px solid var(--color-red-700);
-    border-radius: 0.5rem;
+    border-radius: var(--base-radius);
   }
 
   /* 報表投注明細表（原 pcv2 .lt-table / .table-bet，變數改為本專案色票） */
@@ -74,10 +74,15 @@
       font-weight: 600;
     }
 
-    tr.tr-no-records .no-records {
-      height: 120px;
-      color: var(--color-red-desc);
-      vertical-align: middle;
+    tr.tr-no-records {
+      height: 100%;
+
+      .no-records {
+        height: 100%;
+        min-height: 120px;
+        color: var(--color-red-desc);
+        vertical-align: middle;
+      }
     }
   }
 

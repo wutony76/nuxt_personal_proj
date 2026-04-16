@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import report from '~/components/lottery/bg/6hc/of/ReportIssueBets.vue'
+import ReportIssueBets from '~/components/lottery/bg/6hc/of/block/record/ReportIssueBets.vue'
 
 
 </script>
@@ -8,7 +8,7 @@ import report from '~/components/lottery/bg/6hc/of/ReportIssueBets.vue'
   <div class="block-main record-issue">
     <div class="header"> 當期注單 </div>
     <div class="main">
-      <report />
+      <ReportIssueBets />
     </div>
   </div>
 </template>
@@ -16,7 +16,7 @@ import report from '~/components/lottery/bg/6hc/of/ReportIssueBets.vue'
 <style scoped lang="scss">
 .record-issue {
   width: 60%;
-  flex: 1 1 auto;
+  flex: 0 0 60%;
   min-height: 0;
   display: flex;
   flex-direction: column;

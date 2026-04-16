@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Ball from '~/components/lottery/bg/6hc/of/Ball.vue'
+import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'
 
 const { $dialog } = useNuxtApp()
 const { state: mxState, handle: mxHandle } = use6hcOfficial()
