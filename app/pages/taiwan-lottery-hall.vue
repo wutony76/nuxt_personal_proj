@@ -52,8 +52,8 @@ const loadLastNumber = async () => {
   }
 }
 
-onMounted(() => {
-  init()
+onMounted(async () => {
+  await init()
   if (!isLoggedIn.value) {
     router.replace('/login')
     return

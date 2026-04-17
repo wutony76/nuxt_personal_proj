@@ -8,8 +8,8 @@ const { user, initialized, isLoggedIn, init } = useAuth()
 
 const isCheckingAuth = computed(() => !initialized.value)
 
-onMounted(() => {
-  init()
+onMounted(async () => {
+  await init()
   if (!isLoggedIn.value) {
     router.replace('/login')
   }

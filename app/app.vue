@@ -9,12 +9,12 @@ const router = useRouter()
 const { user, isLoggedIn, init, logout } = useAuth()
 const isImmersiveGameRoute = computed(() => route.path.startsWith('/game/'))
 
-onMounted(() => {
-  init()
+onMounted(async () => {
+  await init()
 })
 
-const handleLogout = () => {
-  logout()
+const handleLogout = async () => {
+  await logout()
   router.push('/')
 }
 </script>

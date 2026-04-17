@@ -6,19 +6,28 @@ import { useAuth } from '../composables/useAuth'
 const email = ref('')
 const password = ref('')
 const errorMessage = ref('')
+const isSubmitting = ref(false)
 
 const router = useRouter()
 const { isLoggedIn, init, login } = useAuth()
 
-onMounted(() => {
-  init()
+onMounted(async () => {
+  await init()
   if (isLoggedIn.value) {
     router.replace('/admin')
   }
 })
 
-const handleLogin = () => {
-  const result = login(email.value, password.value)
+const handleLogin = async () => {
+  if (isSubmitting.value) {
+    return
+  }
+
+  errorMessage.value = ''
+  isSubmitting.value = true
+  const result = await login(email.value, password.value)
+  isSubmitting.value = false
+
   if (!result.ok) {
     errorMessage.value = result.message
     return
@@ -60,10 +69,11 @@ const handleLogin = () => {
 
       <button
         type="button"
-        class="mt-4 w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+        :disabled="isSubmitting"
+        class="mt-4 w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         @click="handleLogin"
       >
-        登入
+        {{ isSubmitting ? '登入中...' : '登入' }}
       </button>
     </section>
   </main>

@@ -27,7 +27,7 @@ type BetRecord = {
 }
 
 const router = useRouter()
-const { user, initialized, isLoggedIn } = useAuth()
+const { user, initialized, isLoggedIn, init } = useAuth()
 
 const isCheckingAuth = computed(() => !initialized.value)
 
@@ -180,7 +180,8 @@ const placeBet = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await init()
   if (!isLoggedIn.value) {
     router.replace('/login')
     return

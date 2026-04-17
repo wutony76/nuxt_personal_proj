@@ -2,6 +2,7 @@ import Base64 from 'crypto-js/enc-base64'
 import encUtf8 from 'crypto-js/enc-utf8'
 import sha256 from 'crypto-js/sha256'
 import Hex from 'crypto-js/enc-hex'
+import { compareSync, hashSync } from 'bcryptjs'
 
 export function APIEncryptParams(obj) {
   if (!window.getRPCJsonParam) return obj
@@ -12,29 +13,35 @@ function getRandomInt(max, min = 0) {
   return Math.floor(Math.random() * (max + 1 - min)) + min
 }
 
+// __UUID__
 export function _uuid() {
-  let d = Date.now()
+  var d = Date.now()
   if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
-    d += performance.now()
+    d += performance.now() //use high-precision timer if available
   }
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = (d + Math.random() * 16) % 16 | 0
+    var r = (d + Math.random() * 16) % 16 | 0
     d = Math.floor(d / 16)
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
   })
 }
 
+// __短UUID(b64url)__
 export function _uuid2() {
-  const bytes = new Uint8Array(16)
-  globalThis.crypto.getRandomValues(bytes)
-  let binary = ''
+  const bytes = new Uint8Array(16) // 宣告一個 128bit 空間
+  globalThis.crypto.getRandomValues(bytes) // 填入隨機值
+  let binary = '' // 將 bytes 轉換為 binary 字串
   bytes.forEach((byte) => {
     binary += String.fromCharCode(byte)
   })
-  const b64 = typeof btoa === 'function' ? btoa(binary) : ''
+  const b64 = // 將 binary 字串轉換為 b64url 字串
+    typeof btoa === 'function'
+      ? btoa(binary)
+      : Buffer.from(bytes).toString('base64')
   return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
 }
 
+// __BASE64__
 export function encodeBase64(_data) {
   return Base64.stringify(encUtf8.parse(_data))
 }
@@ -42,19 +49,21 @@ export function encodeBase64(_data) {
 export function decodeBase64(_dataB64) {
   try {
     return Base64.parse(_dataB64).toString(encUtf8)
-  } catch {
+  } catch (e) {
+    console.log('err.decodeBase64.', _dataB64)
     return _dataB64
   }
 }
 
+// __Encode.Self__
 export function encodeSelf(_data, key) {
   if (!_data || !key) return ''
   const _dataLen = _data.toString().length
   const _keyLen = key.toString().length
-  let args = -1
-  const args2 = []
-  const sliceData = []
-  const sliceKey = []
+  let args = -1 // _data.index切割位置
+  const args2 = [] // key.index切割位置
+  const sliceData = [] // _data 切割位置
+  const sliceKey = [] // key 切割位置
 
   let rIndex2 = 0
   args = getRandomInt(_dataLen - 1, 1)
@@ -73,6 +82,7 @@ export function encodeSelf(_data, key) {
     const ed = i === 0 ? arg : arg + args2[i - 1]
     sliceKey.push(key.slice(st, ed))
   })
+
   sliceKey.push(
     key.slice(
       args2.reduce((prev, curr) => prev + curr, 0),
@@ -117,4 +127,11 @@ function hex2Base64(str) {
 
 export function encodePassword(password, loginId) {
   return hex2Base64(sha256Hex(sha256Hex(loginId.toLowerCase()) + password))
+}
+
+
+// __Encode.bcryptjs__
+const PASSWORD_SALT_ROUNDS = 12
+export function encodePasswordBcjs (password) {
+  return hashSync(password, PASSWORD_SALT_ROUNDS)
 }

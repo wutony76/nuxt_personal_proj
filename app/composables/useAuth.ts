@@ -1,59 +1,71 @@
 import { computed } from 'vue'
 
 type AuthUser = {
+  id: number
   name: string
   email: string
 }
 
-const STORAGE_KEY = 'portfolio-auth-user'
+type LoginResponse = {
+  user: AuthUser
+}
+
+type MeResponse = {
+  user: AuthUser
+}
 
 export const useAuth = () => {
   const user = useState<AuthUser | null>('auth-user', () => null)
   const initialized = useState<boolean>('auth-initialized', () => false)
 
-  const init = () => {
-    if (!import.meta.client || initialized.value) {
+  const init = async () => {
+    if (initialized.value) {
       return
     }
 
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      try {
-        user.value = JSON.parse(raw) as AuthUser
-      } catch {
-        localStorage.removeItem(STORAGE_KEY)
-      }
+    try {
+      const result = await $fetch<MeResponse>('/api/me')
+      user.value = result.user
+    } catch {
+      user.value = null
+    } finally {
+      initialized.value = true
     }
-
-    initialized.value = true
   }
 
-  const login = (email: string, password: string) => {
-    init()
-    const cleanEmail = email.trim().toLowerCase()
+  const login = async (email: string, password: string) => {
+    await init()
 
-    if (!cleanEmail || password.trim().length < 6) {
+    try {
+      const result = await $fetch<LoginResponse>('/api/login', {
+        method: 'POST',
+        body: {
+          email,
+          password
+        }
+      })
+
+      user.value = result.user
+
+      return { ok: true, message: '' }
+    } catch (error: unknown) {
+      const fallbackMessage = '登入失敗，請稍後再試。'
+      const data = (error as { data?: { statusMessage?: string } })?.data
       return {
         ok: false,
-        message: '請輸入有效 Email 與至少 6 碼密碼。'
+        message: data?.statusMessage || fallbackMessage
       }
     }
-
-    const name = cleanEmail.split('@')[0] || 'User'
-    const nextUser: AuthUser = { name, email: cleanEmail }
-
-    user.value = nextUser
-    if (import.meta.client) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser))
-    }
-
-    return { ok: true, message: '' }
   }
 
-  const logout = () => {
-    user.value = null
-    if (import.meta.client) {
-      localStorage.removeItem(STORAGE_KEY)
+  const logout = async () => {
+    try {
+      await $fetch('/api/logout', {
+        method: 'POST'
+      })
+    } finally {
+      user.value = null
+      initialized.value = true
     }
   }
 
