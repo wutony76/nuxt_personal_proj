@@ -1,4 +1,5 @@
 import { $fetch } from 'ofetch'
+import { LOTTERY } from '~/config/constants'
 
 export type AuthUser = {
   id: string | number
@@ -69,6 +70,15 @@ export const api = {
       })
   },
   lottery: {
+    currentInfo: (lotteryId: string | number) => {
+      const normalizedLotteryId = Number(lotteryId)
+      switch (normalizedLotteryId) {
+        case LOTTERY['LHC-OF'].id:
+          return $fetch<Lottery6hcOfCurrent>('/api/lottery/6hc-of/current')
+        default:
+          return null
+      }
+    },
     current6hcOf: () => $fetch<Lottery6hcOfCurrent>('/api/lottery/6hc-of/current'),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     state: () => $fetch<{ balance: number; recentBets: BetRecord[] }>('/api/lottery/state'),

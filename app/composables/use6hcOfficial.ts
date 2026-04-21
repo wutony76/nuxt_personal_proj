@@ -2,7 +2,7 @@ import { cloneDeep } from 'lodash'
 import { reactive } from 'vue'
 import { GAME_6HC_OF, SORT } from '~/config/constants'
 import { PLAYLIST } from '~/config/bg/6hc-of'
-import { api } from '~/services/api'
+import { api, type Lottery6hcOfCurrent } from '~/services/api'
 
 const state = reactive({
   // UI
@@ -16,7 +16,8 @@ const state = reactive({
   coin: 1,
 })
 const current = reactive({
-  detail: []
+  detail: [],
+  runtime: null as Lottery6hcOfCurrent | null,
 })
 const system = reactive({
   playList: [] as any[],
@@ -35,6 +36,8 @@ const time = reactive({
 
 let tickTimer: ReturnType<typeof setInterval> | null = null
 let syncTimer: ReturnType<typeof setInterval> | null = null
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+const MIN_REFRESH_DELAY_MS = 250
 
 const mockSystemCounts = (num: number) => {
   // Keep SSR/CSR initial render deterministic to avoid hydration mismatch.
@@ -84,7 +87,52 @@ const handle = {
       time.nowMs = time.syncedAtServerMs + (Date.now() - time.syncedAtClientMs)
     }
     handle.updateStatusRemain()
+  },
+  clearCurrentInfoTimer: () => {
+    if (refreshTimer) {
+      clearTimeout(refreshTimer)
+      refreshTimer = null
+    }
+  },
+  scheduleNextCurrentInfoFetch: (statusEndAt?: number) => {
+    handle.clearCurrentInfoTimer()
+    if (!statusEndAt) {
+      refreshTimer = setTimeout(() => {
+        fetch.refreshCurrentInfo()
+      }, 1000)
+      return
+    }
+    const delay = Math.max(MIN_REFRESH_DELAY_MS, statusEndAt - time.nowMs + 50)
+    refreshTimer = setTimeout(() => {
+      fetch.refreshCurrentInfo()
+    }, delay)
   }
+}
+
+const fetch = {
+  currentInfo: async () => {
+    const result = await api.lottery.current6hcOf()
+    current.runtime = result
+    init.setStatusEndAt(result.statusEndAt)
+    return result
+  },
+  refreshCurrentInfo: async () => {
+    try {
+      const data = await fetch.currentInfo()
+      handle.scheduleNextCurrentInfoFetch(data?.statusEndAt)
+    } catch {
+      // Keep page usable even when runtime data is temporarily unavailable.
+      handle.scheduleNextCurrentInfoFetch()
+    }
+  },
+  startCurrentInfoPolling: async () => {
+    await fetch.refreshCurrentInfo()
+  },
+  stopCurrentInfoPolling: () => {
+    handle.clearCurrentInfoTimer()
+  },
+  // Keep backward compatibility with old typo usage.
+  crrentInfo: async () => fetch.refreshCurrentInfo()
 }
 
 const click = {
@@ -150,6 +198,7 @@ const init = {
       clearInterval(syncTimer)
       syncTimer = null
     }
+    handle.clearCurrentInfoTimer()
   },
   setStatusEndAt: (endAt: number) => {
     time.statusEndAt = endAt
@@ -164,5 +213,5 @@ state.isSelector = computed(() => {
 init.run()
 
 export function use6hcOfficial() {
-  return { state, current, system, analyze, time, handle, init, click }
+  return { state, current, system, analyze, time, handle, init, click, fetch }
 }

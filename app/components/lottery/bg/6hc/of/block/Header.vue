@@ -43,14 +43,28 @@ const props = defineProps<{
   data?: HeaderData
 }>()
 
-const normalizedData = computed(() => ({
-  ...DEFAULT_HEADER_DATA,
-  ...(props.data ?? {}),
-  openCode:
-    Array.isArray(props.data?.openCode) && props.data.openCode.length > 0
-      ? props.data.openCode
-      : DEFAULT_HEADER_DATA.openCode
-}))
+const normalizedData = computed(() => {
+  const source = props.data ?? {}
+  return {
+    name: source.name ?? DEFAULT_HEADER_DATA.name,
+    id: source.id ?? DEFAULT_HEADER_DATA.id,
+    issueLatest: source.issueLatest ?? DEFAULT_HEADER_DATA.issueLatest,
+    issueCurrent: source.issueCurrent ?? DEFAULT_HEADER_DATA.issueCurrent,
+    currentStatus: source.currentStatus ?? DEFAULT_HEADER_DATA.currentStatus,
+    countdown: source.countdown ?? DEFAULT_HEADER_DATA.countdown,
+    totalJackpot: source.totalJackpot ?? DEFAULT_HEADER_DATA.totalJackpot,
+    estimatedJackpot: source.estimatedJackpot ?? DEFAULT_HEADER_DATA.estimatedJackpot,
+    winRate: source.winRate ?? DEFAULT_HEADER_DATA.winRate,
+    openCode:
+      Array.isArray(source.openCode) && source.openCode.length > 0
+        ? source.openCode
+        : DEFAULT_HEADER_DATA.openCode,
+    openCodePlay:
+      Array.isArray(source.openCodePlay) && source.openCodePlay.length > 0
+        ? source.openCodePlay
+        : DEFAULT_HEADER_DATA.openCodePlay
+  }
+})
 
 const lotteryName = computed(() => normalizedData.value.name || '六合彩(OF)')
 const lotteryId = computed(() => normalizedData.value.id || '-')

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import { LOTTERY, GET_CONT, GAME_6HC_OF } from '~/config/constants'
-import { api, type Lottery6hcOfCurrent } from '~/services/api'
+import { useAuth } from '~/composables/useAuth'
 
 // import { provide6hcOfficial } from '~/composables/use6hcOfficial'
 import SinglePlay from '~/components/lottery/bg/6hc/of/Single.vue'
@@ -13,45 +14,14 @@ import BarTabs from '~/components/lottery/bg/6hc/of/base/BarTabs.vue'
 import RecordIssue from '~/components/lottery/bg/6hc/of/block/record/RecordIssue.vue'
 import RecordAnalyze from '~/components/lottery/bg/6hc/of/block/record/RecordAnalyze.vue'
 
+const use6hc = use6hcOfficial()
+const { fetch: mxFetch } = use6hc
+const router = useRouter()
+const { isLoggedIn, init } = useAuth()
 const state = reactive({
   lotteryId: LOTTERY['6HC'].id,
   lotteryInfo: GET_CONT.lotteryById(LOTTERY['6HC'].id)
 })
-
-const headerRuntime = ref<Lottery6hcOfCurrent | null>(null)
-let refreshTimer: ReturnType<typeof setTimeout> | null = null
-const MIN_REFRESH_DELAY_MS = 250
-
-const use6hc = use6hcOfficial()
-
-const scheduleNextFetch = (statusEndAt?: number) => {
-  if (refreshTimer) {
-    clearTimeout(refreshTimer)
-    refreshTimer = null
-  }
-  if (!statusEndAt) {
-    refreshTimer = setTimeout(() => {
-      fetchCurrentInfo()
-    }, 1000)
-    return
-  }
-  const delay = Math.max(MIN_REFRESH_DELAY_MS, statusEndAt - use6hc.time.nowMs + 50)
-  refreshTimer = setTimeout(() => {
-    fetchCurrentInfo()
-  }, delay)
-}
-
-const fetchCurrentInfo = async () => {
-  try {
-    const data = await api.lottery.current6hcOf()
-    headerRuntime.value = data
-    use6hc.init.setStatusEndAt(data.statusEndAt)
-    scheduleNextFetch(data.statusEndAt)
-  } catch {
-    // Keep page usable even when runtime data is temporarily unavailable.
-    scheduleNextFetch()
-  }
-}
 
 const playMap = {
   SINGLE: SinglePlay,
@@ -68,26 +38,28 @@ const currentPlay = computed(() => {
 const headerData = computed(() => {
   return {
     ...(state.lotteryInfo ?? {}),
-    issueCurrent: headerRuntime.value?.issueCurrent,
-    issueLatest: headerRuntime.value?.issueLatest,
-    currentStatus: headerRuntime.value?.currentStatus,
-    countdown: use6hc.time.statusRemainLabel || headerRuntime.value?.countdown,
-    openCode: headerRuntime.value?.openCode,
-    openCodePlay: headerRuntime.value?.openCodePlay
+    issueCurrent: use6hc.current.runtime?.issueCurrent,
+    issueLatest: use6hc.current.runtime?.issueLatest,
+    currentStatus: use6hc.current.runtime?.currentStatus,
+    countdown: use6hc.time.statusRemainLabel || use6hc.current.runtime?.countdown,
+    openCode: use6hc.current.runtime?.openCode,
+    openCodePlay: use6hc.current.runtime?.openCodePlay
   }
 })
 
 onMounted(async () => {
+  await init()
+  if (!isLoggedIn.value) {
+    router.replace('/login')
+    return
+  }
   await use6hc.init.startServerTimeSync()
-  fetchCurrentInfo()
+  await mxFetch.startCurrentInfoPolling()
 })
 
 onBeforeUnmount(() => {
   use6hc.init.stopServerTimeSync()
-  if (refreshTimer) {
-    clearTimeout(refreshTimer)
-    refreshTimer = null
-  }
+  mxFetch.stopCurrentInfoPolling()
 })
 
 </script>

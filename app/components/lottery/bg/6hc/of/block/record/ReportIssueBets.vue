@@ -112,7 +112,7 @@ init.run()
               </div>
             </td>
             <td class="col-coin">{{ detail.coin }}</td>
-            <td class="col-status">{{ STATUS_MAP.get(detail.status) }}</td>
+            <td class="col-status">{{ STATUS_MAP.get(detail.status) || 'none' }}</td>
           </tr>
           <tr v-if="!hasData" class="tr-no-records">
             <td colspan="5" class="no-records">暫無資料</td>
