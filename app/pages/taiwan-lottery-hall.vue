@@ -1,16 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { $fetch } from 'ofetch'
 import { useAuth } from '../composables/useAuth'
-
-type TaiwanLotteryResult = {
-  gameCode: number
-  gameName: string
-  en: string
-  period?: string
-  lotNumber: Array<string | number>
-}
+import { api, type TaiwanLotteryResult } from '~/services/api'
 
 const router = useRouter()
 const { initialized, isLoggedIn, init } = useAuth()
@@ -40,9 +32,7 @@ const loadLastNumber = async () => {
   loading.value = true
   errorMessage.value = ''
   try {
-    const response = await $fetch<{ updatedAt: string; results: TaiwanLotteryResult[] }>(
-      '/api/taiwan-lottery/last-number'
-    )
+    const response = await api.taiwanLottery.lastNumber()
     updatedAt.value = response.updatedAt
     results.value = response.results
   } catch {

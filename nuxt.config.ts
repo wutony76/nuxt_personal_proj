@@ -10,6 +10,7 @@ export default defineNuxtConfig({
   css: ['~/assets/style/base.scss', '~/assets/css/main.css'],
   alias: {
     app: new URL('./app', import.meta.url).pathname,
+    serv: new URL('./server', import.meta.url).pathname,
   },
   vite: {
     plugins: [tailwindcss()]

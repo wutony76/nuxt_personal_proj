@@ -2,7 +2,7 @@
 import { cloneDeep } from 'lodash'
 import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'
 import { SORT } from '~/config/constants'
-import { _uuid2 } from '~/utils/encrypt'
+import { _uuid2 } from 'serv/utils/encrypt'
 
 const { $dialog } = useNuxtApp()
 const { state: mxState, analyze: mxAnalyze, system: mxSystem, current: mxCurrent } = use6hcOfficial()

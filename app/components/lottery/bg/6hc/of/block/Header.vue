@@ -3,17 +3,26 @@ import { computed } from 'vue'
 import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'
 
 type OpenCodeItem = string | number | { num?: string | number; animal?: string }
+type OpenCodePlayItem = {
+  num?: string | number
+  label?: string | number
+  animal?: string
+  countIssue?: number
+  countShow?: number
+}
 
 type HeaderData = {
   name?: string
   id?: string | number
   issueLatest?: string | number
   issueCurrent?: string | number
+  currentStatus?: string
   countdown?: string
   totalJackpot?: string | number
   estimatedJackpot?: string | number
   winRate?: string | number
   openCode?: OpenCodeItem[]
+  openCodePlay?: OpenCodePlayItem[]
 }
 
 const DEFAULT_HEADER_DATA: Required<HeaderData> = {
@@ -21,11 +30,13 @@ const DEFAULT_HEADER_DATA: Required<HeaderData> = {
   id: '-',
   issueLatest: '999',
   issueCurrent: '999',
+  currentStatus: '開獎中',
   countdown: '00:00',
   totalJackpot: '1,000,000,000',
   estimatedJackpot: '1,000,000',
   winRate: '98.76%',
-  openCode: ['1', '2', '3', '4', '5', '6', '14']
+  openCode: ['1', '2', '3', '4', '5', '6', '14'],
+  openCodePlay: []
 }
 
 const props = defineProps<{
@@ -45,34 +56,52 @@ const lotteryName = computed(() => normalizedData.value.name || '六合彩(OF)')
 const lotteryId = computed(() => normalizedData.value.id || '-')
 const issueLatest = computed(() => String(normalizedData.value.issueLatest))
 const issueCurrent = computed(() => String(normalizedData.value.issueCurrent || issueLatest.value))
+const currentStatus = computed(() => String(normalizedData.value.currentStatus))
 const countdown = computed(() => String(normalizedData.value.countdown))
 const totalJackpot = computed(() => String(normalizedData.value.totalJackpot))
 const estimatedJackpot = computed(() => String(normalizedData.value.estimatedJackpot))
 const winRate = computed(() => String(normalizedData.value.winRate))
 const openBalls = computed(() => {
-  const list = normalizedData.value.openCode
-  if (!Array.isArray(list) || list.length === 0) {
-    return []
+  const playList = props.data?.openCodePlay
+  if (Array.isArray(playList) && playList.length > 0) {
+    return playList.map((item) => {
+      const rawNum = item.num ?? item.label ?? ''
+      return {
+        num: String(rawNum).padStart(2, '0'),
+        animal: String(item.animal ?? ''),
+        countIssue: Number(item.countIssue ?? -1),
+        countShow: Number(item.countShow ?? -1)
+      }
+    })
   }
+
+  const list = normalizedData.value.openCode
+  if (!Array.isArray(list) || list.length === 0) return []
 
   return list.map((item) => {
     if (Array.isArray(item)) {
       return {
         num: String(item[0] ?? '').padStart(2, '0'),
-        animal: String(item[1] ?? '')
+        animal: String(item[1] ?? ''),
+        countIssue: -1,
+        countShow: -1
       }
     }
 
     if (typeof item === 'object' && item !== null) {
       return {
         num: String(item.num ?? '').padStart(2, '0'),
-        animal: String(item.animal ?? '')
+        animal: String(item.animal ?? ''),
+        countIssue: -1,
+        countShow: -1
       }
     }
 
     return {
       num: String(item).padStart(2, '0'),
-      animal: ''
+      animal: '',
+      countIssue: -1,
+      countShow: -1
     }
   })
 })
@@ -105,7 +134,7 @@ const openBalls = computed(() => {
     <div class="right">
       <div class="inner">
         <div class="timer">
-          <div class="issue">第{{ issueCurrent }}期 開獎中</div>
+          <div class="issue">第{{ issueCurrent }}期 {{ currentStatus }}</div>
           <div class="countdown">
             {{ countdown }}
           </div>
@@ -125,7 +154,15 @@ const openBalls = computed(() => {
 
             <div v-for="(ball, idx) in openBalls" :key="`${idx}-${ball.num}-${ball.animal}`" class="ball-warp">
               <span v-if="idx === openBalls.length - 1" class="plus">+</span>
-              <Ball :data="{ label: ball.num, num: ball.num, selected: true, countIssue: 10, countShow: 20 }" />
+              <Ball
+                :data="{
+                  label: ball.num,
+                  num: ball.num,
+                  selected: true,
+                  countIssue: ball.countIssue,
+                  countShow: ball.countShow
+                }"
+              />
             </div>
           </div>
         </div>

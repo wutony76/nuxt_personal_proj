@@ -1,4 +1,4 @@
-import { requireSessionUser } from '../utils/authSession'
+import { sessionController } from '../services/auth'
 
 const PROTECTED_PREFIXES = ['/api/lottery', '/api/taiwan-lottery']
 
@@ -15,5 +15,5 @@ export default defineEventHandler((event) => {
     return
   }
 
-  requireSessionUser(event)
+  sessionController.require(event)
 })

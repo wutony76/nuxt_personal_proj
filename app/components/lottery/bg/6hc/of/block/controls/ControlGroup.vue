@@ -3,7 +3,7 @@ import { cloneDeep } from 'lodash'
 import { use6hcOfficial } from '~/composables/use6hcOfficial'
 import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'
 import IconSvg from '~/components/IconSvg.vue'
-import { _uuid2 } from '~/utils/encrypt'
+import { _uuid2 } from 'serv/utils/encrypt'
 
 const { state: mxState, handle: mxHandle } = use6hcOfficial()
 const click = {

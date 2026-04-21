@@ -2,6 +2,7 @@ import { cloneDeep } from 'lodash'
 import { reactive } from 'vue'
 import { GAME_6HC_OF, SORT } from '~/config/constants'
 import { PLAYLIST } from '~/config/bg/6hc-of'
+import { api } from '~/services/api'
 
 const state = reactive({
   // UI
@@ -23,6 +24,17 @@ const system = reactive({
 const analyze = reactive({
   status: SORT.DEFAULT,
 })
+const time = reactive({
+  syncedAtServerMs: 0,
+  syncedAtClientMs: 0,
+  nowMs: Date.now(),
+  statusEndAt: 0,
+  statusRemainSec: 0,
+  statusRemainLabel: '00:00'
+})
+
+let tickTimer: ReturnType<typeof setInterval> | null = null
+let syncTimer: ReturnType<typeof setInterval> | null = null
 
 const mockSystemCounts = (num: number) => {
   // Keep SSR/CSR initial render deterministic to avoid hydration mismatch.
@@ -53,6 +65,26 @@ const handle = {
     const next = state.playList.map((item) => ({ ...item, selected: false }))
     state.playList = next
   },
+  updateStatusRemain: () => {
+    if (!time.statusEndAt) {
+      time.statusRemainSec = 0
+      time.statusRemainLabel = '00:00'
+      return
+    }
+    const remainSec = Math.max(0, Math.floor((time.statusEndAt - time.nowMs) / 1000))
+    time.statusRemainSec = remainSec
+    const min = Math.floor(remainSec / 60)
+    const sec = remainSec % 60
+    time.statusRemainLabel = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+  },
+  tickServerNow: () => {
+    if (time.syncedAtServerMs <= 0 || time.syncedAtClientMs <= 0) {
+      time.nowMs = Date.now()
+    } else {
+      time.nowMs = time.syncedAtServerMs + (Date.now() - time.syncedAtClientMs)
+    }
+    handle.updateStatusRemain()
+  }
 }
 
 const click = {
@@ -88,6 +120,40 @@ const init = {
       }
     })
     console.log('sys.playList', system.playList)
+  },
+  syncServerTime: async () => {
+    try {
+      const result = await api.system.servTime()
+      time.syncedAtServerMs = result.serverTime
+      time.syncedAtClientMs = Date.now()
+      handle.tickServerNow()
+    } catch {
+      // Keep previous offset and continue local ticking.
+    }
+  },
+  startServerTimeSync: async () => {
+    if (tickTimer) return
+    await init.syncServerTime()
+    tickTimer = setInterval(() => {
+      handle.tickServerNow()
+    }, 1000)
+    syncTimer = setInterval(() => {
+      init.syncServerTime()
+    }, 3000)
+  },
+  stopServerTimeSync: () => {
+    if (tickTimer) {
+      clearInterval(tickTimer)
+      tickTimer = null
+    }
+    if (syncTimer) {
+      clearInterval(syncTimer)
+      syncTimer = null
+    }
+  },
+  setStatusEndAt: (endAt: number) => {
+    time.statusEndAt = endAt
+    handle.updateStatusRemain()
   }
 }
 
@@ -98,5 +164,5 @@ state.isSelector = computed(() => {
 init.run()
 
 export function use6hcOfficial() {
-  return { state, current, system, analyze, handle, init, click }
+  return { state, current, system, analyze, time, handle, init, click }
 }

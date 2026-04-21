@@ -1,5 +1,4 @@
-import { verifyUserCredentials } from '../utils/mockAuthDb'
-import { issueSession } from '../utils/authSession'
+import { sessionController, verifyUserCredentials } from '../services/auth'
 
 type LoginPayload = {
   email?: string
@@ -27,7 +26,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  issueSession(event, user)
+  sessionController.save(event, user)
 
   return { user }
 })

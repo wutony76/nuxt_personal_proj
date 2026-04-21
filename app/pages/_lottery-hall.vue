@@ -1,30 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { $fetch } from 'ofetch'
 import { useAuth } from '../composables/useAuth'
-
-type LotteryGame = {
-  id: number
-  key: string
-  name: string
-  category: '6hc' | 'a6' | 'bg'
-  minBet: number
-  maxBet: number
-  defaultOdds: number
-  playTypes: string[]
-}
-
-type BetRecord = {
-  id: string
-  gameName: string
-  betType: string
-  number: string
-  amount: number
-  odds: number
-  potentialPayout: number
-  createdAt: string
-}
+import { api, type BetRecord, type LotteryGame } from '~/services/api'
 
 const router = useRouter()
 const { user, initialized, isLoggedIn, init } = useAuth()
@@ -123,8 +101,8 @@ const loadHallData = async () => {
   errorMessage.value = ''
   try {
     const [gamesResponse, stateResponse] = await Promise.all([
-      $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
-      $fetch<{ balance: number; recentBets: BetRecord[] }>('/api/lottery/state')
+      api.lottery.games(),
+      api.lottery.state()
     ])
 
     games.value = gamesResponse.games
@@ -156,18 +134,12 @@ const placeBet = async () => {
 
   submitting.value = true
   try {
-    const response = await $fetch<{ message: string; balance: number; bet: BetRecord }>(
-      '/api/lottery/bet',
-      {
-        method: 'POST',
-        body: {
-          gameId: selectedGameId.value,
-          betType: betType.value,
-          number: numberInput.value,
-          amount: amount.value
-        }
-      }
-    )
+    const response = await api.lottery.bet({
+      gameId: selectedGameId.value,
+      betType: betType.value,
+      number: numberInput.value,
+      amount: amount.value
+    })
 
     balance.value = response.balance
     recentBets.value = [response.bet, ...recentBets.value].slice(0, 10)

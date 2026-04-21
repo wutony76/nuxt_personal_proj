@@ -1,18 +1,5 @@
 import { computed } from 'vue'
-
-type AuthUser = {
-  id: number
-  name: string
-  email: string
-}
-
-type LoginResponse = {
-  user: AuthUser
-}
-
-type MeResponse = {
-  user: AuthUser
-}
+import { api, type AuthUser } from '~/services/api'
 
 export const useAuth = () => {
   const user = useState<AuthUser | null>('auth-user', () => null)
@@ -24,7 +11,7 @@ export const useAuth = () => {
     }
 
     try {
-      const result = await $fetch<MeResponse>('/api/me')
+      const result = await api.auth.me()
       user.value = result.user
     } catch {
       user.value = null
@@ -37,13 +24,7 @@ export const useAuth = () => {
     await init()
 
     try {
-      const result = await $fetch<LoginResponse>('/api/login', {
-        method: 'POST',
-        body: {
-          email,
-          password
-        }
-      })
+      const result = await api.auth.login({ email, password })
 
       user.value = result.user
 
@@ -60,9 +41,7 @@ export const useAuth = () => {
 
   const logout = async () => {
     try {
-      await $fetch('/api/logout', {
-        method: 'POST'
-      })
+      await api.auth.logout()
     } finally {
       user.value = null
       initialized.value = true

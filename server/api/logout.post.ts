@@ -1,6 +1,6 @@
-import { clearAuthSession } from '../utils/authSession'
+import { sessionController } from '../services/auth'
 
 export default defineEventHandler((event) => {
-  clearAuthSession(event)
+  sessionController.clear(event)
   return { ok: true }
 })

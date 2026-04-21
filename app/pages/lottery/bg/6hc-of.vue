@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { LOTTERY, GET_CONT, GAME_6HC_OF } from '~/config/constants'
+import { api, type Lottery6hcOfCurrent } from '~/services/api'
 
 // import { provide6hcOfficial } from '~/composables/use6hcOfficial'
 import SinglePlay from '~/components/lottery/bg/6hc/of/Single.vue'
@@ -14,10 +15,44 @@ import RecordAnalyze from '~/components/lottery/bg/6hc/of/block/record/RecordAna
 
 const state = reactive({
   lotteryId: LOTTERY['6HC'].id,
-  lotteryInfo: GET_CONT.lotteryById(LOTTERY['6HC'].id),
+  lotteryInfo: GET_CONT.lotteryById(LOTTERY['6HC'].id)
 })
 
+const headerRuntime = ref<Lottery6hcOfCurrent | null>(null)
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+const MIN_REFRESH_DELAY_MS = 250
+
 const use6hc = use6hcOfficial()
+
+const scheduleNextFetch = (statusEndAt?: number) => {
+  if (refreshTimer) {
+    clearTimeout(refreshTimer)
+    refreshTimer = null
+  }
+  if (!statusEndAt) {
+    refreshTimer = setTimeout(() => {
+      fetchCurrentInfo()
+    }, 1000)
+    return
+  }
+  const delay = Math.max(MIN_REFRESH_DELAY_MS, statusEndAt - use6hc.time.nowMs + 50)
+  refreshTimer = setTimeout(() => {
+    fetchCurrentInfo()
+  }, delay)
+}
+
+const fetchCurrentInfo = async () => {
+  try {
+    const data = await api.lottery.current6hcOf()
+    headerRuntime.value = data
+    use6hc.init.setStatusEndAt(data.statusEndAt)
+    scheduleNextFetch(data.statusEndAt)
+  } catch {
+    // Keep page usable even when runtime data is temporarily unavailable.
+    scheduleNextFetch()
+  }
+}
+
 const playMap = {
   SINGLE: SinglePlay,
   DUPLEX: DuplexPlay,
@@ -30,13 +65,38 @@ const currentPlay = computed(() => {
   return playMap[_key] ?? SinglePlay
 })
 
+const headerData = computed(() => {
+  return {
+    ...(state.lotteryInfo ?? {}),
+    issueCurrent: headerRuntime.value?.issueCurrent,
+    issueLatest: headerRuntime.value?.issueLatest,
+    currentStatus: headerRuntime.value?.currentStatus,
+    countdown: use6hc.time.statusRemainLabel || headerRuntime.value?.countdown,
+    openCode: headerRuntime.value?.openCode,
+    openCodePlay: headerRuntime.value?.openCodePlay
+  }
+})
+
+onMounted(async () => {
+  await use6hc.init.startServerTimeSync()
+  fetchCurrentInfo()
+})
+
+onBeforeUnmount(() => {
+  use6hc.init.stopServerTimeSync()
+  if (refreshTimer) {
+    clearTimeout(refreshTimer)
+    refreshTimer = null
+  }
+})
+
 </script>
 
 <template>
   <div class="base lottery-6hc-of">
     <LotteryBgBaseTop />
     <main class="main">
-      <Header :data="state.lotteryInfo" />
+      <Header :data="headerData" />
       <section class="info-warp">
         <aside class="info-side">
           <div class="user-warp">

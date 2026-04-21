@@ -9,8 +9,8 @@ export function prodId(): string {
   const usedSet = created.__prodIdSet__ as Set<string>
   const existingAuthIds = new Set<string>()
   const authStore = (
-    Storage as unknown as { getAuth?: () => Readonly<Record<string, { id?: string }>> }
-  ).getAuth?.() ?? {}
+    Storage as unknown as { getAccount?: () => Readonly<Record<string, { id?: string }>> }
+  ).getAccount?.() ?? {}
 
   for (const id of Object.keys(authStore)) {
     if (id) {

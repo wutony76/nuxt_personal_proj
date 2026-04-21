@@ -3,8 +3,9 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 
-const email = ref('')
-const password = ref('')
+const email = ref('hfyy@cc.cc')
+const password = ref('123456')
+
 const errorMessage = ref('')
 const isSubmitting = ref(false)
 
@@ -47,32 +48,21 @@ const handleLogin = async () => {
 
       <label class="mb-3 block text-sm font-semibold text-slate-700">
         Email
-        <input
-          v-model="email"
-          type="email"
-          placeholder="you@example.com"
-          class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none ring-indigo-200 focus:ring"
-        />
+        <input v-model="email" type="email" placeholder="you@example.com"
+          class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none ring-indigo-200 focus:ring" />
       </label>
 
       <label class="mb-3 block text-sm font-semibold text-slate-700">
         Password
-        <input
-          v-model="password"
-          type="password"
-          placeholder="******"
-          class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none ring-indigo-200 focus:ring"
-        />
+        <input v-model="password" type="password" placeholder="******"
+          class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none ring-indigo-200 focus:ring" />
       </label>
 
       <p v-if="errorMessage" class="mt-1 text-sm font-medium text-red-700">{{ errorMessage }}</p>
 
-      <button
-        type="button"
-        :disabled="isSubmitting"
+      <button type="button" :disabled="isSubmitting"
         class="mt-4 w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-        @click="handleLogin"
-      >
+        @click="handleLogin">
         {{ isSubmitting ? '登入中...' : '登入' }}
       </button>
     </section>

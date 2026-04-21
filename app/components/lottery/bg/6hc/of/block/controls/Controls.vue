@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { cloneDeep } from 'lodash'
-import { _uuid2 } from '~/utils/encrypt'
+import { _uuid2 } from 'serv/utils/encrypt'
 import ControlGroup from './ControlGroup.vue';
 import ControlCoin from './ControlCoin.vue'
 import { GAME_6HC_OF } from '~/config/constants'
