@@ -20,6 +20,7 @@ export type LotteryGame = {
 
 export type BetRecord = {
   id: string
+  gameId: number
   gameName: string
   betType: string
   number: string
@@ -27,6 +28,24 @@ export type BetRecord = {
   odds: number
   potentialPayout: number
   createdAt: string
+  status?: 'accepted'
+}
+
+export type LotteryState = {
+  balance: number
+  recentBets: BetRecord[]
+  totalBetAmount: number
+  currentIssueBetAmount: number
+}
+
+export type Lottery6hcRoadPlay = {
+  id?: number
+  num?: number | string
+  label?: string
+  countIssue?: number
+  countShow?: number
+  selected?: boolean
+  colorY?: boolean
 }
 
 export type Lottery6hcOfCurrent = {
@@ -80,8 +99,9 @@ export const api = {
       }
     },
     current6hcOf: () => $fetch<Lottery6hcOfCurrent>('/api/lottery/6hc-of/current'),
+    road6hcOf: () => $fetch<{ plays: Lottery6hcRoadPlay[] }>('/api/lottery/6hc-of/road'),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
-    state: () => $fetch<{ balance: number; recentBets: BetRecord[] }>('/api/lottery/state'),
+    userInfo: () => $fetch<LotteryState>('/api/lottery/userInfo'),
     bet: (payload: { gameId: number; betType: string; number: string; amount: number }) =>
       $fetch<{ message: string; balance: number; bet: BetRecord }>('/api/lottery/bet', {
         method: 'POST',

@@ -1,5 +1,7 @@
 import { Storage } from './storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
+import OrdersClass from './orders'
+import { prdDbId } from './config'
 
 type OpenCodeRecord = {
   issue: string
@@ -43,13 +45,48 @@ export default class LHC_OF {
     this.handle.prdOpenCode()
     Storage.games[LOTTERY['LHC-OF'].key] = this
     console.log('LHC_OF.init.success', this.recordOpenCode)
+    new OrdersClass({ id: LOTTERY['LHC-OF'].id, key: LOTTERY['LHC-OF'].key })
   }
 
   circle() {
-    console.log('RUN: LHC_OF.circle.Task')
+    // console.log('RUN: LHC_OF.circle.Task')
     this.handle.refreshCurrent(new Date())
   }
 
+  // USERPLAY.
+  playBets(payload: any, user: any) {
+    // HANDLE COIN
+    const amount = Number(payload.amount)
+    user.coin -= amount
+
+    // HANDLE CONFIG PLAY INFO 
+    const groups = payload.groups
+    const lhcConfig = this._get.configPlay()
+    groups.forEach((group: any) => {
+      const playList = Array.isArray(group?.playList) ? group.playList : []
+      playList.forEach((play: any) => {
+        const num = Number(play?.num ?? play?.label)
+        if (!Number.isFinite(num) || num <= 0) return
+        const dbId = prdDbId(LOTTERY['6HC'].id, num)
+        const target = lhcConfig?.[dbId]
+        if (!target) return
+        target.countShow = Number(target.countShow ?? 0) + 1
+      })
+    })
+
+    // HANDLE ORDERS RECORD
+    const _orders = this._get.orders()
+    _orders.add.record({ issue: this.recordOpenCode[this.currentIndex]?.issue, userId: user.id, coin: amount })
+  }
+  _get = {
+    configPlay: () => {
+      const lhcConfig = Storage.config.LHC as Record<string, any> | undefined
+      return lhcConfig
+    },
+    orders: () => {
+      return Storage.lottery.orders[LOTTERY['LHC-OF'].key]
+    }
+  }
   get = {
     currentInfo: () => {
       this.handle.refreshCurrent(new Date())
@@ -86,6 +123,7 @@ export default class LHC_OF {
       this.handle.refreshCurrent(new Date())
       return this.recordOpenCode[this.currentIndex]?.openCode ?? []
     }
+
   }
   timer = {
     getStartOfDay: (now: Date) => {

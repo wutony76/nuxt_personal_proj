@@ -17,22 +17,18 @@ const getCookieOptions = () => ({
   maxAge: SESSION_TTL_SECONDS
 })
 
-export const verifyUserCredentials = (email: string, password: string): AuthUser | null => {
+export const verifyUser = (email: string, password: string): AuthUser | null => {
   const normalizedEmail = email.trim().toLowerCase()
   const row = Object.values(Storage.get.account()).find((item) => item.email === normalizedEmail)
-  if (!row) {
-    return null
-  }
-
+  if (!row) return null
   const isValid = verifyPasswordHash(password, row.passwordHash)
-  if (!isValid) {
-    return null
-  }
+  if (!isValid) return null
 
   return {
     id: row.id,
     name: row.name,
     email: row.email
+    // token: globalThis.crypto.randomUUID() as string
   }
 }
 

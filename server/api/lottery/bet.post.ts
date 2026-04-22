@@ -1,65 +1,36 @@
-import { getMockLotteryStore, type BetRecord } from '../../utils/mockLotteryStore'
+import { Storage } from '../../services/storage'
+import { sessionController } from '../../services/auth'
+import { STATUS_ERR_CODE } from '~/config/constants.js'
+import { P } from 'vue-router/dist/index-BzEKChPW.js'
+import { PLAYLIST } from '~/config/bg/6hc-of'
 
 type BetPayload = {
-  gameId?: number
-  betType?: string
-  number?: string
+  lottery?: any
+  groups?: any[]
   amount?: number
 }
 
 export default defineEventHandler(async (event) => {
   const payload = await readBody<BetPayload>(event)
-  const store = getMockLotteryStore()
+  const _login = sessionController.require(event)
+  const _user = Storage.get.user(_login.id)
+  // console.log('TTT2.API bet.post.payload', payload)
 
-  const game = store.games.find((item) => item.id === payload.gameId)
-  if (!game) {
-    throw createError({ statusCode: 400, statusMessage: '找不到遊戲。' })
-  }
-
-  const amount = Number(payload.amount)
-  if (!Number.isFinite(amount) || amount <= 0) {
-    throw createError({ statusCode: 400, statusMessage: '下注金額格式錯誤。' })
-  }
-
-  if (amount < game.minBet || amount > game.maxBet) {
+  if (!_login || !_user) {
     throw createError({
-      statusCode: 400,
-      statusMessage: `金額需介於 ${game.minBet} ~ ${game.maxBet}。`
+      statusCode: STATUS_ERR_CODE[40001].code,
+      statusMessage: STATUS_ERR_CODE[40001].message,
     })
   }
+  const amount = Number(payload.amount)
+  if (!Number.isFinite(amount) || amount <= 0) throw createError({ statusCode: -1, statusMessage: '下注金額格式錯誤' })
+  if (amount > _user.coin) throw createError({ statusCode: 400, statusMessage: '餘額不足' })
 
-  if (amount > store.balance) {
-    throw createError({ statusCode: 400, statusMessage: '餘額不足。' })
-  }
-
-  const betType = payload.betType?.trim() || game.playTypes[0]
-  if (!game.playTypes.includes(betType)) {
-    throw createError({ statusCode: 400, statusMessage: '不支援的玩法。' })
-  }
-  const number = payload.number?.trim()
-  if (!number) {
-    throw createError({ statusCode: 400, statusMessage: '請輸入下注號碼。' })
-  }
-
-  const record: BetRecord = {
-    id: `BET-${Date.now()}`,
-    gameId: game.id,
-    gameName: game.name,
-    betType,
-    number,
-    amount,
-    odds: game.defaultOdds,
-    potentialPayout: Number((amount * game.defaultOdds).toFixed(2)),
-    createdAt: new Date().toISOString(),
-    status: 'accepted'
-  }
-
-  store.balance = Number((store.balance - amount).toFixed(2))
-  store.bets.unshift(record)
-
+  const getLottery = payload.lottery
+  const gameClass = Storage.games[getLottery.key]
+  gameClass.playBets(payload, _user)
   return {
     message: '下注成功',
-    balance: store.balance,
-    bet: record
+    coin: _user.coin,
   }
 })

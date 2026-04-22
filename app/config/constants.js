@@ -37,6 +37,13 @@ export const STATUS_TIME = {
   OPENED: '已開獎',
 }
 
+export const STATUS_ERR_CODE = {
+  40001: { code: 40001 ,message: '登入已過期', },
+  40002: { code: 40002 ,message: '帳號或密碼錯誤', },
+
+  50001: { code: 50001 ,message: '餘額不足', },
+}
+
 // CONTROLS ARG
 export const FLAG = {
   OPEN: 1,

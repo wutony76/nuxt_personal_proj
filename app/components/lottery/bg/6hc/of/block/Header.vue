@@ -25,6 +25,11 @@ type HeaderData = {
   openCodePlay?: OpenCodePlayItem[]
 }
 
+type LotteryInfoData = {
+  name?: string
+  id?: string | number
+}
+
 const DEFAULT_HEADER_DATA: Required<HeaderData> = {
   name: '六合彩',
   id: '-',
@@ -40,18 +45,21 @@ const DEFAULT_HEADER_DATA: Required<HeaderData> = {
 }
 
 const props = defineProps<{
-  data?: HeaderData
+  lotteryInfo?: LotteryInfoData
 }>()
 
+const { current: mxCurrent, time: mxTime } = use6hcOfficial()
+
 const normalizedData = computed(() => {
-  const source = props.data ?? {}
+  const source = (mxCurrent.runtime ?? {}) as Partial<HeaderData>
+  const base = props.lotteryInfo ?? {}
   return {
-    name: source.name ?? DEFAULT_HEADER_DATA.name,
-    id: source.id ?? DEFAULT_HEADER_DATA.id,
+    name: base.name ?? DEFAULT_HEADER_DATA.name,
+    id: base.id ?? DEFAULT_HEADER_DATA.id,
     issueLatest: source.issueLatest ?? DEFAULT_HEADER_DATA.issueLatest,
     issueCurrent: source.issueCurrent ?? DEFAULT_HEADER_DATA.issueCurrent,
     currentStatus: source.currentStatus ?? DEFAULT_HEADER_DATA.currentStatus,
-    countdown: source.countdown ?? DEFAULT_HEADER_DATA.countdown,
+    countdown: mxTime.statusRemainLabel || source.countdown || DEFAULT_HEADER_DATA.countdown,
     totalJackpot: source.totalJackpot ?? DEFAULT_HEADER_DATA.totalJackpot,
     estimatedJackpot: source.estimatedJackpot ?? DEFAULT_HEADER_DATA.estimatedJackpot,
     winRate: source.winRate ?? DEFAULT_HEADER_DATA.winRate,
@@ -76,7 +84,7 @@ const totalJackpot = computed(() => String(normalizedData.value.totalJackpot))
 const estimatedJackpot = computed(() => String(normalizedData.value.estimatedJackpot))
 const winRate = computed(() => String(normalizedData.value.winRate))
 const openBalls = computed(() => {
-  const playList = props.data?.openCodePlay
+  const playList = normalizedData.value.openCodePlay
   if (Array.isArray(playList) && playList.length > 0) {
     return playList.map((item) => {
       const rawNum = item.num ?? item.label ?? ''

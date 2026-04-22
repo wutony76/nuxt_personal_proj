@@ -1,11 +1,12 @@
 import { Storage } from './storage'
 
 export default class Users {
-  COIN: number
+  userId: string
+  coin: number
 
   constructor(userId: string) {
     this.userId = userId
-    this.COIN = 100000
+    this.coin = 100000
     this.init()
   }
 

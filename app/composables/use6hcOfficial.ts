@@ -1,8 +1,8 @@
 import { cloneDeep } from 'lodash'
 import { reactive } from 'vue'
-import { GAME_6HC_OF, SORT } from '~/config/constants'
+import { GAME_6HC_OF, LOTTERY, SORT } from '~/config/constants'
 import { PLAYLIST } from '~/config/bg/6hc-of'
-import { api, type Lottery6hcOfCurrent } from '~/services/api'
+import { api, type Lottery6hcOfCurrent, type Lottery6hcRoadPlay, type BetRecord } from '~/services/api'
 
 const state = reactive({
   // UI
@@ -18,6 +18,18 @@ const state = reactive({
 const current = reactive({
   detail: [],
   runtime: null as Lottery6hcOfCurrent | null,
+})
+const road = reactive({
+  plays: [] as Lottery6hcRoadPlay[],
+})
+const wallet = reactive({
+  name: 'USER',
+  balance: 0,
+  currentIssueBetAmount: 0,
+  totalBetAmount: 0,
+  recentBets: [] as BetRecord[],
+  // betGameId: 0,
+  // betType: '特碼',
 })
 const system = reactive({
   playList: [] as any[],
@@ -131,6 +143,51 @@ const fetch = {
   stopCurrentInfoPolling: () => {
     handle.clearCurrentInfoTimer()
   },
+  // LHC球號分析
+  roadPlays: async () => {
+    const result = await api.lottery.road6hcOf()
+    road.plays = Array.isArray(result?.plays) ? result.plays : []
+    return road.plays
+  },
+  walletState: async () => {
+    const result = await api.lottery.userInfo()
+    console.log('TTT2.API userInfo.res', result)
+    wallet.balance = Number(result.balance ?? 0)
+    wallet.currentIssueBetAmount = Number(result.currentIssueBetAmount ?? 0)
+    wallet.totalBetAmount = Number(result.totalBetAmount ?? 0)
+    wallet.recentBets = Array.isArray(result.recentBets) ? result.recentBets : []
+    return result
+  },
+  // betMeta: async () => {
+  //   if (wallet.betGameId > 0) return wallet.betGameId
+  //   const result = await api.lottery.games()
+  //   const games = result?.games ?? []
+  //   const target = games.find((item) => item.key === '6hc') ?? games[0]
+  //   if (!target) return 0
+  //   wallet.betGameId = Number(target.id)
+  //   wallet.betType = String(target.playTypes?.[0] ?? '特碼')
+  //   return wallet.betGameId
+  // },
+  bets: async (coin: number) => {
+    const groups = [...state.groupList]
+    const amount = Math.max(1, Math.trunc(Number(coin) || 0)) * groups.length
+    await api.lottery.bet({
+      lottery: LOTTERY['LHC-OF'],
+      groups,
+      amount
+    })
+    state.groupList = []
+    await fetch.walletState()
+    return { ok: true, message: '下注成功' }
+  },
+  initPageData: async () => {
+    await Promise.all([
+      fetch.refreshCurrentInfo(),
+      fetch.roadPlays(),
+      fetch.walletState(),
+      // fetch.betMeta(),
+    ])
+  },
   // Keep backward compatibility with old typo usage.
   crrentInfo: async () => fetch.refreshCurrentInfo()
 }
@@ -167,7 +224,7 @@ const init = {
         ...counts,
       }
     })
-    console.log('sys.playList', system.playList)
+    // console.log('sys.playList', system.playList)
   },
   syncServerTime: async () => {
     try {
@@ -213,5 +270,5 @@ state.isSelector = computed(() => {
 init.run()
 
 export function use6hcOfficial() {
-  return { state, current, system, analyze, time, handle, init, click, fetch }
+  return { state, current, road, wallet, system, analyze, time, handle, init, click, fetch }
 }

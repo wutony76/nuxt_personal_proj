@@ -4,11 +4,12 @@ import { actions } from '~/utils/common'
 const MIN_COIN = 1
 const MAX_COIN = 99999
 const { $dialog } = useNuxtApp()
-const { state: mxState, handle: mxHandle } = use6hcOfficial()
+const { state: mxState, fetch: mxFetch } = use6hcOfficial()
 
 const state = reactive({
   options: [5, 20, 100, 500, 900],
   coin: 1,
+  isSubmitting: false,
 })
 
 const handle = {
@@ -37,13 +38,24 @@ const click = {
     state.coin = handle.normalizeCoin(state.coin + value)
   },
   bet: () => {
-    const _bets = mxState.groupList.length
-    console.log('bet.count.', _bets)
-    if (_bets === 0) return $dialog.alert('請先加入注單')
-    const _totalMoney = _bets * state.coin
-    console.log('bet._total.', _totalMoney)
-    // if (_totalMoney > mxState.balance) return $dialog.alert('餘額不足')
-    // mxHandle.submitBet()
+    if (state.isSubmitting) return
+    state.isSubmitting = true
+
+    mxFetch.bets(state.coin)
+      .then((result) => {
+        if (!result.ok) {
+          $dialog.alert(result.message)
+          return
+        }
+        $dialog.alert(result.message)
+      })
+      .catch((error: unknown) => {
+        const message = (error as { data?: { statusMessage?: string } })?.data?.statusMessage || '下注失敗，請稍後再試。'
+        $dialog.alert(message)
+      })
+      .finally(() => {
+        state.isSubmitting = false
+      })
   }
 }
 </script>
@@ -70,7 +82,9 @@ const click = {
 
     </div>
     <div>
-      <button type="button" class="action-btn bet" @click="click.bet"> 投注 </button>
+      <button type="button" class="action-btn bet" :disabled="state.isSubmitting" @click="click.bet">
+        {{ state.isSubmitting ? '投注中...' : '投注' }}
+      </button>
     </div>
   </div>
 </template>

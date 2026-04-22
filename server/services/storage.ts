@@ -84,6 +84,9 @@ export class Storage {
   static users: Record<string, unknown> = {}
   static games: Record<string, unknown> = {}
   static lotteryStore: LotteryStore = createDefaultLotteryStore()
+  static lottery = {
+    orders: {}
+  }
 
   static handle = {
     configInit: () => {

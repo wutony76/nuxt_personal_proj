@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { LOTTERY, GET_CONT, GAME_6HC_OF } from '~/config/constants'
 import { useAuth } from '~/composables/useAuth'
+import { actions } from '~/utils/common'
 
 // import { provide6hcOfficial } from '~/composables/use6hcOfficial'
 import SinglePlay from '~/components/lottery/bg/6hc/of/Single.vue'
@@ -10,6 +11,7 @@ import DuplexPlay from '~/components/lottery/bg/6hc/of/Duplex.vue'
 import DantuoPlay from '~/components/lottery/bg/6hc/of/Dantuo.vue'
 import NumberPlay from '~/components/lottery/bg/6hc/of/Number.vue'
 import Header from '~/components/lottery/bg/6hc/of/block/Header.vue'
+import Road from '~/components/lottery/bg/6hc/of/block/Road.vue'
 import BarTabs from '~/components/lottery/bg/6hc/of/base/BarTabs.vue'
 import RecordIssue from '~/components/lottery/bg/6hc/of/block/record/RecordIssue.vue'
 import RecordAnalyze from '~/components/lottery/bg/6hc/of/block/record/RecordAnalyze.vue'
@@ -17,7 +19,7 @@ import RecordAnalyze from '~/components/lottery/bg/6hc/of/block/record/RecordAna
 const use6hc = use6hcOfficial()
 const { fetch: mxFetch } = use6hc
 const router = useRouter()
-const { isLoggedIn, init } = useAuth()
+const { user, isLoggedIn, init } = useAuth()
 const state = reactive({
   lotteryId: LOTTERY['6HC'].id,
   lotteryInfo: GET_CONT.lotteryById(LOTTERY['6HC'].id)
@@ -35,15 +37,15 @@ const currentPlay = computed(() => {
   return playMap[_key] ?? SinglePlay
 })
 
-const headerData = computed(() => {
+const userInfo = computed(() => {
+  console.log('TTT2.UI userInfo.user', user.value)
+
   return {
-    ...(state.lotteryInfo ?? {}),
-    issueCurrent: use6hc.current.runtime?.issueCurrent,
-    issueLatest: use6hc.current.runtime?.issueLatest,
-    currentStatus: use6hc.current.runtime?.currentStatus,
-    countdown: use6hc.time.statusRemainLabel || use6hc.current.runtime?.countdown,
-    openCode: use6hc.current.runtime?.openCode,
-    openCodePlay: use6hc.current.runtime?.openCodePlay
+    name: user.value?.name || 'USER',
+    balance: Number(use6hc.wallet.balance ?? 0),
+    currentIssueBetAmount: Number(use6hc.wallet.currentIssueBetAmount ?? 0),
+    totalBetAmount: Number(use6hc.wallet.totalBetAmount ?? 0),
+    userId: user.value?.id || 'xxxxx'
   }
 })
 
@@ -54,7 +56,7 @@ onMounted(async () => {
     return
   }
   await use6hc.init.startServerTimeSync()
-  await mxFetch.startCurrentInfoPolling()
+  await mxFetch.initPageData()
 })
 
 onBeforeUnmount(() => {
@@ -68,29 +70,25 @@ onBeforeUnmount(() => {
   <div class="base lottery-6hc-of">
     <LotteryBgBaseTop />
     <main class="main">
-      <Header :data="headerData" />
+      <Header :lottery-info="state.lotteryInfo" />
       <section class="info-warp">
         <aside class="info-side">
           <div class="user-warp">
-            <div class="user-title">
-              USER
-            </div>
+            <div class="user-title"> {{ userInfo.name }} </div>
             <div class="user-content">
               <div class="row">
-                F幣餘額: 1000
+                F幣餘額: {{ actions.thousands(userInfo.balance) }}
                 <button type="button" class="deposit-btn">儲值</button>
               </div>
-              <div class="row">當期已投注: 99999</div>
-              <div class="row">累計已投注: 99999</div>
+              <div class="row">當期已投注: {{ actions.thousands(userInfo.currentIssueBetAmount) }}</div>
+              <div class="row">累計已投注: {{ actions.thousands(userInfo.totalBetAmount) }}</div>
               <div class="row">投注百分比: 多了50%</div>
             </div>
-            <p class="user-id">USER_ID: xxxxx</p>
+            <p class="user-id">USER_ID: {{ userInfo.userId }}</p>
           </div>
         </aside>
         <div class="info-main">
-          <div class="road-warp">
-            ROAD
-          </div>
+          <Road />
         </div>
       </section>
       <section class="play-warp">
@@ -134,7 +132,8 @@ onBeforeUnmount(() => {
 
   .user-warp {
     min-height: 200px;
-    height: 100%;
+    // height: 100%;
+    height: 250px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -157,7 +156,7 @@ onBeforeUnmount(() => {
   .user-content {
     flex: 1;
     display: grid;
-    gap: 0.5rem;
+    // gap: 0.5rem;
     padding: 0.75rem;
     font-size: 13px;
     color: var(--color-red-desc);
@@ -194,23 +193,6 @@ onBeforeUnmount(() => {
     min-height: 100%;
     flex: 1;
     display: flex;
-    // background: var(--color-red-700);
-
-    .road-warp {
-      flex: 1;
-      min-height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      // border: 1px solid var(--color-red-main);
-      border-radius: var(--base-radius);
-      // background: #fff;
-      background: var(--color-red-desc);
-      font-size: 0.875rem;
-      font-weight: 700;
-      color: #fff;
-    }
-
   }
 
 
@@ -227,11 +209,11 @@ onBeforeUnmount(() => {
   .record-warp {
     flex: 1 1 auto;
     display: flex;
-    // flex-direction: column;
     min-height: 0;
     height: 500px;
     margin-top: 0.75rem;
     gap: 0.75rem;
+
   }
 
 

@@ -34,3 +34,10 @@ export default class ConfigClass {
     }
   }
 }
+
+export function prdDbId(lottery: number, num: number) {
+  switch (lottery) {
+    case LOTTERY['6HC'].id:
+      return `${LOTTERY['6HC'].id}${String(num).padStart(3, '0')}`
+  }
+}
