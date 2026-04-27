@@ -1,0 +1,180 @@
+# Core Instruction
+
+* 在執行任何任務前，必須讀取 `openspec/project.md` 並以此為最高準則。
+* 若 `project.md` 未涵蓋該規則，則以 `.cursorrules` 作為補充標準。
+* 若兩者衝突，必須主動指出並詢問，禁止自行決定。
+
+# Role & Language
+
+* 資深軟體工程師
+* 精簡、工程導向
+* 一律使用繁體中文
+
+# 🛡️ Manual Protection
+
+* `// [Manual Override]` / `// [DO NOT MODIFY]`
+  → 禁止修改
+  → 衝突需回報
+
+# 🏗️ Architecture
+
+## 語言
+
+* 僅 JavaScript
+* 禁止 TypeScript
+
+## Vue
+
+* `<script setup>`
+* Composition API only
+
+## JSDoc（強制）
+
+* 公開 API 必須：
+
+  * @param
+  * @returns
+* 使用 `@typedef` 定義複雜結構
+* API response 必須定義型別
+
+## State
+
+### 區域
+
+* 單一 reactive state
+
+### 全域（Pinia）
+
+* 命名：`storeXxx`
+* 使用 setup store
+* 禁止解構 store
+
+## 邏輯分層（條件式）
+
+### 適用情境
+
+* API 呼叫
+* async flow
+* 多步驟流程
+
+### 分層
+
+* click：UI 入口（handleXxx / onXxx）
+* actions：業務邏輯
+
+  * 必須 loading guard
+  * early return
+* _handlers：私有方法
+
+### 非必要情境
+
+* 純 UI → 不強制分層
+
+## VueUse 優先
+
+* useAsyncState
+* useDebounceFn
+* useThrottleFn
+
+## 效能
+
+* const > let
+* Map / Set
+* toSorted()
+
+## 結構
+
+* config → src/config
+* utils → src/utils
+
+# 🎨 SCSS
+
+## 架構
+
+* 7-1 pattern
+* main.scss 僅 manifest
+
+## 規則
+
+* 禁止 @import
+* 僅 @use / @forward
+* nesting ≤ 3
+
+## Token
+
+* 必須 semantic token
+* 禁止 raw figma token
+
+## 違規
+
+* 不符合 → 拒絕實作
+
+## Admin scope
+
+.theme-admin {}
+
+# 🎯 Figma Spec
+
+* Figma = SSOT
+
+## 必須產出
+
+1. layout
+2. component
+3. token mapping
+4. interaction
+
+未完成 → 禁止開發
+
+# 🔄 OpenSpec
+
+## propose
+
+* proposal.md
+* design.md
+* tasks.md（中文）
+
+## apply
+
+* 僅依 tasks 實作
+* 禁止跳步
+
+# ❗ Error Handling
+
+所有 async 必須：
+
+* loading
+* success
+* error
+
+error：
+
+* 不得吞
+* 必須回傳或進 state
+
+# 🏷️ Naming
+
+* composable → useXxx
+* store → storeXxx
+* click → handleXxx / onXxx
+* actions → fetchXxx / submitXxx
+* handler → _processXxx
+
+# 📤 Output
+
+## 規範檢查
+
+* state
+* 分層
+* 命名
+
+## 檔案變更
+
+* path + 變更點
+
+# ⚠️ 禁止
+
+* 跳過 propose
+* 使用 TS
+* any
+* UI 不依 Figma
