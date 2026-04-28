@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { actions } from '~/utils/common'
+import { STATUS_ERR_CODE } from '~/config/constants'
 
 const MIN_COIN = 1
 const MAX_COIN = 99999
 const { $dialog } = useNuxtApp()
+const router = useRouter()
 const { state: mxState, fetch: mxFetch } = use6hcOfficial()
 
 const state = reactive({
@@ -50,7 +52,19 @@ const click = {
         $dialog.alert(result.message)
       })
       .catch((error: unknown) => {
-        const message = (error as { data?: { statusMessage?: string } })?.data?.statusMessage || '下注失敗，請稍後再試。'
+        const errorData = (error as { data?: { statusCode?: number; statusMessage?: string } })?.data
+        const message = errorData?.statusMessage || '下注失敗，請稍後再試。'
+        const isLoginExpired = errorData?.statusCode === STATUS_ERR_CODE[40001].code
+
+        if (isLoginExpired) {
+          $dialog.alert(message, {
+            cb: () => {
+              router.push('/login')
+            }
+          })
+          return
+        }
+
         $dialog.alert(message)
       })
       .finally(() => {

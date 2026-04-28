@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { Storage, verifyPasswordHash } from './storage'
 import type { AuthUser } from '../types/storage'
+import { STATUS_ERR_CODE } from '~/config/constants.js'
 
 const SESSION_COOKIE_NAME = 'portfolio_auth_token'
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7
@@ -38,8 +39,8 @@ export const sessionController = {
     const user = sessionController.get(event)
     if (!user) {
       throw createError({
-        statusCode: 401,
-        statusMessage: '尚未登入或登入已過期。'
+        statusCode: STATUS_ERR_CODE[40001].code,
+        statusMessage: STATUS_ERR_CODE[40001].message,
       })
     }
     return user
