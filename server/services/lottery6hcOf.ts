@@ -2,6 +2,7 @@ import { Storage } from './storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import OrdersClass from './orders'
 import { prdDbId } from './config'
+import userInfoGet from '../api/lottery/userInfo.get'
 
 type OpenCodeRecord = {
   issue: string
@@ -54,10 +55,12 @@ export default class LHC_OF {
   }
 
   // USERPLAY.
-  playBets(payload: any, user: any) {
+  playBets(payload: any, _user: any) {
+    console.log('class playBets.payload', _user)
+
     // HANDLE COIN
     const amount = Number(payload.amount)
-    user.coin -= amount
+    _user.coin -= amount
 
     // HANDLE CONFIG PLAY INFO 
     const groups = payload.groups
@@ -76,12 +79,23 @@ export default class LHC_OF {
 
     // HANDLE ORDERS RECORD
     const _orders = this._get.orders()
-    _orders.add.record({ issue: this.recordOpenCode[this.currentIndex]?.issue, userId: user.id, coin: amount })
+    _orders.add.record({ issue: this.recordOpenCode[this.currentIndex]?.issue, userId: _user.userId, coin: amount })
+
+    // console.log('class USER', _user)
+    // console.log('LHC_OF.ORDERS.ALL', _orders.get.orders.all())
+    // console.log('LHC_OF.ORDERS.CURRENT_ISSUE', _orders.get.orders.currentIssue(this.recordOpenCode[this.currentIndex]?.issue))
+    // console.log('----------LHC_OF----------')
+    // console.log('LHC_OF.ORDERS.CURRENT_ISSUE_MEMBERS', _orders.get.members.user(_user.userId))
+    // console.log('LHC_OF.ORDERS.CURRENT_ISSUE_MEMBERS', _orders.get.members.issue(this.recordOpenCode[this.currentIndex]?.issue, _user.userId))
   }
   _get = {
     configPlay: () => {
       const lhcConfig = Storage.config.LHC as Record<string, any> | undefined
       return lhcConfig
+    },
+    latestIssue: () => {
+      if (this.recordOpenCode.length === 0) return '19900101001'
+      return this.recordOpenCode[this.currentIndex]?.issue ?? this.recordOpenCode[0]?.issue
     },
     orders: () => {
       return Storage.lottery.orders[LOTTERY['LHC-OF'].key]
@@ -122,8 +136,15 @@ export default class LHC_OF {
     currentOpenCode: () => {
       this.handle.refreshCurrent(new Date())
       return this.recordOpenCode[this.currentIndex]?.openCode ?? []
+    },
+    userInfo: (userId) => {
+      const _orders = this._get.orders()
+      return {
+        currentBets: _orders.get.members.issue(this.recordOpenCode[this.currentIndex]?.issue, userId),
+        totalBets: _orders.get.members.user(userId),
+        analysis: this.analysis.betsIssue(this._get.latestIssue(), userId),
+      }
     }
-
   }
   timer = {
     getStartOfDay: (now: Date) => {
@@ -177,7 +198,23 @@ export default class LHC_OF {
       return record.startAt + endSec * 1000
     }
   }
-
+  analysis = {
+    betsIssue: (issue: string = this._get.latestIssue(), userId: string) => {
+      // console.log('---LHC_OF.analysis', issue)
+      const _orders = this._get.orders()
+      const _currentBets = _orders.get.members.issue(issue, userId) ?? 0
+      const _backBets = _orders.get.members.issue(`${Number(this.recordOpenCode[this.currentIndex]?.issue) - 1}`, userId) ?? 0
+      // console.log('---LHC_OF.analysis2', _currentBets)
+      // console.log('---LHC_OF.analysis3', _backBets)
+      if (_backBets === 0 && _currentBets === 0) return '尚未投注'
+      else if (_backBets === 0) return '比上期多了 100%'
+      const _diff = _currentBets - _backBets
+      const _diffPercent = (_diff / _backBets) * 100
+      if (_diffPercent > 0) return `比上期多了 ${_diffPercent.toFixed(2)}%`
+      else if (_diffPercent < 0) return `比上期少了 ${_diffPercent.toFixed(2)}%`
+      else return '與上一期投注相同'
+    }
+  }
   handle = {
     openCodePlay: (openCode: string[]) => {
       return openCode

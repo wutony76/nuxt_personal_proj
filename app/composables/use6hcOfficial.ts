@@ -24,12 +24,10 @@ const road = reactive({
 })
 const wallet = reactive({
   name: 'USER',
-  balance: 0,
-  currentIssueBetAmount: 0,
-  totalBetAmount: 0,
-  recentBets: [] as BetRecord[],
-  // betGameId: 0,
-  // betType: '特碼',
+  coin: 0,
+  currentBets: 0,
+  totalBets: 0,
+  analysis: '-',
 })
 const system = reactive({
   playList: [] as any[],
@@ -152,10 +150,10 @@ const fetch = {
   walletState: async () => {
     const result = await api.lottery.userInfo()
     console.log('TTT2.API userInfo.res', result)
-    wallet.balance = Number(result.balance ?? 0)
-    wallet.currentIssueBetAmount = Number(result.currentIssueBetAmount ?? 0)
-    wallet.totalBetAmount = Number(result.totalBetAmount ?? 0)
-    wallet.recentBets = Array.isArray(result.recentBets) ? result.recentBets : []
+    wallet.coin = Number(result.coin ?? 0)
+    wallet.currentBets = Number(result.currentBets ?? 0)
+    wallet.totalBets = Number(result.totalBets ?? 0)
+    wallet.analysis = String(result.analysis ?? '-')
     return result
   },
   // betMeta: async () => {

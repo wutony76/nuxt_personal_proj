@@ -1,7 +1,6 @@
 import { Storage } from '../../services/storage'
 import { sessionController } from '../../services/auth'
 import { STATUS_ERR_CODE } from '~/config/constants.js'
-import { P } from 'vue-router/dist/index-BzEKChPW.js'
 import { PLAYLIST } from '~/config/bg/6hc-of'
 
 type BetPayload = {
@@ -15,6 +14,7 @@ export default defineEventHandler(async (event) => {
   const _login = sessionController.require(event)
   const _user = Storage.get.user(_login.id)
   // console.log('TTT2.API bet.post.payload', payload)
+  console.log('TTT2.API bet.post.user', _user, payload.lottery)
 
   if (!_login || !_user) {
     throw createError({

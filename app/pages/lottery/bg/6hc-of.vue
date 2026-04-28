@@ -39,12 +39,13 @@ const currentPlay = computed(() => {
 
 const userInfo = computed(() => {
   console.log('TTT2.UI userInfo.user', user.value)
-
+  // console.log('TTT2.UI userInfo.user', userInfo.value)
   return {
     name: user.value?.name || 'USER',
-    balance: Number(use6hc.wallet.balance ?? 0),
-    currentIssueBetAmount: Number(use6hc.wallet.currentIssueBetAmount ?? 0),
-    totalBetAmount: Number(use6hc.wallet.totalBetAmount ?? 0),
+    coin: Number(use6hc.wallet.coin ?? 0),
+    currentBets: Number(use6hc.wallet.currentBets ?? 0),
+    totalBets: Number(use6hc.wallet.totalBets ?? 0),
+    analysis: String(use6hc.wallet.analysis ?? '-'),
     userId: user.value?.id || 'xxxxx'
   }
 })
@@ -77,12 +78,12 @@ onBeforeUnmount(() => {
             <div class="user-title"> {{ userInfo.name }} </div>
             <div class="user-content">
               <div class="row">
-                F幣餘額: {{ actions.thousands(userInfo.balance) }}
+                F幣餘額: {{ actions.thousands(userInfo.coin) }}
                 <button type="button" class="deposit-btn">儲值</button>
               </div>
-              <div class="row">當期已投注: {{ actions.thousands(userInfo.currentIssueBetAmount) }}</div>
-              <div class="row">累計已投注: {{ actions.thousands(userInfo.totalBetAmount) }}</div>
-              <div class="row">投注百分比: 多了50%</div>
+              <div class="row">當期已投注: {{ actions.thousands(userInfo.currentBets) }}</div>
+              <div class="row">累計已投注: {{ actions.thousands(userInfo.totalBets) }}</div>
+              <div class="row">投注百分比: {{ userInfo.analysis }}</div>
             </div>
             <p class="user-id">USER_ID: {{ userInfo.userId }}</p>
           </div>
