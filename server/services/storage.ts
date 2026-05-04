@@ -9,6 +9,7 @@ import { compareSync } from 'bcryptjs'
 import UsersClass from './users'
 import ConfigClass from './config'
 import LhcOfClass from './lottery6hcOf'
+import LhcCdClass from './lottery6hcCd'
 import { LOTTERY } from '~/config/constants'
 
 export const verifyPasswordHash = (password: string, storedHash: string): boolean => {
@@ -101,6 +102,7 @@ export class Storage {
       console.log('account.init.success')
     },
     gamesInit: () => {
+      new LhcCdClass()
       new LhcOfClass()
       console.log('games.init.success', Storage.games)
     }

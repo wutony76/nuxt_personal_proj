@@ -4,6 +4,11 @@ import { useAuth } from '~/composables/useAuth'
 
 const router = useRouter()
 const { logout } = useAuth()
+const props = withDefaults(defineProps<{
+  theme?: 'red' | 'blue'
+}>(), {
+  theme: 'red'
+})
 const emit = defineEmits<{
   (event: 'open-user-dialog'): void
   (event: 'open-opencode-dialog'): void
@@ -16,7 +21,7 @@ const handleLogout = async () => {
 </script>
 
 <template>
-  <section class="top">
+  <section class="top" :class="props.theme">
     <div class="inner">
       <div class="left">
         <NuxtLink to="/lottery-hall">BACK</NuxtLink>
@@ -33,9 +38,24 @@ const handleLogout = async () => {
 
 <style scoped lang="scss">
 .top {
-  border-bottom: 1px solid #f0b7bf;
-  background: linear-gradient(180deg, #fdf1f3 0%, #fff 100%);
-  box-shadow: 0 2px 8px rgba(131, 38, 50, 0.08);
+  --top-main: #d53f53;
+  --top-desc: #a94452;
+  --top-soft-border: #f0b7bf;
+  --top-grad-start: #fdf1f3;
+  --top-shadow: rgba(131, 38, 50, 0.08);
+  --top-hover-main: #b02f40;
+  border-bottom: 1px solid var(--top-soft-border);
+  background: linear-gradient(180deg, var(--top-grad-start) 0%, #fff 100%);
+  box-shadow: 0 2px 8px var(--top-shadow);
+}
+
+.top.blue {
+  --top-main: #2d9fe2;
+  --top-desc: #5f7f95;
+  --top-soft-border: #bfd8ea;
+  --top-grad-start: #edf6fd;
+  --top-shadow: rgba(45, 124, 177, 0.12);
+  --top-hover-main: #237db4;
 }
 
 .inner {
@@ -53,10 +73,10 @@ const handleLogout = async () => {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  border: 1px solid var(--color-red-main, #d53f53);
+  border: 1px solid var(--top-main);
   border-radius: 6px;
   background: #fff;
-  color: var(--color-red-main, #d53f53);
+  color: var(--top-main);
   padding: 0.35rem 0.75rem;
   font-size: 12px;
   font-weight: 700;
@@ -66,7 +86,7 @@ const handleLogout = async () => {
 }
 
 .left :deep(a:hover) {
-  background: var(--color-red-main, #d53f53);
+  background: var(--top-main);
   color: #fff;
 }
 
@@ -81,7 +101,7 @@ const handleLogout = async () => {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: var(--color-red-desc, #a94452);
+  color: var(--top-desc);
   padding: 0.35rem 0.55rem;
   font-size: 12px;
   font-weight: 700;
@@ -94,14 +114,14 @@ const handleLogout = async () => {
 
 .menu :deep(a:hover),
 .menu .ghost-btn:hover {
-  border-color: #f0b7bf;
+  border-color: var(--top-soft-border);
   background: #fff;
-  color: var(--color-red-main, #d53f53);
+  color: var(--top-main);
 }
 
 .menu .logout-btn {
-  border-color: var(--color-red-main, #d53f53);
-  background: var(--color-red-main, #d53f53);
+  border-color: var(--top-main);
+  background: var(--top-main);
   color: #fff;
   border-radius: 6px;
   padding: 0.35rem 0.55rem;
@@ -114,8 +134,8 @@ const handleLogout = async () => {
 }
 
 .menu .logout-btn:hover {
-  border-color: #b02f40;
-  background: #b02f40;
+  border-color: var(--top-hover-main);
+  background: var(--top-hover-main);
   color: #fff;
 }
 
