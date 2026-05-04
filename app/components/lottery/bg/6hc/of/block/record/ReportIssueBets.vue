@@ -1,96 +1,86 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, watch, type ComponentPublicInstance } from 'vue'
 import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'
 import Pagination from '~/components/lottery/bg/6hc/of/block/record/Pagination.vue'
+import { actions } from '~/utils/common'
 
-
-interface ReportIssueBetRow {
-  id: string
-  time: string
-  bets: string[]
-  coin: number
-  status: number
-}
-
-const STATUS_MAP = new Map<number, string>([
-  [-1, 'none'],
-  [0, 'none'],
-  [1, 'pending'],
-  [2, 'win'],
-  [3, 'lose'],
-  [4, 'tie'],
-  [5, 'cancel'],
-  [6, 'refund'],
-  [7, 'refund'],
+const STATUS_MAP = new Map<string, string>([
+  ['pending', 'pending'],
+  ['success', 'success'],
+  ['settled', 'settled']
 ])
 
 const { current: mxCurrent } = use6hcOfficial()
 
-// TODO: TTT.TEST.DATA 可調整測試資料筆數（0 = 顯示暫無資料）
-const MOCK_DETAIL_COUNT = 20
-const handle = {}
-const init = {
-  run: () => {
-    // TODO: TTT.TEST.DATA 後端資料
-    mxCurrent.detail = Array.from({ length: MOCK_DETAIL_COUNT }, (_, idx) => ({
-      id: String(1234567890 + idx),
-      time: '10:00:00',
-      bets: ['1', '2', '3', '4', '5', '6', '7'],
-      coin: 100,
-      status: -1,
-    }))
-  }
-}
-
 const hasData = computed(() => mxCurrent.detail.length > 0)
-const betListPage = ref(1)
-const betListPageSize = ref(10)
+const state = reactive({
+  betListPage: 1,
+  betListPageSize: 10,
+  tableScrollRef: null as HTMLElement | null,
+  hasVerticalScroll: false,
+  tableResizeObserver: null as ResizeObserver | null
+})
 const betListTotal = computed(() => mxCurrent.detail.length)
-const tableScrollRef = ref<HTMLElement | null>(null)
-const hasVerticalScroll = ref(false)
-let tableResizeObserver: ResizeObserver | null = null
+const thisPageDetail = computed(() => {
+  const page = Math.max(1, state.betListPage)
+  const pageSize = Math.max(1, state.betListPageSize)
+  const start = (page - 1) * pageSize
+  return mxCurrent.detail.slice(start, start + pageSize)
+})
+const betTotalCoin = computed(() => actions.thousands(mxCurrent.detail.reduce((acc, curr) => acc + Number(curr.coin), 0) ?? 0))
 
-const syncScrollState = () => {
-  const el = tableScrollRef.value
-
-  if (!el) {
-    hasVerticalScroll.value = false
-    return
+const _handlers = {
+  syncScrollState: () => {
+    const el = state.tableScrollRef
+    if (!el) {
+      state.hasVerticalScroll = false
+      return
+    }
+    state.hasVerticalScroll = el.scrollHeight > el.clientHeight + 1
+  },
+  setTableScrollRef: (el: Element | ComponentPublicInstance | null) => {
+    state.tableScrollRef = el as HTMLElement | null
   }
-
-  hasVerticalScroll.value = el.scrollHeight > el.clientHeight + 1
 }
 
 onMounted(() => {
-  nextTick(syncScrollState)
-  tableResizeObserver = new ResizeObserver(syncScrollState)
-  if (tableScrollRef.value) {
-    tableResizeObserver.observe(tableScrollRef.value)
+  nextTick(_handlers.syncScrollState)
+  state.tableResizeObserver = new ResizeObserver(_handlers.syncScrollState)
+  if (state.tableScrollRef) {
+    state.tableResizeObserver.observe(state.tableScrollRef)
   }
-  window.addEventListener('resize', syncScrollState)
+  window.addEventListener('resize', _handlers.syncScrollState)
 })
 
 onBeforeUnmount(() => {
-  tableResizeObserver?.disconnect()
-  window.removeEventListener('resize', syncScrollState)
+  state.tableResizeObserver?.disconnect()
+  window.removeEventListener('resize', _handlers.syncScrollState)
 })
 
 watch(() => mxCurrent.detail.length, () => {
-  nextTick(syncScrollState)
+  nextTick(_handlers.syncScrollState)
 })
-init.run()
+
+watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
+  const normalizedPageSize = Math.max(1, pageSize)
+  const maxPage = Math.max(1, Math.ceil(total / normalizedPageSize))
+  if (state.betListPage > maxPage) {
+    state.betListPage = maxPage
+  }
+})
 </script>
 
 <template>
   <div class="report-issue-bets-root">
-    <div ref="tableScrollRef" class="report-issue-bets" :class="{ 'has-scroll': hasVerticalScroll }">
+    <div :ref="_handlers.setTableScrollRef" class="report-issue-bets"
+      :class="{ 'has-scroll': state.hasVerticalScroll }">
       <table class="report-table report-issue-bets-table" :class="{ 'is-empty': !hasData }">
         <colgroup>
           <col class="col-id" />
           <col class="col-time" />
           <col class="col-bet" />
           <col class="col-coin" />
-          <col class="col-status" />
+          <!-- <col class="col-status" /> -->
         </colgroup>
         <thead>
           <tr>
@@ -98,11 +88,11 @@ init.run()
             <th class="col-time">投注時間</th>
             <th class="col-bet">投注號碼</th>
             <th class="col-coin">投注金額</th>
-            <th class="col-status">狀態</th>
+            <!-- <th class="col-status">狀態</th> -->
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(detail, rowIdx) in mxCurrent.detail" :key="rowIdx">
+          <tr v-for="(detail, rowIdx) in thisPageDetail" :key="rowIdx">
             <td class="col-id">{{ detail.id }}</td>
             <td class="col-time">{{ detail.time }}</td>
             <td class="col-bet">
@@ -111,18 +101,18 @@ init.run()
                   v-for="(ball, ballIdx) in detail.bets" :key="ballIdx" />
               </div>
             </td>
-            <td class="col-coin">{{ detail.coin }}</td>
-            <td class="col-status">{{ STATUS_MAP.get(detail.status) || 'none' }}</td>
+            <td class="col-coin">{{ actions.thousands(Number(detail.coin)) }}</td>
+            <!-- <td class="col-status">{{ STATUS_MAP.get(detail.status) || 'none' }}</td> -->
           </tr>
           <tr v-if="!hasData" class="tr-no-records">
-            <td colspan="5" class="no-records">暫無資料</td>
+            <td colspan="4" class="no-records">暫無資料</td>
           </tr>
         </tbody>
       </table>
     </div>
-    <div class="footer">總投注額：10000</div>
+    <div class="footer">總投注額：{{ betTotalCoin }}</div>
     <nav class="report-issue-bets-pagination" aria-label="投注紀錄分頁">
-      <Pagination v-model="betListPage" v-model:size="betListPageSize" :total="betListTotal" />
+      <Pagination v-model="state.betListPage" v-model:size="state.betListPageSize" :total="betListTotal" />
     </nav>
   </div>
 </template>
@@ -177,7 +167,7 @@ init.run()
   border-width: 0.12rem;
 }
 
-/* 外層：配合 RecordIssue .main 的 flex column，讓表格區可捲動、footer 固定在下 */
+/* 外層：配合 Issue .main 的 flex column，讓表格區可捲動、footer 固定在下 */
 .report-issue-bets-root {
   flex: 1 1 auto;
   min-height: 0;
@@ -198,7 +188,7 @@ init.run()
     width: 100%;
     overflow: scroll;
     overflow-x: hidden;
-    /* 與 ControlGroup.vue .group-list 捲軸一致 */
+    /* 與 Group.vue .group-list 捲軸一致 */
     scrollbar-width: thin;
     scrollbar-color: var(--color-red-desc) #e8e6e6;
     border: 1px solid var(--color-red-content);
@@ -236,11 +226,18 @@ init.run()
       }
 
       col.col-id {
-        width: 120px;
+        width: 240px;
+      }
+
+      th.col-id,
+      td.col-id {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       col.col-time {
-        width: 16%;
+        width: 14%;
       }
 
       col.col-bet {
@@ -248,7 +245,7 @@ init.run()
       }
 
       col.col-coin {
-        width: 14%;
+        width: 12%;
       }
 
       col.col-status {

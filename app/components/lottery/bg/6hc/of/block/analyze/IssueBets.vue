@@ -13,7 +13,7 @@ const state = reactive({
   playList: [] as any[],
 })
 
-const handle = {
+const _handlers = {
   count: (data: any[]) => {
     const betCountMap = new Map<number, number>()
 
@@ -63,21 +63,20 @@ const handle = {
   switch: () => {
     switch (mxAnalyze.status) {
       case SORT.DEFAULT:
-        handle.count(state.playList as any[])
+        _handlers.count(state.playList as any[])
         state.playList = state.playList.sort((a, b) => a.num - b.num)
         break
       case SORT.BET_COUNT_USER:
-        handle.count(state.playList as any[])
+        _handlers.count(state.playList as any[])
         break
       case SORT.OPEN_COUNT_SYSTEM:
-        handle.syncSystemCount('countShow')
+        _handlers.syncSystemCount('countShow')
         break
       case SORT.GAP_ISSUE_SYSTEM:
-        handle.syncSystemCount('countIssue')
+        _handlers.syncSystemCount('countIssue')
         break
     }
 
-    // DEFAULT.STATUS 需要 sort
     if (mxAnalyze.status !== SORT.DEFAULT) {
       state.playList = state.playList.sort((a, b) => {
         const countDiff = (b.countBets ?? 0) - (a.countBets ?? 0)
@@ -86,9 +85,8 @@ const handle = {
       })
     }
 
-    // OPEN_COUNT_SYSTEM, GAP_ISSUE_SYSTEM STATUS 下未選擇的注號需要反灰
     if ([SORT.OPEN_COUNT_SYSTEM, SORT.GAP_ISSUE_SYSTEM].includes(mxAnalyze.status)) {
-      handle.markUnselectedByDetail()
+      _handlers.markUnselectedByDetail()
     }
   }
 }
@@ -96,7 +94,7 @@ const handle = {
 const init = {
   run: () => {
     state.playList = cloneDeep(mxInit.playList(GAME_6HC_OF.SINGLE.key)).map(item => ({ ...item, selected: true })) as any[]
-    handle.switch()
+    _handlers.switch()
   }
 }
 init.run()
@@ -104,14 +102,14 @@ init.run()
 watch(
   () => mxCurrent.detail,
   () => {
-    handle.switch()
+    _handlers.switch()
   },
   { deep: true }
 )
 watch(
   () => mxAnalyze.status,
   () => {
-    handle.switch()
+    _handlers.switch()
   }
 )
 

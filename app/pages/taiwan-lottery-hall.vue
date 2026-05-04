@@ -1,44 +1,52 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
-import { api, type TaiwanLotteryResult } from '~/services/api'
+import { type TaiwanLotteryResult } from '~/services/api'
+import { TaiwanLotteryService } from '~/services/taiwanLotteryService'
 
 const router = useRouter()
 const { initialized, isLoggedIn, init } = useAuth()
+const taiwanLotteryService = new TaiwanLotteryService()
 
 const isCheckingAuth = computed(() => !initialized.value)
-const loading = ref(false)
-const errorMessage = ref('')
-const updatedAt = ref('')
-const results = ref<TaiwanLotteryResult[]>([])
+const state = reactive({
+  loading: false,
+  errorMessage: '',
+  updatedAt: '',
+  results: [] as TaiwanLotteryResult[]
+})
 
 const updatedAtLabel = computed(() => {
-  if (!updatedAt.value) return '-'
-  const date = new Date(updatedAt.value)
+  if (!state.updatedAt) return '-'
+  const date = new Date(state.updatedAt)
   if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleString('zh-TW', { hour12: false })
 })
 
-const getBallClass = (index: number, total: number) => {
-  if (index === total - 1) return 'bg-rose-500 text-white'
-  const mod = index % 3
-  if (mod === 0) return 'bg-amber-400 text-slate-900'
-  if (mod === 1) return 'bg-sky-500 text-white'
-  return 'bg-emerald-500 text-white'
+const _handlers = {
+  getBallClass: (index: number, total: number) => {
+    if (index === total - 1) return 'bg-rose-500 text-white'
+    const mod = index % 3
+    if (mod === 0) return 'bg-amber-400 text-slate-900'
+    if (mod === 1) return 'bg-sky-500 text-white'
+    return 'bg-emerald-500 text-white'
+  }
 }
 
-const loadLastNumber = async () => {
-  loading.value = true
-  errorMessage.value = ''
-  try {
-    const response = await api.taiwanLottery.lastNumber()
-    updatedAt.value = response.updatedAt
-    results.value = response.results
-  } catch {
-    errorMessage.value = '目前無法取得台彩開獎資料，請稍後再試。'
-  } finally {
-    loading.value = false
+const _actions = {
+  loadLastNumber: async () => {
+    state.loading = true
+    state.errorMessage = ''
+    try {
+      const response = await taiwanLotteryService.fetchLastNumber()
+      state.updatedAt = response.updatedAt
+      state.results = response.results
+    } catch {
+      state.errorMessage = '目前無法取得台彩開獎資料，請稍後再試。'
+    } finally {
+      state.loading = false
+    }
   }
 }
 
@@ -48,7 +56,7 @@ onMounted(async () => {
     router.replace('/login')
     return
   }
-  loadLastNumber()
+  _actions.loadLastNumber()
 })
 </script>
 
@@ -78,28 +86,28 @@ onMounted(async () => {
         <button
           type="button"
           class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="loading"
-          @click="loadLastNumber"
+          :disabled="state.loading"
+          @click="_actions.loadLastNumber"
         >
-          {{ loading ? '更新中...' : '重新整理開獎' }}
+          {{ state.loading ? '更新中...' : '重新整理開獎' }}
         </button>
       </div>
 
-      <p v-if="errorMessage" class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-        {{ errorMessage }}
+      <p v-if="state.errorMessage" class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {{ state.errorMessage }}
       </p>
 
-      <div v-else-if="loading" class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-slate-600">
+      <div v-else-if="state.loading" class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-slate-600">
         正在取得台彩開獎資料...
       </div>
 
-      <div v-else-if="results.length === 0" class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-slate-600">
+      <div v-else-if="state.results.length === 0" class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-slate-600">
         目前尚無開獎資料。
       </div>
 
       <div v-else class="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
         <article
-          v-for="game in results"
+          v-for="game in state.results"
           :key="game.gameCode"
           class="rounded-xl border border-slate-200 bg-slate-50 p-4"
         >
@@ -118,7 +126,7 @@ onMounted(async () => {
               v-for="(num, idx) in game.lotNumber"
               :key="`${game.gameCode}-${idx}-${num}`"
               class="flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-sm font-bold shadow-sm"
-              :class="getBallClass(idx, game.lotNumber.length)"
+              :class="_handlers.getBallClass(idx, game.lotNumber.length)"
             >
               {{ String(num).padStart(2, '0') }}
             </span>

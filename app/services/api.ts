@@ -36,6 +36,10 @@ export type LotteryState = {
   recentBets: BetRecord[]
   totalBetAmount: number
   currentIssueBetAmount: number
+  coin?: number
+  currentBets?: number
+  totalBets?: number
+  analysis?: string
 }
 
 export type Lottery6hcRoadPlay = {
@@ -72,6 +76,32 @@ export type TaiwanLotteryResult = {
   lotNumber: Array<string | number>
 }
 
+export type LotteryBetPayload = {
+  lottery?: { id?: number; key?: string }
+  groups?: Array<Record<string, unknown>>
+  amount: number
+  gameId?: number
+  betType?: string
+  number?: string
+}
+
+export type LotteryBetOrder = {
+  order_id: string
+  issue: string
+  user_id: string
+  bet_time: number
+  coin: number
+  bet_code: string[]
+  status: 'pending' | 'success' | 'settled'
+}
+
+export type LotteryBetResponse = {
+  message: string
+  coin: number
+  orderId: string
+  orders: LotteryBetOrder[]
+}
+
 export const api = {
   system: {
     servTime: () => $fetch<{ serverTime: number }>('/api/servTime')
@@ -102,8 +132,8 @@ export const api = {
     road6hcOf: () => $fetch<{ plays: Lottery6hcRoadPlay[] }>('/api/lottery/6hc-of/road'),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     userInfo: () => $fetch<LotteryState>('/api/lottery/userInfo'),
-    bet: (payload: { gameId: number; betType: string; number: string; amount: number }) =>
-      $fetch<{ message: string; balance: number; bet: BetRecord }>('/api/lottery/bet', {
+    bet: (payload: LotteryBetPayload) =>
+      $fetch<LotteryBetResponse>('/api/lottery/bet', {
         method: 'POST',
         body: payload
       })

@@ -1,4 +1,5 @@
 import { Storage } from '../../../services/storage'
+import { LOTTERY } from '~/config/constants'
 
 type RoadPlay = {
   id?: number
@@ -11,18 +12,14 @@ type RoadPlay = {
 }
 
 export default defineEventHandler(() => {
-  const source = Storage.config.LHC as Record<string, RoadPlay> | undefined
-  if (!source) {
+  const game = Storage.games[LOTTERY['LHC-OF'].key] as {
+    get?: { roadPlays?: () => RoadPlay[] }
+  } | undefined
+
+  const plays = game?.get?.roadPlays?.()
+  if (!Array.isArray(plays)) {
     return { plays: [] as RoadPlay[] }
   }
-
-  const plays = Object.values(source)
-    .filter((item) => Number(item?.num) > 0 && Number(item?.num) <= 49)
-    .sort((a, b) => Number(a.num) - Number(b.num))
-    .map((item) => ({
-      ...item,
-      selected: true
-    }))
 
   return { plays }
 })

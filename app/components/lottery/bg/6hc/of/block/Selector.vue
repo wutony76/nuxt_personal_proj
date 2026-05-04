@@ -2,13 +2,13 @@
 import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'
 
 const { $dialog } = useNuxtApp()
-const { state: mxState, handle: mxHandle } = use6hcOfficial()
+const { state: mxState } = use6hcOfficial()
 
 const selectedCount = computed(() => {
   return mxState.isSelector.length
 })
 
-const click = {
+const _actions = {
   select: (play: any) => {
     const _select = play.selected
     if (!_select && mxState.limit.max === mxState.isSelector.length) return $dialog.alert('此注選號已滿')
@@ -26,7 +26,7 @@ const click = {
     </div>
     <div class="grid">
       <button v-for="play in mxState.playList" :key="play.id" type="button" class="ball-btn"
-        @click="click.select(play)">
+        @click="_actions.select(play)">
         <Ball :data="play" />
       </button>
     </div>

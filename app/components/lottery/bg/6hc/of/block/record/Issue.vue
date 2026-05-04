@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import ReportIssueBets from '~/components/lottery/bg/6hc/of/block/record/ReportIssueBets.vue'
-
-
 </script>
 
 <template>
@@ -31,8 +29,6 @@ import ReportIssueBets from '~/components/lottery/bg/6hc/of/block/record/ReportI
   }
 
   .header {
-    // padding-bottom: 6px;
-    // border-bottom: 1px solid var(--color-red-700);
     font-size: 14px;
     font-weight: 700;
     color: var(--color-red-main);
@@ -46,6 +42,5 @@ import ReportIssueBets from '~/components/lottery/bg/6hc/of/block/record/ReportI
     display: flex;
     flex-direction: column;
   }
-
 }
 </style>

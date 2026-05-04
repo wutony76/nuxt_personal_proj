@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 
-const email = ref('hfyy@cc.cc')
-const password = ref('123456')
-
-const errorMessage = ref('')
-const isSubmitting = ref(false)
+const state = reactive({
+  email: 'hfyy@cc.cc',
+  password: '123456',
+  errorMessage: '',
+  isSubmitting: false
+})
 
 const router = useRouter()
 const { isLoggedIn, init, login } = useAuth()
@@ -19,22 +20,24 @@ onMounted(async () => {
   }
 })
 
-const handleLogin = async () => {
-  if (isSubmitting.value) {
-    return
+const _actions = {
+  handleLogin: async () => {
+    if (state.isSubmitting) {
+      return
+    }
+
+    state.errorMessage = ''
+    state.isSubmitting = true
+    const result = await login(state.email, state.password)
+    state.isSubmitting = false
+
+    if (!result.ok) {
+      state.errorMessage = result.message
+      return
+    }
+
+    router.replace('/admin')
   }
-
-  errorMessage.value = ''
-  isSubmitting.value = true
-  const result = await login(email.value, password.value)
-  isSubmitting.value = false
-
-  if (!result.ok) {
-    errorMessage.value = result.message
-    return
-  }
-
-  router.replace('/admin')
 }
 </script>
 
@@ -48,22 +51,22 @@ const handleLogin = async () => {
 
       <label class="mb-3 block text-sm font-semibold text-slate-700">
         Email
-        <input v-model="email" type="email" placeholder="you@example.com"
+        <input v-model="state.email" type="email" placeholder="you@example.com"
           class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none ring-indigo-200 focus:ring" />
       </label>
 
       <label class="mb-3 block text-sm font-semibold text-slate-700">
         Password
-        <input v-model="password" type="password" placeholder="******"
+        <input v-model="state.password" type="password" placeholder="******"
           class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none ring-indigo-200 focus:ring" />
       </label>
 
-      <p v-if="errorMessage" class="mt-1 text-sm font-medium text-red-700">{{ errorMessage }}</p>
+      <p v-if="state.errorMessage" class="mt-1 text-sm font-medium text-red-700">{{ state.errorMessage }}</p>
 
-      <button type="button" :disabled="isSubmitting"
+      <button type="button" :disabled="state.isSubmitting"
         class="mt-4 w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-        @click="handleLogin">
-        {{ isSubmitting ? '登入中...' : '登入' }}
+        @click="_actions.handleLogin">
+        {{ state.isSubmitting ? '登入中...' : '登入' }}
       </button>
     </section>
   </main>

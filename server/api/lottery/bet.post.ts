@@ -1,7 +1,6 @@
 import { Storage } from '../../services/storage'
 import { sessionController } from '../../services/auth'
 import { STATUS_ERR_CODE } from '~/config/constants.js'
-import { PLAYLIST } from '~/config/bg/6hc-of'
 
 type BetPayload = {
   lottery?: any
@@ -9,10 +8,20 @@ type BetPayload = {
   amount?: number
 }
 
+type LoginUser = {
+  userId: string
+  coin: number
+}
+
+type BetResult = {
+  orderId: string
+  orders: Array<Record<string, unknown>>
+}
+
 export default defineEventHandler(async (event) => {
   const payload = await readBody<BetPayload>(event)
   const _login = sessionController.require(event)
-  const _user = Storage.get.user(_login.id)
+  const _user = Storage.get.user(_login.id) as LoginUser | undefined
   console.log('TTT2.API bet.post.payload', payload)
   console.log('TTT2.API bet.post.user', _user, payload.lottery)
 
@@ -27,10 +36,14 @@ export default defineEventHandler(async (event) => {
   if (amount > _user.coin) throw createError({ statusCode: 400, statusMessage: '餘額不足' })
 
   const getLottery = payload.lottery
-  const gameClass = Storage.games[getLottery.key]
-  gameClass.playBets(payload, _user)
+  if (!getLottery?.key) throw createError({ statusCode: 400, statusMessage: '彩種參數錯誤' })
+  const gameClass = (Storage.games as Record<string, { playBets: (payload: BetPayload, user: LoginUser) => BetResult }>)[getLottery.key]
+  if (!gameClass?.playBets) throw createError({ statusCode: 400, statusMessage: '彩種不存在' })
+  const betResult = gameClass.playBets(payload, _user)
   return {
     message: '下注成功',
     coin: _user.coin,
+    orderId: betResult?.orderId ?? '',
+    orders: Array.isArray(betResult?.orders) ? betResult.orders : []
   }
 })

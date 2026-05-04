@@ -1,8 +1,21 @@
-import currentGet from '../api/lottery/6hc-of/current.get'
-import meGet from '../api/me.get'
 import { Storage } from './storage'
 
+type OrderRow = {
+  issue: string
+  userId: string
+  coin: number
+  orderId: string
+  betCode: string[]
+}
+
+type AddInput = Partial<OrderRow> & { issue: string; userId: string; coin: number }
+
 export default class OrdersClass {
+  lotteryId: number
+  lotteryKey: string
+  orders: Record<string, OrderRow[]>
+  members: Record<string, number>
+
   constructor(lottery: { id: number, key: string }) {
     this.lotteryId = lottery.id
     this.lotteryKey = lottery.key
@@ -11,22 +24,29 @@ export default class OrdersClass {
     this.init()
   }
   init() {
-    Storage.lottery.orders[this.lotteryKey] = this
+    ; (Storage.lottery.orders as Record<string, unknown>)[this.lotteryKey] = this
   }
 
   add = {
-    record: (data) => {
+    record: (data: AddInput) => {
       const issue = data.issue
       const coin = Number(data.coin)
-
-      if (Object.hasOwn(this.orders, issue)) this.orders[issue].push(data)
-      else {
-        this.orders[issue] = []
-        this.orders[issue].push(data)
+      const payload: OrderRow = {
+        issue,
+        userId: String(data.userId ?? ''),
+        coin,
+        orderId: String(data.orderId ?? ''),
+        betCode: Array.isArray(data.betCode) ? data.betCode : []
       }
 
-      if (Object.hasOwn(this.members, data.userId)) this.members[data.userId] += coin
-      else this.members[data.userId] = coin
+      if (this.orders[issue]) this.orders[issue].push(payload)
+      else {
+        this.orders[issue] = []
+        this.orders[issue].push(payload)
+      }
+
+      const prevCoin = Number(this.members[payload.userId] ?? 0)
+      this.members[payload.userId] = prevCoin + coin
 
       console.log('OrdersClass.add.record', this.orders)
     }
@@ -37,15 +57,15 @@ export default class OrdersClass {
       all: () => {
         return this.orders
       },
-      currentIssue: (_issue) => {
+      currentIssue: (_issue: string) => {
         return this.orders[_issue]
       },
     },
     members: {
-      user: (userId) => {
+      user: (userId: string) => {
         return this.members[userId] ?? 0
       },
-      issue: (_issue, userId) => {
+      issue: (_issue: string, userId: string) => {
         const filtered = this.orders[_issue]?.filter((order) => order.userId === userId) ?? []
         return filtered.reduce((acc, order) => acc + Number(order.coin), 0)
       }

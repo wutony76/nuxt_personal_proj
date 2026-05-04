@@ -6,6 +6,7 @@ const MIN_COIN = 1
 const MAX_COIN = 99999
 const { $dialog } = useNuxtApp()
 const router = useRouter()
+const { user } = useAuth()
 const { state: mxState, fetch: mxFetch } = use6hcOfficial()
 
 const state = reactive({
@@ -14,7 +15,7 @@ const state = reactive({
   isSubmitting: false,
 })
 
-const handle = {
+const _handlers = {
   normalizeCoin: (value: number) => {
     const safe = Number.isFinite(value) ? Math.trunc(value) : MIN_COIN
     return Math.min(MAX_COIN, Math.max(MIN_COIN, safe))
@@ -30,20 +31,20 @@ const handle = {
       return
     }
 
-    state.coin = handle.normalizeCoin(value)
+    state.coin = _handlers.normalizeCoin(value)
     target.value = String(state.coin)
   }
 }
 
-const click = {
+const _actions = {
   add: (value: number) => {
-    state.coin = handle.normalizeCoin(state.coin + value)
+    state.coin = _handlers.normalizeCoin(state.coin + value)
   },
   bet: () => {
     if (state.isSubmitting) return
     state.isSubmitting = true
 
-    mxFetch.bets(state.coin)
+    mxFetch.bets(state.coin, user.value?.id)
       .then((result) => {
         if (!result.ok) {
           $dialog.alert(result.message)
@@ -77,7 +78,7 @@ const click = {
 <template>
   <div class="control-coin">
     <div class="row-1">
-      <button v-for="item in state.options" :key="item" type="button" class="coin-btn" @click="click.add(item)">
+      <button v-for="item in state.options" :key="item" type="button" class="coin-btn" @click="_actions.add(item)">
         +{{ item }}
       </button>
     </div>
@@ -85,10 +86,9 @@ const click = {
       <div class="left">
         <label class="coin-label" for="coin-input">投注金額</label>
         <input id="coin-input" :value="state.coin" type="number" min="1" max="99999" step="1" class="coin-input"
-          @input="handle.input" @blur="handle.input" />
+          @input="_handlers.input" @blur="_handlers.input" />
       </div>
       <div class="right">
-        <!-- <button type="button" class="action-btn bet" @click="click.bet"> 投注 </button> -->
         <div class="total-amount">
           總投注： {{ actions.thousands(mxState.groupList.length * state.coin) }}
         </div>
@@ -96,7 +96,7 @@ const click = {
 
     </div>
     <div>
-      <button type="button" class="action-btn bet" :disabled="state.isSubmitting" @click="click.bet">
+      <button type="button" class="action-btn bet" :disabled="state.isSubmitting" @click="_actions.bet">
         {{ state.isSubmitting ? '投注中...' : '投注' }}
       </button>
     </div>

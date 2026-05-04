@@ -1,9 +1,11 @@
 import { computed } from 'vue'
-import { api, type AuthUser } from '~/services/api'
+import { type AuthUser } from '~/services/api'
+import { AuthService } from '~/services/authService'
 
 export const useAuth = () => {
   const user = useState<AuthUser | null>('auth-user', () => null)
   const initialized = useState<boolean>('auth-initialized', () => false)
+  const authService = new AuthService()
 
   const init = async () => {
     if (initialized.value) {
@@ -11,7 +13,7 @@ export const useAuth = () => {
     }
 
     try {
-      const result = await api.auth.me()
+      const result = await authService.fetchMe()
       user.value = result.user
     } catch {
       user.value = null
@@ -24,7 +26,7 @@ export const useAuth = () => {
     await init()
 
     try {
-      const result = await api.auth.login({ email, password })
+      const result = await authService.submitLogin({ email, password })
 
       user.value = result.user
 
@@ -41,7 +43,7 @@ export const useAuth = () => {
 
   const logout = async () => {
     try {
-      await api.auth.logout()
+      await authService.submitLogout()
     } finally {
       user.value = null
       initialized.value = true

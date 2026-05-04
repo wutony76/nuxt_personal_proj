@@ -13,8 +13,8 @@ import NumberPlay from '~/components/lottery/bg/6hc/of/Number.vue'
 import Header from '~/components/lottery/bg/6hc/of/block/Header.vue'
 import Road from '~/components/lottery/bg/6hc/of/block/Road.vue'
 import BarTabs from '~/components/lottery/bg/6hc/of/base/BarTabs.vue'
-import RecordIssue from '~/components/lottery/bg/6hc/of/block/record/RecordIssue.vue'
-import RecordAnalyze from '~/components/lottery/bg/6hc/of/block/record/RecordAnalyze.vue'
+import IssueBlock from '~/components/lottery/bg/6hc/of/block/record/Issue.vue'
+import AnalyzeBlock from '~/components/lottery/bg/6hc/of/block/record/Analyze.vue'
 
 const use6hc = use6hcOfficial()
 const { fetch: mxFetch } = use6hc
@@ -56,13 +56,15 @@ onMounted(async () => {
     router.replace('/login')
     return
   }
+  const userId = String(user.value?.id ?? '')
   await use6hc.init.startServerTimeSync()
-  await mxFetch.initPageData()
+  await mxFetch.initPageData(userId)
 })
 
 onBeforeUnmount(() => {
   use6hc.init.stopServerTimeSync()
   mxFetch.stopCurrentInfoPolling()
+  mxFetch.stopOrderDetailSync()
 })
 
 </script>
@@ -97,8 +99,8 @@ onBeforeUnmount(() => {
         <component :is="currentPlay" />
       </section>
       <section class="record-warp">
-        <RecordIssue />
-        <RecordAnalyze />
+        <IssueBlock />
+        <AnalyzeBlock />
       </section>
     </main>
     <section class="footer-warp"> footer</section>

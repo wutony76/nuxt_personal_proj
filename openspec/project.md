@@ -65,6 +65,18 @@
   - actions: `fetchXxx` / `submitXxx`
   - private members: `_xxx`
 
+## Mandatory Enforcement (硬性執行規範)
+
+- **State Object 優先**：
+  - 優先使用 `reactive` 統一管理相關狀態（State Object），避免在同一模組內散落多個 `ref`。
+  - 僅在確有必要（例如外部 API 介面或框架限制）時才可補充 `ref`。
+- **Service / Class 分層強制**：
+  - 複雜業務邏輯與 API 處理必須抽離至 `Class` 或 `Service Objects`。
+  - 頁面與組件層僅保留 UI 組裝、事件入口與狀態映射。
+- **私有邏輯封裝強制**：
+  - 組件內的輔助函式與私有邏輯必須封裝在具名私有物件中，並以底線命名（例如 `const _handlers = { ... }`、`const _actions = { ... }`）。
+  - 避免將工具函式散落在 `<script setup>` 頂層，保持組件精簡與可讀。
+
 ## Style & UI Conventions
 
 - Style 以 SCSS + Tailwind utilities 並行

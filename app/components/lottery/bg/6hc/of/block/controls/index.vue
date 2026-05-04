@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { cloneDeep } from 'lodash'
 import { _uuid2 } from 'serv/utils/encrypt'
-import ControlGroup from './ControlGroup.vue';
-import ControlCoin from './ControlCoin.vue'
+import Group from './Group.vue'
+import Coin from './Coin.vue'
 import { GAME_6HC_OF } from '~/config/constants'
 
 const { $dialog } = useNuxtApp()
@@ -15,14 +15,13 @@ const props = withDefaults(defineProps<{
 
 const { state: mxState, handle: mxHandle } = use6hcOfficial()
 
-const handle = {
+const _handlers = {
   random: (max = 7) => {
     const targetCount = Math.max(1, Math.min(mxState.playList.length, Number(max) || 7))
     const selectedSet = new Set(
       mxState.playList.filter((item) => item.selected).map((item) => Number(item.num))
     )
 
-    // 如果已達到需求數量，改為整組重新隨機。
     if (selectedSet.size >= targetCount) {
       const nextSet = new Set(
         [...mxState.playList]
@@ -51,14 +50,13 @@ const handle = {
   }
 }
 
-const click = {
+const _actions = {
   random: () => {
     switch (mxState.status) {
       case GAME_6HC_OF.SINGLE.key:
-        handle.random(7)
+        _handlers.random(7)
         break
       case GAME_6HC_OF.DUPLEX.key:
-        // mxHandle.randomSelect(8)
         break
     }
   },
@@ -84,18 +82,17 @@ const click = {
   <div class="controls">
     <div class="controls-actions">
       <div class="left">
-        <button type="button" class="action-btn" @click="click.random()">隨機選號</button>
-        <button type="button" class="action-btn" @click="click.add()">加入</button>
+        <button type="button" class="action-btn" @click="_actions.random()">隨機選號</button>
+        <button type="button" class="action-btn" @click="_actions.add()">加入</button>
       </div>
       <div class="right">
-        <button type="button" class="action-btn ghost" @click="click.clear()">清空</button>
+        <button type="button" class="action-btn ghost" @click="_actions.clear()">清空</button>
       </div>
     </div>
 
     <div class="hint">{{ props.hint }}</div>
-    <!-- <div class="group"> </div> -->
-    <ControlGroup />
-    <ControlCoin />
+    <Group />
+    <Coin />
   </div>
 </template>
 
@@ -143,7 +140,5 @@ const click = {
     line-height: 1.4;
     color: var(--color-red-desc);
   }
-
-
 }
 </style>

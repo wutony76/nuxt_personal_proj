@@ -2,7 +2,6 @@ import { Storage } from './storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import OrdersClass from './orders'
 import { prdDbId } from './config'
-import userInfoGet from '../api/lottery/userInfo.get'
 
 type OpenCodeRecord = {
   issue: string
@@ -24,6 +23,16 @@ type CurrentInfo = OpenCodeRecord & {
   openCodePlay: Array<Record<string, unknown>>
 }
 
+type BetOrderItem = {
+  order_id: string
+  issue: string
+  user_id: string
+  bet_time: number
+  coin: number
+  bet_code: string[]
+  status: 'success'
+}
+
 const CYCLE_SECONDS = 7 * 60
 const CYCLE_MS = CYCLE_SECONDS * 1000
 const TOTAL_ISSUES_PER_DAY = 205
@@ -33,12 +42,14 @@ export default class LHC_OF {
   recordOpenCode: OpenCodeRecord[]
   currentIndex: number
   currentStatus: string
+  issueOrderSeqMap: Record<string, number>
 
   constructor() {
     this.id = LOTTERY['LHC-OF'].id
     this.recordOpenCode = []
     this.currentIndex = -1
     this.currentStatus = STATUS_TIME.PREPARE
+    this.issueOrderSeqMap = {}
     this.init()
   }
 
@@ -62,15 +73,24 @@ export default class LHC_OF {
     const amount = Number(payload.amount)
     _user.coin -= amount
 
-    // HANDLE CONFIG PLAY INFO 
-    const groups = payload.groups
+    // HANDLE CONFIG PLAY INFO
+    const groups = Array.isArray(payload.groups) ? payload.groups : []
     const lhcConfig = this._get.configPlay()
+    const issue = this.recordOpenCode[this.currentIndex]?.issue ?? ''
+    const orderRows = this.handle.buildOrderRows({
+      issue,
+      userId: String(_user.userId ?? ''),
+      amount,
+      groups
+    })
+
     groups.forEach((group: any) => {
       const playList = Array.isArray(group?.playList) ? group.playList : []
       playList.forEach((play: any) => {
         const num = Number(play?.num ?? play?.label)
         if (!Number.isFinite(num) || num <= 0) return
         const dbId = prdDbId(LOTTERY['6HC'].id, num)
+        if (!dbId) return
         const target = lhcConfig?.[dbId]
         if (!target) return
         target.countShow = Number(target.countShow ?? 0) + 1
@@ -79,7 +99,15 @@ export default class LHC_OF {
 
     // HANDLE ORDERS RECORD
     const _orders = this._get.orders()
-    _orders.add.record({ issue: this.recordOpenCode[this.currentIndex]?.issue, userId: _user.userId, coin: amount })
+    orderRows.forEach((row) => {
+      _orders.add.record({
+        issue: row.issue,
+        userId: row.user_id,
+        coin: row.coin,
+        orderId: row.order_id,
+        betCode: row.bet_code
+      })
+    })
 
     // console.log('class USER', _user)
     // console.log('LHC_OF.ORDERS.ALL', _orders.get.orders.all())
@@ -87,6 +115,10 @@ export default class LHC_OF {
     // console.log('----------LHC_OF----------')
     // console.log('LHC_OF.ORDERS.CURRENT_ISSUE_MEMBERS', _orders.get.members.user(_user.userId))
     // console.log('LHC_OF.ORDERS.CURRENT_ISSUE_MEMBERS', _orders.get.members.issue(this.recordOpenCode[this.currentIndex]?.issue, _user.userId))
+    return {
+      orderId: orderRows[0]?.order_id.split('(')[0] ?? '',
+      orders: orderRows
+    }
   }
   _get = {
     configPlay: () => {
@@ -95,10 +127,15 @@ export default class LHC_OF {
     },
     latestIssue: () => {
       if (this.recordOpenCode.length === 0) return '19900101001'
-      return this.recordOpenCode[this.currentIndex]?.issue ?? this.recordOpenCode[0]?.issue
+      return this.recordOpenCode[this.currentIndex]?.issue ?? this.recordOpenCode[0]?.issue ?? '19900101001'
     },
     orders: () => {
-      return Storage.lottery.orders[LOTTERY['LHC-OF'].key]
+      const key = LOTTERY['LHC-OF'].key
+      const map = Storage.lottery.orders as Record<string, OrdersClass | undefined>
+      if (!map[key]) {
+        map[key] = new OrdersClass({ id: LOTTERY['LHC-OF'].id, key })
+      }
+      return map[key] as OrdersClass
     }
   }
   get = {
@@ -137,10 +174,15 @@ export default class LHC_OF {
       this.handle.refreshCurrent(new Date())
       return this.recordOpenCode[this.currentIndex]?.openCode ?? []
     },
-    userInfo: (userId) => {
+    roadPlays: () => {
+      this.handle.refreshCurrent(new Date())
+      return this.handle.buildRoadPlays()
+    },
+    userInfo: (userId: string) => {
       const _orders = this._get.orders()
+      const issue = this.recordOpenCode[this.currentIndex]?.issue ?? ''
       return {
-        currentBets: _orders.get.members.issue(this.recordOpenCode[this.currentIndex]?.issue, userId),
+        currentBets: _orders.get.members.issue(issue, userId),
         totalBets: _orders.get.members.user(userId),
         analysis: this.analysis.betsIssue(this._get.latestIssue(), userId),
       }
@@ -211,20 +253,107 @@ export default class LHC_OF {
       const _diff = _currentBets - _backBets
       const _diffPercent = (_diff / _backBets) * 100
       if (_diffPercent > 0) return `比上期多了 ${_diffPercent.toFixed(2)}%`
-      else if (_diffPercent < 0) return `比上期少了 ${_diffPercent.toFixed(2)}%`
+      else if (_diffPercent < 0) return `比上期少了 ${Math.abs(_diffPercent).toFixed(2)}%`
       else return '與上一期投注相同'
     }
   }
   handle = {
     openCodePlay: (openCode: string[]) => {
+      const roadMap = new Map(
+        this.handle.buildRoadPlays().map((play) => [Number(play?.num), play])
+      )
       return openCode
         .map((code) => {
           const num = Number(code)
           if (!Number.isFinite(num)) return null
-          const play = Storage.get.lotteryPlay(LOTTERY['6HC'].id, num)
+          const play = roadMap.get(num) ?? Storage.get.lotteryPlay(LOTTERY['6HC'].id, num)
           return (play ?? null) as Record<string, unknown> | null
         })
         .filter((play): play is Record<string, unknown> => Boolean(play))
+    },
+    createOrderId: (issue: string) => {
+      const safeIssue = String(issue ?? '').trim() || this._get.latestIssue()
+      const next = Number(this.issueOrderSeqMap[safeIssue] ?? 0) + 1
+      this.issueOrderSeqMap[safeIssue] = next
+      const serial = String(next).padStart(6, '0')
+      return `LHC-OF${safeIssue}${serial}`
+    },
+    buildOrderRows: (input: { issue: string; userId: string; amount: number; groups: any[] }) => {
+      const groups = Array.isArray(input.groups) ? input.groups : []
+      if (groups.length === 0) return [] as BetOrderItem[]
+
+      const orderId = this.handle.createOrderId(input.issue)
+      const total = groups.length
+      const coinPerRow = Number((Number(input.amount) / total).toFixed(2))
+      const betTime = Date.now()
+
+      return groups.map((group: any, idx: number) => {
+        const playList = Array.isArray(group?.playList) ? group.playList : []
+        const bet_code = playList
+          .map((play: any) => {
+            const num = Number(play?.num ?? play?.label)
+            if (!Number.isFinite(num) || num <= 0) return ''
+            return String(num).padStart(2, '0')
+          })
+          .filter(Boolean)
+
+        return {
+          order_id: `${orderId}(${idx + 1}/${total})`,
+          issue: input.issue,
+          user_id: input.userId,
+          bet_time: betTime,
+          coin: coinPerRow,
+          bet_code,
+          status: 'success'
+        } satisfies BetOrderItem
+      })
+    },
+    buildRoadPlays: () => {
+      const source = Storage.config.LHC as Record<string, any> | undefined
+      const basePlays = source
+        ? Object.values(source)
+          .filter((item) => Number(item?.num) > 0 && Number(item?.num) <= 49)
+          .sort((a, b) => Number(a.num) - Number(b.num))
+        : []
+
+      const statsMap = new Map<number, { countShow: number; countIssue: number }>()
+      for (let num = 1; num <= 49; num++) {
+        statsMap.set(num, { countShow: 0, countIssue: 0 })
+      }
+
+      const closedIndex = this.currentStatus === STATUS_TIME.OPENED
+        ? this.currentIndex
+        : Math.max(this.currentIndex - 1, -1)
+      const records = this.recordOpenCode.slice(0, closedIndex + 1)
+      const lastSeenMap = new Map<number, number>()
+      const showCountMap = new Map<number, number>()
+
+      records.forEach((record, issueIdx) => {
+        record.openCode.forEach((code) => {
+          const num = Number(code)
+          if (!Number.isFinite(num) || num < 1 || num > 49) return
+          showCountMap.set(num, Number(showCountMap.get(num) ?? 0) + 1)
+          lastSeenMap.set(num, issueIdx)
+        })
+      })
+
+      for (let num = 1; num <= 49; num++) {
+        const countShow = Number(showCountMap.get(num) ?? 0)
+        const lastSeenIdx = Number(lastSeenMap.get(num) ?? -1)
+        const countIssue = lastSeenIdx < 0 ? records.length : (records.length - 1 - lastSeenIdx)
+        statsMap.set(num, { countShow, countIssue })
+      }
+
+      return basePlays.map((play) => {
+        const num = Number(play?.num ?? 0)
+        const stats = statsMap.get(num) ?? { countShow: 0, countIssue: 0 }
+        return {
+          ...play,
+          countShow: stats.countShow,
+          countIssue: stats.countIssue,
+          selected: true
+        }
+      })
     },
     randomOpenCode: () => {
       const source = Array.from({ length: 49 }, (_, i) => String(i + 1).padStart(2, '0'))

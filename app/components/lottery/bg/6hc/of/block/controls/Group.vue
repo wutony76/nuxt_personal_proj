@@ -5,10 +5,9 @@ import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'
 import IconSvg from '~/components/IconSvg.vue'
 import { _uuid2 } from 'serv/utils/encrypt'
 
-const { state: mxState, handle: mxHandle } = use6hcOfficial()
-const click = {
+const { state: mxState } = use6hcOfficial()
+const _actions = {
   copy: (group: any) => {
-    // console.log(group)
     const _bet = {
       hashKey: _uuid2(),
       playList: cloneDeep(group.playList),
@@ -32,8 +31,8 @@ const click = {
           <Ball :data="play" v-for="play in group.playList" :key="play.id" />
         </div>
         <div class="right">
-          <IconSvg icon-class="copy" class="icon" @click="click.copy(group)" />
-          <IconSvg icon-class="del" class="icon" @click="click.del(group)" />
+          <IconSvg icon-class="copy" class="icon" @click="_actions.copy(group)" />
+          <IconSvg icon-class="del" class="icon" @click="_actions.del(group)" />
         </div>
       </div>
     </div>

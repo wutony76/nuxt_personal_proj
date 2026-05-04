@@ -14,7 +14,7 @@ const state = reactive({
 })
 const isHedgeMode = computed(() => [SORT.DEFAULT, SORT.BET_COUNT_USER, SORT.OPEN_COUNT_SYSTEM, SORT.GAP_ISSUE_SYSTEM].includes(mxAnalyze.status))
 
-const handle = {
+const _handlers = {
   getBetCountMap: () => {
     const betCountMap = new Map<number, number>()
 
@@ -35,16 +35,8 @@ const handle = {
       return
     }
 
-    const betCountMap = handle.getBetCountMap()
+    const betCountMap = _handlers.getBetCountMap()
 
-    // 對衝球號邏輯：
-    // 1) 每顆球先算 hedgeValue（依狀態切換公式）
-    //    - DEFAULT/BET_COUNT_USER: |countShow - countIssue|
-    //    - OPEN_COUNT_SYSTEM:      |countShow - betCount|
-    //    - GAP_ISSUE_SYSTEM:       |countIssue - betCount|
-    // 2) 依 hedgeValue 由大到小
-    // 3) 同分時以 num 由小到大，避免排序抖動
-    // 4) 取前 7 顆做最終結果
     state.hedgeBallList = (mxSystem.playList as any[])
       .map((play) => ({
         ...play,
@@ -76,7 +68,7 @@ const handle = {
   }
 }
 
-const click = {
+const _actions = {
   add: () => {
     if (!isHedgeMode.value) return $dialog.alert('目前狀態無法加入注單')
     if (state.hedgeBallList.length !== 7) return $dialog.alert('推薦號碼不足 7 碼')
@@ -93,7 +85,7 @@ const click = {
 watch(
   () => mxAnalyze.status,
   () => {
-    handle.analyze()
+    _handlers.analyze()
   },
   { immediate: true }
 )
@@ -102,7 +94,7 @@ watch(
   () => mxSystem.playList,
   () => {
     if (!isHedgeMode.value) return
-    handle.analyze()
+    _handlers.analyze()
   },
   { deep: true }
 )
@@ -111,7 +103,7 @@ watch(
   () => mxCurrent.detail,
   () => {
     if (!isHedgeMode.value) return
-    handle.analyze()
+    _handlers.analyze()
   },
   { deep: true }
 )
@@ -128,7 +120,7 @@ watch(
         <div class="result-balls">
           <Ball v-for="play in state.hedgeBallList" :key="play.num"
             :data="{ ...play, countIssue: -1, countShow: -1, countBets: -1 }" :is-click="false" />
-          <button type="button" class="action-btn bet add-btn" @click="click.add">+加入注單</button>
+          <button type="button" class="action-btn bet add-btn" @click="_actions.add">+加入注單</button>
         </div>
       </template>
     </div>

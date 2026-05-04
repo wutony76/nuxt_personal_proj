@@ -44,6 +44,10 @@ alwaysApply: true
 - **API 請求**: 函數名稱必須以 `fetch` (讀取) 或 `sync` (同步/更新) 開頭。
 - **私有方法/變數**: 必須以底線 `_` 開頭。
 - **命名格式**: 必須使用 **camelCase**。
+- **長命名去冗餘**：若語意已由檔案/模組上下文提供，命名需縮短為核心詞，避免重複前綴。
+  - ❌ `LhcOfficialOrderStatus` -> ✅ `Status`
+  - ❌ `WatchOfficialOrdersInput` -> ✅ `WatchInput`
+  - ❌ `fetchOfficialOrders` -> ✅ `fetchOrders`
 
 ## Examples
 
@@ -61,3 +65,8 @@ alwaysApply: true
 
 - **User**: "定義一個判斷是否登入的變數"
 - **AI Action**: `const isLoggedIn = false;`
+
+#### 情境：型別命名精簡
+
+- **User**: "這個 composable 內的型別名稱太長，請精簡"
+- **AI Action**: 將 `LhcOfficialOrderStatus`、`WatchOfficialOrdersInput` 分別調整為 `Status`、`WatchInput`，並同步更新所有引用。
