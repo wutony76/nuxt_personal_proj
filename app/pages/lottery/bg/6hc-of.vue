@@ -20,9 +20,12 @@ const use6hc = use6hcOfficial()
 const { fetch: mxFetch } = use6hc
 const router = useRouter()
 const { user, isLoggedIn, init } = useAuth()
+const { $dialog } = useNuxtApp()
 const state = reactive({
   lotteryId: LOTTERY['6HC'].id,
-  lotteryInfo: GET_CONT.lotteryById(LOTTERY['6HC'].id)
+  lotteryInfo: GET_CONT.lotteryById(LOTTERY['6HC'].id),
+  userDialogVisible: false,
+  openCodeDialogVisible: false
 })
 
 const playMap = {
@@ -50,6 +53,30 @@ const userInfo = computed(() => {
   }
 })
 
+const userDialogData = computed(() => use6hc.userRecord)
+const openCodeDialogData = computed(() => use6hc.openCodeHistory)
+
+const click = {
+  openUserDialog: async () => {
+    state.userDialogVisible = true
+    await mxFetch.userDialogRecord()
+  },
+  openOpenCodeDialog: async () => {
+    state.openCodeDialogVisible = true
+    await mxFetch.openCodeHistory()
+  },
+  closeUserDialog: () => {
+    state.userDialogVisible = false
+  },
+  closeOpenCodeDialog: () => {
+    state.openCodeDialogVisible = false
+  },
+  claimOneIssue: async () => {
+    const result = await mxFetch.claimOneIssue()
+    $dialog.alert(result?.message || '領獎完成')
+  }
+}
+
 onMounted(async () => {
   await init()
   if (!isLoggedIn.value) {
@@ -71,17 +98,17 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="base lottery-6hc-of">
-    <LotteryBgBaseTop />
+    <LotteryBgBaseTop @open-user-dialog="click.openUserDialog()" @open-opencode-dialog="click.openOpenCodeDialog()" />
     <main class="main">
-      <Header :lottery-info="state.lotteryInfo" />
+      <Header :lottery-info="state.lotteryInfo" @open-opencode-dialog="click.openOpenCodeDialog()" />
       <section class="info-warp">
         <aside class="info-side">
-          <div class="user-warp">
+          <div class="user-warp" @click="click.openUserDialog()">
             <div class="user-title"> {{ userInfo.name }} </div>
             <div class="user-content">
               <div class="row">
                 F幣餘額: {{ actions.thousands(userInfo.coin) }}
-                <button type="button" class="deposit-btn">儲值</button>
+                <button type="button" class="deposit-btn" @click.stop="click.openUserDialog()">明細</button>
               </div>
               <div class="row">當期已投注: {{ actions.thousands(userInfo.currentBets) }}</div>
               <div class="row">累計已投注: {{ actions.thousands(userInfo.totalBets) }}</div>
@@ -103,6 +130,128 @@ onBeforeUnmount(() => {
         <AnalyzeBlock />
       </section>
     </main>
+    <div v-if="state.userDialogVisible" class="user-dialog-mask" @click.self="click.closeUserDialog()">
+      <section class="user-dialog">
+        <header class="user-dialog-header">
+          <h3>會員資產 / 下注紀錄</h3>
+          <button type="button" @click="click.closeUserDialog()">×</button>
+        </header>
+
+        <div class="user-dialog-summary">
+          <div>當期累積獎金：{{ actions.thousands(userDialogData.jackpot.currentIssueJackpot) }}</div>
+          <div>累積滾存獎金：{{ actions.thousands(userDialogData.jackpot.carryJackpot) }}</div>
+          <div>可領獎期數：{{ userDialogData.claimableIssues.length }}</div>
+          <button
+            type="button"
+            class="claim-btn"
+            :disabled="userDialogData.claimableIssues.length === 0 || userDialogData.isSubmittingClaim"
+            @click="click.claimOneIssue()">
+            {{ userDialogData.isSubmittingClaim ? '領獎中...' : '領取下一期獎金' }}
+          </button>
+        </div>
+
+        <div v-if="userDialogData.isLoading" class="user-dialog-loading">載入中...</div>
+        <div v-else-if="userDialogData.errorMessage" class="user-dialog-error">{{ userDialogData.errorMessage }}</div>
+        <div v-else class="user-dialog-body">
+          <section class="dialog-block">
+            <h4>餘額變動表</h4>
+            <div class="dialog-table-wrap">
+              <table class="report-table dialog-report-table">
+              <thead>
+                <tr>
+                  <th>時間</th>
+                  <th>期數</th>
+                  <th>類型</th>
+                  <th>變動</th>
+                  <th>餘額</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in userDialogData.balanceChanges" :key="item.id">
+                  <td>{{ new Date(item.createdAt).toLocaleString() }}</td>
+                  <td>{{ item.issue }}</td>
+                  <td>{{ item.type }}</td>
+                  <td>{{ actions.thousands(item.amount) }}</td>
+                  <td>{{ actions.thousands(item.after) }}</td>
+                </tr>
+                <tr v-if="userDialogData.balanceChanges.length === 0">
+                  <td colspan="5" class="no-records">暫無資料</td>
+                </tr>
+              </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="dialog-block">
+            <h4>下注紀錄</h4>
+            <div class="dialog-table-wrap">
+              <table class="report-table dialog-report-table">
+              <thead>
+                <tr>
+                  <th>訂單</th>
+                  <th>期數</th>
+                  <th>號碼</th>
+                  <th>金額</th>
+                  <th>中獎</th>
+                  <th>獎金</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in userDialogData.betHistory" :key="item.orderId">
+                  <td>{{ item.orderId }}</td>
+                  <td>{{ item.issue }}</td>
+                  <td>{{ item.betCode.join(', ') }}</td>
+                  <td>{{ actions.thousands(item.coin) }}</td>
+                  <td>{{ item.winStatus }}</td>
+                  <td>{{ actions.thousands(item.winAmount) }}</td>
+                </tr>
+                <tr v-if="userDialogData.betHistory.length === 0">
+                  <td colspan="6" class="no-records">暫無資料</td>
+                </tr>
+              </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+    <div v-if="state.openCodeDialogVisible" class="user-dialog-mask" @click.self="click.closeOpenCodeDialog()">
+      <section class="user-dialog">
+        <header class="user-dialog-header">
+          <h3>開獎歷史（過去到最近期）</h3>
+          <button type="button" @click="click.closeOpenCodeDialog()">×</button>
+        </header>
+        <div v-if="openCodeDialogData.isLoading" class="user-dialog-loading">載入中...</div>
+        <div v-else-if="openCodeDialogData.errorMessage" class="user-dialog-error">{{ openCodeDialogData.errorMessage }}</div>
+        <div v-else class="user-dialog-body">
+          <section class="dialog-block">
+            <div class="dialog-table-wrap">
+              <table class="report-table dialog-report-table">
+              <thead>
+                <tr>
+                  <th>期數</th>
+                  <th>開獎號</th>
+                  <th>開始</th>
+                  <th>結束</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in openCodeDialogData.list" :key="item.issue">
+                  <td>{{ item.issue }}</td>
+                  <td>{{ item.openCode.join(', ') }}</td>
+                  <td>{{ new Date(item.startAt).toLocaleString() }}</td>
+                  <td>{{ new Date(item.endAt).toLocaleString() }}</td>
+                </tr>
+                <tr v-if="openCodeDialogData.list.length === 0">
+                  <td colspan="4" class="no-records">暫無資料</td>
+                </tr>
+              </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
     <section class="footer-warp"> footer</section>
   </div>
 </template>
@@ -231,6 +380,98 @@ onBeforeUnmount(() => {
     font-size: 0.875rem;
     font-weight: 700;
     color: #fff;
+  }
+
+  .user-dialog-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .user-dialog {
+    width: min(1100px, 96vw);
+    max-height: 88vh;
+    overflow: auto;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid var(--color-red-700);
+    padding: 0.75rem;
+  }
+
+  .user-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+
+  .user-dialog-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+
+    .claim-btn {
+      border: 1px solid #f2b7c1;
+      border-radius: 0.25rem;
+      background: #fff;
+      padding: 0.25rem 0.5rem;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-red-main);
+      cursor: pointer;
+    }
+  }
+
+  .user-dialog-loading,
+  .user-dialog-error {
+    padding: 0.75rem;
+    font-weight: 700;
+  }
+
+  .user-dialog-body {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .dialog-block {
+    border: 1px solid var(--color-red-700);
+    border-radius: 6px;
+    padding: 0.6rem;
+
+    h4 {
+      margin: 0 0 0.5rem;
+      color: var(--color-red-main);
+    }
+
+    .dialog-table-wrap {
+      max-height: 280px;
+      overflow: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-red-desc) #e8e6e6;
+    }
+
+    .dialog-report-table {
+      width: 100%;
+      table-layout: fixed;
+
+      thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+
+      .no-records {
+        min-height: 120px;
+        color: var(--color-red-desc);
+      }
+    }
   }
 
 }

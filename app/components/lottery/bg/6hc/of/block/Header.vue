@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'
+import { STATUS_TIME } from '~/config/constants'
 
 type OpenCodeItem = string | number | { num?: string | number; animal?: string }
 type OpenCodePlayItem = {
@@ -47,6 +48,9 @@ const DEFAULT_HEADER_DATA: Required<HeaderData> = {
 const props = defineProps<{
   lotteryInfo?: LotteryInfoData
 }>()
+const emit = defineEmits<{
+  (event: 'open-opencode-dialog'): void
+}>()
 
 const { current: mxCurrent, time: mxTime } = use6hcOfficial()
 
@@ -83,6 +87,40 @@ const countdown = computed(() => String(normalizedData.value.countdown))
 const totalJackpot = computed(() => String(normalizedData.value.totalJackpot))
 const estimatedJackpot = computed(() => String(normalizedData.value.estimatedJackpot))
 const winRate = computed(() => String(normalizedData.value.winRate))
+const _handlers = {
+  parseCountdownSeconds: (countdownLabel: string) => {
+    if (!countdownLabel) return Number.POSITIVE_INFINITY
+    const timeParts = countdownLabel
+      .split(':')
+      .map((item) => Number(item))
+      .filter((item) => Number.isFinite(item) && item >= 0)
+
+    if (timeParts.length === 2) {
+      const minute = timeParts[0] ?? 0
+      const second = timeParts[1] ?? 0
+      return (minute * 60) + second
+    }
+
+    if (timeParts.length === 3) {
+      const hour = timeParts[0] ?? 0
+      const minute = timeParts[1] ?? 0
+      const second = timeParts[2] ?? 0
+      return (hour * 3600) + (minute * 60) + second
+    }
+
+    return Number.POSITIVE_INFINITY
+  }
+}
+const displayCurrentStatus = computed(() => {
+  if (currentStatus.value !== STATUS_TIME.OPEN) return currentStatus.value
+  const remainSeconds = _handlers.parseCountdownSeconds(countdown.value)
+  if (remainSeconds === 5) return STATUS_TIME.PREPARE_CLOSE_5
+  if (remainSeconds === 4) return STATUS_TIME.PREPARE_CLOSE_4
+  if (remainSeconds === 3) return STATUS_TIME.PREPARE_CLOSE_3
+  if (remainSeconds === 2) return STATUS_TIME.PREPARE_CLOSE_2
+  if (remainSeconds === 1) return STATUS_TIME.PREPARE_CLOSE_1
+  return currentStatus.value
+})
 const openBalls = computed(() => {
   const playList = normalizedData.value.openCodePlay
   if (Array.isArray(playList) && playList.length > 0) {
@@ -127,6 +165,7 @@ const openBalls = computed(() => {
     }
   })
 })
+
 </script>
 
 <template>
@@ -156,12 +195,15 @@ const openBalls = computed(() => {
     <div class="right">
       <div class="inner">
         <div class="timer">
-          <div class="issue">第{{ issueCurrent }}期 {{ currentStatus }}</div>
+          <div class="issue">第{{ issueCurrent }}期
+            <div> {{ displayCurrentStatus }} </div>
+          </div>
           <div class="countdown">
             {{ countdown }}
           </div>
         </div>
-        <div class="open-code">
+        <div class="open-code" role="button" tabindex="0" @click="emit('open-opencode-dialog')"
+          @keydown.enter="emit('open-opencode-dialog')" @keydown.space.prevent="emit('open-opencode-dialog')">
           <div class="issue">第{{ issueLatest }}期 開獎</div>
           <div class="main">
             <div class="ball-legend">
@@ -176,15 +218,13 @@ const openBalls = computed(() => {
 
             <div v-for="(ball, idx) in openBalls" :key="`${idx}-${ball.num}-${ball.animal}`" class="ball-warp">
               <span v-if="idx === openBalls.length - 1" class="plus">+</span>
-              <Ball
-                :data="{
-                  label: ball.num,
-                  num: ball.num,
-                  selected: true,
-                  countIssue: ball.countIssue,
-                  countShow: ball.countShow
-                }"
-              />
+              <Ball :data="{
+                label: ball.num,
+                num: ball.num,
+                selected: true,
+                countIssue: ball.countIssue,
+                countShow: ball.countShow
+              }" />
             </div>
           </div>
         </div>
@@ -332,6 +372,7 @@ const openBalls = computed(() => {
         flex-direction: column;
         justify-content: center;
         border-left: 1px solid #fee2e2;
+        cursor: pointer;
 
         .issue {
           text-align: center;

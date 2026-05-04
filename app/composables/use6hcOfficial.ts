@@ -2,7 +2,15 @@ import { cloneDeep } from 'lodash'
 import { computed, reactive } from 'vue'
 import { GAME_6HC_OF, LOTTERY, SORT } from '~/config/constants'
 import { PLAYLIST } from '~/config/bg/6hc-of'
-import { type Lottery6hcOfCurrent, type Lottery6hcRoadPlay, type LotteryBetOrder } from '~/services/api'
+import {
+  type Lottery6hcOfCurrent,
+  type Lottery6hcRoadPlay,
+  type LotteryBetOrder,
+  type LotteryUserBalanceChange,
+  type LotteryUserBetHistory,
+  type LotteryClaimableIssue,
+  type LotteryOpenCodeHistoryItem
+} from '~/services/api'
 import { useLhcDb, type Order, type Status } from '~/composables/useLhcDb'
 import { Lottery6hcOfficialService } from '~/services/lottery6hcOfficialService'
 
@@ -43,6 +51,26 @@ const wallet = reactive({
   currentBets: 0,
   totalBets: 0,
   analysis: '-',
+})
+const userRecord = reactive({
+  isLoading: false,
+  isSubmittingClaim: false,
+  isSuccess: false,
+  errorMessage: '',
+  balanceChanges: [] as LotteryUserBalanceChange[],
+  betHistory: [] as LotteryUserBetHistory[],
+  claimableIssues: [] as LotteryClaimableIssue[],
+  jackpot: {
+    issue: '',
+    currentIssueJackpot: 0,
+    carryJackpot: 0
+  }
+})
+const openCodeHistory = reactive({
+  isLoading: false,
+  isSuccess: false,
+  errorMessage: '',
+  list: [] as LotteryOpenCodeHistoryItem[]
 })
 const system = reactive({
   playList: [] as any[],
@@ -167,6 +195,26 @@ const handle = {
     current.orderCache.isLoading = next.isLoading ?? current.orderCache.isLoading
     current.orderCache.isSuccess = next.isSuccess ?? current.orderCache.isSuccess
     current.orderCache.errorMessage = next.errorMessage ?? current.orderCache.errorMessage
+  },
+  setUserRecordState: (next: Partial<{
+    isLoading: boolean
+    isSuccess: boolean
+    errorMessage: string
+    isSubmittingClaim: boolean
+  }>) => {
+    userRecord.isLoading = next.isLoading ?? userRecord.isLoading
+    userRecord.isSuccess = next.isSuccess ?? userRecord.isSuccess
+    userRecord.errorMessage = next.errorMessage ?? userRecord.errorMessage
+    userRecord.isSubmittingClaim = next.isSubmittingClaim ?? userRecord.isSubmittingClaim
+  },
+  setOpenCodeHistoryState: (next: Partial<{
+    isLoading: boolean
+    isSuccess: boolean
+    errorMessage: string
+  }>) => {
+    openCodeHistory.isLoading = next.isLoading ?? openCodeHistory.isLoading
+    openCodeHistory.isSuccess = next.isSuccess ?? openCodeHistory.isSuccess
+    openCodeHistory.errorMessage = next.errorMessage ?? openCodeHistory.errorMessage
   },
   stopOrderDetailSync: () => {
     if (!orderDetailUnsubscribe) return
@@ -317,6 +365,91 @@ const fetch = {
     wallet.analysis = String(result.analysis ?? '-')
     return result
   },
+  openCodeHistory: async () => {
+    handle.setOpenCodeHistoryState({
+      isLoading: true,
+      isSuccess: false,
+      errorMessage: ''
+    })
+    try {
+      const result = await officialService.fetchOpenCodeHistory()
+      openCodeHistory.list = Array.isArray(result?.history) ? result.history : []
+      handle.setOpenCodeHistoryState({
+        isLoading: false,
+        isSuccess: true,
+        errorMessage: ''
+      })
+      return openCodeHistory.list
+    } catch (error: unknown) {
+      openCodeHistory.list = []
+      handle.setOpenCodeHistoryState({
+        isLoading: false,
+        isSuccess: false,
+        errorMessage: (error as Error)?.message || '讀取開獎歷史失敗'
+      })
+      return []
+    }
+  },
+  userDialogRecord: async () => {
+    handle.setUserRecordState({
+      isLoading: true,
+      isSuccess: false,
+      errorMessage: ''
+    })
+    try {
+      const result = await officialService.fetchUserRecord()
+      userRecord.balanceChanges = Array.isArray(result?.balanceChanges) ? result.balanceChanges : []
+      userRecord.betHistory = Array.isArray(result?.betHistory) ? result.betHistory : []
+      userRecord.claimableIssues = Array.isArray(result?.claimableIssues) ? result.claimableIssues : []
+      userRecord.jackpot = {
+        issue: String(result?.jackpot?.issue ?? ''),
+        currentIssueJackpot: Number(result?.jackpot?.currentIssueJackpot ?? 0),
+        carryJackpot: Number(result?.jackpot?.carryJackpot ?? 0)
+      }
+      handle.setUserRecordState({
+        isLoading: false,
+        isSuccess: true,
+        errorMessage: ''
+      })
+      return result
+    } catch (error: unknown) {
+      userRecord.balanceChanges = []
+      userRecord.betHistory = []
+      userRecord.claimableIssues = []
+      handle.setUserRecordState({
+        isLoading: false,
+        isSuccess: false,
+        errorMessage: (error as Error)?.message || '讀取會員紀錄失敗'
+      })
+      return null
+    }
+  },
+  claimOneIssue: async () => {
+    if (userRecord.isSubmittingClaim) {
+      return { ok: false, message: '領獎處理中' }
+    }
+    handle.setUserRecordState({ isSubmittingClaim: true, errorMessage: '' })
+    try {
+      const result = await officialService.submitClaimOneIssue()
+      await Promise.all([
+        fetch.walletState(),
+        fetch.userDialogRecord()
+      ])
+      handle.setUserRecordState({ isSubmittingClaim: false })
+      return {
+        ok: Boolean(result?.ok),
+        message: String(result?.message ?? '領獎完成'),
+        issue: String(result?.issue ?? ''),
+        amount: Number(result?.amount ?? 0)
+      }
+    } catch (error: unknown) {
+      handle.setUserRecordState({
+        isSubmittingClaim: false,
+        errorMessage: (error as Error)?.message || '領獎失敗'
+      })
+      return { ok: false, message: userRecord.errorMessage || '領獎失敗' }
+    }
+  },
   // betMeta: async () => {
   //   if (wallet.betGameId > 0) return wallet.betGameId
   //   const result = await api.lottery.games()
@@ -448,5 +581,5 @@ state.isSelector = computed(() => {
 init.run()
 
 export function use6hcOfficial() {
-  return { state, current, road, wallet, system, analyze, time, handle, init, click, fetch }
+  return { state, current, road, wallet, userRecord, openCodeHistory, system, analyze, time, handle, init, click, fetch }
 }

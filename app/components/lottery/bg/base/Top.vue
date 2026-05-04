@@ -4,6 +4,10 @@ import { useAuth } from '~/composables/useAuth'
 
 const router = useRouter()
 const { logout } = useAuth()
+const emit = defineEmits<{
+  (event: 'open-user-dialog'): void
+  (event: 'open-opencode-dialog'): void
+}>()
 
 const handleLogout = async () => {
   await logout()
@@ -19,9 +23,9 @@ const handleLogout = async () => {
       </div>
       <div class="right menu">
         <NuxtLink to="/">HOME</NuxtLink>
-        <NuxtLink to="/">USER</NuxtLink>
-        <NuxtLink to="/">OPENCODE</NuxtLink>
-        <button type="button" @click="handleLogout">LOGOUT</button>
+        <button type="button" class="ghost-btn" @click="emit('open-user-dialog')">USER</button>
+        <button type="button" class="ghost-btn" @click="emit('open-opencode-dialog')">OPENCODE</button>
+        <button type="button" class="logout-btn" @click="handleLogout">LOGOUT</button>
       </div>
     </div>
   </section>
@@ -73,7 +77,7 @@ const handleLogout = async () => {
 }
 
 .menu :deep(a),
-.menu button {
+.menu .ghost-btn {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
@@ -89,19 +93,27 @@ const handleLogout = async () => {
 }
 
 .menu :deep(a:hover),
-.menu button:hover {
+.menu .ghost-btn:hover {
   border-color: #f0b7bf;
   background: #fff;
   color: var(--color-red-main, #d53f53);
 }
 
-.menu button {
+.menu .logout-btn {
   border-color: var(--color-red-main, #d53f53);
   background: var(--color-red-main, #d53f53);
   color: #fff;
+  border-radius: 6px;
+  padding: 0.35rem 0.55rem;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.18s ease;
 }
 
-.menu button:hover {
+.menu .logout-btn:hover {
   border-color: #b02f40;
   background: #b02f40;
   color: #fff;

@@ -1,4 +1,14 @@
-import { api, type Lottery6hcOfCurrent, type Lottery6hcRoadPlay, type LotteryBetPayload, type LotteryBetResponse, type LotteryState } from '~/services/api'
+import {
+  api,
+  type Lottery6hcOfCurrent,
+  type Lottery6hcRoadPlay,
+  type LotteryBetPayload,
+  type LotteryBetResponse,
+  type LotteryState,
+  type LotteryUserRecordResponse,
+  type LotteryClaimOneIssueResponse,
+  type LotteryOpenCodeHistoryResponse
+} from '~/services/api'
 
 export class Lottery6hcOfficialService {
   fetchCurrentInfo() {
@@ -11,6 +21,18 @@ export class Lottery6hcOfficialService {
 
   fetchWalletState() {
     return api.lottery.userInfo() as Promise<LotteryState>
+  }
+
+  fetchOpenCodeHistory() {
+    return api.lottery.openCodeHistory6hcOf() as Promise<LotteryOpenCodeHistoryResponse>
+  }
+
+  fetchUserRecord() {
+    return api.lottery.userRecord6hcOf() as Promise<LotteryUserRecordResponse>
+  }
+
+  submitClaimOneIssue() {
+    return api.lottery.claimOneIssue6hcOf() as Promise<LotteryClaimOneIssueResponse>
   }
 
   submitBet(payload: LotteryBetPayload) {

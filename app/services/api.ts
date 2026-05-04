@@ -102,6 +102,71 @@ export type LotteryBetResponse = {
   orders: LotteryBetOrder[]
 }
 
+export type LotteryUserBalanceChange = {
+  id: string
+  issue: string
+  type: 'bet' | 'claim'
+  amount: number
+  before: number
+  after: number
+  createdAt: number
+  note: string
+}
+
+export type LotteryUserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  betCode: string[]
+  openCode: string[]
+  matchCount: number
+  winStatus: 'pending' | 'win' | 'lose'
+  winAmount: number
+}
+
+export type LotteryClaimableIssue = {
+  issue: string
+  amount: number
+  openCode: string[]
+  createdAt: number
+}
+
+export type LotteryUserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: LotteryUserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+  jackpot: {
+    issue: string
+    currentIssueJackpot: number
+    carryJackpot: number
+  }
+}
+
+export type LotteryClaimOneIssueResponse = {
+  ok: boolean
+  message: string
+  issue: string
+  amount: number
+  coin: number
+}
+
+export type LotteryOpenCodeHistoryItem = {
+  issue: string
+  openCode: string[]
+  time: {
+    start: string
+    end: string
+  }
+  startAt: number
+  endAt: number
+  status: 'opened' | 'pending'
+}
+
+export type LotteryOpenCodeHistoryResponse = {
+  history: LotteryOpenCodeHistoryItem[]
+}
+
 export const api = {
   system: {
     servTime: () => $fetch<{ serverTime: number }>('/api/servTime')
@@ -130,6 +195,12 @@ export const api = {
     },
     current6hcOf: () => $fetch<Lottery6hcOfCurrent>('/api/lottery/6hc-of/current'),
     road6hcOf: () => $fetch<{ plays: Lottery6hcRoadPlay[] }>('/api/lottery/6hc-of/road'),
+    openCodeHistory6hcOf: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/6hc-of/opencode-history'),
+    userRecord6hcOf: () => $fetch<LotteryUserRecordResponse>('/api/lottery/6hc-of/user-record'),
+    claimOneIssue6hcOf: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/6hc-of/claim', {
+        method: 'POST'
+      }),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     userInfo: () => $fetch<LotteryState>('/api/lottery/userInfo'),
     bet: (payload: LotteryBetPayload) =>

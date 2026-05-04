@@ -23,6 +23,18 @@ type CurrentInfo = OpenCodeRecord & {
   openCodePlay: Array<Record<string, unknown>>
 }
 
+type OpenCodeHistoryItem = {
+  issue: string
+  openCode: string[]
+  time: {
+    start: string
+    end: string
+  }
+  startAt: number
+  endAt: number
+  status: 'opened' | 'pending'
+}
+
 type BetOrderItem = {
   order_id: string
   issue: string
@@ -32,6 +44,63 @@ type BetOrderItem = {
   bet_code: string[]
   status: 'success'
 }
+
+type UserBalanceChange = {
+  id: string
+  issue: string
+  type: 'bet' | 'claim'
+  amount: number
+  before: number
+  after: number
+  createdAt: number
+  note: string
+}
+
+type UserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  betCode: string[]
+  openCode: string[]
+  matchCount: number
+  winStatus: 'pending' | 'win' | 'lose'
+  winAmount: number
+}
+
+type UserClaimableIssue = {
+  issue: string
+  amount: number
+  openCode: string[]
+  createdAt: number
+}
+
+type UserRecord = {
+  balanceChanges: UserBalanceChange[]
+  betHistory: UserBetHistory[]
+  claimableIssues: UserClaimableIssue[]
+  updatedAt: number
+}
+
+type UserStoreLike = {
+  userId: string
+  coin: number
+  record?: UserRecord
+}
+
+type IssuePrizeTier = {
+  matchCount: number
+  ratio: number
+}
+
+const ISSUE_PRIZE_TIERS: IssuePrizeTier[] = [
+  { matchCount: 7, ratio: 0.4 },
+  { matchCount: 6, ratio: 0.2 },
+  { matchCount: 5, ratio: 0.15 },
+  { matchCount: 4, ratio: 0.1 },
+  { matchCount: 3, ratio: 0.08 },
+  { matchCount: 2, ratio: 0.07 }
+]
 
 const CYCLE_SECONDS = 7 * 60
 const CYCLE_MS = CYCLE_SECONDS * 1000
@@ -43,6 +112,9 @@ export default class LHC_OF {
   currentIndex: number
   currentStatus: string
   issueOrderSeqMap: Record<string, number>
+  issueJackpotMap: Record<string, number>
+  issueSettledMap: Record<string, boolean>
+  carryJackpot: number
 
   constructor() {
     this.id = LOTTERY['LHC-OF'].id
@@ -50,6 +122,9 @@ export default class LHC_OF {
     this.currentIndex = -1
     this.currentStatus = STATUS_TIME.PREPARE
     this.issueOrderSeqMap = {}
+    this.issueJackpotMap = {}
+    this.issueSettledMap = {}
+    this.carryJackpot = 0
     this.init()
   }
 
@@ -63,6 +138,7 @@ export default class LHC_OF {
   circle() {
     // console.log('RUN: LHC_OF.circle.Task')
     this.handle.refreshCurrent(new Date())
+    this.handle.settleClosedIssueIfNeeded()
   }
 
   // USERPLAY.
@@ -71,7 +147,10 @@ export default class LHC_OF {
 
     // HANDLE COIN
     const amount = Number(payload.amount)
+    const userId = String(_user.userId ?? '')
+    const beforeCoin = Number(_user.coin ?? 0)
     _user.coin -= amount
+    const afterCoin = Number(_user.coin ?? 0)
 
     // HANDLE CONFIG PLAY INFO
     const groups = Array.isArray(payload.groups) ? payload.groups : []
@@ -79,9 +158,18 @@ export default class LHC_OF {
     const issue = this.recordOpenCode[this.currentIndex]?.issue ?? ''
     const orderRows = this.handle.buildOrderRows({
       issue,
-      userId: String(_user.userId ?? ''),
+      userId,
       amount,
       groups
+    })
+    this.handle.addIssueJackpot(issue, amount)
+    this.handle.pushBalanceChange(userId, {
+      issue,
+      type: 'bet',
+      amount: -Math.abs(amount),
+      before: beforeCoin,
+      after: afterCoin,
+      note: `下注 ${orderRows.length} 筆`
     })
 
     groups.forEach((group: any) => {
@@ -107,6 +195,7 @@ export default class LHC_OF {
         orderId: row.order_id,
         betCode: row.bet_code
       })
+      this.handle.appendBetHistory(row)
     })
 
     // console.log('class USER', _user)
@@ -136,6 +225,13 @@ export default class LHC_OF {
         map[key] = new OrdersClass({ id: LOTTERY['LHC-OF'].id, key })
       }
       return map[key] as OrdersClass
+    },
+    user: (userId: string) => {
+      return Storage.get.user(userId) as UserStoreLike
+    },
+    userRecord: (userId: string) => {
+      const user = this._get.user(userId)
+      return this.handle.ensureUserRecord(user)
     }
   }
   get = {
@@ -145,21 +241,21 @@ export default class LHC_OF {
       if (!current) {
         return null
       }
-      const issueLatest =
+      const latestOpenRecord =
         this.currentStatus === STATUS_TIME.OPENED
-          ? current.issue
-          : (this.recordOpenCode[this.currentIndex - 1]?.issue ?? current.issue)
+          ? current
+          : (this.recordOpenCode[this.currentIndex - 1] ?? current)
       const nowMs = Date.now()
       const remain = Math.max(0, Math.floor((current.endAt - nowMs) / 1000))
       const statusEndAt = this.timer.getStatusEndAt(current, nowMs)
       return {
-        ...current,
+        ...latestOpenRecord,
         currentStatus: this.currentStatus,
         issueCurrent: current.issue,
-        issueLatest,
+        issueLatest: latestOpenRecord.issue,
         countdown: this.timer.formatCountdown(remain),
         statusEndAt,
-        openCodePlay: this.handle.openCodePlay(current.openCode)
+        openCodePlay: this.handle.openCodePlay(latestOpenRecord.openCode)
       } satisfies CurrentInfo
     },
     currentStatus: () => {
@@ -174,6 +270,25 @@ export default class LHC_OF {
       this.handle.refreshCurrent(new Date())
       return this.recordOpenCode[this.currentIndex]?.openCode ?? []
     },
+    openCodeHistory: () => {
+      this.handle.refreshCurrent(new Date())
+      const lastOpenedIndex = this.currentStatus === STATUS_TIME.OPENED
+        ? this.currentIndex
+        : Math.max(this.currentIndex - 1, -1)
+      return this.recordOpenCode
+        .slice(0, Math.max(lastOpenedIndex + 1, 0))
+        .map((item, idx) => ({
+          issue: String(item.issue),
+          openCode: Array.isArray(item.openCode) ? item.openCode : [],
+          time: {
+            start: String(item.time?.start ?? ''),
+            end: String(item.time?.end ?? '')
+          },
+          startAt: Number(item.startAt ?? 0),
+          endAt: Number(item.endAt ?? 0),
+          status: idx <= lastOpenedIndex ? 'opened' : 'pending'
+        } satisfies OpenCodeHistoryItem))
+    },
     roadPlays: () => {
       this.handle.refreshCurrent(new Date())
       return this.handle.buildRoadPlays()
@@ -185,6 +300,70 @@ export default class LHC_OF {
         currentBets: _orders.get.members.issue(issue, userId),
         totalBets: _orders.get.members.user(userId),
         analysis: this.analysis.betsIssue(this._get.latestIssue(), userId),
+      }
+    },
+    userDialogRecord: (userId: string) => {
+      const record = this._get.userRecord(userId)
+      const balanceChanges = [...record.balanceChanges]
+        .sort((a, b) => b.createdAt - a.createdAt)
+      const betHistory = [...record.betHistory]
+        .sort((a, b) => b.betTime - a.betTime)
+      const claimableIssues = [...record.claimableIssues]
+        .filter((item) => Number(item.amount) > 0)
+        .sort((a, b) => String(a.issue).localeCompare(String(b.issue)))
+      return {
+        balanceChanges,
+        betHistory,
+        claimableIssues
+      }
+    },
+    jackpotState: () => {
+      const issue = this.recordOpenCode[this.currentIndex]?.issue ?? ''
+      return {
+        issue,
+        currentIssueJackpot: Number(this.issueJackpotMap[issue] ?? 0),
+        carryJackpot: Number(this.carryJackpot ?? 0)
+      }
+    }
+  }
+  actions = {
+    claimOneIssue: (userId: string) => {
+      const user = this._get.user(userId)
+      const record = this.handle.ensureUserRecord(user)
+      const sorted = [...record.claimableIssues]
+        .filter((item) => Number(item.amount) > 0)
+        .sort((a, b) => String(a.issue).localeCompare(String(b.issue)))
+      const target = sorted[0]
+      if (!target) {
+        return {
+          ok: false,
+          message: '目前沒有可領取獎金',
+          issue: '',
+          amount: 0,
+          coin: Number(user.coin ?? 0)
+        }
+      }
+
+      const before = Number(user.coin ?? 0)
+      const gain = Number(Number(target.amount ?? 0).toFixed(2))
+      user.coin = Number((before + gain).toFixed(2))
+      record.claimableIssues = record.claimableIssues
+        .filter((item) => String(item.issue) !== String(target.issue))
+      this.handle.pushBalanceChange(userId, {
+        issue: String(target.issue),
+        type: 'claim',
+        amount: gain,
+        before,
+        after: Number(user.coin ?? 0),
+        note: `領取第${target.issue}期中獎金`
+      })
+
+      return {
+        ok: true,
+        message: `成功領取第${target.issue}期獎金`,
+        issue: target.issue,
+        amount: gain,
+        coin: Number(user.coin ?? 0)
       }
     }
   }
@@ -205,13 +384,13 @@ export default class LHC_OF {
     },
     getStatusBySeconds: (sec: number) => {
       if (sec < 30) return STATUS_TIME.PREPARE
-      if (sec < 330) return STATUS_TIME.OPEN
-      if (sec < 335) return STATUS_TIME.PREPARE_CLOSE
-      if (sec < 336) return STATUS_TIME.PREPARE_CLOSE_5
-      if (sec < 337) return STATUS_TIME.PREPARE_CLOSE_4
-      if (sec < 338) return STATUS_TIME.PREPARE_CLOSE_3
-      if (sec < 339) return STATUS_TIME.PREPARE_CLOSE_2
-      if (sec < 340) return STATUS_TIME.PREPARE_CLOSE_1
+      if (sec < 340) return STATUS_TIME.OPEN
+      // if (sec < 335) return STATUS_TIME.PREPARE_CLOSE
+      // if (sec < 336) return STATUS_TIME.PREPARE_CLOSE_5
+      // if (sec < 337) return STATUS_TIME.PREPARE_CLOSE_4
+      // if (sec < 338) return STATUS_TIME.PREPARE_CLOSE_3
+      // if (sec < 339) return STATUS_TIME.PREPARE_CLOSE_2
+      // if (sec < 340) return STATUS_TIME.PREPARE_CLOSE_1
       if (sec < 350) return STATUS_TIME.CLOSED
       if (sec < 360) return STATUS_TIME.PREPARE_OPEN
       if (sec < 375) return STATUS_TIME.OPENING
@@ -227,12 +406,12 @@ export default class LHC_OF {
       const sec = this.timer.secondsFromIssueStart(record, nowMs)
       let endSec = CYCLE_SECONDS
       if (sec < 30) endSec = 30
-      else if (sec < 330) endSec = 330
-      else if (sec < 335) endSec = 335
-      else if (sec < 336) endSec = 336
-      else if (sec < 337) endSec = 337
-      else if (sec < 338) endSec = 338
-      else if (sec < 339) endSec = 339
+      // else if (sec < 330) endSec = 330
+      // else if (sec < 335) endSec = 335
+      // else if (sec < 336) endSec = 336
+      // else if (sec < 337) endSec = 337
+      // else if (sec < 338) endSec = 338
+      // else if (sec < 339) endSec = 339
       else if (sec < 340) endSec = 340
       else if (sec < 350) endSec = 350
       else if (sec < 360) endSec = 360
@@ -258,6 +437,179 @@ export default class LHC_OF {
     }
   }
   handle = {
+    ensureUserRecord: (user: UserStoreLike) => {
+      if (!user.record) {
+        user.record = {
+          balanceChanges: [],
+          betHistory: [],
+          claimableIssues: [],
+          updatedAt: Date.now()
+        }
+      }
+      if (!Array.isArray(user.record.balanceChanges)) user.record.balanceChanges = []
+      if (!Array.isArray(user.record.betHistory)) user.record.betHistory = []
+      if (!Array.isArray(user.record.claimableIssues)) user.record.claimableIssues = []
+      user.record.updatedAt = Date.now()
+      return user.record
+    },
+    pushBalanceChange: (userId: string, payload: {
+      issue: string
+      type: 'bet' | 'claim'
+      amount: number
+      before: number
+      after: number
+      note: string
+    }) => {
+      if (!userId) return
+      const user = this._get.user(userId)
+      const record = this.handle.ensureUserRecord(user)
+      record.balanceChanges.push({
+        id: `${payload.issue}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+        issue: payload.issue,
+        type: payload.type,
+        amount: Number(payload.amount),
+        before: Number(payload.before),
+        after: Number(payload.after),
+        createdAt: Date.now(),
+        note: payload.note
+      })
+      if (record.balanceChanges.length > 5000) {
+        record.balanceChanges = record.balanceChanges.slice(-4000)
+      }
+      record.updatedAt = Date.now()
+    },
+    appendBetHistory: (row: BetOrderItem) => {
+      if (!row?.user_id) return
+      const user = this._get.user(row.user_id)
+      const record = this.handle.ensureUserRecord(user)
+      record.betHistory.push({
+        orderId: String(row.order_id),
+        issue: String(row.issue),
+        betTime: Number(row.bet_time),
+        coin: Number(row.coin ?? 0),
+        betCode: Array.isArray(row.bet_code) ? row.bet_code : [],
+        openCode: [],
+        matchCount: 0,
+        winStatus: 'pending',
+        winAmount: 0
+      })
+      if (record.betHistory.length > 5000) {
+        record.betHistory = record.betHistory.slice(-4000)
+      }
+      record.updatedAt = Date.now()
+    },
+    addIssueJackpot: (issue: string, amount: number) => {
+      const safeIssue = String(issue ?? '')
+      if (!safeIssue) return
+      const current = Number(this.issueJackpotMap[safeIssue] ?? 0)
+      this.issueJackpotMap[safeIssue] = Number((current + Number(amount ?? 0)).toFixed(2))
+    },
+    getMatchCount: (betCode: string[], openCode: string[]) => {
+      const openSet = new Set(
+        (Array.isArray(openCode) ? openCode : [])
+          .map((item) => String(item).padStart(2, '0'))
+      )
+      return (Array.isArray(betCode) ? betCode : [])
+        .map((item) => String(item).padStart(2, '0'))
+        .filter((code) => openSet.has(code)).length
+    },
+    settleClosedIssueIfNeeded: () => {
+      const settleIndex = this.currentStatus === STATUS_TIME.OPENED
+        ? this.currentIndex
+        : (this.currentIndex - 1)
+      if (settleIndex < 0) return
+      const closedRecord = this.recordOpenCode[settleIndex]
+      if (!closedRecord?.issue) return
+      if (this.issueSettledMap[closedRecord.issue]) return
+      this.handle.settleIssuePrize(closedRecord.issue, closedRecord.openCode)
+      this.issueSettledMap[closedRecord.issue] = true
+    },
+    settleIssuePrize: (issue: string, openCode: string[]) => {
+      const safeIssue = String(issue ?? '')
+      if (!safeIssue) return
+      const _orders = this._get.orders()
+      const issueOrders = (_orders.get.orders.currentIssue(safeIssue) ?? []) as Array<{
+        issue: string
+        userId: string
+        orderId: string
+        coin: number
+        betCode: string[]
+      }>
+      const issuePool = Number(this.issueJackpotMap[safeIssue] ?? 0)
+      const totalPool = Number((issuePool + this.carryJackpot).toFixed(2))
+      const evaluateRows = issueOrders.map((row) => ({
+        ...row,
+        matchCount: this.handle.getMatchCount(row.betCode, openCode),
+        payout: 0
+      }))
+
+      let carryNext = 0
+      ISSUE_PRIZE_TIERS.forEach((tier) => {
+        const tierAmount = Number((totalPool * tier.ratio).toFixed(2))
+        const winners = evaluateRows.filter((row) => row.matchCount === tier.matchCount)
+        if (winners.length === 0) {
+          carryNext = Number((carryNext + tierAmount).toFixed(2))
+          return
+        }
+        const each = Number((tierAmount / winners.length).toFixed(2))
+        winners.forEach((row) => {
+          row.payout = Number((row.payout + each).toFixed(2))
+        })
+      })
+
+      const payoutByUser = new Map<string, number>()
+      evaluateRows.forEach((row) => {
+        const user = this._get.user(row.userId)
+        const record = this.handle.ensureUserRecord(user)
+        const idx = record.betHistory.findIndex((item) => String(item.orderId) === String(row.orderId))
+        if (idx >= 0) {
+          const current = record.betHistory[idx]
+          if (!current) return
+          record.betHistory[idx] = {
+            orderId: String(current.orderId),
+            issue: String(current.issue),
+            betTime: Number(current.betTime),
+            coin: Number(current.coin),
+            betCode: Array.isArray(current.betCode) ? current.betCode : [],
+            openCode: [...openCode],
+            matchCount: row.matchCount,
+            winStatus: row.payout > 0 ? 'win' : 'lose',
+            winAmount: row.payout
+          }
+        }
+        if (row.payout > 0) {
+          const prev = Number(payoutByUser.get(row.userId) ?? 0)
+          payoutByUser.set(row.userId, Number((prev + row.payout).toFixed(2)))
+        }
+      })
+
+      payoutByUser.forEach((amount, userId) => {
+        if (amount <= 0) return
+        const user = this._get.user(userId)
+        const record = this.handle.ensureUserRecord(user)
+        const issueIdx = record.claimableIssues.findIndex((item) => String(item.issue) === safeIssue)
+        if (issueIdx >= 0) {
+          const old = record.claimableIssues[issueIdx]
+          if (!old) return
+          record.claimableIssues[issueIdx] = {
+            issue: String(old.issue),
+            amount: Number((Number(old.amount ?? 0) + amount).toFixed(2)),
+            openCode: [...openCode],
+            createdAt: Number(old.createdAt ?? Date.now())
+          }
+        } else {
+          record.claimableIssues.push({
+            issue: safeIssue,
+            amount: Number(amount.toFixed(2)),
+            openCode: [...openCode],
+            createdAt: Date.now()
+          })
+        }
+      })
+
+      this.carryJackpot = Number(carryNext.toFixed(2))
+      this.issueJackpotMap[safeIssue] = 0
+    },
     openCodePlay: (openCode: string[]) => {
       const roadMap = new Map(
         this.handle.buildRoadPlays().map((play) => [Number(play?.num), play])
@@ -394,6 +746,7 @@ export default class LHC_OF {
       }
       const sec = this.timer.secondsFromIssueStart(current, nowMs)
       this.currentStatus = this.timer.getStatusBySeconds(sec)
+      this.handle.settleClosedIssueIfNeeded()
     },
     // 205 
     prdOpenCode: (now = new Date()) => {
