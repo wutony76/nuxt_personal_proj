@@ -133,9 +133,12 @@ const isShowHighlighted = (play: { id?: number | string; num?: number | string }
           num: play.num,
           label: String(play.label ?? '').padStart(2, '0'),
           selected: true,
-          countIssue: Number(play.countIssue ?? -1),
-          countShow: Number(play.countShow ?? -1)
         }" :is-click="false" />
+        <div v-if="Number(play.countIssue ?? -1) >= 0 || Number(play.countShow ?? -1) >= 0" class="road-count">
+          <span class="road-count-issue">{{ Number(play.countIssue ?? -1) >= 0 ? play.countIssue : '-' }}</span>
+          <span class="road-count-sep">/</span>
+          <span class="road-count-show">{{ Number(play.countShow ?? -1) >= 0 ? play.countShow : '-' }}</span>
+        </div>
       </div>
     </div>
     <div class="note">
@@ -214,16 +217,40 @@ const isShowHighlighted = (play: { id?: number | string; num?: number | string }
     }
 
     .road-item.is-highlight-issue::before {
-      border: 2px solid #facc15;
+      box-shadow: inset 0 0 0 2px #ff0000;
     }
 
     .road-item.is-highlight-show::before {
-      box-shadow: inset 0 0 0 2px #ff0000;
+      border: 2px solid #facc15;
     }
 
     .road-item.is-highlight-issue.is-highlight-show::before {
-      border: 2px solid #facc15;
       box-shadow: inset 0 0 0 2px #ff0000;
+      border: 2px solid #facc15;
+    }
+
+    .road-count {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      margin-top: 2px;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1.1;
+      color: #fff;
+
+      &-issue {
+        color: #280202;
+      }
+
+      &-show {
+        color: #facc15;
+      }
+
+      &-sep {
+        opacity: 0.6;
+      }
     }
 
     .road-item.is-dim::after {

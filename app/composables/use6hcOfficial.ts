@@ -262,7 +262,12 @@ const fetch = {
   },
   refreshCurrentInfo: async () => {
     try {
+      const prevStatus = String(current.runtime?.currentStatus ?? '')
       const data = await fetch.currentInfo()
+      const nextStatus = String(data?.currentStatus ?? '')
+      if (prevStatus.includes('開獎中') && !nextStatus.includes('開獎中')) {
+        fetch.roadPlays()
+      }
       handle.scheduleNextCurrentInfoFetch(data?.statusEndAt)
     } catch {
       // Keep page usable even when runtime data is temporarily unavailable.
