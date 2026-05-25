@@ -211,7 +211,7 @@ const openBalls = computed(() => {
                 <span>開獎號碼</span>
               </div>
               <div class="ball-legend-counts">
-                <div class="ball-legend-count">相隔期數</div>
+                <!-- <div class="ball-legend-count">相隔期數</div> -->
                 <div class="ball-legend-count">攪出次數</div>
               </div>
             </div>
@@ -222,7 +222,7 @@ const openBalls = computed(() => {
                 label: ball.num,
                 num: ball.num,
                 selected: true,
-                countIssue: ball.countIssue,
+                // countIssue: ball.countIssue,
                 countShow: ball.countShow
               }" />
             </div>
