@@ -133,7 +133,7 @@ const isShowHighlighted = (play: { id?: number | string; num?: number | string }
           num: play.num,
           label: String(play.label ?? '').padStart(2, '0'),
           selected: true,
-          // countIssue: Number(play.countIssue ?? -1),
+          countIssue: Number(play.countIssue ?? -1),
           countShow: Number(play.countShow ?? -1)
         }" :is-click="false" />
       </div>

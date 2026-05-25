@@ -141,9 +141,7 @@ onBeforeUnmount(() => {
           <div>當期累積獎金：{{ actions.thousands(userDialogData.jackpot.currentIssueJackpot) }}</div>
           <div>累積滾存獎金：{{ actions.thousands(userDialogData.jackpot.carryJackpot) }}</div>
           <div>可領獎期數：{{ userDialogData.claimableIssues.length }}</div>
-          <button
-            type="button"
-            class="claim-btn"
+          <button type="button" class="claim-btn"
             :disabled="userDialogData.claimableIssues.length === 0 || userDialogData.isSubmittingClaim"
             @click="click.claimOneIssue()">
             {{ userDialogData.isSubmittingClaim ? '領獎中...' : '領取下一期獎金' }}
@@ -157,27 +155,27 @@ onBeforeUnmount(() => {
             <h4>餘額變動表</h4>
             <div class="dialog-table-wrap">
               <table class="report-table dialog-report-table">
-              <thead>
-                <tr>
-                  <th>時間</th>
-                  <th>期數</th>
-                  <th>類型</th>
-                  <th>變動</th>
-                  <th>餘額</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in userDialogData.balanceChanges" :key="item.id">
-                  <td>{{ new Date(item.createdAt).toLocaleString() }}</td>
-                  <td>{{ item.issue }}</td>
-                  <td>{{ item.type }}</td>
-                  <td>{{ actions.thousands(item.amount) }}</td>
-                  <td>{{ actions.thousands(item.after) }}</td>
-                </tr>
-                <tr v-if="userDialogData.balanceChanges.length === 0">
-                  <td colspan="5" class="no-records">暫無資料</td>
-                </tr>
-              </tbody>
+                <thead>
+                  <tr>
+                    <th>時間</th>
+                    <th>期數</th>
+                    <th>類型</th>
+                    <th>變動</th>
+                    <th>餘額</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in userDialogData.balanceChanges" :key="item.id">
+                    <td>{{ new Date(item.createdAt).toLocaleString() }}</td>
+                    <td>{{ item.issue }}</td>
+                    <td>{{ item.type }}</td>
+                    <td>{{ actions.thousands(item.amount) }}</td>
+                    <td>{{ actions.thousands(item.after) }}</td>
+                  </tr>
+                  <tr v-if="userDialogData.balanceChanges.length === 0">
+                    <td colspan="5" class="no-records">暫無資料</td>
+                  </tr>
+                </tbody>
               </table>
             </div>
           </section>
@@ -186,29 +184,29 @@ onBeforeUnmount(() => {
             <h4>下注紀錄</h4>
             <div class="dialog-table-wrap">
               <table class="report-table dialog-report-table">
-              <thead>
-                <tr>
-                  <th>訂單</th>
-                  <th>期數</th>
-                  <th>號碼</th>
-                  <th>金額</th>
-                  <th>中獎</th>
-                  <th>獎金</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in userDialogData.betHistory" :key="item.orderId">
-                  <td>{{ item.orderId }}</td>
-                  <td>{{ item.issue }}</td>
-                  <td>{{ item.betCode.join(', ') }}</td>
-                  <td>{{ actions.thousands(item.coin) }}</td>
-                  <td>{{ item.winStatus }}</td>
-                  <td>{{ actions.thousands(item.winAmount) }}</td>
-                </tr>
-                <tr v-if="userDialogData.betHistory.length === 0">
-                  <td colspan="6" class="no-records">暫無資料</td>
-                </tr>
-              </tbody>
+                <thead>
+                  <tr>
+                    <th>訂單</th>
+                    <th>期數</th>
+                    <th>號碼</th>
+                    <th>金額</th>
+                    <th>中獎</th>
+                    <th>獎金</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in userDialogData.betHistory" :key="item.orderId">
+                    <td>{{ item.orderId }}</td>
+                    <td>{{ item.issue }}</td>
+                    <td>{{ item.betCode.join(', ') }}</td>
+                    <td>{{ actions.thousands(item.coin) }}</td>
+                    <td>{{ item.winStatus }}</td>
+                    <td>{{ actions.thousands(item.winAmount) }}</td>
+                  </tr>
+                  <tr v-if="userDialogData.betHistory.length === 0">
+                    <td colspan="6" class="no-records">暫無資料</td>
+                  </tr>
+                </tbody>
               </table>
             </div>
           </section>
@@ -222,30 +220,31 @@ onBeforeUnmount(() => {
           <button type="button" @click="click.closeOpenCodeDialog()">×</button>
         </header>
         <div v-if="openCodeDialogData.isLoading" class="user-dialog-loading">載入中...</div>
-        <div v-else-if="openCodeDialogData.errorMessage" class="user-dialog-error">{{ openCodeDialogData.errorMessage }}</div>
+        <div v-else-if="openCodeDialogData.errorMessage" class="user-dialog-error">{{ openCodeDialogData.errorMessage }}
+        </div>
         <div v-else class="user-dialog-body">
           <section class="dialog-block">
             <div class="dialog-table-wrap">
               <table class="report-table dialog-report-table">
-              <thead>
-                <tr>
-                  <th>期數</th>
-                  <th>開獎號</th>
-                  <th>開始</th>
-                  <th>結束</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in openCodeDialogData.list" :key="item.issue">
-                  <td>{{ item.issue }}</td>
-                  <td>{{ item.openCode.join(', ') }}</td>
-                  <td>{{ new Date(item.startAt).toLocaleString() }}</td>
-                  <td>{{ new Date(item.endAt).toLocaleString() }}</td>
-                </tr>
-                <tr v-if="openCodeDialogData.list.length === 0">
-                  <td colspan="4" class="no-records">暫無資料</td>
-                </tr>
-              </tbody>
+                <thead>
+                  <tr>
+                    <th>期數</th>
+                    <th>開獎號</th>
+                    <th>開始</th>
+                    <th>結束</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in openCodeDialogData.list" :key="item.issue">
+                    <td>{{ item.issue }}</td>
+                    <td>{{ item.openCode.join(', ') }}</td>
+                    <td>{{ new Date(item.startAt).toLocaleString() }}</td>
+                    <td>{{ new Date(item.endAt).toLocaleString() }}</td>
+                  </tr>
+                  <tr v-if="openCodeDialogData.list.length === 0">
+                    <td colspan="4" class="no-records">暫無資料</td>
+                  </tr>
+                </tbody>
               </table>
             </div>
           </section>
