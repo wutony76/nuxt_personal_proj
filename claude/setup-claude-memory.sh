@@ -6,13 +6,12 @@
 set -e
 
 # ── 參數檢查 ─────────────────────────────────────────────────
-if [ -z "$1" ]; then
-  echo "請提供專案絕對路徑，例如："
-  echo "  bash setup-claude-memory.sh /Users/tony.wu/SelfCode/Git/my-project"
-  exit 1
-fi
+# 預設使用 script 所在目錄的上層（即專案根目錄）
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DEFAULT_PROJECT_PATH="$(dirname "$SCRIPT_DIR")"
 
-PROJECT_PATH="$1"
+PROJECT_PATH="${1:-$DEFAULT_PROJECT_PATH}"
+echo "專案路徑：$PROJECT_PATH"
 
 # 計算與 Claude Code 相同的路徑 hash（將 / 轉為 -）
 HASH=$(echo "$PROJECT_PATH" | sed 's|/|-|g')
