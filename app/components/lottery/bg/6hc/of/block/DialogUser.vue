@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { actions } from '~/utils/common'
 
-defineProps<{
+const props = defineProps<{
   visible: boolean
   data: {
     jackpot: { currentIssueJackpot: number; carryJackpot: number }
@@ -20,6 +20,58 @@ const emit = defineEmits<{
 }>()
 
 const activeTab = ref<'balance' | 'bets'>('balance')
+
+const betIssueFilter = ref('')
+const betSortField = ref<'default' | 'orderId' | 'winAmount'>('default')
+const betSortOrder = ref<'asc' | 'desc'>('desc')
+
+const betIssues = computed(() =>
+  [...new Set(props.data.betHistory.map((i) => i.issue))].sort((a, b) => b.localeCompare(a))
+)
+
+const balanceSortOrder = ref<'asc' | 'desc'>('desc')
+const balanceSortActive = ref(false)
+
+const filteredBalanceChanges = computed(() => {
+  const list = props.data.balanceChanges.slice()
+  if (!balanceSortActive.value) return list.reverse()
+  const dir = balanceSortOrder.value === 'asc' ? 1 : -1
+  return list.sort((a, b) => (a.createdAt - b.createdAt) * dir)
+})
+
+function toggleBalanceTimeSort() {
+  if (!balanceSortActive.value) {
+    balanceSortActive.value = true
+    balanceSortOrder.value = 'desc'
+  } else {
+    balanceSortOrder.value = balanceSortOrder.value === 'asc' ? 'desc' : 'asc'
+  }
+}
+const filteredBetHistory = computed(() => {
+  let list = props.data.betHistory.slice()
+  if (betIssueFilter.value) list = list.filter((i) => i.issue === betIssueFilter.value)
+
+  if (betSortField.value === 'default') {
+    list.reverse()
+  } else {
+    const dir = betSortOrder.value === 'asc' ? 1 : -1
+    list.sort((a, b) => {
+      if (betSortField.value === 'orderId') return a.orderId.localeCompare(b.orderId) * dir
+      if (betSortField.value === 'winAmount') return (a.winAmount - b.winAmount) * dir
+      return 0
+    })
+  }
+  return list
+})
+
+function toggleSort(field: 'orderId' | 'winAmount') {
+  if (betSortField.value === field) {
+    betSortOrder.value = betSortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    betSortField.value = field
+    betSortOrder.value = 'desc'
+  }
+}
 </script>
 
 <template>
@@ -61,7 +113,10 @@ const activeTab = ref<'balance' | 'bets'>('balance')
               <table class="report-table dialog-report-table">
                 <thead>
                   <tr>
-                    <th>時間</th>
+                    <th class="sortable-th" @click="toggleBalanceTimeSort">
+                      時間
+                      <span class="sort-icon">{{ !balanceSortActive ? '⇅' : balanceSortOrder === 'asc' ? '↑' : '↓' }}</span>
+                    </th>
                     <th>期數</th>
                     <th>類型</th>
                     <th>變動</th>
@@ -69,11 +124,12 @@ const activeTab = ref<'balance' | 'bets'>('balance')
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="item in data.balanceChanges" :key="item.id">
+                  <tr v-for="item in filteredBalanceChanges" :key="item.id">
                     <td>{{ new Date(item.createdAt).toLocaleString() }}</td>
                     <td>{{ item.issue }}</td>
                     <td>{{ item.type }}</td>
-                    <td>{{ actions.thousands(item.amount) }}</td>
+                    <td :class="item.amount < 0 ? 'amount-negative' : 'amount-positive'">{{
+                      actions.thousands(item.amount) }}</td>
                     <td>{{ actions.thousands(item.after) }}</td>
                   </tr>
                   <tr v-if="data.balanceChanges.length === 0">
@@ -86,31 +142,55 @@ const activeTab = ref<'balance' | 'bets'>('balance')
 
           <!-- 下注紀錄 -->
           <section v-if="activeTab === 'bets'" class="dialog-block">
+            <div class="table-filter">
+              <select v-model="betIssueFilter" class="issue-select">
+                <option value="">全部期數</option>
+                <option v-for="issue in betIssues" :key="issue" :value="issue">{{ issue }}</option>
+              </select>
+            </div>
             <div class="dialog-table-wrap">
-              <table class="report-table dialog-report-table">
+              <table class="report-table dialog-report-table bets-table">
+                <colgroup>
+                  <col style="width: 22%" />
+                  <col style="width: 12%" />
+                  <col style="width: 30%" />
+                  <col style="width: 12%" />
+                  <col style="width: 10%" />
+                  <col style="width: 14%" />
+                </colgroup>
                 <thead>
                   <tr>
-                    <th>訂單</th>
-                    <th>期數</th>
-                    <th>號碼</th>
-                    <th>金額</th>
-                    <th>中獎</th>
-                    <th>獎金</th>
+                    <th class="sortable-th" @click="toggleSort('orderId')">
+                      注單序號
+                      <span class="sort-icon">{{ betSortField === 'orderId' ? (betSortOrder === 'asc' ? '↑' : '↓') : '⇅'
+                        }}</span>
+                    </th>
+                    <th>投注期數</th>
+                    <th>投注號碼</th>
+                    <th>投注金額</th>
+                    <th>注單狀態</th>
+                    <th class="sortable-th" @click="toggleSort('winAmount')">
+                      中獎金額
+                      <span class="sort-icon">{{ betSortField === 'winAmount' ? (betSortOrder === 'asc' ? '↑' : '↓') :
+                        '⇅' }}</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="item in data.betHistory" :key="item.orderId">
-                    <td>{{ item.orderId }}</td>
+                  <tr v-for="item in filteredBetHistory" :key="item.orderId"
+                    :class="{ 'row-dimmed': item.winStatus === 'lose', 'row-win': item.winStatus === 'win' }">
+                    <td style="white-space: nowrap">{{ item.orderId }}</td>
                     <td>{{ item.issue }}</td>
                     <td>
                       <div class="bet-balls">
                         <LotteryBg6hcOfBaseBall v-for="code in item.betCode" :key="code"
-                          :data="{ label: +code, num: +code }" :isClick="false" />
+                          :data="{ label: String(+code).padStart(2, '0'), num: +code, selected: true }"
+                          :isClick="false" />
                       </div>
                     </td>
                     <td>{{ actions.thousands(item.coin) }}</td>
-                    <td>{{ item.winStatus }}</td>
-                    <td>{{ actions.thousands(item.winAmount) }}</td>
+                    <td :class="item.winStatus === 'win' ? 'win-status' : ''">{{ item.winStatus }}</td>
+                    <td :class="item.winAmount > 0 ? 'win-amount' : ''">{{ actions.thousands(item.winAmount) }}</td>
                   </tr>
                   <tr v-if="data.betHistory.length === 0">
                     <td colspan="6" class="no-records">暫無資料</td>
@@ -135,6 +215,17 @@ const activeTab = ref<'balance' | 'bets'>('balance')
       position: absolute;
       top: -3px;
       right: 5px;
+    }
+  }
+
+  .dialog-report-table {
+    thead tr:first-child th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      box-shadow:
+        inset 0 1px 0 0 var(--color-red-content),
+        inset 0 -1px 0 0 var(--color-red-content);
     }
   }
 
@@ -183,19 +274,98 @@ const activeTab = ref<'balance' | 'bets'>('balance')
     }
   }
 
+  .amount-positive {
+    color: #16a34a;
+    font-weight: bold;
+  }
+
+  .amount-negative {
+    color: #dc2626;
+    font-weight: bold;
+  }
+
+  .win-status {
+    color: #16a34a;
+    font-weight: 600;
+  }
+
+  .win-amount {
+    color: #ff8d00;
+    font-weight: 600;
+  }
+
+  .row-dimmed {
+    opacity: 0.4;
+  }
+
+  .row-win {
+    outline: 1px solid #ff8d00;
+    outline-offset: -2px;
+    background: #fff8ed;
+
+    td:first-child {
+      border-left: 3px solid #ff8d00;
+    }
+  }
+
+  .sortable-th {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+
+    &:hover {
+      color: var(--color-red-main);
+    }
+
+    .sort-icon {
+      margin-left: 3px;
+      font-size: 11px;
+      opacity: 0.7;
+    }
+  }
+
+  .table-filter {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 6px;
+  }
+
+  .issue-select {
+    font-size: 12px;
+    padding: 3px 8px;
+    border: 1px solid var(--color-red-main);
+    border-radius: 0.25rem;
+    color: var(--color-red-main);
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+
+    &:focus {
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-red-main) 20%, transparent);
+    }
+  }
+
+  .bets-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
   .bet-balls {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
+    flex-wrap: nowrap;
+    gap: 3px;
     align-items: center;
     justify-content: center;
-    padding: 0.3rem 0;
 
     :deep(.ball-wrapper) {
       .ball {
-        width: 2.4rem;
-        height: 2.4rem;
-        font-size: 1.2rem;
+        width: 1.6rem;
+        height: 1.6rem;
+        font-size: 0.7rem;
+
+        &.selected {
+          border-width: 0.24rem;
+        }
       }
     }
   }
