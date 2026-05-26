@@ -131,12 +131,8 @@ onBeforeUnmount(() => {
         <AnalyzeBlock />
       </section>
     </main>
-    <DialogUser
-      :visible="state.userDialogVisible"
-      :data="userDialogData"
-      @close="click.closeUserDialog()"
-      @claim="click.claimOneIssue()"
-    />
+    <DialogUser :visible="state.userDialogVisible" :data="userDialogData" @close="click.closeUserDialog()"
+      @claim="click.claimOneIssue()" />
     <div v-if="state.openCodeDialogVisible" class="user-dialog-mask" @click.self="click.closeOpenCodeDialog()">
       <section class="user-dialog">
         <header class="user-dialog-header">
@@ -330,15 +326,22 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.75rem;
+    margin-bottom: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-red-main);
   }
 
   .user-dialog-summary {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin-bottom: 0.75rem;
+    // margin-bottom: 0.75rem;
+    margin-bottom: 10px;
     flex-wrap: wrap;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-red-desc);
 
     .claim-btn {
       border: 1px solid #f2b7c1;
@@ -360,7 +363,7 @@ onBeforeUnmount(() => {
 
   .user-dialog-body {
     display: grid;
-    gap: 0.75rem;
+    gap: 10px;
   }
 
   .dialog-block {
@@ -391,7 +394,8 @@ onBeforeUnmount(() => {
       }
 
       .no-records {
-        min-height: 120px;
+        height: 150px;
+        // min-height: 120px;
         color: var(--color-red-desc);
       }
     }

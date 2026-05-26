@@ -27,7 +27,7 @@ const activeTab = ref<'balance' | 'bets'>('balance')
     <section class="user-dialog">
       <header class="user-dialog-header">
         <h3>會員資產 / 下注紀錄</h3>
-        <button type="button" @click="emit('close')">×</button>
+        <button type="button" class="close-btn" @click="emit('close')">×</button>
       </header>
 
       <div class="user-dialog-summary">
@@ -36,7 +36,7 @@ const activeTab = ref<'balance' | 'bets'>('balance')
         <div>可領獎期數：{{ data.claimableIssues.length }}</div>
         <button type="button" class="claim-btn" :disabled="data.claimableIssues.length === 0 || data.isSubmittingClaim"
           @click="emit('claim')">
-          {{ data.isSubmittingClaim ? '領獎中...' : '領取下一期獎金' }}
+          {{ data.isSubmittingClaim ? '領獎中...' : '領取中獎獎金' }}
         </button>
       </div>
 
@@ -44,20 +44,12 @@ const activeTab = ref<'balance' | 'bets'>('balance')
       <div v-else-if="data.errorMessage" class="user-dialog-error">{{ data.errorMessage }}</div>
       <div v-else class="user-dialog-body">
         <div class="dialog-tabs">
-          <button
-            type="button"
-            class="dialog-tab"
-            :class="{ active: activeTab === 'balance' }"
-            @click="activeTab = 'balance'"
-          >
+          <button type="button" class="dialog-tab" :class="{ active: activeTab === 'balance' }"
+            @click="activeTab = 'balance'">
             餘額變動表
           </button>
-          <button
-            type="button"
-            class="dialog-tab"
-            :class="{ active: activeTab === 'bets' }"
-            @click="activeTab = 'bets'"
-          >
+          <button type="button" class="dialog-tab" :class="{ active: activeTab === 'bets' }"
+            @click="activeTab = 'bets'">
             下注紀錄
           </button>
         </div>
@@ -112,12 +104,8 @@ const activeTab = ref<'balance' | 'bets'>('balance')
                     <td>{{ item.issue }}</td>
                     <td>
                       <div class="bet-balls">
-                        <LotteryBg6hcOfBaseBall
-                          v-for="code in item.betCode"
-                          :key="code"
-                          :data="{ label: +code, num: +code }"
-                          :isClick="false"
-                        />
+                        <LotteryBg6hcOfBaseBall v-for="code in item.betCode" :key="code"
+                          :data="{ label: +code, num: +code }" :isClick="false" />
                       </div>
                     </td>
                     <td>{{ actions.thousands(item.coin) }}</td>
@@ -138,53 +126,79 @@ const activeTab = ref<'balance' | 'bets'>('balance')
 </template>
 
 <style lang="scss" scoped>
-.dialog-tabs {
-  display: flex;
-  border-bottom: 2px solid var(--6hcOf-border, #e0d4b8);
-  margin-bottom: 0;
-}
+.user-dialog {
+  .user-dialog-header {
+    position: relative;
 
-.dialog-tab {
-  flex: 1;
-  padding: 0.8rem 1rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.4rem;
-  color: var(--6hcOf-text-secondary, #8a7a5a);
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
-  transition: color 0.2s, border-color 0.2s;
-
-  &.active {
-    color: var(--6hcOf-text-primary, #3a2a0a);
-    border-bottom-color: var(--6hcOf-ball-yellow, #c8a84b);
-    font-weight: 600;
-  }
-
-  &:hover:not(.active) {
-    color: var(--6hcOf-text-primary, #3a2a0a);
-  }
-}
-
-.dialog-tab-content {
-  overflow: hidden;
-}
-
-.bet-balls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  align-items: center;
-  justify-content: center;
-  padding: 0.3rem 0;
-
-  :deep(.ball-wrapper) {
-    .ball {
-      width: 2.4rem;
-      height: 2.4rem;
-      font-size: 1.2rem;
+    .close-btn {
+      font-size: 25px;
+      position: absolute;
+      top: -3px;
+      right: 5px;
     }
   }
+
+  .dialog-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .dialog-tab {
+    border: 1px solid #f3b7bf;
+    border-radius: 0.25rem;
+    background: #fff5f6;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-red-main);
+    cursor: pointer;
+
+    &.active {
+      background: var(--color-red-main);
+      border-color: var(--color-red-main);
+      color: #fff;
+    }
+  }
+
+  .dialog-tab-content {
+    overflow: hidden;
+  }
+
+  .claim-btn {
+    padding: 6px 16px;
+    border-radius: 0.25rem;
+    border: 1px solid var(--color-red-main);
+    background: var(--color-red-main);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:disabled {
+      background: #f2f2f2;
+      border-color: #cac7c7;
+      color: #bfb5b5;
+      cursor: not-allowed;
+    }
+  }
+
+  .bet-balls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3rem 0;
+
+    :deep(.ball-wrapper) {
+      .ball {
+        width: 2.4rem;
+        height: 2.4rem;
+        font-size: 1.2rem;
+      }
+    }
+  }
+
 }
 </style>
