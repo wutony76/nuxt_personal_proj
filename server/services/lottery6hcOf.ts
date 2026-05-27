@@ -514,15 +514,17 @@ export default class LHC_OF {
         .filter((code) => openSet.has(code)).length
     },
     settleClosedIssueIfNeeded: () => {
-      const settleIndex = this.currentStatus === STATUS_TIME.OPENED
+      const maxSettleIndex = this.currentStatus === STATUS_TIME.OPENED
         ? this.currentIndex
         : (this.currentIndex - 1)
-      if (settleIndex < 0) return
-      const closedRecord = this.recordOpenCode[settleIndex]
-      if (!closedRecord?.issue) return
-      if (this.issueSettledMap[closedRecord.issue]) return
-      this.handle.settleIssuePrize(closedRecord.issue, closedRecord.openCode)
-      this.issueSettledMap[closedRecord.issue] = true
+      if (maxSettleIndex < 0) return
+      for (let i = 0; i <= maxSettleIndex; i++) {
+        const record = this.recordOpenCode[i]
+        if (!record?.issue) continue
+        if (this.issueSettledMap[record.issue]) continue
+        this.handle.settleIssuePrize(record.issue, record.openCode)
+        this.issueSettledMap[record.issue] = true
+      }
     },
     settleIssuePrize: (issue: string, openCode: string[]) => {
       const safeIssue = String(issue ?? '')

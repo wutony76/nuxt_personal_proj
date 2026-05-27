@@ -29,6 +29,13 @@ const betIssues = computed(() =>
   [...new Set(props.data.betHistory.map((i) => i.issue))].sort((a, b) => b.localeCompare(a))
 )
 
+const selectedIssueOpenCode = computed<string[] | null>(() => {
+  if (!betIssueFilter.value) return null
+  const found = props.data.betHistory.find((i) => i.issue === betIssueFilter.value)
+  if (!found || found.winStatus === 'pending' || !found.openCode?.length) return null
+  return found.openCode
+})
+
 const balanceSortOrder = ref<'asc' | 'desc'>('desc')
 const balanceSortActive = ref(false)
 
@@ -71,6 +78,10 @@ function toggleSort(field: 'orderId' | 'winAmount') {
     betSortField.value = field
     betSortOrder.value = 'desc'
   }
+}
+
+function isBallHit(code: string, openCode: string[]): boolean {
+  return openCode.some((c) => +c === +code)
 }
 </script>
 
@@ -115,7 +126,8 @@ function toggleSort(field: 'orderId' | 'winAmount') {
                   <tr>
                     <th class="sortable-th" @click="toggleBalanceTimeSort">
                       時間
-                      <span class="sort-icon">{{ !balanceSortActive ? '⇅' : balanceSortOrder === 'asc' ? '↑' : '↓' }}</span>
+                      <span class="sort-icon">{{ !balanceSortActive ? '⇅' : balanceSortOrder === 'asc' ? '↑' : '↓'
+                      }}</span>
                     </th>
                     <th>期數</th>
                     <th>類型</th>
@@ -143,6 +155,15 @@ function toggleSort(field: 'orderId' | 'winAmount') {
           <!-- 下注紀錄 -->
           <section v-if="activeTab === 'bets'" class="dialog-block">
             <div class="table-filter">
+              <div v-if="betIssueFilter" class="issue-open-code-label"> 開獎</div>
+              <div v-if="betIssueFilter" class="issue-open-code">
+                <template v-if="selectedIssueOpenCode">
+                  <LotteryBg6hcOfBaseBall v-for="code in selectedIssueOpenCode" :key="code"
+                    :data="{ label: String(+code).padStart(2, '0'), num: +code, selected: true }" :isClick="false" />
+                </template>
+                <span v-else class="issue-open-code-pending">未開獎</span>
+              </div>
+
               <select v-model="betIssueFilter" class="issue-select">
                 <option value="">全部期數</option>
                 <option v-for="issue in betIssues" :key="issue" :value="issue">{{ issue }}</option>
@@ -184,7 +205,7 @@ function toggleSort(field: 'orderId' | 'winAmount') {
                     <td>
                       <div class="bet-balls">
                         <LotteryBg6hcOfBaseBall v-for="code in item.betCode" :key="code"
-                          :data="{ label: String(+code).padStart(2, '0'), num: +code, selected: true }"
+                          :data="{ label: String(+code).padStart(2, '0'), num: +code, selected: item.winStatus !== 'win' || !selectedIssueOpenCode || isBallHit(code, selectedIssueOpenCode) }"
                           :isClick="false" />
                       </div>
                     </td>
@@ -212,9 +233,79 @@ function toggleSort(field: 'orderId' | 'winAmount') {
 
     .close-btn {
       font-size: 25px;
+      font-weight: 700;
       position: absolute;
       top: -3px;
       right: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--color-red-desc);
+      line-height: 1;
+
+      &:hover {
+        color: var(--color-red-main);
+      }
+    }
+  }
+
+  .user-dialog-body {
+    .dialog-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .dialog-tab {
+      border: 1px solid #f3b7bf;
+      border-radius: 0.25rem;
+      background: #fff5f6;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-red-main);
+      cursor: pointer;
+
+      &.active {
+        background: var(--color-red-main);
+        border-color: var(--color-red-main);
+        color: #fff;
+      }
+    }
+
+    .dialog-tab-content {
+      overflow: hidden;
+
+      .table-filter {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 6px;
+        margin-bottom: 6px;
+
+        .issue-open-code-label {
+          color: var(--color-red-700);
+        }
+
+        .issue-open-code {
+          display: flex;
+          align-items: center;
+          gap: 3px;
+
+          :deep(.ball-wrapper) .ball {
+            width: 1.6rem;
+            height: 1.6rem;
+            font-size: 0.7rem;
+
+            &.selected {
+              border-width: 0.24rem;
+            }
+          }
+        }
+
+      }
+
     }
   }
 
@@ -229,32 +320,7 @@ function toggleSort(field: 'orderId' | 'winAmount') {
     }
   }
 
-  .dialog-tabs {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
 
-  .dialog-tab {
-    border: 1px solid #f3b7bf;
-    border-radius: 0.25rem;
-    background: #fff5f6;
-    padding: 6px 14px;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--color-red-main);
-    cursor: pointer;
-
-    &.active {
-      background: var(--color-red-main);
-      border-color: var(--color-red-main);
-      color: #fff;
-    }
-  }
-
-  .dialog-tab-content {
-    overflow: hidden;
-  }
 
   .claim-btn {
     padding: 6px 16px;
@@ -324,14 +390,19 @@ function toggleSort(field: 'orderId' | 'winAmount') {
     }
   }
 
-  .table-filter {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 6px;
+
+
+
+
+  .issue-open-code-pending {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9ca3af;
   }
 
   .issue-select {
     font-size: 12px;
+    margin-left: 25px;
     padding: 3px 8px;
     border: 1px solid var(--color-red-main);
     border-radius: 0.25rem;

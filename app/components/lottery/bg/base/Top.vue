@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (event: 'open-user-dialog'): void
   (event: 'open-opencode-dialog'): void
+  (event: 'open-rule-dialog'): void
 }>()
 
 const handleLogout = async () => {
@@ -30,6 +31,7 @@ const handleLogout = async () => {
         <NuxtLink to="/">HOME</NuxtLink>
         <button type="button" class="ghost-btn" @click="emit('open-user-dialog')">USER</button>
         <button type="button" class="ghost-btn" @click="emit('open-opencode-dialog')">OPENCODE</button>
+        <button type="button" class="ghost-btn" @click="emit('open-rule-dialog')">RULE</button>
         <button type="button" class="logout-btn" @click="handleLogout">LOGOUT</button>
       </div>
     </div>

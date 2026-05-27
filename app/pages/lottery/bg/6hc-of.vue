@@ -13,6 +13,8 @@ import NumberPlay from '~/components/lottery/bg/6hc/of/Number.vue'
 import Header from '~/components/lottery/bg/6hc/of/block/Header.vue'
 import Road from '~/components/lottery/bg/6hc/of/block/Road.vue'
 import DialogUser from '~/components/lottery/bg/6hc/of/block/DialogUser.vue'
+import DialogOpenCode from '~/components/lottery/bg/6hc/of/block/DialogOpenCode.vue'
+import DialogRule from '~/components/lottery/bg/6hc/of/block/DialogRule.vue'
 import BarTabs from '~/components/lottery/bg/6hc/of/base/BarTabs.vue'
 import IssueBlock from '~/components/lottery/bg/6hc/of/block/record/Issue.vue'
 import AnalyzeBlock from '~/components/lottery/bg/6hc/of/block/record/Analyze.vue'
@@ -26,7 +28,8 @@ const state = reactive({
   lotteryId: LOTTERY['6HC'].id,
   lotteryInfo: GET_CONT.lotteryById(LOTTERY['6HC'].id),
   userDialogVisible: false,
-  openCodeDialogVisible: false
+  openCodeDialogVisible: false,
+  ruleDialogVisible: false
 })
 
 const playMap = {
@@ -64,13 +67,19 @@ const click = {
   },
   openOpenCodeDialog: async () => {
     state.openCodeDialogVisible = true
-    await mxFetch.openCodeHistory()
+    await Promise.all([mxFetch.openCodeHistory(), mxFetch.userDialogRecord()])
   },
   closeUserDialog: () => {
     state.userDialogVisible = false
   },
   closeOpenCodeDialog: () => {
     state.openCodeDialogVisible = false
+  },
+  openRuleDialog: () => {
+    state.ruleDialogVisible = true
+  },
+  closeRuleDialog: () => {
+    state.ruleDialogVisible = false
   },
   claimOneIssue: async () => {
     const result = await mxFetch.claimOneIssue()
@@ -99,7 +108,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="base lottery-6hc-of">
-    <LotteryBgBaseTop @open-user-dialog="click.openUserDialog()" @open-opencode-dialog="click.openOpenCodeDialog()" />
+    <LotteryBgBaseTop @open-user-dialog="click.openUserDialog()" @open-opencode-dialog="click.openOpenCodeDialog()" @open-rule-dialog="click.openRuleDialog()" />
     <main class="main">
       <Header :lottery-info="state.lotteryInfo" @open-opencode-dialog="click.openOpenCodeDialog()" />
       <section class="info-warp">
@@ -133,44 +142,10 @@ onBeforeUnmount(() => {
     </main>
     <DialogUser :visible="state.userDialogVisible" :data="userDialogData" @close="click.closeUserDialog()"
       @claim="click.claimOneIssue()" />
-    <div v-if="state.openCodeDialogVisible" class="user-dialog-mask" @click.self="click.closeOpenCodeDialog()">
-      <section class="user-dialog">
-        <header class="user-dialog-header">
-          <h3>開獎歷史（過去到最近期）</h3>
-          <button type="button" @click="click.closeOpenCodeDialog()">×</button>
-        </header>
-        <div v-if="openCodeDialogData.isLoading" class="user-dialog-loading">載入中...</div>
-        <div v-else-if="openCodeDialogData.errorMessage" class="user-dialog-error">{{ openCodeDialogData.errorMessage }}
-        </div>
-        <div v-else class="user-dialog-body">
-          <section class="dialog-block">
-            <div class="dialog-table-wrap">
-              <table class="report-table dialog-report-table">
-                <thead>
-                  <tr>
-                    <th>期數</th>
-                    <th>開獎號</th>
-                    <th>開始</th>
-                    <th>結束</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in openCodeDialogData.list" :key="item.issue">
-                    <td>{{ item.issue }}</td>
-                    <td>{{ item.openCode.join(', ') }}</td>
-                    <td>{{ new Date(item.startAt).toLocaleString() }}</td>
-                    <td>{{ new Date(item.endAt).toLocaleString() }}</td>
-                  </tr>
-                  <tr v-if="openCodeDialogData.list.length === 0">
-                    <td colspan="4" class="no-records">暫無資料</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
-      </section>
-    </div>
+    <DialogOpenCode :visible="state.openCodeDialogVisible" :data="openCodeDialogData"
+      :betIssues="userDialogData.betHistory.map(b => b.issue)"
+      @close="click.closeOpenCodeDialog()" />
+    <DialogRule :visible="state.ruleDialogVisible" :jackpot="userDialogData.jackpot" @close="click.closeRuleDialog()" />
     <section class="footer-warp"> footer</section>
   </div>
 </template>
