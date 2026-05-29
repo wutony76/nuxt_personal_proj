@@ -88,23 +88,30 @@ type UserStoreLike = {
   record?: UserRecord
 }
 
-type IssuePrizeTier = {
-  matchCount: number
-  ratio: number
-}
+type IssuePrizeTier =
+  | { matchCount: number; type: 'pool'; ratio: number; minAmount: number }
+  | { matchCount: number; type: 'fixed'; amount: number }
 
-const ISSUE_PRIZE_TIERS: IssuePrizeTier[] = [
-  { matchCount: 7, ratio: 0.4 },
-  { matchCount: 6, ratio: 0.2 },
-  { matchCount: 5, ratio: 0.15 },
-  { matchCount: 4, ratio: 0.1 },
-  { matchCount: 3, ratio: 0.08 },
-  { matchCount: 2, ratio: 0.07 }
-]
 
 const CYCLE_SECONDS = 7 * 60
 const CYCLE_MS = CYCLE_SECONDS * 1000
 const TOTAL_ISSUES_PER_DAY = 205
+
+// ── 池底設定：可調整此範圍 ──────────────────────────────────────
+const BASE_FIRST_PRIZE = 200000 //頭獎最低金額
+const JACKPOT_PERCENT = 0.8 //發放獎金％數
+const BASE_PERCENT = 0.55 //池底％數
+const JACKPOT_BASE_MIN = Math.ceil(BASE_FIRST_PRIZE / BASE_PERCENT) + Math.ceil(BASE_FIRST_PRIZE / 3)
+const JACKPOT_BASE_MAX = BASE_FIRST_PRIZE * 7
+const ISSUE_PRIZE_TIERS: IssuePrizeTier[] = [
+  { matchCount: 7, type: 'pool', ratio: 0.40, minAmount: BASE_FIRST_PRIZE },
+  { matchCount: 6, type: 'fixed', amount: 50000 },
+  { matchCount: 5, type: 'fixed', amount: 8000 },
+  { matchCount: 4, type: 'fixed', amount: 800 },
+  { matchCount: 3, type: 'fixed', amount: 100 },
+  { matchCount: 2, type: 'fixed', amount: 20 },
+]
+// ────────────────────────────────────────────────────────────────
 
 export default class LHC_OF {
   id: number
@@ -115,6 +122,8 @@ export default class LHC_OF {
   issueJackpotMap: Record<string, number>
   issueSettledMap: Record<string, boolean>
   carryJackpot: number
+  jackpotBase: number
+  jackpotBaseSetAt: number
 
   constructor() {
     this.id = LOTTERY['LHC-OF'].id
@@ -125,10 +134,13 @@ export default class LHC_OF {
     this.issueJackpotMap = {}
     this.issueSettledMap = {}
     this.carryJackpot = 0
+    this.jackpotBase = 0
+    this.jackpotBaseSetAt = 0
     this.init()
   }
 
   init() {
+    this._handle.jackpotBase()
     this.handle.prdOpenCode()
     Storage.games[LOTTERY['LHC-OF'].key] = this
     console.log('LHC_OF.init.success', this.recordOpenCode)
@@ -319,10 +331,17 @@ export default class LHC_OF {
     },
     jackpotState: () => {
       const issue = this.recordOpenCode[this.currentIndex]?.issue ?? ''
+      const currentIssueJackpot = Number(this.issueJackpotMap[issue] ?? 0)
+      const carryJackpot = Number(this.carryJackpot ?? 0)
+      const totalReal = (this.jackpotBase + (currentIssueJackpot * JACKPOT_PERCENT) + carryJackpot) * BASE_PERCENT
+      if (totalReal < BASE_FIRST_PRIZE) this._handle.jackpotBase()
+
       return {
         issue,
-        currentIssueJackpot: Number(this.issueJackpotMap[issue] ?? 0),
-        carryJackpot: Number(this.carryJackpot ?? 0)
+        currentIssueJackpot,
+        carryJackpot,
+        jackpotBase: this.jackpotBase,
+        jackpotBaseSetAt: this.jackpotBaseSetAt
       }
     }
   }
@@ -436,6 +455,15 @@ export default class LHC_OF {
       else return '與上一期投注相同'
     }
   }
+  _handle = {
+    jackpotBase: () => {
+      const random = Math.floor(Math.random() * (JACKPOT_BASE_MAX - JACKPOT_BASE_MIN + 1)) + JACKPOT_BASE_MIN
+      this.jackpotBase = random
+      this.jackpotBaseSetAt = Date.now()
+      return random
+    }
+  }
+
   handle = {
     ensureUserRecord: (user: UserStoreLike) => {
       if (!user.record) {
@@ -538,7 +566,7 @@ export default class LHC_OF {
         betCode: string[]
       }>
       const issuePool = Number(this.issueJackpotMap[safeIssue] ?? 0)
-      const totalPool = Number((issuePool + this.carryJackpot).toFixed(2))
+      const totalPool = Number((this.jackpotBase + (issuePool * JACKPOT_PERCENT) + this.carryJackpot) * BASE_PERCENT)
       const evaluateRows = issueOrders.map((row) => ({
         ...row,
         matchCount: this.handle.getMatchCount(row.betCode, openCode),
@@ -547,16 +575,22 @@ export default class LHC_OF {
 
       let carryNext = 0
       ISSUE_PRIZE_TIERS.forEach((tier) => {
-        const tierAmount = Number((totalPool * tier.ratio).toFixed(2))
         const winners = evaluateRows.filter((row) => row.matchCount === tier.matchCount)
-        if (winners.length === 0) {
-          carryNext = Number((carryNext + tierAmount).toFixed(2))
-          return
+        if (tier.type === 'pool') {
+          const poolAmount = Number(Math.max(totalPool * tier.ratio, tier.minAmount).toFixed(2))
+          if (winners.length === 0) {
+            carryNext = Number((carryNext + poolAmount).toFixed(2))
+            return
+          }
+          const each = Number((poolAmount / winners.length).toFixed(2))
+          winners.forEach((row) => {
+            row.payout = Number((row.payout + each).toFixed(2))
+          })
+        } else {
+          winners.forEach((row) => {
+            row.payout = Number((row.payout + tier.amount).toFixed(2))
+          })
         }
-        const each = Number((tierAmount / winners.length).toFixed(2))
-        winners.forEach((row) => {
-          row.payout = Number((row.payout + each).toFixed(2))
-        })
       })
 
       const payoutByUser = new Map<string, number>()

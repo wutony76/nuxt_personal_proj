@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'
 import { STATUS_TIME } from '~/config/constants'
 
@@ -52,7 +52,7 @@ const emit = defineEmits<{
   (event: 'open-opencode-dialog'): void
 }>()
 
-const { current: mxCurrent, time: mxTime } = use6hcOfficial()
+const { current: mxCurrent, time: mxTime, livePool } = use6hcOfficial()
 
 const normalizedData = computed(() => {
   const source = (mxCurrent.runtime ?? {}) as Partial<HeaderData>
@@ -84,9 +84,58 @@ const issueLatest = computed(() => String(normalizedData.value.issueLatest))
 const issueCurrent = computed(() => String(normalizedData.value.issueCurrent || issueLatest.value))
 const currentStatus = computed(() => String(normalizedData.value.currentStatus))
 const countdown = computed(() => String(normalizedData.value.countdown))
-const totalJackpot = computed(() => String(normalizedData.value.totalJackpot))
-const estimatedJackpot = computed(() => String(normalizedData.value.estimatedJackpot))
-const winRate = computed(() => String(normalizedData.value.winRate))
+
+const displayPool = ref(0)
+let rafId: number | null = null
+
+function animateTo(target: number, durationMs = 15000) {
+  if (rafId !== null) cancelAnimationFrame(rafId)
+  const from = displayPool.value
+  const diff = target - from
+  if (Math.abs(diff) < 0.01) { displayPool.value = target; return }
+  const start = performance.now()
+  function step(now: number) {
+    const t = Math.min((now - start) / durationMs, 1)
+    const ease = 1 - Math.pow(1 - t, 3)
+    displayPool.value = Number((from + diff * ease).toFixed(2))
+    if (t < 1) { rafId = requestAnimationFrame(step) }
+    else { rafId = null }
+  }
+  rafId = requestAnimationFrame(step)
+}
+
+onMounted(() => {
+  displayPool.value = livePool.value
+  watch(livePool, (newVal) => {
+    if (newVal > displayPool.value) {
+      animateTo(newVal)
+    } else {
+      if (rafId !== null) cancelAnimationFrame(rafId)
+      rafId = null
+      displayPool.value = newVal
+    }
+  })
+})
+
+onUnmounted(() => {
+  if (rafId !== null) cancelAnimationFrame(rafId)
+})
+
+const totalJackpot = computed(() => {
+  if (livePool.value > 0) {
+    return displayPool.value.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+  return String(normalizedData.value.totalJackpot)
+})
+
+const estimatedJackpot = computed(() => {
+  if (livePool.value > 0) {
+    return (displayPool.value * 0.4).toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+  return String(normalizedData.value.estimatedJackpot)
+})
+
+const winRate = computed(() => '25.84%')
 const _handlers = {
   parseCountdownSeconds: (countdownLabel: string) => {
     if (!countdownLabel) return Number.POSITIVE_INFINITY

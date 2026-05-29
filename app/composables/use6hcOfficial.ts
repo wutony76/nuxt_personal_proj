@@ -1,5 +1,5 @@
 import { cloneDeep } from 'lodash'
-import { computed, reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { GAME_6HC_OF, LOTTERY, SORT } from '~/config/constants'
 import { PLAYLIST } from '~/config/bg/6hc-of'
 import {
@@ -87,9 +87,19 @@ const time = reactive({
   statusRemainLabel: '00:00'
 })
 
+const jackpotBase = ref(0)
+const jackpotBaseSetAt = ref(0)
+
+const livePool = computed(() => {
+  const j = current.runtime?.jackpot
+  const real = j ? Number((Number(j.currentIssueJackpot ?? 0) + Number(j.carryJackpot ?? 0)).toFixed(2)) : 0
+  return Number((jackpotBase.value + real).toFixed(2))
+})
+
 let tickTimer: ReturnType<typeof setInterval> | null = null
 let syncTimer: ReturnType<typeof setInterval> | null = null
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
+let jackpotPollTimer: ReturnType<typeof setInterval> | null = null
 const MIN_REFRESH_DELAY_MS = 250
 const lhcDb = useLhcDb()
 const officialService = new Lottery6hcOfficialService()
@@ -251,6 +261,10 @@ const fetch = {
   currentInfo: async () => {
     const result = await officialService.fetchCurrentInfo()
     current.runtime = result
+    if (result.jackpot?.jackpotBase && result.jackpot.jackpotBase > 0) {
+      jackpotBase.value = result.jackpot.jackpotBase
+      if (result.jackpot.jackpotBaseSetAt > 0) jackpotBaseSetAt.value = result.jackpot.jackpotBaseSetAt
+    }
     init.setStatusEndAt(result.statusEndAt)
     const userId = handle.normalizeUserId(orderDetailQuery.userId)
     const issue = String(result?.issueCurrent ?? '')
@@ -276,9 +290,29 @@ const fetch = {
   },
   startCurrentInfoPolling: async () => {
     await fetch.refreshCurrentInfo()
+    fetch.startJackpotPolling()
   },
   stopCurrentInfoPolling: () => {
     handle.clearCurrentInfoTimer()
+    fetch.stopJackpotPolling()
+  },
+  startJackpotPolling: () => {
+    if (jackpotPollTimer) return
+    jackpotPollTimer = setInterval(async () => {
+      try {
+        const result = await officialService.fetchJackpot()
+        if (result.jackpotBase > 0) jackpotBase.value = result.jackpotBase
+        if (result.jackpotBaseSetAt > 0) jackpotBaseSetAt.value = result.jackpotBaseSetAt
+        if (current.runtime) {
+          current.runtime = { ...current.runtime, jackpot: result }
+        }
+      } catch { /* silent */ }
+    }, 5000)
+  },
+  stopJackpotPolling: () => {
+    if (!jackpotPollTimer) return
+    clearInterval(jackpotPollTimer)
+    jackpotPollTimer = null
   },
   orderDetailFromCache: async (userId: string, issue?: string) => {
     const normalizedUserId = handle.normalizeUserId(userId)
@@ -511,6 +545,8 @@ const fetch = {
       fetch.walletState(),
       // fetch.betMeta(),
     ])
+
+    fetch.startJackpotPolling()
   },
   // Keep backward compatibility with old typo usage.
   crrentInfo: async () => fetch.refreshCurrentInfo()
@@ -586,5 +622,5 @@ state.isSelector = computed(() => {
 init.run()
 
 export function use6hcOfficial() {
-  return { state, current, road, wallet, userRecord, openCodeHistory, system, analyze, time, handle, init, click, fetch }
+  return { state, current, road, wallet, userRecord, openCodeHistory, system, analyze, time, handle, init, click, fetch, jackpotBase, jackpotBaseSetAt, livePool }
 }

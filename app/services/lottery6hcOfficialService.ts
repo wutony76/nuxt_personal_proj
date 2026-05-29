@@ -39,6 +39,10 @@ export class Lottery6hcOfficialService {
     return api.lottery.bet(payload) as Promise<LotteryBetResponse>
   }
 
+  fetchJackpot() {
+    return api.lottery.jackpot6hcOf()
+  }
+
   fetchServerTime() {
     return api.system.servTime() as Promise<{ serverTime: number }>
   }

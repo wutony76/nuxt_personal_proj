@@ -12,6 +12,12 @@ type Lottery6hcOfService = {
       openCode: string[]
       openCodePlay: Array<Record<string, unknown>>
     } | null
+    jackpotState?: () => {
+      issue: string
+      currentIssueJackpot: number
+      carryJackpot: number
+      jackpotBase: number
+    }
   }
 }
 
@@ -32,5 +38,7 @@ export default defineEventHandler(() => {
     })
   }
 
-  return current
+  const jackpot = game.get.jackpotState?.() ?? { issue: '', currentIssueJackpot: 0, carryJackpot: 0 }
+
+  return { ...current, jackpot }
 })

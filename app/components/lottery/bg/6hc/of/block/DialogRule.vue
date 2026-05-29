@@ -3,18 +3,11 @@ import { computed, ref } from 'vue'
 
 const props = defineProps<{
   visible: boolean
-  jackpot?: {
-    issue: string
-    currentIssueJackpot: number
-    carryJackpot: number
-  }
 }>()
 
-const totalPool = computed(() => {
-  const j = props.jackpot
-  if (!j) return 0
-  return Number((Number(j.currentIssueJackpot ?? 0) + Number(j.carryJackpot ?? 0)).toFixed(2))
-})
+const { jackpotBase, livePool } = use6hcOfficial()
+
+const totalPool = computed(() => livePool.value)
 
 const emit = defineEmits<{
   close: []
@@ -40,12 +33,12 @@ function scrollToSection(id: string) {
 }
 
 const prizeTiers = [
-  { match: 7, ratioNum: 0.40, ratio: '40%', desc: '頭獎' },
-  { match: 6, ratioNum: 0.20, ratio: '20%', desc: '二獎' },
-  { match: 5, ratioNum: 0.15, ratio: '15%', desc: '三獎' },
-  { match: 4, ratioNum: 0.10, ratio: '10%', desc: '四獎' },
-  { match: 3, ratioNum: 0.08, ratio: '8%', desc: '五獎' },
-  { match: 2, ratioNum: 0.07, ratio: '7%', desc: '六獎' },
+  { match: 7, type: 'pool' as const, ratioNum: 0.40, ratio: '40%', desc: '頭獎' },
+  { match: 6, type: 'fixed' as const, amount: 50000, desc: '二獎' },
+  { match: 5, type: 'fixed' as const, amount: 8000, desc: '三獎' },
+  { match: 4, type: 'fixed' as const, amount: 800, desc: '四獎' },
+  { match: 3, type: 'fixed' as const, amount: 100, desc: '五獎' },
+  { match: 2, type: 'fixed' as const, amount: 20, desc: '六獎' },
 ]
 
 const timeline = [
@@ -149,9 +142,21 @@ const playTypes = [
         <div id="section-prize" class="rule-section">
           <h4 class="rule-title">獎金結構</h4>
           <p class="rule-note">以下比例為各獎級獲得的獎池份額，同獎級多人得獎則<strong>平均分配</strong>。</p>
-          <div class="prize-pool-row" v-if="totalPool > 0">
-            <span class="pool-label">當期總獎池</span>
-            <span class="pool-value">{{ totalPool.toLocaleString('zh-TW', { minimumFractionDigits: 2 }) }} F幣</span>
+          <div class="prize-pool-rows" v-if="jackpotBase > 0 || totalPool > 0">
+            <div class="prize-pool-row">
+              <span class="pool-label">池底金額</span>
+              <span class="pool-value pool-value-base">{{ jackpotBase.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} F幣</span>
+            </div>
+            <div class="prize-pool-row">
+              <span class="pool-label">當期投注額</span>
+              <span class="pool-value pool-value-current">
+                {{ (totalPool - jackpotBase).toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} F幣
+              </span>
+            </div>
+            <div class="prize-pool-row prize-pool-row-total">
+              <span class="pool-label">當期總獎池</span>
+              <span class="pool-value">{{ totalPool.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} F幣</span>
+            </div>
           </div>
           <div class="prize-table-wrap">
             <table class="rule-table prize-table">
@@ -166,8 +171,8 @@ const playTypes = [
                 <tr>
                   <th>獎級</th>
                   <th>命中球數</th>
-                  <th>獎池占比</th>
-                  <th>預估獎金（單人中獎）</th>
+                  <th>獎金類型</th>
+                  <th>獎金金額（單人中獎）</th>
                   <th>說明</th>
                 </tr>
               </thead>
@@ -175,14 +180,22 @@ const playTypes = [
                 <tr v-for="tier in prizeTiers" :key="tier.match" :class="{ 'tier-top': tier.match === 7 }">
                   <td class="tier-name">{{ tier.desc }}</td>
                   <td class="tier-match">{{ tier.match }} 顆</td>
-                  <td class="tier-ratio">{{ tier.ratio }}</td>
-                  <td class="tier-est">
-                    <template v-if="totalPool > 0">
-                      {{ (totalPool * tier.ratioNum).toLocaleString('zh-TW', { minimumFractionDigits: 2 }) }}
-                    </template>
-                    <span v-else class="tier-est-empty">—</span>
+                  <td class="tier-ratio">
+                    <template v-if="tier.type === 'pool'">獎池 {{ tier.ratio }}</template>
+                    <span v-else class="tier-ratio-fixed">固定</span>
                   </td>
-                  <td class="tier-hint">{{ tier.match === 7 ? '7 顆全中' : `開獎 7 顆中命中 ${tier.match} 顆` }}</td>
+                  <td class="tier-est">
+                    <template v-if="tier.type === 'pool'">
+                      <template v-if="totalPool > 0">
+                        {{ (totalPool * tier.ratioNum).toLocaleString('zh-TW', { minimumFractionDigits: 2 }) }}
+                      </template>
+                      <span v-else class="tier-est-empty">—</span>
+                    </template>
+                    <template v-else>
+                      {{ tier.amount.toLocaleString('zh-TW') }}
+                    </template>
+                  </td>
+                  <td class="tier-hint">{{ tier.match === 7 ? '7 顆全中（至少 200,000）' : `開獎 7 顆中命中 ${tier.match} 顆` }}</td>
                 </tr>
               </tbody>
             </table>
@@ -456,12 +469,21 @@ const playTypes = [
   }
 
   // 中獎分級
+  .prize-pool-rows {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background: #fffbf0;
+    border: 1px solid #fde68a;
+    border-radius: 6px;
+  }
+
   .prize-pool-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    font-size: 13px;
+    justify-content: space-between;
+    font-size: 12px;
 
     .pool-label {
       font-weight: 600;
@@ -470,8 +492,33 @@ const playTypes = [
 
     .pool-value {
       font-weight: 700;
-      font-size: 14px;
+      font-size: 13px;
       color: #d97706;
+
+      &.pool-value-base {
+        color: #6b7280;
+        font-weight: 600;
+      }
+
+      &.pool-value-current {
+        color: #15803d;
+      }
+    }
+
+    &.prize-pool-row-total {
+      margin-top: 4px;
+      padding-top: 6px;
+      border-top: 1px dashed #fde68a;
+
+      .pool-label {
+        font-size: 13px;
+        color: var(--color-red-main);
+      }
+
+      .pool-value {
+        font-size: 15px;
+        color: var(--color-red-main);
+      }
     }
   }
 
@@ -497,6 +544,12 @@ const playTypes = [
       font-weight: 700;
       font-size: 14px;
       color: #d97706;
+
+      .tier-ratio-fixed {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6b7280;
+      }
     }
 
     .tier-est {

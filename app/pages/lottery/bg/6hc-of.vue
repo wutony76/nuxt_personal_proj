@@ -145,7 +145,7 @@ onBeforeUnmount(() => {
     <DialogOpenCode :visible="state.openCodeDialogVisible" :data="openCodeDialogData"
       :betIssues="userDialogData.betHistory.map(b => b.issue)"
       @close="click.closeOpenCodeDialog()" />
-    <DialogRule :visible="state.ruleDialogVisible" :jackpot="userDialogData.jackpot" @close="click.closeRuleDialog()" />
+    <DialogRule :visible="state.ruleDialogVisible" @close="click.closeRuleDialog()" />
     <section class="footer-warp"> footer</section>
   </div>
 </template>
