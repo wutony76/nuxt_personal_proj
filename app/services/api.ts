@@ -11,7 +11,7 @@ export type LotteryGame = {
   id: number
   key: string
   name: string
-  category: '6hc' | 'a6' | 'bg'
+  category: '6hc' | 'bg'
   minBet: number
   maxBet: number
   defaultOdds: number

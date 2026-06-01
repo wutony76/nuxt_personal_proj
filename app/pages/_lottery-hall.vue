@@ -21,7 +21,7 @@ const state = reactive({
   issueNo: '2026036',
   countDownSeconds: 600,
   timer: null as ReturnType<typeof setInterval> | null,
-  selectedCategory: '6hc' as '6hc' | 'a6' | 'bg',
+  selectedCategory: '6hc' as '6hc' | 'bg',
   selectedGameId: null as number | null,
   betType: '',
   numberInput: '',
@@ -30,7 +30,6 @@ const state = reactive({
 
 const categoryOptions = [
   { key: '6hc' as const, label: '六合彩' },
-  { key: 'a6' as const, label: '官方六合彩' },
   { key: 'bg' as const, label: 'BG 系列' }
 ]
 
@@ -89,7 +88,7 @@ const hallTabs = computed(() => {
 const _handlers = {
   getBallClass: (value: string, index: number) => {
     if (!selectedGame.value) return 'bg-slate-200 text-slate-800'
-    if (selectedGame.value.key === '6hc' || selectedGame.value.key === 'a6') {
+    if (selectedGame.value.key === '6hc') {
       if (index === openNumbers.value.length - 1) return 'bg-red-100 text-red-700 ring-2 ring-red-300'
       const num = Number(value)
       if (num % 3 === 0) return 'bg-blue-100 text-blue-700 ring-2 ring-blue-300'
