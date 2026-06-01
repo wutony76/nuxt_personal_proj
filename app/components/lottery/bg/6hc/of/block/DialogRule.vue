@@ -33,12 +33,12 @@ function scrollToSection(id: string) {
 }
 
 const prizeTiers = [
-  { match: 7, type: 'pool' as const, ratioNum: 0.40, ratio: '40%', desc: '頭獎' },
-  { match: 6, type: 'fixed' as const, amount: 50000, desc: '二獎' },
-  { match: 5, type: 'fixed' as const, amount: 8000, desc: '三獎' },
-  { match: 4, type: 'fixed' as const, amount: 800, desc: '四獎' },
-  { match: 3, type: 'fixed' as const, amount: 100, desc: '五獎' },
-  { match: 2, type: 'fixed' as const, amount: 20, desc: '六獎' },
+  { match: 7, type: 'pool' as const, ratioNum: 0.40, ratio: '40%', desc: '頭獎', probability: '1 / 8,590萬' },
+  { match: 6, type: 'fixed' as const, amount: 50000, desc: '二獎', probability: '1 / 292,178' },
+  { match: 5, type: 'fixed' as const, amount: 8000, desc: '三獎', probability: '1 / 4,750' },
+  { match: 4, type: 'fixed' as const, amount: 800, desc: '四獎', probability: '1 / 214' },
+  { match: 3, type: 'fixed' as const, amount: 100, desc: '五獎', probability: '約 4.56%' },
+  { match: 2, type: 'fixed' as const, amount: 20, desc: '六獎', probability: '約 20.8%' },
 ]
 
 const timeline = [
@@ -145,17 +145,26 @@ const playTypes = [
           <div class="prize-pool-rows" v-if="jackpotBase > 0 || totalPool > 0">
             <div class="prize-pool-row">
               <span class="pool-label">池底金額</span>
-              <span class="pool-value pool-value-base">{{ jackpotBase.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} F幣</span>
+              <span class="pool-value pool-value-base">{{ jackpotBase.toLocaleString('zh-TW', {
+                minimumFractionDigits:
+                  2, maximumFractionDigits: 2
+              }) }} F幣</span>
             </div>
             <div class="prize-pool-row">
               <span class="pool-label">當期投注額</span>
               <span class="pool-value pool-value-current">
-                {{ (totalPool - jackpotBase).toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} F幣
+                {{ (totalPool - jackpotBase).toLocaleString('zh-TW', {
+                  minimumFractionDigits: 2, maximumFractionDigits:
+                    2
+                }) }} F幣
               </span>
             </div>
             <div class="prize-pool-row prize-pool-row-total">
               <span class="pool-label">當期總獎池</span>
-              <span class="pool-value">{{ totalPool.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} F幣</span>
+              <span class="pool-value">{{ totalPool.toLocaleString('zh-TW', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }) }} F幣</span>
             </div>
           </div>
           <div class="prize-table-wrap">
@@ -171,7 +180,7 @@ const playTypes = [
                 <tr>
                   <th>獎級</th>
                   <th>命中球數</th>
-                  <th>獎金類型</th>
+                  <th>中獎機率</th>
                   <th>獎金金額（單人中獎）</th>
                   <th>說明</th>
                 </tr>
@@ -180,14 +189,11 @@ const playTypes = [
                 <tr v-for="tier in prizeTiers" :key="tier.match" :class="{ 'tier-top': tier.match === 7 }">
                   <td class="tier-name">{{ tier.desc }}</td>
                   <td class="tier-match">{{ tier.match }} 顆</td>
-                  <td class="tier-ratio">
-                    <template v-if="tier.type === 'pool'">獎池 {{ tier.ratio }}</template>
-                    <span v-else class="tier-ratio-fixed">固定</span>
-                  </td>
+                  <td class="tier-ratio">{{ tier.probability }}</td>
                   <td class="tier-est">
                     <template v-if="tier.type === 'pool'">
                       <template v-if="totalPool > 0">
-                        {{ (totalPool * tier.ratioNum).toLocaleString('zh-TW', { minimumFractionDigits: 2 }) }}
+                        {{ Math.floor(totalPool * tier.ratioNum).toLocaleString('zh-TW') }}
                       </template>
                       <span v-else class="tier-est-empty">—</span>
                     </template>
@@ -195,7 +201,7 @@ const playTypes = [
                       {{ tier.amount.toLocaleString('zh-TW') }}
                     </template>
                   </td>
-                  <td class="tier-hint">{{ tier.match === 7 ? '7 顆全中（至少 200,000）' : `開獎 7 顆中命中 ${tier.match} 顆` }}</td>
+                  <td class="tier-hint">{{ tier.match === 7 ? '7 顆全中' : `開獎 7 顆中命中 ${tier.match} 顆` }}</td>
                 </tr>
               </tbody>
             </table>
