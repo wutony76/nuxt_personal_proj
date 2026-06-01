@@ -64,6 +64,7 @@ type UserBetHistory = {
   betCode: string[]
   openCode: string[]
   matchCount: number
+  specialMatch: boolean
   winStatus: 'pending' | 'win' | 'lose'
   winAmount: number
 }
@@ -88,9 +89,11 @@ type UserStoreLike = {
   record?: UserRecord
 }
 
+// normalMatch = 需命中正碼數；needSpecial = 是否需要命中特別號
+// minAmount：每單位最低保障（僅頭獎設定，避免「下全注獲利」漏洞）
 type IssuePrizeTier =
-  | { matchCount: number; type: 'pool'; ratio: number; minAmount: number }
-  | { matchCount: number; type: 'fixed'; amount: number }
+  | { normalMatch: number; needSpecial: boolean; type: 'pool'; ratio: number; minAmount?: number }
+  | { normalMatch: number; needSpecial: boolean; type: 'fixed'; amount: number }
 
 
 const CYCLE_SECONDS = 7 * 60
@@ -103,13 +106,15 @@ const JACKPOT_PERCENT = 0.8 //發放獎金％數
 const BASE_PERCENT = 0.55 //池底％數
 const JACKPOT_BASE_MIN = Math.ceil(BASE_FIRST_PRIZE / BASE_PERCENT) + Math.ceil(BASE_FIRST_PRIZE / 3)
 const JACKPOT_BASE_MAX = BASE_FIRST_PRIZE * 7
+// 每注選 6 顆；開獎 7 顆（openCode[0..5]=正碼、openCode[6]=特別號）
 const ISSUE_PRIZE_TIERS: IssuePrizeTier[] = [
-  { matchCount: 7, type: 'pool', ratio: 0.40, minAmount: BASE_FIRST_PRIZE },
-  { matchCount: 6, type: 'fixed', amount: 50000 },
-  { matchCount: 5, type: 'fixed', amount: 8000 },
-  { matchCount: 4, type: 'fixed', amount: 800 },
-  { matchCount: 3, type: 'fixed', amount: 100 },
-  { matchCount: 2, type: 'fixed', amount: 20 },
+  { normalMatch: 6, needSpecial: false, type: 'pool',  ratio: 0.70, minAmount: BASE_FIRST_PRIZE }, // 頭獎
+  { normalMatch: 5, needSpecial: true,  type: 'pool',  ratio: 0.20, minAmount: 50000 },             // 二獎（最低50000）
+  { normalMatch: 5, needSpecial: false, type: 'pool',  ratio: 0.10, minAmount: 3500 },              // 三獎（最低3500，高於四獎3000，避免逆序）
+  { normalMatch: 4, needSpecial: true,  type: 'fixed', amount: 3000 },                              // 四獎
+  { normalMatch: 4, needSpecial: false, type: 'fixed', amount: 200 },                               // 五獎
+  { normalMatch: 3, needSpecial: true,  type: 'fixed', amount: 10 },                                // 六獎
+  { normalMatch: 3, needSpecial: false, type: 'fixed', amount: 5 },                                 // 七獎
 ]
 // ────────────────────────────────────────────────────────────────
 
@@ -518,6 +523,7 @@ export default class LHC_OF {
         betCode: Array.isArray(row.bet_code) ? row.bet_code : [],
         openCode: [],
         matchCount: 0,
+        specialMatch: false,
         winStatus: 'pending',
         winAmount: 0
       })
@@ -532,14 +538,16 @@ export default class LHC_OF {
       const current = Number(this.issueJackpotMap[safeIssue] ?? 0)
       this.issueJackpotMap[safeIssue] = Number((current + Number(amount ?? 0)).toFixed(2))
     },
-    getMatchCount: (betCode: string[], openCode: string[]) => {
-      const openSet = new Set(
-        (Array.isArray(openCode) ? openCode : [])
-          .map((item) => String(item).padStart(2, '0'))
-      )
-      return (Array.isArray(betCode) ? betCode : [])
-        .map((item) => String(item).padStart(2, '0'))
-        .filter((code) => openSet.has(code)).length
+    // openCode 結構：openCode[0..5] = 6 正碼（已排序），openCode[6] = 特別號
+    getMatchResult: (betCode: string[], openCode: string[]) => {
+      const normalCodes = (Array.isArray(openCode) ? openCode : []).slice(0, 6)
+      const specialCode = (Array.isArray(openCode) ? openCode : [])[6] ?? ''
+      const normalSet = new Set(normalCodes.map((c) => String(c).padStart(2, '0')))
+      const specialPad = String(specialCode).padStart(2, '0')
+      const betPadded = (Array.isArray(betCode) ? betCode : []).map((c) => String(c).padStart(2, '0'))
+      const normalCount = betPadded.filter((c) => normalSet.has(c)).length
+      const hasSpecial = Boolean(specialPad) && betPadded.includes(specialPad)
+      return { normalCount, hasSpecial }
     },
     settleClosedIssueIfNeeded: () => {
       const maxSettleIndex = this.currentStatus === STATUS_TIME.OPENED
@@ -567,28 +575,38 @@ export default class LHC_OF {
       }>
       const issuePool = Number(this.issueJackpotMap[safeIssue] ?? 0)
       const totalPool = Number((this.jackpotBase + (issuePool * JACKPOT_PERCENT) + this.carryJackpot) * BASE_PERCENT)
-      const evaluateRows = issueOrders.map((row) => ({
-        ...row,
-        matchCount: this.handle.getMatchCount(row.betCode, openCode),
-        payout: 0
-      }))
+      const evaluateRows = issueOrders.map((row) => {
+        const { normalCount, hasSpecial } = this.handle.getMatchResult(row.betCode, openCode)
+        return { ...row, normalCount, hasSpecial, payout: 0 }
+      })
 
       let carryNext = 0
       ISSUE_PRIZE_TIERS.forEach((tier) => {
-        const winners = evaluateRows.filter((row) => row.matchCount === tier.matchCount)
+        const winners = evaluateRows.filter(
+          (row) => row.normalCount === tier.normalMatch && row.hasSpecial === tier.needSpecial
+        )
         if (tier.type === 'pool') {
-          const poolAmount = Number(Math.max(totalPool * tier.ratio, tier.minAmount).toFixed(2))
+          const tierPool = Number((totalPool * tier.ratio).toFixed(2))
           if (winners.length === 0) {
-            carryNext = Number((carryNext + poolAmount).toFixed(2))
+            carryNext = Number((carryNext + tierPool).toFixed(2))
             return
           }
-          const each = Number((poolAmount / winners.length).toFixed(2))
+          // 按比例分配：prizePerUnit = tierPool / 所有中獎者下注總額
+          // 僅頭獎設有 minAmount 最低保障，二/三獎純比例（避免下全注獲利漏洞）
+          const totalWinnerBets = Number(winners.reduce((s, r) => s + Number(r.coin ?? 0), 0).toFixed(2))
+          const naturalPerUnit = totalWinnerBets > 0 ? tierPool / totalWinnerBets : 0
+          const prizePerUnit = tier.minAmount !== undefined
+            ? Math.max(naturalPerUnit, tier.minAmount)
+            : naturalPerUnit
           winners.forEach((row) => {
-            row.payout = Number((row.payout + each).toFixed(2))
+            const coin = Number(row.coin ?? 1)
+            row.payout = Number((row.payout + Number((prizePerUnit * coin).toFixed(2))).toFixed(2))
           })
         } else {
+          // 固定獎也按下注倍數發放
           winners.forEach((row) => {
-            row.payout = Number((row.payout + tier.amount).toFixed(2))
+            const coin = Number(row.coin ?? 1)
+            row.payout = Number((row.payout + Number((tier.amount * coin).toFixed(2))).toFixed(2))
           })
         }
       })
@@ -608,7 +626,8 @@ export default class LHC_OF {
             coin: Number(current.coin),
             betCode: Array.isArray(current.betCode) ? current.betCode : [],
             openCode: [...openCode],
-            matchCount: row.matchCount,
+            matchCount: row.normalCount,
+            specialMatch: row.hasSpecial,
             winStatus: row.payout > 0 ? 'win' : 'lose',
             winAmount: row.payout
           }
@@ -743,6 +762,7 @@ export default class LHC_OF {
         }
       })
     },
+    // 攪出 6 正碼（排序）＋ 1 特別號：openCode[0..5] = 正碼, openCode[6] = 特別號
     randomOpenCode: () => {
       const source = Array.from({ length: 49 }, (_, i) => String(i + 1).padStart(2, '0'))
       for (let i = source.length - 1; i > 0; i--) {
@@ -751,7 +771,10 @@ export default class LHC_OF {
         source[i] = source[j] as string
         source[j] = tmp as string
       }
-      return source.slice(0, 7).sort((a, b) => Number(a) - Number(b))
+      const picked = source.slice(0, 7)
+      const normalCodes = (picked.slice(0, 6) as string[]).sort((a, b) => Number(a) - Number(b))
+      const specialCode = picked[6] as string
+      return [...normalCodes, specialCode]
     },
     refreshCurrent: (now = new Date()) => {
       if (this.recordOpenCode.length === 0) {

@@ -32,13 +32,15 @@ function scrollToSection(id: string) {
   container.scrollTo({ top: offset, behavior: 'smooth' })
 }
 
+// 開獎 7 顆：openCode[0..5]=正碼, openCode[6]=特別號；玩家每注選 6 顆
 const prizeTiers = [
-  { match: 7, type: 'pool' as const, ratioNum: 0.40, ratio: '40%', desc: '頭獎', probability: '1 / 8,590萬' },
-  { match: 6, type: 'fixed' as const, amount: 50000, desc: '二獎', probability: '1 / 292,178' },
-  { match: 5, type: 'fixed' as const, amount: 8000, desc: '三獎', probability: '1 / 4,750' },
-  { match: 4, type: 'fixed' as const, amount: 800, desc: '四獎', probability: '1 / 214' },
-  { match: 3, type: 'fixed' as const, amount: 100, desc: '五獎', probability: '約 4.56%' },
-  { match: 2, type: 'fixed' as const, amount: 20, desc: '六獎', probability: '約 20.8%' },
+  { normalMatch: 6, needSpecial: false, type: 'pool'  as const, ratioNum: 0.70, ratio: '70%', desc: '頭獎', probability: '1 / 1,398萬',  hint: '6 個正碼全中｜每人最低 200,000' },
+  { normalMatch: 5, needSpecial: true,  type: 'pool'  as const, ratioNum: 0.20, ratio: '20%', desc: '二獎', probability: '1 / 2,330,636', hint: '5 個正碼＋特別號｜每人最低 50,000' },
+  { normalMatch: 5, needSpecial: false, type: 'pool'  as const, ratioNum: 0.10, ratio: '10%', desc: '三獎', probability: '1 / 55,491',    hint: '5 個正碼（不含特別號）｜每人最低 3,500' },
+  { normalMatch: 4, needSpecial: true,  type: 'fixed' as const, amount: 3000,   desc: '四獎', probability: '1 / 22,196',  hint: '4 個正碼＋特別號' },
+  { normalMatch: 4, needSpecial: false, type: 'fixed' as const, amount: 200,    desc: '五獎', probability: '1 / 1,082',   hint: '4 個正碼（不含特別號）' },
+  { normalMatch: 3, needSpecial: true,  type: 'fixed' as const, amount: 10,     desc: '六獎', probability: '1 / 812',     hint: '3 個正碼＋特別號' },
+  { normalMatch: 3, needSpecial: false, type: 'fixed' as const, amount: 5,      desc: '七獎', probability: '約 1.64%',    hint: '3 個正碼（不含特別號）' },
 ]
 
 const timeline = [
@@ -54,20 +56,20 @@ const playTypes = [
   {
     key: 'SINGLE',
     name: '自選單式',
-    desc: '每注固定選取 7 顆號碼，一張注單對應一組選號。',
-    example: '例：選 05、12、18、23、31、37、45 → 共 1 注'
+    desc: '每注固定選取 6 顆號碼，一張注單對應一組選號。',
+    example: '例：選 05、12、18、23、31、37 → 共 1 注'
   },
   {
     key: 'DUPLEX',
     name: '自選複式',
-    desc: '選取多於 7 顆號碼，系統自動組合成多注（每注 7 顆）。',
-    example: '例：選 8 顆 → 系統組合出 C(8,7) = 8 注'
+    desc: '選取多於 6 顆號碼，系統自動組合成多注（每注 6 顆）。',
+    example: '例：選 8 顆 → 系統組合出 C(8,6) = 28 注'
   },
   {
     key: 'DANTUO',
     name: '自選膽拖',
     desc: '指定膽碼（必中號）＋拖碼，由系統排列組合成多注。',
-    example: '例：1 膽 + 7 拖 → C(7,6) = 7 注'
+    example: '例：1 膽 + 6 拖 → C(6,5) = 6 注'
   },
 ]
 </script>
@@ -90,9 +92,9 @@ const playTypes = [
         <div id="section-intro" class="rule-section">
           <h4 class="rule-title">遊戲簡介</h4>
           <ul class="rule-list">
-            <li>從 <strong>01 — 49</strong> 共 49 顆號碼中，每期隨機攪出 <strong>7 顆</strong>（6 正碼＋1 特碼）。</li>
+            <li>從 <strong>01 — 49</strong> 共 49 顆號碼中，每期隨機攪出 <strong>7 顆</strong>（6 正碼＋1 特別號）。</li>
             <li>每日共 <strong>205 期</strong>，每 <strong>7 分鐘</strong> 開獎一次。</li>
-            <li>玩家選取號碼下注，依命中球數對應不同獎級分配獎池。</li>
+            <li>每注選取 <strong>6 顆</strong> 號碼，依命中正碼與特別號數量對應不同獎級。</li>
           </ul>
         </div>
 
@@ -141,7 +143,7 @@ const playTypes = [
         <!-- 中獎分級 -->
         <div id="section-prize" class="rule-section">
           <h4 class="rule-title">獎金結構</h4>
-          <p class="rule-note">以下比例為各獎級獲得的獎池份額，同獎級多人得獎則<strong>平均分配</strong>。</p>
+          <p class="rule-note">頭/二/三獎為獎池制，依下注金額比例分配；頭獎每人最低 200,000、二獎最低 50,000、三獎最低 3,500（保障高於四獎）。四至七獎為固定金額 × 下注額。</p>
           <div class="prize-pool-rows" v-if="jackpotBase > 0 || totalPool > 0">
             <div class="prize-pool-row">
               <span class="pool-label">池底金額</span>
@@ -179,16 +181,16 @@ const playTypes = [
               <thead>
                 <tr>
                   <th>獎級</th>
-                  <th>命中球數</th>
+                  <th>中獎條件</th>
                   <th>中獎機率</th>
                   <th>獎金金額（單人中獎）</th>
                   <th>說明</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="tier in prizeTiers" :key="tier.match" :class="{ 'tier-top': tier.match === 7 }">
+                <tr v-for="tier in prizeTiers" :key="`${tier.normalMatch}-${tier.needSpecial}`" :class="{ 'tier-top': tier.normalMatch === 6 && !tier.needSpecial }">
                   <td class="tier-name">{{ tier.desc }}</td>
-                  <td class="tier-match">{{ tier.match }} 顆</td>
+                  <td class="tier-match">{{ tier.needSpecial ? `${tier.normalMatch} 正＋特別` : `${tier.normalMatch} 正碼` }}</td>
                   <td class="tier-ratio">{{ tier.probability }}</td>
                   <td class="tier-est">
                     <template v-if="tier.type === 'pool'">
@@ -201,7 +203,7 @@ const playTypes = [
                       {{ tier.amount.toLocaleString('zh-TW') }}
                     </template>
                   </td>
-                  <td class="tier-hint">{{ tier.match === 7 ? '7 顆全中' : `開獎 7 顆中命中 ${tier.match} 顆` }}</td>
+                  <td class="tier-hint">{{ tier.hint }}</td>
                 </tr>
               </tbody>
             </table>
@@ -214,6 +216,7 @@ const playTypes = [
           <ul class="rule-list">
             <li><strong>本期獎池</strong> = 當期所有玩家投注金額合計。</li>
             <li><strong>總獎池</strong> = 本期獎池 ＋ 前期累積滾存。</li>
+            <li>頭獎占總獎池 <strong>70%</strong>、二獎 <strong>20%</strong>、三獎 <strong>10%</strong>。</li>
             <li>若某獎級<strong>無人中獎</strong>，該獎級對應比例自動滾存至下期。</li>
             <li>中獎金額需主動點選「<strong>領取中獎獎金</strong>」按鈕才可入帳。</li>
           </ul>

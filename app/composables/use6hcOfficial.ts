@@ -563,10 +563,13 @@ const init = {
   playList: (status: string) => {
     switch (status) {
       case GAME_6HC_OF.SINGLE.key:
-        state.limit.min = 7
-        state.limit.max = 7
+        state.limit.min = 6
+        state.limit.max = 6
         return cloneDeep(PLAYLIST.slice(0, 49))
       case GAME_6HC_OF.DUPLEX.key:
+        state.limit.min = 49
+        state.limit.max = 49
+        return cloneDeep(PLAYLIST)
       case GAME_6HC_OF.DANTUO.key:
         return cloneDeep(PLAYLIST)
       default:
@@ -616,7 +619,13 @@ const init = {
 }
 
 state.isSelector = computed(() => {
-  return state.playList.filter(item => item.selected)
+  switch (state.status) {
+    case GAME_6HC_OF.SINGLE.key:
+    case GAME_6HC_OF.DUPLEX.key:
+      return state.playList.filter(item => item.selected && item.id !== 50)
+    // case GAME_6HC_OF.DANTUO.key:
+    //   return state.playList.filter(item => item.selected)
+  }
 })
 
 init.run()

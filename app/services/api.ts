@@ -128,6 +128,7 @@ export type LotteryUserBetHistory = {
   betCode: string[]
   openCode: string[]
   matchCount: number
+  specialMatch?: boolean
   winStatus: 'pending' | 'win' | 'lose'
   winAmount: number
 }
