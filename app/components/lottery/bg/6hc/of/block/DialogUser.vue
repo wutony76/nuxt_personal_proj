@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { actions } from '~/utils/common'
 
+function computeBetCount(item: { betCount?: number; danCode?: string[]; tuoCode?: string[]; betCode?: string[] }): number {
+  if (item.betCount) return item.betCount
+  if (item.danCode && item.tuoCode) return actions.comb(item.tuoCode.length, 6 - item.danCode.length)
+  const len = item.betCode?.length ?? 0
+  return len >= 6 ? actions.comb6(len) : 1
+}
+
 const props = defineProps<{
   visible: boolean
   data: {
@@ -10,7 +17,7 @@ const props = defineProps<{
     isLoading: boolean
     errorMessage: string
     balanceChanges: { id: string | number; createdAt: number; issue: string; type: string; amount: number; after: number }[]
-    betHistory: { orderId: string; issue: string; betCode: string[]; coin: number; winStatus: string; winAmount: number }[]
+    betHistory: { orderId: string; issue: string; betCount?: number; betCode: string[]; danCode?: string[]; tuoCode?: string[]; openCode?: string[]; coin: number; winStatus: string; winAmount: number }[]
   }
 }>()
 
@@ -188,7 +195,7 @@ function isBallHit(code: string, openCode: string[]): boolean {
                     </th>
                     <th>投注期數</th>
                     <th>投注號碼</th>
-                    <th>投注金額</th>
+                    <th>注數 / 金額</th>
                     <th>注單狀態</th>
                     <th class="sortable-th" @click="toggleSort('winAmount')">
                       中獎金額
@@ -203,13 +210,38 @@ function isBallHit(code: string, openCode: string[]): boolean {
                     <td style="white-space: nowrap">{{ item.orderId }}</td>
                     <td>{{ item.issue }}</td>
                     <td>
-                      <div class="bet-balls">
-                        <LotteryBg6hcOfBaseBall v-for="code in item.betCode" :key="code"
-                          :data="{ label: String(+code).padStart(2, '0'), num: +code, selected: item.winStatus !== 'win' || !selectedIssueOpenCode || isBallHit(code, selectedIssueOpenCode) }"
-                          :isClick="false" />
+                      <template v-if="item.danCode && item.tuoCode">
+                        <div class="bet-balls dt-row">
+                          <span class="dt-label dan">膽</span>
+                          <div class="dt-balls">
+                            <LotteryBg6hcOfBaseBall v-for="code in item.danCode" :key="'d' + code"
+                              :data="{ label: String(+code).padStart(2, '0'), num: +code, selected: item.winStatus !== 'win' || !selectedIssueOpenCode || isBallHit(code, selectedIssueOpenCode), colorY: true }"
+                              :isClick="false" />
+                          </div>
+                        </div>
+                        <div class="bet-balls dt-row">
+                          <span class="dt-label tuo">拖</span>
+                          <div class="dt-balls">
+                            <LotteryBg6hcOfBaseBall v-for="code in item.tuoCode" :key="'t' + code"
+                              :data="{ label: String(+code).padStart(2, '0'), num: +code, selected: item.winStatus !== 'win' || !selectedIssueOpenCode || isBallHit(code, selectedIssueOpenCode) }"
+                              :isClick="false" />
+                          </div>
+                        </div>
+                      </template>
+                      <template v-else>
+                        <div class="bet-balls">
+                          <LotteryBg6hcOfBaseBall v-for="code in item.betCode" :key="code"
+                            :data="{ label: String(+code).padStart(2, '0'), num: +code, selected: item.winStatus !== 'win' || !selectedIssueOpenCode || isBallHit(code, selectedIssueOpenCode) }"
+                            :isClick="false" />
+                        </div>
+                      </template>
+                    </td>
+                    <td>
+                      <div class="coin-cell">
+                        <span class="count">{{ computeBetCount(item) }} 注</span>
+                        <span class="amount">{{ actions.thousands(item.coin) }}</span>
                       </div>
                     </td>
-                    <td>{{ actions.thousands(item.coin) }}</td>
                     <td :class="item.winStatus === 'win' ? 'win-status' : ''">{{ item.winStatus }}</td>
                     <td :class="item.winAmount > 0 ? 'win-amount' : ''">{{ actions.thousands(item.winAmount) }}</td>
                   </tr>
@@ -421,12 +453,64 @@ function isBallHit(code: string, openCode: string[]): boolean {
     width: 100%;
   }
 
+  .coin-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+
+    .count {
+      font-size: 10px;
+      color: var(--color-red-desc);
+      font-weight: 600;
+    }
+
+    .amount {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-red-main);
+    }
+  }
+
   .bet-balls {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 3px;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
+
+    &.dt-row {
+      justify-content: flex-start;
+      flex-wrap: nowrap;
+      gap: 2px;
+
+      .dt-balls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px;
+        flex: 1;
+      }
+
+      .dt-label {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 1px 2px;
+        border-radius: 3px;
+        flex-shrink: 0;
+        align-self: flex-start;
+        margin-top: 2px;
+
+        &.dan {
+          color: #b45309;
+          background: rgba(255, 200, 0, 0.2);
+        }
+
+        &.tuo {
+          color: #1d6fa8;
+          background: rgba(80, 180, 255, 0.15);
+        }
+      }
+    }
 
     :deep(.ball-wrapper) {
       .ball {

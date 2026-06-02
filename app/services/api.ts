@@ -98,7 +98,10 @@ export type LotteryBetOrder = {
   user_id: string
   bet_time: number
   coin: number
+  bet_count?: number
   bet_code: string[]
+  dan_code?: string[]
+  tuo_code?: string[]
   status: 'pending' | 'success' | 'settled'
 }
 
@@ -125,7 +128,10 @@ export type LotteryUserBetHistory = {
   issue: string
   betTime: number
   coin: number
+  betCount?: number
   betCode: string[]
+  danCode?: string[]
+  tuoCode?: string[]
   openCode: string[]
   matchCount: number
   specialMatch?: boolean

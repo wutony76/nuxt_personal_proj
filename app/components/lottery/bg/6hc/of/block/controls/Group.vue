@@ -10,11 +10,7 @@ import { _uuid2 } from 'serv/utils/encrypt'
 
 const { state: mxState, totalBetCount } = use6hcOfficial()
 
-const displayBetsFormatted = computed(() => {
-  if (mxState.status === GAME_6HC_OF.DUPLEX.key) return actions.thousands(displayBets.value || 0)
-
-  return displayBets.value
-})
+const displayBetsFormatted = computed(() => actions.thousands(displayBets.value || 0))
 
 const displayBets = ref(0)
 let rafId: number | null = null
@@ -62,8 +58,23 @@ const _actions = {
     <div class="group-list">
       <div v-for="group in mxState.groupList.slice().reverse()" :key="group.id" class="group-bet">
         <div class="left">
-          <!-- {{ group }} -->
-          <Ball :data="play" v-for="play in group.playList" :key="play.id" />
+          <template v-if="group.danList">
+            <div class="dt-row">
+              <span class="dt-label dan">膽</span>
+              <div class="dt-balls">
+                <Ball :data="play" v-for="play in group.danList" :key="'d' + play.id" />
+              </div>
+            </div>
+            <div class="dt-row">
+              <span class="dt-label tuo">拖</span>
+              <div class="dt-balls">
+                <Ball :data="play" v-for="play in group.tuoList" :key="'t' + play.id" />
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <Ball :data="play" v-for="play in group.playList" :key="play.id" />
+          </template>
         </div>
         <div class="right">
           <IconSvg icon-class="copy" class="icon" @click="_actions.copy(group)" />
@@ -151,6 +162,7 @@ const _actions = {
       align-items: center;
       justify-content: flex-start;
       flex: 1 1 auto;
+      gap: 2px;
 
       :deep(.ball-wrapper) {
         .ball {
@@ -160,6 +172,39 @@ const _actions = {
           border-width: 4px;
           cursor: default;
         }
+      }
+    }
+
+    .dt-row {
+      display: flex;
+      align-items: flex-start;
+      width: 100%;
+      gap: 2px;
+    }
+
+    .dt-balls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1px;
+      flex: 1;
+    }
+
+    .dt-label {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 3px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      align-self: flex-start;
+
+      &.dan {
+        color: #b45309;
+        background: rgba(255, 200, 0, 0.2);
+      }
+
+      &.tuo {
+        color: #1d6fa8;
+        background: rgba(80, 180, 255, 0.15);
       }
     }
 

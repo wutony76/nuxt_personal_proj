@@ -1,7 +1,7 @@
 <template>
   <div class="ball-wrapper">
     <div class="ball flex-center"
-      :class="[`ball-${color}`, { 'cursor-pointer': isClick }, { selected: selected }, { 'color-y': isColorY }]">
+      :class="[`ball-${color}`, { 'cursor-pointer': isClick }, { selected: selected || isTuo }, { 'color-y': isColorY || isDan }]">
       <span>{{ displayNumber }}</span>
     </div>
 
@@ -40,6 +40,8 @@ const displayNumber = computed(() => {
 const isColorY = computed(() => {
   return props.data.colorY || false
 })
+const isDan = computed(() => props.data.danSelected || false)
+const isTuo = computed(() => props.data.tuoSelected || false)
 
 const isShowIssue = computed(() => {
   return props.data?.countIssue >= 0 || false
@@ -121,6 +123,7 @@ const ui = {
       border-color: var(--6hcOf-ball-yellow) !important;
       border-width: vw2rem(0.35);
     }
+
   }
 
   .count-wrap {
@@ -134,6 +137,7 @@ const ui = {
     .count+.count {
       margin-top: 4px;
     }
+
   }
 }
 </style>

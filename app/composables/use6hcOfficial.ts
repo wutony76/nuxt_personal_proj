@@ -1,5 +1,6 @@
 import { cloneDeep } from 'lodash'
 import { computed, reactive, ref } from 'vue'
+import { actions } from '~/utils/common'
 import { GAME_6HC_OF, LOTTERY, SORT, STATUS_TIME } from '~/config/constants'
 import { PLAYLIST } from '~/config/bg/6hc-of'
 import {
@@ -18,7 +19,10 @@ type CurrentDetailRow = {
   id: string
   time: string
   bets: string[]
+  danBets?: string[]
+  tuoBets?: string[]
   coin: number
+  betCount: number
   status: Status
 }
 
@@ -132,7 +136,7 @@ const handle = {
     state.playList = next
   },
   clearSelect: () => {
-    const next = state.playList.map((item) => ({ ...item, selected: false }))
+    const next = state.playList.map((item) => ({ ...item, selected: false, danSelected: false, tuoSelected: false }))
     state.playList = next
   },
   updateStatusRemain: () => {
@@ -162,13 +166,27 @@ const handle = {
     }
   },
   toDetailRows: (orders: Order[]) => {
-    return orders.map((order) => ({
-      id: String(order.order_id),
-      time: handle.formatTime(order.bet_time),
-      bets: Array.isArray(order.bet_code) ? order.bet_code : [],
-      coin: Number(order.coin ?? 0),
-      status: order.status ?? 'pending'
-    }))
+    return orders.map((order) => {
+      const betCount = Number(order.bet_count ?? 0) || (() => {
+        if (Array.isArray(order.dan_code) && Array.isArray(order.tuo_code)) {
+          const needTuo = 6 - order.dan_code.length
+          return actions.comb(order.tuo_code.length, needTuo)
+        }
+        const betLen = Array.isArray(order.bet_code) ? order.bet_code.length : 0
+        return betLen >= 6 ? actions.comb6(betLen) : 1
+      })()
+      const row: CurrentDetailRow = {
+        id: String(order.order_id),
+        time: handle.formatTime(order.bet_time),
+        bets: Array.isArray(order.bet_code) ? order.bet_code : [],
+        coin: Number(order.coin ?? 0),
+        betCount,
+        status: order.status ?? 'pending'
+      }
+      if (order.dan_code) row.danBets = order.dan_code
+      if (order.tuo_code) row.tuoBets = order.tuo_code
+      return row
+    })
   },
   formatTime: (timestamp: number) => {
     if (!Number.isFinite(timestamp) || timestamp <= 0) return '--:--:--'
@@ -196,15 +214,21 @@ const handle = {
   },
   normalizeOrderRows: (rows: LotteryBetOrder[]) => {
     return rows
-      .map((row) => ({
-        order_id: String(row?.order_id ?? '').trim(),
-        user_id: String(row?.user_id ?? '').trim(),
-        issue: String(row?.issue ?? '').trim(),
-        bet_time: Number(row?.bet_time ?? Date.now()),
-        coin: Number(row?.coin ?? 0),
-        bet_code: Array.isArray(row?.bet_code) ? row.bet_code.map((code) => String(code).padStart(2, '0')) : [],
-        status: (row?.status ?? 'success') as Status
-      }))
+      .map((row) => {
+        const normalized: Order = {
+          order_id: String(row?.order_id ?? '').trim(),
+          user_id: String(row?.user_id ?? '').trim(),
+          issue: String(row?.issue ?? '').trim(),
+          bet_time: Number(row?.bet_time ?? Date.now()),
+          coin: Number(row?.coin ?? 0),
+          bet_code: Array.isArray(row?.bet_code) ? row.bet_code.map((code) => String(code).padStart(2, '0')) : [],
+          status: (row?.status ?? 'success') as Status
+        }
+        if (Array.isArray(row?.dan_code)) normalized.dan_code = row.dan_code
+        if (Array.isArray(row?.tuo_code)) normalized.tuo_code = row.tuo_code
+        if (row?.bet_count != null) normalized.bet_count = Number(row.bet_count)
+        return normalized
+      })
       .filter((row) => Boolean(row.order_id) && Boolean(row.user_id) && Boolean(row.issue))
   },
   setOrderCacheState: (next: Partial<typeof current.orderCache>) => {
@@ -371,14 +395,25 @@ const fetch = {
       const rows = handle.normalizeOrderRows(payload.rows)
       if (rows.length === 0) {
         const fallbackSerial = String(Date.now()).slice(-6)
+        const fallbackBetCount = payload.groups.reduce((sum, g) => sum + Math.max(1, Number((g as any)?.betCount ?? 1)), 0)
         const fallbackRow: Order = {
           order_id: `LHC-OF${issue}${fallbackSerial}(1/1)`,
           user_id: normalizedUserId,
           issue,
           bet_time: Date.now(),
           coin: Number(payload.amount ?? 0),
+          bet_count: fallbackBetCount,
           bet_code: handle.extractBetCode(payload.groups),
           status: 'success'
+        }
+        const firstGroup = payload.groups?.[0]
+        if (Array.isArray(firstGroup?.danList) && Array.isArray(firstGroup?.tuoList)) {
+          const toCode = (play: any) => {
+            const num = Number((play as any)?.label ?? (play as any)?.num)
+            return Number.isFinite(num) ? String(num).padStart(2, '0') : ''
+          }
+          fallbackRow.dan_code = (firstGroup.danList as any[]).map(toCode).filter(Boolean)
+          fallbackRow.tuo_code = (firstGroup.tuoList as any[]).map(toCode).filter(Boolean)
         }
         await lhcDb.saveOrder(fallbackRow)
       } else {
@@ -577,7 +612,9 @@ const init = {
         state.limit.max = 49
         return cloneDeep(PLAYLIST)
       case GAME_6HC_OF.DANTUO.key:
-        return cloneDeep(PLAYLIST)
+        state.limit.min = 1
+        state.limit.max = 5
+        return cloneDeep(PLAYLIST).map(item => ({ ...item, danSelected: false, tuoSelected: false }))
       default:
         return []
     }
@@ -629,13 +666,16 @@ state.isSelector = computed(() => {
     case GAME_6HC_OF.SINGLE.key:
     case GAME_6HC_OF.DUPLEX.key:
       return state.playList.filter(item => item.selected && item.id !== 50)
-    // case GAME_6HC_OF.DANTUO.key:
-    //   return state.playList.filter(item => item.selected)
+    case GAME_6HC_OF.DANTUO.key:
+      return state.playList.filter(item => (item.danSelected || item.tuoSelected) && item.id !== 50)
   }
 })
+
+const danSelector = computed(() => state.playList.filter(item => item.danSelected && item.id !== 50))
+const tuoSelector = computed(() => state.playList.filter(item => item.tuoSelected && item.id !== 50))
 
 init.run()
 
 export function use6hcOfficial() {
-  return { state, current, road, wallet, userRecord, openCodeHistory, system, analyze, time, handle, init, click, fetch, jackpotBase, jackpotBaseSetAt, livePool, isOpen, totalBetCount }
+  return { state, current, road, wallet, userRecord, openCodeHistory, system, analyze, time, handle, init, click, fetch, jackpotBase, jackpotBaseSetAt, livePool, isOpen, totalBetCount, danSelector, tuoSelector }
 }

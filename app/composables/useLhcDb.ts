@@ -8,7 +8,10 @@ export type Order = {
   issue: string
   bet_time: number
   coin: number
+  bet_count?: number
   bet_code: string[]
+  dan_code?: string[]
+  tuo_code?: string[]
   status: Status
 }
 

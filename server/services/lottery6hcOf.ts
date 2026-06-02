@@ -41,7 +41,10 @@ type BetOrderItem = {
   user_id: string
   bet_time: number
   coin: number
+  bet_count: number
   bet_code: string[]
+  dan_code?: string[]
+  tuo_code?: string[]
   status: 'success'
 }
 
@@ -61,7 +64,10 @@ type UserBetHistory = {
   issue: string
   betTime: number
   coin: number
+  betCount: number
   betCode: string[]
+  danCode?: string[]
+  tuoCode?: string[]
   openCode: string[]
   matchCount: number
   specialMatch: boolean
@@ -515,18 +521,22 @@ export default class LHC_OF {
       if (!row?.user_id) return
       const user = this._get.user(row.user_id)
       const record = this.handle.ensureUserRecord(user)
-      record.betHistory.push({
+      const historyItem: UserBetHistory = {
         orderId: String(row.order_id),
         issue: String(row.issue),
         betTime: Number(row.bet_time),
         coin: Number(row.coin ?? 0),
+        betCount: Math.max(1, Number(row.bet_count ?? 1)),
         betCode: Array.isArray(row.bet_code) ? row.bet_code : [],
         openCode: [],
         matchCount: 0,
         specialMatch: false,
         winStatus: 'pending',
         winAmount: 0
-      })
+      }
+      if (row.dan_code) historyItem.danCode = row.dan_code
+      if (row.tuo_code) historyItem.tuoCode = row.tuo_code
+      record.betHistory.push(historyItem)
       if (record.betHistory.length > 5000) {
         record.betHistory = record.betHistory.slice(-4000)
       }
@@ -619,11 +629,12 @@ export default class LHC_OF {
         if (idx >= 0) {
           const current = record.betHistory[idx]
           if (!current) return
-          record.betHistory[idx] = {
+          const settled: UserBetHistory = {
             orderId: String(current.orderId),
             issue: String(current.issue),
             betTime: Number(current.betTime),
             coin: Number(current.coin),
+            betCount: Math.max(1, Number(current.betCount ?? 1)),
             betCode: Array.isArray(current.betCode) ? current.betCode : [],
             openCode: [...openCode],
             matchCount: row.normalCount,
@@ -631,6 +642,9 @@ export default class LHC_OF {
             winStatus: row.payout > 0 ? 'win' : 'lose',
             winAmount: row.payout
           }
+          if (current.danCode) settled.danCode = current.danCode
+          if (current.tuoCode) settled.tuoCode = current.tuoCode
+          record.betHistory[idx] = settled
         }
         if (row.payout > 0) {
           const prev = Number(payoutByUser.get(row.userId) ?? 0)
@@ -691,28 +705,40 @@ export default class LHC_OF {
 
       const orderId = this.handle.createOrderId(input.issue)
       const total = groups.length
-      const coinPerRow = Number((Number(input.amount) / total).toFixed(2))
+      const totalBetCount = groups.reduce((sum: number, g: any) => sum + Math.max(1, Number(g?.betCount ?? 1)), 0)
+      const unitCoin = totalBetCount > 0 ? Number(input.amount) / totalBetCount : 0
       const betTime = Date.now()
+
+      const toCode = (play: any): string => {
+        const num = Number(play?.num ?? play?.label)
+        if (!Number.isFinite(num) || num <= 0) return ''
+        return String(num).padStart(2, '0')
+      }
 
       return groups.map((group: any, idx: number) => {
         const playList = Array.isArray(group?.playList) ? group.playList : []
-        const bet_code = playList
-          .map((play: any) => {
-            const num = Number(play?.num ?? play?.label)
-            if (!Number.isFinite(num) || num <= 0) return ''
-            return String(num).padStart(2, '0')
-          })
-          .filter(Boolean)
+        const bet_code = playList.map(toCode).filter(Boolean)
+        const betCount = Math.max(1, Number(group?.betCount ?? 1))
+        const coinPerRow = Number((unitCoin * betCount).toFixed(2))
 
-        return {
+        const danList = Array.isArray(group?.danList) ? group.danList : null
+        const tuoList = Array.isArray(group?.tuoList) ? group.tuoList : null
+
+        const row: BetOrderItem = {
           order_id: `${orderId}(${idx + 1}/${total})`,
           issue: input.issue,
           user_id: input.userId,
           bet_time: betTime,
           coin: coinPerRow,
+          bet_count: betCount,
           bet_code,
           status: 'success'
-        } satisfies BetOrderItem
+        }
+        if (danList && tuoList) {
+          row.dan_code = danList.map(toCode).filter(Boolean)
+          row.tuo_code = tuoList.map(toCode).filter(Boolean)
+        }
+        return row
       })
     },
     buildRoadPlays: () => {

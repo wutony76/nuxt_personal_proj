@@ -87,7 +87,7 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
             <th class="col-id">投注單號</th>
             <th class="col-time">投注時間</th>
             <th class="col-bet">投注號碼</th>
-            <th class="col-coin">投注金額</th>
+            <th class="col-coin">注數 / 金額</th>
             <!-- <th class="col-status">狀態</th> -->
           </tr>
         </thead>
@@ -96,12 +96,36 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
             <td class="col-id">{{ detail.id }}</td>
             <td class="col-time">{{ detail.time }}</td>
             <td class="col-bet">
-              <div class="order-bets">
-                <Ball :data="{ num: Number(ball), label: String(ball).padStart(2, '0'), selected: true }"
-                  v-for="(ball, ballIdx) in detail.bets" :key="ballIdx" />
+              <template v-if="detail.danBets && detail.tuoBets">
+                <div class="order-bets dt-row">
+                  <span class="dt-label dan">膽</span>
+                  <div class="dt-balls">
+                    <Ball
+                      :data="{ num: Number(ball), label: String(ball).padStart(2, '0'), selected: true, colorY: true }"
+                      v-for="(ball, ballIdx) in detail.danBets" :key="'d' + ballIdx" />
+                  </div>
+                </div>
+                <div class="order-bets dt-row">
+                  <span class="dt-label tuo">拖</span>
+                  <div class="dt-balls">
+                    <Ball :data="{ num: Number(ball), label: String(ball).padStart(2, '0'), selected: true }"
+                      v-for="(ball, ballIdx) in detail.tuoBets" :key="'t' + ballIdx" />
+                  </div>
+                </div>
+              </template>
+              <template v-else>
+                <div class="order-bets">
+                  <Ball :data="{ num: Number(ball), label: String(ball).padStart(2, '0'), selected: true }"
+                    v-for="(ball, ballIdx) in detail.bets" :key="ballIdx" />
+                </div>
+              </template>
+            </td>
+            <td class="col-coin">
+              <div class="coin-cell">
+                <span class="count">{{ detail.betCount }} 注</span>
+                <span class="amount">{{ actions.thousands(Number(detail.coin)) }}</span>
               </div>
             </td>
-            <td class="col-coin">{{ actions.thousands(Number(detail.coin)) }}</td>
             <!-- <td class="col-status">{{ STATUS_MAP.get(detail.status) || 'none' }}</td> -->
           </tr>
           <tr v-if="!hasData" class="tr-no-records">
@@ -147,10 +171,43 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
   min-width: 0;
   gap: 0.2rem;
+
+  &.dt-row {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+
+    .dt-balls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.15rem;
+      flex: 1;
+    }
+
+    .dt-label {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 2px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      align-self: flex-start;
+      margin-top: 0.15rem;
+
+      &.dan {
+        color: #b45309;
+        background: rgba(255, 200, 0, 0.2);
+      }
+
+      &.tuo {
+        color: #1d6fa8;
+        background: rgba(80, 180, 255, 0.15);
+      }
+    }
+  }
 }
 
 .order-bets :deep(.ball-wrapper .ball) {
@@ -164,7 +221,7 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
 }
 
 .order-bets :deep(.ball.color-y) {
-  border-width: 0.12rem;
+  border-width: 0.2rem;
 }
 
 /* 外層：配合 Issue .main 的 flex column，讓表格區可捲動、footer 固定在下 */
@@ -244,8 +301,38 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
         width: auto;
       }
 
+      td.col-bet {
+        text-align: left;
+        vertical-align: middle;
+        padding: 0.3rem 0.4rem;
+      }
+
       col.col-coin {
-        width: 12%;
+        width: 14%;
+      }
+
+      td.col-coin {
+        text-align: center;
+        vertical-align: middle;
+
+        .coin-cell {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 1px;
+
+          .count {
+            font-size: 10px;
+            color: var(--color-red-desc);
+            font-weight: 600;
+          }
+
+          .amount {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--color-red-main);
+          }
+        }
       }
 
       col.col-status {

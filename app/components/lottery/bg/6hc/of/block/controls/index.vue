@@ -9,7 +9,7 @@ import { GAME_6HC_OF } from '~/config/constants'
 
 const { $dialog } = useNuxtApp()
 
-const { state: mxState, handle: mxHandle, isOpen } = use6hcOfficial()
+const { state: mxState, handle: mxHandle, isOpen, danSelector, tuoSelector } = use6hcOfficial()
 
 const hintText = computed(() => {
   switch (mxState.status) {
@@ -105,6 +105,19 @@ const _actions = {
         }
         break
       }
+      case GAME_6HC_OF.DANTUO.key: {
+        // 隨機選 2膽碼 + 4拖碼（排除 id=50 特別號）
+        const pool = mxState.playList.filter((item) => item.id !== 50)
+        const shuffled = [...pool].sort(() => Math.random() - 0.5)
+        const danNums = new Set(shuffled.slice(0, 2).map((b) => Number(b.num)))
+        const tuoNums = new Set(shuffled.slice(2, 6).map((b) => Number(b.num)))
+        mxState.playList = mxState.playList.map((item) => ({
+          ...item,
+          danSelected: danNums.has(Number(item.num)),
+          tuoSelected: tuoNums.has(Number(item.num)),
+        }))
+        break
+      }
     }
   },
   clear: () => {
@@ -138,6 +151,28 @@ const _actions = {
           hashKey: _uuid2(),
           playList: cloneDeep(mxState.isSelector),
           betCount: actions.comb6(mxState.isSelector.length),
+        }
+        mxState.groupList.push(_bet)
+        mxHandle.clearSelect()
+        break
+      }
+
+      case GAME_6HC_OF.DANTUO.key: {
+        const danList = danSelector.value
+        const tuoList = tuoSelector.value
+        const danCount = danList.length
+        const tuoCount = tuoList.length
+        if (danCount < 1) return $dialog.alert('膽拖玩法至少需選 1 碼膽碼')
+        if (danCount > 5) return $dialog.alert('膽碼最多選 5 碼')
+        const needTuo = 6 - danCount
+        if (tuoCount < needTuo) return $dialog.alert(`拖碼至少需選 ${needTuo} 碼`)
+        const betCount = actions.comb(tuoCount, needTuo)
+        const _bet = {
+          hashKey: _uuid2(),
+          playList: [...cloneDeep(danList), ...cloneDeep(tuoList)],
+          danList: cloneDeep(danList),
+          tuoList: cloneDeep(tuoList),
+          betCount,
         }
         mxState.groupList.push(_bet)
         mxHandle.clearSelect()
