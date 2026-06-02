@@ -7,7 +7,7 @@ const MAX_COIN = 99999
 const { $dialog } = useNuxtApp()
 const router = useRouter()
 const { user } = useAuth()
-const { state: mxState, fetch: mxFetch } = use6hcOfficial()
+const { state: mxState, fetch: mxFetch, isOpen, totalBetCount } = use6hcOfficial()
 
 const state = reactive({
   options: [5, 20, 100, 500, 900],
@@ -41,6 +41,7 @@ const _actions = {
     state.coin = _handlers.normalizeCoin(state.coin + value)
   },
   bet: () => {
+    if (!isOpen.value) return $dialog.alert('目前非開盤中，無法下注')
     if (state.isSubmitting) return
     state.isSubmitting = true
 
@@ -84,17 +85,17 @@ const _actions = {
     </div>
     <div class="row-2">
       <div class="left">
-        <label class="coin-label" for="coin-input">投注金額</label>
+        <label class="coin-label" for="coin-input">投注金額(注)</label>
         <input id="coin-input" :value="state.coin" type="number" min="1" max="99999" step="1" class="coin-input"
           @input="_handlers.input" @blur="_handlers.input" />
       </div>
       <div class="right">
         <div class="total-amount">
-          總投注： {{ actions.thousands(mxState.groupList.length * state.coin) }}
+          總投注： {{ actions.thousands(totalBetCount * state.coin) }}
         </div>
       </div>
-
     </div>
+
     <div>
       <button type="button" class="action-btn bet" :disabled="state.isSubmitting" @click="_actions.bet">
         {{ state.isSubmitting ? '投注中...' : '投注' }}
@@ -152,6 +153,11 @@ const _actions = {
     align-items: center;
     justify-content: space-between;
 
+    .left,
+    .right {
+      white-space: nowrap;
+    }
+
     .left {
       display: flex;
       align-items: center;
@@ -182,7 +188,14 @@ const _actions = {
     }
 
     .right {
+      margin-left: 10px;
+      min-width: 0;
+      overflow: hidden;
+
       .total-amount {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         font-size: 12px;
         font-weight: 600;
         color: var(--color-red-desc);

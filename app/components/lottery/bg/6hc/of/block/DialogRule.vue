@@ -34,13 +34,13 @@ function scrollToSection(id: string) {
 
 // 開獎 7 顆：openCode[0..5]=正碼, openCode[6]=特別號；玩家每注選 6 顆
 const prizeTiers = [
-  { normalMatch: 6, needSpecial: false, type: 'pool'  as const, ratioNum: 0.70, ratio: '70%', desc: '頭獎', probability: '1 / 1,398萬',  hint: '6 個正碼全中｜每人最低 200,000' },
-  { normalMatch: 5, needSpecial: true,  type: 'pool'  as const, ratioNum: 0.20, ratio: '20%', desc: '二獎', probability: '1 / 2,330,636', hint: '5 個正碼＋特別號｜每人最低 50,000' },
-  { normalMatch: 5, needSpecial: false, type: 'pool'  as const, ratioNum: 0.10, ratio: '10%', desc: '三獎', probability: '1 / 55,491',    hint: '5 個正碼（不含特別號）｜每人最低 3,500' },
-  { normalMatch: 4, needSpecial: true,  type: 'fixed' as const, amount: 3000,   desc: '四獎', probability: '1 / 22,196',  hint: '4 個正碼＋特別號' },
-  { normalMatch: 4, needSpecial: false, type: 'fixed' as const, amount: 200,    desc: '五獎', probability: '1 / 1,082',   hint: '4 個正碼（不含特別號）' },
-  { normalMatch: 3, needSpecial: true,  type: 'fixed' as const, amount: 10,     desc: '六獎', probability: '1 / 812',     hint: '3 個正碼＋特別號' },
-  { normalMatch: 3, needSpecial: false, type: 'fixed' as const, amount: 5,      desc: '七獎', probability: '約 1.64%',    hint: '3 個正碼（不含特別號）' },
+  { normalMatch: 6, needSpecial: false, type: 'pool' as const, ratioNum: 0.70, ratio: '70%', desc: '頭獎', probability: '1 / 1,398萬', hint: '6 個正碼全中｜每人最低 200,000' },
+  { normalMatch: 5, needSpecial: true, type: 'pool' as const, ratioNum: 0.20, ratio: '20%', desc: '二獎', probability: '1 / 2,330,636', hint: '5 個正碼＋特別號｜每人最低 50,000' },
+  { normalMatch: 5, needSpecial: false, type: 'pool' as const, ratioNum: 0.10, ratio: '10%', desc: '三獎', probability: '1 / 55,491', hint: '5 個正碼（不含特別號）｜每人最低 3,500' },
+  { normalMatch: 4, needSpecial: true, type: 'fixed' as const, amount: 3000, desc: '四獎', probability: '1 / 22,196', hint: '4 個正碼＋特別號' },
+  { normalMatch: 4, needSpecial: false, type: 'fixed' as const, amount: 200, desc: '五獎', probability: '1 / 1,082', hint: '4 個正碼（不含特別號）' },
+  { normalMatch: 3, needSpecial: true, type: 'fixed' as const, amount: 10, desc: '六獎', probability: '1 / 812', hint: '3 個正碼＋特別號' },
+  { normalMatch: 3, needSpecial: false, type: 'fixed' as const, amount: 5, desc: '七獎', probability: '約 1.64%', hint: '3 個正碼（不含特別號）' },
 ]
 
 const timeline = [
@@ -143,7 +143,7 @@ const playTypes = [
         <!-- 中獎分級 -->
         <div id="section-prize" class="rule-section">
           <h4 class="rule-title">獎金結構</h4>
-          <p class="rule-note">頭/二/三獎為獎池制，依下注金額比例分配；頭獎每人最低 200,000、二獎最低 50,000、三獎最低 3,500（保障高於四獎）。四至七獎為固定金額 × 下注額。</p>
+          <p class="rule-note">頭/二/三獎為獎池制，依下注金額比例分配；頭獎每人最低 200,000、二獎最低 50,000、三獎最低 3,500。四至七獎為固定金額 × 下注額。</p>
           <div class="prize-pool-rows" v-if="jackpotBase > 0 || totalPool > 0">
             <div class="prize-pool-row">
               <span class="pool-label">池底金額</span>
@@ -188,9 +188,11 @@ const playTypes = [
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="tier in prizeTiers" :key="`${tier.normalMatch}-${tier.needSpecial}`" :class="{ 'tier-top': tier.normalMatch === 6 && !tier.needSpecial }">
+                <tr v-for="tier in prizeTiers" :key="`${tier.normalMatch}-${tier.needSpecial}`"
+                  :class="{ 'tier-top': tier.normalMatch === 6 && !tier.needSpecial }">
                   <td class="tier-name">{{ tier.desc }}</td>
-                  <td class="tier-match">{{ tier.needSpecial ? `${tier.normalMatch} 正＋特別` : `${tier.normalMatch} 正碼` }}</td>
+                  <td class="tier-match">{{ tier.needSpecial ? `${tier.normalMatch} 正＋特別` : `${tier.normalMatch} 正碼` }}
+                  </td>
                   <td class="tier-ratio">{{ tier.probability }}</td>
                   <td class="tier-est">
                     <template v-if="tier.type === 'pool'">

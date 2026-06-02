@@ -1,6 +1,6 @@
 import { cloneDeep } from 'lodash'
 import { computed, reactive, ref } from 'vue'
-import { GAME_6HC_OF, LOTTERY, SORT } from '~/config/constants'
+import { GAME_6HC_OF, LOTTERY, SORT, STATUS_TIME } from '~/config/constants'
 import { PLAYLIST } from '~/config/bg/6hc-of'
 import {
   type Lottery6hcOfCurrent,
@@ -89,6 +89,12 @@ const time = reactive({
 
 const jackpotBase = ref(0)
 const jackpotBaseSetAt = ref(0)
+
+const isOpen = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPEN)
+
+const totalBetCount = computed(() =>
+  state.groupList.reduce((sum: number, group: any) => sum + (group.betCount ?? 0), 0)
+)
 
 const livePool = computed(() => {
   const j = current.runtime?.jackpot
@@ -502,7 +508,7 @@ const fetch = {
   bets: async (coin: number, userId?: string | number | null) => {
     const groups = [...state.groupList]
     if (groups.length === 0) return { ok: false, message: '請先選擇號碼' }
-    const amount = Math.max(1, Math.trunc(Number(coin) || 0)) * groups.length
+    const amount = Math.max(1, Math.trunc(Number(coin) || 0)) * totalBetCount.value
 
     const normalizedUserId = handle.normalizeUserId(userId)
     const issue = String(current.runtime?.issueCurrent ?? '')
@@ -567,7 +573,7 @@ const init = {
         state.limit.max = 6
         return cloneDeep(PLAYLIST.slice(0, 49))
       case GAME_6HC_OF.DUPLEX.key:
-        state.limit.min = 49
+        state.limit.min = 6
         state.limit.max = 49
         return cloneDeep(PLAYLIST)
       case GAME_6HC_OF.DANTUO.key:
@@ -631,5 +637,5 @@ state.isSelector = computed(() => {
 init.run()
 
 export function use6hcOfficial() {
-  return { state, current, road, wallet, userRecord, openCodeHistory, system, analyze, time, handle, init, click, fetch, jackpotBase, jackpotBaseSetAt, livePool }
+  return { state, current, road, wallet, userRecord, openCodeHistory, system, analyze, time, handle, init, click, fetch, jackpotBase, jackpotBaseSetAt, livePool, isOpen, totalBetCount }
 }

@@ -1,11 +1,45 @@
 <script setup lang="ts">
+import { computed, ref, watch, onMounted } from 'vue'
 import { cloneDeep } from 'lodash'
+import { actions } from '~/utils/common'
 import { use6hcOfficial } from '~/composables/use6hcOfficial'
+import { GAME_6HC_OF } from '~/config/constants'
 import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'
 import IconSvg from '~/components/IconSvg.vue'
 import { _uuid2 } from 'serv/utils/encrypt'
 
-const { state: mxState } = use6hcOfficial()
+const { state: mxState, totalBetCount } = use6hcOfficial()
+
+const displayBetsFormatted = computed(() => {
+  if (mxState.status === GAME_6HC_OF.DUPLEX.key) return actions.thousands(displayBets.value || 0)
+
+  return displayBets.value
+})
+
+const displayBets = ref(0)
+let rafId: number | null = null
+
+function animateBetsTo(target: number, durationMs = 400) {
+  if (rafId !== null) cancelAnimationFrame(rafId)
+  const from = displayBets.value
+  const diff = target - from
+  if (Math.abs(diff) < 1) { displayBets.value = target; return }
+  const start = performance.now()
+  function step(now: number) {
+    const t = Math.min((now - start) / durationMs, 1)
+    const ease = 1 - Math.pow(1 - t, 3)
+    displayBets.value = Math.round(from + diff * ease)
+    if (t < 1) { rafId = requestAnimationFrame(step) }
+    else { rafId = null }
+  }
+  rafId = requestAnimationFrame(step)
+}
+
+onMounted(() => {
+  displayBets.value = totalBetCount.value
+  watch(totalBetCount, (newVal) => animateBetsTo(newVal))
+})
+
 const _actions = {
   copy: (group: any) => {
     const _bet = {
@@ -28,6 +62,7 @@ const _actions = {
     <div class="group-list">
       <div v-for="group in mxState.groupList.slice().reverse()" :key="group.id" class="group-bet">
         <div class="left">
+          <!-- {{ group }} -->
           <Ball :data="play" v-for="play in group.playList" :key="play.id" />
         </div>
         <div class="right">
@@ -37,7 +72,7 @@ const _actions = {
       </div>
     </div>
     <div class="footer">
-      <div> 當前注數：{{ mxState.groupList.length }} 注 </div>
+      <div> 當前注數：{{ displayBetsFormatted }} 注 </div>
     </div>
   </div>
 </template>
@@ -104,7 +139,7 @@ const _actions = {
 
   .group-bet {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     width: 100%;
     padding-left: 7px;
@@ -112,8 +147,10 @@ const _actions = {
 
     .left {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
+      flex: 1 1 auto;
 
       :deep(.ball-wrapper) {
         .ball {

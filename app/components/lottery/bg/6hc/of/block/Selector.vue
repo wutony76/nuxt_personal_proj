@@ -37,7 +37,6 @@ const _actions = {
       case GAME_6HC_OF.DANTUO.key:
         break
     }
-
   }
 }
 

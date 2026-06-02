@@ -5,7 +5,7 @@ import { SORT } from '~/config/constants'
 import { _uuid2 } from 'serv/utils/encrypt'
 
 const { $dialog } = useNuxtApp()
-const { state: mxState, analyze: mxAnalyze, system: mxSystem, current: mxCurrent } = use6hcOfficial()
+const { state: mxState, analyze: mxAnalyze, system: mxSystem, current: mxCurrent, isOpen } = use6hcOfficial()
 type AnalyzeDetailRow = {
   bets?: Array<string | number>
 }
@@ -63,15 +63,16 @@ const _handlers = {
         if (diff !== 0) return diff
         return Number(a.num) - Number(b.num)
       })
-      .slice(0, 7)
+      .slice(0, 6)
     state.hedgeBallList.sort((a, b) => a.num - b.num)
   }
 }
 
 const _actions = {
   add: () => {
+    if (!isOpen.value) return $dialog.alert('目前非開盤中，無法加入')
     if (!isHedgeMode.value) return $dialog.alert('目前狀態無法加入注單')
-    if (state.hedgeBallList.length !== 7) return $dialog.alert('推薦號碼不足 7 碼')
+    if (state.hedgeBallList.length !== 6) return $dialog.alert('推薦號碼不足 6 碼')
 
     const _bet = {
       hashKey: _uuid2(),
@@ -174,7 +175,7 @@ watch(
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 5px;
+      gap: 8px;
 
       :deep(.ball) {
         background: #fff;
@@ -186,6 +187,7 @@ watch(
 
       .add-btn {
         width: auto;
+        margin-left: 20px;
         padding: 4px 10px;
         transition: filter 0.15s ease, transform 0.15s ease;
 

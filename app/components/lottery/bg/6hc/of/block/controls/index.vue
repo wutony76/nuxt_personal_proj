@@ -1,19 +1,24 @@
 <script setup lang="ts">
 import { cloneDeep } from 'lodash'
+import { actions } from '~/utils/common'
 import { _uuid2 } from 'serv/utils/encrypt'
 import Group from './Group.vue'
 import Coin from './Coin.vue'
+import Recommend from './Recommend.vue'
 import { GAME_6HC_OF } from '~/config/constants'
 
 const { $dialog } = useNuxtApp()
 
-const props = withDefaults(defineProps<{
-  hint?: string
-}>(), {
-  hint: '單式玩法需選 6 碼'
-})
+const { state: mxState, handle: mxHandle, isOpen } = use6hcOfficial()
 
-const { state: mxState, handle: mxHandle } = use6hcOfficial()
+const hintText = computed(() => {
+  switch (mxState.status) {
+    case GAME_6HC_OF.SINGLE.key: return '單式玩法需選 6 碼'
+    case GAME_6HC_OF.DUPLEX.key: return '複式玩法最少需選 6 碼，最多 49 碼'
+    case GAME_6HC_OF.DANTUO.key: return '膽拖玩法需先選膽碼，再選拖碼'
+    default: return ''
+  }
+})
 
 const _handlers = {
   random: (max = 6) => {
@@ -104,8 +109,11 @@ const _actions = {
   },
   clear: () => {
     mxHandle.clearSelect()
+    mxState.groupList = []
   },
   add: () => {
+    if (!isOpen.value) return $dialog.alert('目前非開盤中，無法加入')
+
     switch (mxState.status) {
       case GAME_6HC_OF.SINGLE.key: {
         const _count = mxState.isSelector.length
@@ -114,13 +122,28 @@ const _actions = {
         const _bet = {
           hashKey: _uuid2(),
           playList: cloneDeep(mxState.isSelector),
+          betCount: 1,
         }
         mxState.groupList.push(_bet)
         mxHandle.clearSelect()
         break
       }
-      case GAME_6HC_OF.DUPLEX.key:
+
+      case GAME_6HC_OF.DUPLEX.key: {
+        const _count = mxState.isSelector.length
+        const _limit = mxState.limit.min
+        console.log('TTT2.UI add duplex', _count, _limit)
+        if (_count < _limit) return $dialog.alert('複式玩法最少需選6碼')
+        const _bet = {
+          hashKey: _uuid2(),
+          playList: cloneDeep(mxState.isSelector),
+          betCount: actions.comb6(mxState.isSelector.length),
+        }
+        mxState.groupList.push(_bet)
+        mxHandle.clearSelect()
         break
+      }
+
     }
 
 
@@ -141,7 +164,8 @@ const _actions = {
       </div>
     </div>
 
-    <div class="hint">{{ props.hint }}</div>
+    <div class="hint">{{ hintText }}</div>
+    <!-- <Recommend v-if="mxState.status === GAME_6HC_OF.SINGLE.key" /> -->
     <Group />
     <Coin />
   </div>
