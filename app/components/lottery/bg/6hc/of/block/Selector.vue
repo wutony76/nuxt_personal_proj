@@ -40,7 +40,7 @@ const _actions = {
       case GAME_6HC_OF.DANTUO.key: {
         if (dantuoMode.value === 'dan') {
           if (play.id === 50) return
-          // if (play.tuoSelected) return $dialog.alert('此號已選為拖碼，不可重複選為膽碼')
+          if (play.tuoSelected) return $dialog.alert('此號已選為拖碼，不可重複選為膽碼')
           if (!play.danSelected && danSelector.value.length >= 5) return $dialog.alert('膽碼最多選 5 碼')
           play.danSelected = !play.danSelected
         } else {

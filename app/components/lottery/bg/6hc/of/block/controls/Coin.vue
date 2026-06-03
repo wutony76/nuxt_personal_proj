@@ -97,8 +97,8 @@ const _actions = {
     </div>
 
     <div>
-      <button type="button" class="action-btn bet" :disabled="state.isSubmitting" @click="_actions.bet">
-        {{ state.isSubmitting ? '投注中...' : '投注' }}
+      <button type="button" class="action-btn bet" :disabled="state.isSubmitting || !isOpen" @click="_actions.bet">
+        {{ state.isSubmitting ? '投注中...' : !isOpen ? '尚未開盤' : '投注' }}
       </button>
     </div>
   </div>
@@ -119,9 +119,14 @@ const _actions = {
     font-size: 14px;
     transition: filter 0.15s ease, transform 0.15s ease;
 
-    &:hover {
+    &:hover:not(:disabled) {
       filter: brightness(1.08) saturate(1.2);
       transform: translateY(-1px);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   }
 

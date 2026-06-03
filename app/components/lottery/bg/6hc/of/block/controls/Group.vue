@@ -38,10 +38,13 @@ onMounted(() => {
 
 const _actions = {
   copy: (group: any) => {
-    const _bet = {
+    const _bet: any = {
       hashKey: _uuid2(),
       playList: cloneDeep(group.playList),
+      betCount: group.betCount ?? 0,
     }
+    if (group.danList) _bet.danList = cloneDeep(group.danList)
+    if (group.tuoList) _bet.tuoList = cloneDeep(group.tuoList)
     mxState.groupList.push(_bet)
   },
   del: (group: any) => {

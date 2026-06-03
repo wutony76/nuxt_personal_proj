@@ -31,7 +31,7 @@
             @click="click.close()">
             取消
           </button>
-          <button class="btn-dialog btn-dialog-ok" type="button" @click="click.ok()">确认</button>
+          <button class="btn-dialog btn-dialog-ok" type="button" @click="click.ok()">確認</button>
         </div>
       </div>
     </div>

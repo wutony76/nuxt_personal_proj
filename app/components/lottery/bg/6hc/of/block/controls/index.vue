@@ -7,6 +7,8 @@ import Coin from './Coin.vue'
 import Recommend from './Recommend.vue'
 import { GAME_6HC_OF } from '~/config/constants'
 
+const MAX_BET_COUNT = 100000
+
 const { $dialog } = useNuxtApp()
 
 const { state: mxState, handle: mxHandle, isOpen, danSelector, tuoSelector } = use6hcOfficial()
@@ -145,12 +147,13 @@ const _actions = {
       case GAME_6HC_OF.DUPLEX.key: {
         const _count = mxState.isSelector.length
         const _limit = mxState.limit.min
-        console.log('TTT2.UI add duplex', _count, _limit)
         if (_count < _limit) return $dialog.alert('複式玩法最少需選6碼')
+        const betCount = actions.comb6(mxState.isSelector.length)
+        if (betCount > MAX_BET_COUNT) return $dialog.alert(`注數過多（${actions.thousands(betCount)} 注），請減少選號`)
         const _bet = {
           hashKey: _uuid2(),
           playList: cloneDeep(mxState.isSelector),
-          betCount: actions.comb6(mxState.isSelector.length),
+          betCount,
         }
         mxState.groupList.push(_bet)
         mxHandle.clearSelect()
@@ -167,6 +170,7 @@ const _actions = {
         const needTuo = 6 - danCount
         if (tuoCount < needTuo) return $dialog.alert(`拖碼至少需選 ${needTuo} 碼`)
         const betCount = actions.comb(tuoCount, needTuo)
+        if (betCount > MAX_BET_COUNT) return $dialog.alert(`注數過多（${actions.thousands(betCount)} 注），請減少拖碼`)
         const _bet = {
           hashKey: _uuid2(),
           playList: [...cloneDeep(danList), ...cloneDeep(tuoList)],
@@ -192,7 +196,7 @@ const _actions = {
     <div class="controls-actions">
       <div class="left">
         <button type="button" class="action-btn" @click="_actions.random()">隨機選號</button>
-        <button type="button" class="action-btn" @click="_actions.add()">加入</button>
+        <button type="button" class="action-btn" :disabled="!isOpen" @click="_actions.add()">加入</button>
       </div>
       <div class="right">
         <button type="button" class="action-btn ghost" @click="_actions.clear()">清空</button>
@@ -241,6 +245,11 @@ const _actions = {
       &.ghost {
         background: #fff;
         color: var(--color-red-main);
+      }
+
+      &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
       }
     }
   }
