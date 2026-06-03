@@ -59,6 +59,7 @@ export type Lottery6hcOfCurrent = {
   countdown: string
   statusEndAt: number
   openCode: string[]
+  openingCode?: string[]
   openCodePlay: Array<{
     num?: string | number
     label?: string | number

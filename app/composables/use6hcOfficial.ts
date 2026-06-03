@@ -1,5 +1,5 @@
 import { cloneDeep } from 'lodash'
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { actions } from '~/utils/common'
 import { GAME_6HC_OF, LOTTERY, SORT, STATUS_TIME } from '~/config/constants'
 import { PLAYLIST } from '~/config/bg/6hc-of'
@@ -95,6 +95,60 @@ const jackpotBase = ref(0)
 const jackpotBaseSetAt = ref(0)
 
 const isOpen = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPEN)
+const isOpening = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPENING)
+
+// 開獎揭示時間軸（精準 ms 計時）
+const openingNowMs = ref(Date.now())
+let openingRafId: number | null = null
+
+function startOpeningTick() {
+  function tick() {
+    openingNowMs.value = Date.now()
+    openingRafId = requestAnimationFrame(tick)
+  }
+  openingRafId = requestAnimationFrame(tick)
+}
+
+function stopOpeningTick() {
+  if (openingRafId !== null) cancelAnimationFrame(openingRafId)
+  openingRafId = null
+}
+
+watch(isOpening, (opening) => {
+  if (opening) startOpeningTick()
+  else stopOpeningTick()
+}, { immediate: true })
+
+const openingElapsedMs = computed(() => {
+  if (!isOpening.value || !time.statusEndAt) return 0
+  const remainMs = Math.max(0, time.statusEndAt - openingNowMs.value)
+  return Math.max(0, 15000 - remainMs)
+})
+
+// 開出 index 集合（0-6）：順序 1,2,3 → 4 → 5 → 7特別號 → 6
+const openingRevealedIndices = computed(() => {
+  const e = openingElapsedMs.value
+  const s = new Set<number>()
+  if (e >= 6000)  s.add(0)
+  if (e >= 6350)  s.add(1)
+  if (e >= 6700)  s.add(2)
+  if (e >= 7500)  s.add(3)
+  if (e >= 9500)  s.add(4)
+  if (e >= 12000) s.add(6)
+  if (e >= 15000) s.add(5)
+  return s
+})
+
+// 已開出的實際號碼集合（供 Road 使用）
+const openingRevealedNumbers = computed(() => {
+  const codes = Array.isArray(current.runtime?.openingCode) ? (current.runtime.openingCode as string[]) : []
+  const numSet = new Set<number>()
+  openingRevealedIndices.value.forEach((idx) => {
+    const num = Number(codes[idx])
+    if (Number.isFinite(num) && num > 0) numSet.add(num)
+  })
+  return numSet
+})
 
 const totalBetCount = computed(() =>
   state.groupList.reduce((sum: number, group: any) => sum + (group.betCount ?? 0), 0)
@@ -677,5 +731,5 @@ const tuoSelector = computed(() => state.playList.filter(item => item.tuoSelecte
 init.run()
 
 export function use6hcOfficial() {
-  return { state, current, road, wallet, userRecord, openCodeHistory, system, analyze, time, handle, init, click, fetch, jackpotBase, jackpotBaseSetAt, livePool, isOpen, totalBetCount, danSelector, tuoSelector }
+  return { state, current, road, wallet, userRecord, openCodeHistory, system, analyze, time, handle, init, click, fetch, jackpotBase, jackpotBaseSetAt, livePool, isOpen, isOpening, totalBetCount, danSelector, tuoSelector, openingRevealedIndices, openingRevealedNumbers }
 }

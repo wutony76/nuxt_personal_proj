@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, reactive, watch } from 'vue'
 import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'
 
-const { road: mxRoad, current: mxCurrent } = use6hcOfficial()
+const { road: mxRoad, current: mxCurrent, isOpening, openingRevealedNumbers } = use6hcOfficial()
 const state = reactive({
   timer: null as ReturnType<typeof setInterval> | null,
   randomDimSet: new Set<string>(),
@@ -24,11 +24,6 @@ const isOpenedNumber = (num?: string | number) => {
   if (!Number.isFinite(value)) return false
   return openedNumSet.value.has(value)
 }
-
-const isOpening = computed(() => {
-  const status = String(mxCurrent.runtime?.currentStatus ?? '')
-  return status.includes('開獎中')
-})
 
 const getPlayKey = (play: { id?: number | string; num?: number | string }) => String(play.id ?? play.num ?? '')
 
@@ -102,19 +97,26 @@ onBeforeUnmount(() => {
   anim.stop()
 })
 
+const isRevealedDuringOpening = (play: { num?: number | string }) => {
+  return isOpening.value && openingRevealedNumbers.value.has(Number(play.num))
+}
+
 const isDimmed = (play: { id?: number | string; num?: number | string }) => {
+  if (isRevealedDuringOpening(play)) return false
   if (isOpening.value) return state.randomDimSet.has(getPlayKey(play))
   return !isOpenedNumber(play.num)
 }
 
 const isIssueHighlighted = (play: { id?: number | string; num?: number | string }) => {
   const key = getPlayKey(play)
+  if (isRevealedDuringOpening(play)) return maxIssueTop7Set.value.has(key)
   if (isOpening.value) return state.randomIssueSet.has(key)
   return maxIssueTop7Set.value.has(key)
 }
 
 const isShowHighlighted = (play: { id?: number | string; num?: number | string }) => {
   const key = getPlayKey(play)
+  if (isRevealedDuringOpening(play)) return maxShowTop7Set.value.has(key)
   if (isOpening.value) return state.randomShowSet.has(key)
   return maxShowTop7Set.value.has(key)
 }

@@ -52,7 +52,7 @@ const emit = defineEmits<{
   (event: 'open-opencode-dialog'): void
 }>()
 
-const { current: mxCurrent, time: mxTime, livePool } = use6hcOfficial()
+const { current: mxCurrent, time: mxTime, livePool, isOpening, openingRevealedIndices } = use6hcOfficial()
 
 const normalizedData = computed(() => {
   const source = (mxCurrent.runtime ?? {}) as Partial<HeaderData>
@@ -170,6 +170,13 @@ const displayCurrentStatus = computed(() => {
   if (remainSeconds === 1) return STATUS_TIME.PREPARE_CLOSE_1
   return currentStatus.value
 })
+
+
+const openingBalls = computed(() => {
+  const codes = Array.isArray(mxCurrent.runtime?.openingCode) ? (mxCurrent.runtime.openingCode as string[]) : []
+  if (codes.length === 0) return Array.from({ length: 7 }, () => '??')
+  return codes.map((c) => String(c).padStart(2, '0'))
+})
 const openBalls = computed(() => {
   const playList = normalizedData.value.openCodePlay
   if (Array.isArray(playList) && playList.length > 0) {
@@ -276,6 +283,23 @@ const openBalls = computed(() => {
               }" />
             </div>
           </div>
+
+          <Transition name="overlay-fade">
+            <div v-if="isOpening" class="opening-overlay">
+              <div class="opening-issue">第{{ issueCurrent }}期 正在開獎</div>
+              <div class="opening-balls">
+                <div v-for="(code, idx) in openingBalls" :key="idx" class="opening-slot">
+                  <span v-if="idx === openingBalls.length - 1" class="opening-plus">+</span>
+                  <Transition name="ball-pop" mode="out-in">
+                    <div v-if="openingRevealedIndices.has(idx)" :key="`b-${idx}`" class="opening-ball-inner">
+                      <Ball :data="{ label: code, num: code, selected: true }" :is-click="false" />
+                    </div>
+                    <div v-else :key="`p-${idx}`" class="opening-placeholder">?</div>
+                  </Transition>
+                </div>
+              </div>
+            </div>
+          </Transition>
         </div>
       </div>
     </div>
@@ -416,6 +440,7 @@ const openBalls = computed(() => {
       }
 
       .open-code {
+        position: relative;
         display: flex;
         flex: 1;
         flex-direction: column;
@@ -510,9 +535,124 @@ const openBalls = computed(() => {
             color: var(--color-black);
           }
         }
+
+        .opening-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(255, 255, 255, 0.97);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          z-index: 10;
+          pointer-events: none;
+
+          .opening-issue {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-red-main);
+            letter-spacing: 0.02em;
+          }
+
+          .opening-balls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3rem;
+
+            .opening-slot {
+              display: flex;
+              align-items: center;
+
+              .opening-plus {
+                margin-right: 0.5rem;
+                font-size: 20px;
+                font-weight: 700;
+                color: var(--color-black);
+              }
+
+              .opening-ball-inner {
+                :deep(.ball) {
+                  width: 45px;
+                  height: 45px;
+                  font-size: 26px;
+                  cursor: default;
+                }
+              }
+
+              .opening-placeholder {
+                width: 45px;
+                height: 45px;
+                border-radius: 50%;
+                background: #fee2e2;
+                border: 2px dashed #fca5a5;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                font-weight: 900;
+                color: #fca5a5;
+                animation: placeholder-pulse 0.7s ease-in-out infinite alternate;
+              }
+            }
+          }
+        }
       }
     }
   }
+}
+
+@keyframes placeholder-pulse {
+  from {
+    opacity: 0.4;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes ball-drop-in {
+  0% {
+    transform: translateY(-40px) scale(0.4) rotate(-120deg);
+    opacity: 0;
+  }
+  55% {
+    transform: translateY(6px) scale(1.2) rotate(8deg);
+    opacity: 1;
+  }
+  75% {
+    transform: translateY(-4px) scale(0.93) rotate(-3deg);
+  }
+  100% {
+    transform: translateY(0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.ball-pop-enter-active {
+  animation: ball-drop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ball-pop-leave-active {
+  transition: all 0.1s ease;
+}
+
+.ball-pop-leave-to {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+.overlay-fade-enter-active,
+.overlay-fade-leave-active {
+  transition: opacity 0.35s ease;
+}
+
+.overlay-fade-enter-from,
+.overlay-fade-leave-to {
+  opacity: 0;
 }
 
 @media (min-width: 1024px) {

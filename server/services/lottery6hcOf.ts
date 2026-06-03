@@ -21,6 +21,7 @@ type CurrentInfo = OpenCodeRecord & {
   countdown: string
   statusEndAt: number
   openCodePlay: Array<Record<string, unknown>>
+  openingCode: string[]
 }
 
 type OpenCodeHistoryItem = {
@@ -278,7 +279,8 @@ export default class LHC_OF {
         issueLatest: latestOpenRecord.issue,
         countdown: this.timer.formatCountdown(remain),
         statusEndAt,
-        openCodePlay: this.handle.openCodePlay(latestOpenRecord.openCode)
+        openCodePlay: this.handle.openCodePlay(latestOpenRecord.openCode),
+        openingCode: current.openCode
       } satisfies CurrentInfo
     },
     currentStatus: () => {
