@@ -53,7 +53,7 @@ export const FLAG = {
 // FUNC
 export const GET_CONT = { 
   lotteryAll: () => {
-    return Object.values(LOTTERY).sort((a, b) => a.sort - b.sort)
+    return Object.values(LOTTERY).filter(item => !['LHC-CD', 'LHC-OF'].includes(item.key)).sort((a, b) => a.sort - b.sort)
   },
   lotteryById: (id) => {
     return Object.values(LOTTERY).find((lottery) => lottery.id === id)

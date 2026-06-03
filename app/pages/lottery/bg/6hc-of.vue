@@ -191,6 +191,7 @@ onBeforeUnmount(() => {
 
 <style lang="scss">
 .lottery-6hc-of {
+  // font-family: 'Noto Serif TC', serif;
   display: flex;
   flex-direction: column;
   min-height: 100vh;

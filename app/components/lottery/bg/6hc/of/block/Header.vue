@@ -333,8 +333,11 @@ const openBalls = computed(() => {
 
       .title {
         margin: 0;
-        font-size: 45px;
-        font-weight: 800;
+        font-family: "Noto Serif TC", serif;
+        // font-size: 55px;
+        font-size: 70px;
+        letter-spacing: -7px;
+        font-weight: 900;
         line-height: 1.05;
         color: var(--color-red-main);
       }
@@ -608,6 +611,7 @@ const openBalls = computed(() => {
     opacity: 0.4;
     transform: scale(0.92);
   }
+
   to {
     opacity: 1;
     transform: scale(1.05);
@@ -619,13 +623,16 @@ const openBalls = computed(() => {
     transform: translateY(-40px) scale(0.4) rotate(-120deg);
     opacity: 0;
   }
+
   55% {
     transform: translateY(6px) scale(1.2) rotate(8deg);
     opacity: 1;
   }
+
   75% {
     transform: translateY(-4px) scale(0.93) rotate(-3deg);
   }
+
   100% {
     transform: translateY(0) scale(1) rotate(0deg);
     opacity: 1;
