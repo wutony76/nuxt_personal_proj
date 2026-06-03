@@ -311,11 +311,24 @@ const openBalls = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  border: 7px solid #b91c1c;
+  border: 4px solid #7f1d1d;
   border-radius: 0.5rem;
   background: #fff;
   padding: 10px 20px;
   box-shadow: 0 0.1rem 0.325rem rgba(0, 0, 0, 0.07);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, #7f1d1d 0%, #c9a227 35%, #f5d060 50%, #c9a227 65%, #7f1d1d 100%);
+    z-index: 1;
+  }
 
   .left {
     width: 100%;
@@ -333,13 +346,14 @@ const openBalls = computed(() => {
 
       .title {
         margin: 0;
-        font-family: "Noto Serif TC", serif;
-        // font-size: 55px;
-        font-size: 70px;
-        letter-spacing: -7px;
+        font-family: var(--font-brush), "Noto Serif TC", serif;
+        font-size: 65px;
+        letter-spacing: -8px;
         font-weight: 900;
         line-height: 1.05;
         color: var(--color-red-main);
+        padding-left: 0.75rem;
+        border-left: 5px solid var(--color-gold);
       }
 
       .sub {

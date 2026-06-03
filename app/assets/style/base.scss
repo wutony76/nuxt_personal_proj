@@ -1,6 +1,10 @@
 @use "./lhc_of.scss";
+@import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap');
 
 :root {
+  --font-brush: 'Ma Shan Zheng', cursive;
+  --color-gold: #c9a227;
+
   --base-width: 1240px;
   --base-radius: 0.375rem;
 
