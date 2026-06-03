@@ -18,6 +18,8 @@ import DialogRule from '~/components/lottery/bg/6hc/of/block/DialogRule.vue'
 import BarTabs from '~/components/lottery/bg/6hc/of/base/BarTabs.vue'
 import IssueBlock from '~/components/lottery/bg/6hc/of/block/record/Issue.vue'
 import AnalyzeBlock from '~/components/lottery/bg/6hc/of/block/record/Analyze.vue'
+import Auto from '~/components/lottery/bg/6hc/of/block/footer/Auto.vue'
+import Chat from '~/components/lottery/bg/6hc/of/block/footer/Chat.vue'
 
 const use6hc = use6hcOfficial()
 const { fetch: mxFetch } = use6hc
@@ -163,6 +165,13 @@ onBeforeUnmount(() => {
         <AnalyzeBlock />
       </section>
     </main>
+    <section class="footer-warp">
+      <div class="main">
+        <Auto />
+        <Chat />
+      </div>
+    </section>
+
     <Transition name="float-btn">
       <div v-if="showFloatingBtn" class="opening-float-wrap">
         <button class="opening-float-btn" type="button" @click="scrollToHeader" aria-label="前往開獎">
@@ -177,7 +186,6 @@ onBeforeUnmount(() => {
     <DialogOpenCode :visible="state.openCodeDialogVisible" :data="openCodeDialogData"
       :betIssues="userDialogData.betHistory.map(b => b.issue)" @close="click.closeOpenCodeDialog()" />
     <DialogRule :visible="state.ruleDialogVisible" @close="click.closeRuleDialog()" />
-    <section class="footer-warp"> footer</section>
   </div>
 </template>
 
@@ -296,7 +304,7 @@ onBeforeUnmount(() => {
 
   .footer-warp {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
     margin-top: 1.2rem;
     min-height: 300px;
@@ -305,6 +313,16 @@ onBeforeUnmount(() => {
     font-size: 0.875rem;
     font-weight: 700;
     color: #fff;
+    padding: 1rem 0;
+
+    .main {
+      width: 100%;
+      max-width: var(--base-width);
+      margin: 0 auto;
+      display: flex;
+      align-items: stretch;
+      gap: 0.75rem;
+    }
   }
 
   .user-dialog-mask {

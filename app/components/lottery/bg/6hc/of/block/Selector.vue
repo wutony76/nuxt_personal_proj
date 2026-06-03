@@ -96,6 +96,8 @@ const _actions = {
   border: 1px solid #fee2e2;
   border-radius: 6px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 
   .head {
     height: 36px;
@@ -162,10 +164,12 @@ const _actions = {
 }
 
 .grid {
+  flex: 1;
   display: grid;
-  margin-top: 12px;
+  margin-top: 0;
   grid-template-columns: repeat(10, minmax(0, 1fr));
   align-items: center;
+  align-content: center;
   gap: 10px;
   padding: 12px;
 }

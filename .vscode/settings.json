@@ -40,6 +40,8 @@
     "comments": true,
     "strings": true
   },
+  "css.validate": false,
+  "scss.validate": false,
   "typescript.tsdk": "node_modules/typescript/lib",
   "vue.server.hybridMode": true,
   "vetur.validation.template": false,
