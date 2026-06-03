@@ -125,7 +125,7 @@ const isShowHighlighted = (play: { id?: number | string; num?: number | string }
 <template>
   <div class="road-warp">
     <div v-if="mxRoad.plays.length === 0" class="empty">ROAD</div>
-    <div v-else class="road-grid">
+    <div v-else class="road-grid" :class="{ 'is-animating': isOpening }">
       <div v-for="play in mxRoad.plays" :key="String(play.id ?? play.num)" class="road-item" :class="{
         'is-dim': isDimmed(play),
         'is-highlight-issue': isIssueHighlighted(play),
@@ -216,6 +216,7 @@ const isShowHighlighted = (play: { id?: number | string; num?: number | string }
       border-radius: 0.5rem;
       pointer-events: none;
       z-index: 3;
+      transition: opacity 0.7s ease;
     }
 
     .road-item.is-highlight-issue::before {
@@ -229,6 +230,14 @@ const isShowHighlighted = (play: { id?: number | string; num?: number | string }
     .road-item.is-highlight-issue.is-highlight-show::before {
       box-shadow: inset 0 0 0 2px #ff0000;
       border: 2px solid #facc15;
+    }
+
+    &.is-animating {
+      .road-item.is-highlight-issue::before,
+      .road-item.is-highlight-show::before {
+        opacity: 0;
+        transition: none;
+      }
     }
 
     .road-count {

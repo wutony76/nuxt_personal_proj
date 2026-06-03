@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { LOTTERY, GET_CONT, GAME_6HC_OF } from '~/config/constants'
+import { LOTTERY, GET_CONT, GAME_6HC_OF, STATUS_TIME } from '~/config/constants'
 import { useAuth } from '~/composables/useAuth'
 import { actions } from '~/utils/common'
 
@@ -60,6 +60,26 @@ const userInfo = computed(() => {
 const userDialogData = computed(() => use6hc.userRecord)
 const openCodeDialogData = computed(() => use6hc.openCodeHistory)
 
+const headerAnchorRef = ref<HTMLElement | null>(null)
+
+const showFloatingBtn = computed(() => {
+  const status = String(use6hc.current.runtime?.currentStatus ?? '')
+  return status !== '' && status !== STATUS_TIME.OPEN
+})
+
+const floatingBtnLabel = computed(() => {
+  const status = String(use6hc.current.runtime?.currentStatus ?? '')
+  if (status === STATUS_TIME.OPENING) return '開獎中...'
+  if (status === STATUS_TIME.OPENED) return '當期開獎號'
+  return '當期開獎號'
+})
+
+function scrollToHeader() {
+  if (!headerAnchorRef.value) return
+  const top = headerAnchorRef.value.getBoundingClientRect().top + window.scrollY - 20
+  window.scrollTo({ top, behavior: 'smooth' })
+}
+
 const click = {
   openUserDialog: async () => {
     state.userDialogVisible = true
@@ -108,9 +128,12 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="base lottery-6hc-of">
-    <LotteryBgBaseTop @open-user-dialog="click.openUserDialog()" @open-opencode-dialog="click.openOpenCodeDialog()" @open-rule-dialog="click.openRuleDialog()" />
+    <LotteryBgBaseTop @open-user-dialog="click.openUserDialog()" @open-opencode-dialog="click.openOpenCodeDialog()"
+      @open-rule-dialog="click.openRuleDialog()" />
     <main class="main">
-      <Header :lottery-info="state.lotteryInfo" @open-opencode-dialog="click.openOpenCodeDialog()" />
+      <div ref="headerAnchorRef">
+        <Header :lottery-info="state.lotteryInfo" @open-opencode-dialog="click.openOpenCodeDialog()" />
+      </div>
       <section class="info-warp">
         <aside class="info-side">
           <div class="user-warp" @click="click.openUserDialog()">
@@ -140,11 +163,19 @@ onBeforeUnmount(() => {
         <AnalyzeBlock />
       </section>
     </main>
+    <Transition name="float-btn">
+      <div v-if="showFloatingBtn" class="opening-float-wrap">
+        <button class="opening-float-btn" type="button" @click="scrollToHeader" aria-label="前往開獎">
+          <span class="float-btn-text">獎</span>
+        </button>
+        <p v-if="floatingBtnLabel" class="opening-float-label">{{ floatingBtnLabel }}</p>
+      </div>
+    </Transition>
+
     <DialogUser :visible="state.userDialogVisible" :data="userDialogData" @close="click.closeUserDialog()"
       @claim="click.claimOneIssue()" />
     <DialogOpenCode :visible="state.openCodeDialogVisible" :data="openCodeDialogData"
-      :betIssues="userDialogData.betHistory.map(b => b.issue)"
-      @close="click.closeOpenCodeDialog()" />
+      :betIssues="userDialogData.betHistory.map(b => b.issue)" @close="click.closeOpenCodeDialog()" />
     <DialogRule :visible="state.ruleDialogVisible" @close="click.closeRuleDialog()" />
     <section class="footer-warp"> footer</section>
   </div>
@@ -377,5 +408,118 @@ onBeforeUnmount(() => {
     }
   }
 
+}
+
+.opening-float-wrap {
+  position: fixed;
+  right: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* gap: 6px; */
+}
+
+.opening-float-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #b91c1c 0%, #dc2626 45%, #d97706 100%);
+  border: 2.5px solid #fbbf24;
+  box-shadow: 0 4px 18px rgba(185, 28, 28, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  animation: float-btn-sway 0.7s ease-in-out infinite;
+  transition: box-shadow 0.2s;
+
+  &:hover {
+    animation: none;
+    transform: scale(1.12);
+    box-shadow: 0 6px 28px rgba(185, 28, 28, 0.65), 0 0 0 6px rgba(251, 191, 36, 0.2);
+  }
+
+  &:active {
+    transform: scale(0.93);
+  }
+
+  .float-btn-text {
+    font-size: 50px;
+    font-weight: 900;
+    color: #fff;
+    -webkit-text-stroke: 3px var(--color-red-main);
+    paint-order: stroke fill;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    pointer-events: none;
+  }
+}
+
+.opening-float-label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-red-main);
+  /* text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); */
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+
+@keyframes float-btn-sway {
+
+  0%,
+  100% {
+    transform: rotate(-18deg);
+  }
+
+  50% {
+    transform: rotate(18deg);
+  }
+}
+
+.float-btn-enter-active {
+  animation: float-btn-slide-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.float-btn-leave-active {
+  animation: float-btn-slide-out 0.3s ease-in forwards;
+}
+
+@keyframes float-btn-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) translateX(90px) scale(0.4);
+  }
+
+  60% {
+    transform: translateY(-50%) translateX(-10px) scale(1.1);
+    opacity: 1;
+  }
+
+  80% {
+    transform: translateY(-50%) translateX(5px) scale(0.95);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0) scale(1);
+  }
+}
+
+@keyframes float-btn-slide-out {
+  0% {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) translateX(90px) scale(0.4);
+  }
 }
 </style>
