@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { LOTTERY, GET_CONT, GAME_6HC_OF, STATUS_TIME } from '~/config/constants'
 import { useAuth } from '~/composables/useAuth'
 import { actions } from '~/utils/common'
@@ -31,7 +31,9 @@ const state = reactive({
   lotteryInfo: GET_CONT.lotteryById(LOTTERY['6HC'].id),
   userDialogVisible: false,
   openCodeDialogVisible: false,
-  ruleDialogVisible: false
+  ruleDialogVisible: false,
+  entered: false,
+  leaving: false,
 })
 
 const playMap = {
@@ -109,6 +111,12 @@ const click = {
   }
 }
 
+onBeforeRouteLeave((_to, _from, next) => {
+  if (!state.entered) { next(); return }
+  state.leaving = true
+  setTimeout(() => next(), 380)
+})
+
 onMounted(async () => {
   await init()
   if (!isLoggedIn.value) {
@@ -118,6 +126,7 @@ onMounted(async () => {
   const userId = String(user.value?.id ?? '')
   await use6hc.init.startServerTimeSync()
   await mxFetch.initPageData(userId)
+  state.entered = true
 })
 
 onBeforeUnmount(() => {
@@ -129,7 +138,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="base lottery-6hc-of">
+  <div class="base lottery-6hc-of" :class="{ 'is-leaving': state.leaving }">
+    <div class="bg-fx" aria-hidden="true">
+      <span v-for="i in 8" :key="i" class="orb" :style="`--i: ${i}`"></span>
+    </div>
     <LotteryBgBaseTop @open-user-dialog="click.openUserDialog()" @open-opencode-dialog="click.openOpenCodeDialog()"
       @open-rule-dialog="click.openRuleDialog()" />
     <main class="main">
@@ -202,6 +214,11 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     margin-bottom: 0;
+
+    >div {
+      animation: sec-in 0.55s ease both;
+      animation-delay: 0.08s;
+    }
   }
 
   .info-warp {
@@ -210,6 +227,8 @@ onBeforeUnmount(() => {
     gap: 0.75rem;
     min-height: 200px;
     align-items: stretch;
+    animation: sec-in 0.55s ease both;
+    animation-delay: 0.18s;
   }
 
   .info-side {
@@ -226,6 +245,7 @@ onBeforeUnmount(() => {
     border: 1px solid var(--color-red-700);
     border-radius: 6px;
     background: color-mix(in srgb, var(--color-red-main) 6%, #fff);
+    animation: card-glow 3.5s ease-in-out infinite;
   }
 
   .user-title {
@@ -289,6 +309,8 @@ onBeforeUnmount(() => {
     background: #fff;
     padding: 0.75rem;
     box-shadow: 0 0.1rem 0.325rem rgba(0, 0, 0, 0.07);
+    animation: sec-in 0.55s ease both;
+    animation-delay: 0.28s;
   }
 
 
@@ -299,7 +321,8 @@ onBeforeUnmount(() => {
     height: 500px;
     margin-top: 0.75rem;
     gap: 0.75rem;
-
+    animation: sec-in 0.55s ease both;
+    animation-delay: 0.38s;
   }
 
 
@@ -315,6 +338,8 @@ onBeforeUnmount(() => {
     font-weight: 700;
     color: #fff;
     padding: 1rem 0;
+    animation: sec-in 0.55s ease both;
+    animation-delay: 0.48s;
 
     .main {
       width: 100%;
@@ -427,6 +452,32 @@ onBeforeUnmount(() => {
     }
   }
 
+  &.is-leaving {
+    animation: page-out 0.38s ease forwards;
+    pointer-events: none;
+  }
+
+  .bg-fx {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+
+    .orb {
+      position: absolute;
+      left: calc(var(--i) * 11.5% - 2%);
+      bottom: -30px;
+      width: calc(8px + var(--i) * 2px);
+      height: calc(8px + var(--i) * 2px);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(251, 191, 36, 0.55) 0%, rgba(185, 28, 28, 0.25) 100%);
+      animation: orb-rise calc(7s + var(--i) * 0.6s) ease-in infinite;
+      animation-delay: calc(var(--i) * -1.1s);
+      opacity: 0;
+      will-change: transform, opacity;
+    }
+  }
 }
 
 .opening-float-wrap {
@@ -539,6 +590,50 @@ onBeforeUnmount(() => {
   100% {
     opacity: 0;
     transform: translateY(-50%) translateX(90px) scale(0.4);
+  }
+}
+
+@keyframes sec-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes page-out {
+  to {
+    opacity: 0;
+    transform: scale(0.97) translateY(-8px);
+  }
+}
+
+@keyframes card-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(185, 28, 28, 0);
+  }
+  50% {
+    box-shadow: 0 0 14px 3px rgba(185, 28, 28, 0.18);
+  }
+}
+
+@keyframes orb-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(1);
+  }
+  8% {
+    opacity: 0.65;
+  }
+  88% {
+    opacity: 0.25;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100vh) scale(0.6);
   }
 }
 </style>
