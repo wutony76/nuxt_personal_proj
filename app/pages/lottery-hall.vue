@@ -10,7 +10,7 @@ useHead({
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
     {
       rel: 'stylesheet',
-      href: 'https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=cwTeXKai&family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=Bebas+Neue&display=swap',
+      href: 'https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=cwTeXKai&family=JetBrains+Mono:wght@400;500&family=Bebas+Neue&display=swap',
     },
   ],
 })
@@ -171,14 +171,14 @@ onMounted(() => {
 }
 
 .hall-stage {
-  --red: #d11e2a;
-  --red-deep: #9a0a18;
+  --red: var(--color-red-main);
+  --red-deep: #7f1d1d;
   --red-wine: #5a0a14;
   --red-ink: #2e060c;
-  --red-bright: #e83a2c;
-  --gold: #f5c842;
-  --gold-deep: #c89530;
-  --gold-bright: #ffe066;
+  --red-bright: #b91c1c;
+  --gold: var(--color-gold);
+  --gold-deep: var(--color-gold);
+  --gold-bright: var(--color-yellow-black-btn);
   --paper: #fff5dc;
   --paper-2: #fbe7bd;
   --paper-3: #f5d59a;
@@ -201,7 +201,7 @@ onMounted(() => {
   padding: 16px 36px;
 
   &__inner {
-    max-width: 1440px;
+    max-width: var(--base-width);
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
@@ -270,7 +270,7 @@ onMounted(() => {
   overflow: hidden;
 
   &__inner {
-    max-width: 1440px;
+    max-width: var(--base-width);
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
@@ -393,7 +393,7 @@ onMounted(() => {
   flex: 1;
 
   &__head {
-    max-width: 1440px;
+    max-width: var(--base-width);
     margin: 0 auto 40px;
     display: grid;
     grid-template-columns: 100px 1fr 200px;
@@ -445,14 +445,14 @@ onMounted(() => {
 
   &__sub {
     font-size: 11px;
-    color: #8a4a3a;
+    color: var(--color-red-desc);
     letter-spacing: 0.35em;
     margin-top: 10px;
   }
 
   &__rt {
     font-size: 11px;
-    color: #a04030;
+    color: var(--color-red-desc);
     letter-spacing: 0.2em;
     text-align: right;
     line-height: 1.7;
@@ -460,7 +460,7 @@ onMounted(() => {
 }
 
 .games-grid {
-  max-width: 1440px;
+  max-width: var(--base-width);
   margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -512,11 +512,13 @@ onMounted(() => {
   }
 
   &__name {
-    font-size: 44px;
+    font-family: cursive;
+    font-size: 48px;
+    font-weight: 900;
     line-height: 1;
     color: var(--red-deep);
     margin-top: 8px;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.1em;
     position: relative;
     z-index: 1;
   }
