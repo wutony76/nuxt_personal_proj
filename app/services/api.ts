@@ -52,7 +52,7 @@ export type Lottery6hcRoadPlay = {
   colorY?: boolean
 }
 
-export type Lottery6hcOfCurrent = {
+export type Lottery6hcCurrent = {
   issueCurrent: string
   issueLatest: string
   currentStatus: string
@@ -202,13 +202,15 @@ export const api = {
     currentInfo: (lotteryId: string | number) => {
       const normalizedLotteryId = Number(lotteryId)
       switch (normalizedLotteryId) {
+        case LOTTERY['LHC-CD'].id:
+          return $fetch<Lottery6hcCurrent>('/api/lottery/6hc-cd/current')
         case LOTTERY['LHC-OF'].id:
-          return $fetch<Lottery6hcOfCurrent>('/api/lottery/6hc-of/current')
+          return $fetch<Lottery6hcCurrent>('/api/lottery/6hc-of/current')
         default:
           return null
       }
     },
-    current6hcOf: () => $fetch<Lottery6hcOfCurrent>('/api/lottery/6hc-of/current'),
+    current6hcOf: () => $fetch<Lottery6hcCurrent>('/api/lottery/6hc-of/current'),
     jackpot6hcOf: () => $fetch<{ issue: string; currentIssueJackpot: number; carryJackpot: number; jackpotBase: number; jackpotBaseSetAt: number }>('/api/lottery/6hc-of/jackpot'),
     road6hcOf: () => $fetch<{ plays: Lottery6hcRoadPlay[] }>('/api/lottery/6hc-of/road'),
     openCodeHistory6hcOf: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/6hc-of/opencode-history'),

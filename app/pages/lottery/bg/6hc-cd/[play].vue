@@ -1,56 +1,25 @@
-<script setup>
+<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useAuth } from '~/composables/useAuth'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { use6hcCredit } from '~/composables/use6hcCredit'
-import { api } from '~/services/api'
 import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
 import PlayPanel from '~/components/lottery/bg/6hc/cd/PlayPanel.vue'
+import Header from '~/components/lottery/bg/6hc/cd/block/Header.vue'
 
 const route = useRoute()
 const router = useRouter()
-const auth = useAuth()
 const credit = use6hcCredit()
+
 const state = reactive({
-  userName: '-',
-  userId: '-',
-  creditLimit: 784500000,
-  balanceLimit: 784500000,
-  drawLabel: '澳門6合彩',
-  issue: '2026044',
-  openCodes: ['23', '49', '35', '21', '46', '06'],
-  specialCode: '39',
-  countdownSeconds: 300,
-  countdownLabel: '00:05:00',
-  countdownTimer: null
+  entered: false,
+  leaving: false,
 })
 
 const playList = computed(() => credit.playList.value || [])
 const availableCodes = computed(() => credit.availableCodes.value || [])
 const canSubmit = computed(() => Boolean(credit.canSubmit.value))
-const playKeySet = computed(() => new Set(playList.value.map((item) => item.key)))
+const playKeySet = computed(() => new Set(playList.value.map((item: any) => item.key)))
 const routePlayKey = computed(() => String(route.params.play || '').toLowerCase())
-const ballClassMap = {
-  red: new Set(['01', '02', '07', '08', '12', '13', '18', '19', '23', '24', '29', '30', '34', '35', '40', '45', '46']),
-  blue: new Set(['03', '04', '09', '10', '14', '15', '20', '25', '26', '31', '36', '37', '41', '42', '47', '48']),
-  green: new Set(['05', '06', '11', '16', '17', '21', '22', '27', '28', '32', '33', '38', '39', '43', '44', '49'])
-}
-
-const _handlers = {
-  formatCountdown: (total) => {
-    const safeTotal = Number.isFinite(total) && total > 0 ? total : 0
-    const hour = String(Math.floor(safeTotal / 3600)).padStart(2, '0')
-    const minute = String(Math.floor((safeTotal % 3600) / 60)).padStart(2, '0')
-    const second = String(safeTotal % 60).padStart(2, '0')
-    return `${hour}:${minute}:${second}`
-  },
-  getBallClass: (code) => {
-    const normalized = String(code || '').padStart(2, '0')
-    if (ballClassMap.red.has(normalized)) return 'red'
-    if (ballClassMap.blue.has(normalized)) return 'blue'
-    return 'green'
-  }
-}
 
 const _actions = {
   syncPlayByRoute: async () => {
@@ -62,112 +31,72 @@ const _actions = {
     }
     await credit.actions.fetchPlayByKey(target)
   },
-  syncCountdown: () => {
-    state.countdownSeconds = Math.max(0, state.countdownSeconds - 1)
-    state.countdownLabel = _handlers.formatCountdown(state.countdownSeconds)
-    if (state.countdownSeconds === 0) {
-      state.countdownSeconds = 300
-      state.countdownLabel = _handlers.formatCountdown(state.countdownSeconds)
-    }
-  },
-  startCountdown: () => {
-    _actions.stopCountdown()
-    state.countdownLabel = _handlers.formatCountdown(state.countdownSeconds)
-    state.countdownTimer = setInterval(() => {
-      _actions.syncCountdown()
-    }, 1000)
-  },
-  stopCountdown: () => {
-    if (state.countdownTimer) {
-      clearInterval(state.countdownTimer)
-      state.countdownTimer = null
-    }
-  },
-  initUserInfo: async () => {
-    await auth.init()
-    state.userName = String(auth.user.value?.name || 'Guest')
-    state.userId = String(auth.user.value?.id || '-')
-    try {
-      const userInfo = await api.lottery.userInfo()
-      const coin = Number(userInfo?.coin ?? 0)
-      state.creditLimit = coin
-      state.balanceLimit = coin
-    } catch {
-      state.creditLimit = 784500000
-      state.balanceLimit = 784500000
-    }
-  }
 }
 
 watch(routePlayKey, async () => {
   await _actions.syncPlayByRoute()
 })
 
+onBeforeRouteLeave((_to, _from, next) => {
+  if (!state.entered) { next(); return }
+  state.leaving = true
+  setTimeout(() => next(), 380)
+})
+
 onMounted(async () => {
-  await _actions.initUserInfo()
+  await credit.actions.initUserInfo()
   await credit.actions.initPlay()
   await _actions.syncPlayByRoute()
-  _actions.startCountdown()
+  credit.actions.startCountdown()
+  state.entered = true
 })
 
 onBeforeUnmount(() => {
-  _actions.stopCountdown()
+  credit.actions.stopCountdown()
 })
 </script>
 
 <template>
-  <div class="base lottery-6hc-cd">
-    <LotteryBgBaseTop theme="blue" />
+  <div class="base lottery-6hc-cd" :class="{ 'is-leaving': state.leaving }">
+    <div class="bg-fx" aria-hidden="true">
+      <span v-for="i in 8" :key="i" class="orb" :style="`--i: ${i}`" />
+    </div>
+
+    <LotteryBgBaseTop />
+
     <main class="main">
+      <!-- DRAW HEADER -->
+      <Header />
+
+      <!-- CONTENT LAYOUT -->
       <section class="cd-layout">
+        <!-- MEMBER SIDEBAR -->
         <aside class="member-side">
           <article class="member-card">
-            <div class="member-head">{{ state.userName }}</div>
+            <div class="member-head">
+              <span class="member-head__name">{{ credit.wallet.userName }}</span>
+              <span class="member-head__tag">CREDIT</span>
+            </div>
             <div class="member-body">
               <div class="row">
-                <span>盤口類型：</span>
-                <strong>盤口A</strong>
+                <span class="label">盤口類型</span>
+                <strong>{{ credit.wallet.panType }}</strong>
               </div>
               <div class="row">
-                <span>信用額度：</span>
-                <strong>{{ Number(state.creditLimit || 0).toLocaleString() }}</strong>
+                <span class="label">信用額度</span>
+                <strong>{{ Number(credit.wallet.creditLimit || 0).toLocaleString() }}</strong>
               </div>
               <div class="row">
-                <span>剩餘額度：</span>
-                <strong>{{ Number(state.balanceLimit || 0).toLocaleString() }}</strong>
+                <span class="label">剩餘額度</span>
+                <strong class="accent">{{ Number(credit.wallet.balanceLimit || 0).toLocaleString() }}</strong>
               </div>
             </div>
-            <div class="member-id">USER_ID: {{ state.userId }}</div>
+            <div class="member-id">USER_ID: {{ credit.wallet.userId }}</div>
           </article>
         </aside>
 
+        <!-- PLAY AREA -->
         <section class="content-main">
-          <header class="draw-header">
-            <div class="draw-left">
-              <div class="draw-title">
-                <h1>{{ state.drawLabel }}</h1>
-                <span>第 {{ state.issue }} 期</span>
-              </div>
-              <div class="draw-balls">
-                <span
-                  v-for="code in state.openCodes"
-                  :key="`normal-${code}`"
-                  class="ball"
-                  :class="_handlers.getBallClass(code)">
-                  {{ code }}
-                </span>
-                <span class="plus-sign">+</span>
-                <span class="ball" :class="_handlers.getBallClass(state.specialCode)">
-                  {{ state.specialCode }}
-                </span>
-              </div>
-            </div>
-            <div class="draw-right">
-              <span>倒計時</span>
-              <strong>{{ state.countdownLabel }}</strong>
-            </div>
-          </header>
-
           <PlayTabs
             :plays="playList"
             :selected-key="credit.state.selectedPlayKey"
@@ -209,169 +138,156 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
 
-  >.main {
+  &.is-leaving {
+    animation: cd-page-out 0.38s ease forwards;
+    pointer-events: none;
+  }
+
+  .bg-fx {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+
+    .orb {
+      position: absolute;
+      left: calc(var(--i) * 11.5% - 2%);
+      bottom: -30px;
+      width: calc(8px + var(--i) * 2px);
+      height: calc(8px + var(--i) * 2px);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(251, 191, 36, 0.4) 0%, rgba(185, 28, 28, 0.2) 100%);
+      animation: cd-orb-rise calc(7s + var(--i) * 0.6s) ease-in infinite;
+      animation-delay: calc(var(--i) * -1.1s);
+      opacity: 0;
+      will-change: transform, opacity;
+    }
+  }
+
+  > .main {
+    position: relative;
+    z-index: 1;
     width: min(1360px, 97%);
     margin: 0.8rem auto 1.8rem;
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
+    gap: 0.75rem;
   }
 
+  // ── LAYOUT ─────────────────────────────────────────────────
   .cd-layout {
     display: grid;
-    grid-template-columns: 240px 1fr;
+    grid-template-columns: 230px 1fr;
     gap: 0.75rem;
-    min-height: 0;
+    animation: cd-sec-in 0.55s ease both;
+    animation-delay: 0.18s;
   }
 
-  .member-side {
-    min-height: 100%;
-  }
-
+  // ── MEMBER CARD ────────────────────────────────────────────
   .member-card {
-    border: 1px solid #d7dee7;
+    border: 1px solid var(--color-red-700, #b91c1c);
     border-radius: 8px;
-    background: #fff;
+    background: color-mix(in srgb, var(--color-red-main, #dc2626) 6%, #fff);
     overflow: hidden;
+    animation: cd-card-glow 3.5s ease-in-out infinite;
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #7f1d1d 0%, #c9a227 50%, #7f1d1d 100%);
+    }
   }
 
   .member-head {
-    padding: 0.65rem 0.8rem;
-    font-weight: 700;
-    color: #516b7d;
-    border-bottom: 1px solid #e7edf2;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #f6d9de;
+    padding: 0.5rem 0.75rem;
+
+    &__name {
+      font-family: 'cwTeXKai', 'Noto Serif TC', serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--color-red-main, #dc2626);
+      letter-spacing: 0.04em;
+    }
+
+    &__tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.22em;
+      color: #7f1d1d;
+      background: linear-gradient(90deg, rgba(201, 162, 39, 0.15), rgba(245, 208, 96, 0.2));
+      border: 1px solid rgba(201, 162, 39, 0.5);
+      border-radius: 3px;
+      padding: 1px 5px;
+    }
   }
 
   .member-body {
     padding: 0.65rem 0.8rem;
     display: grid;
-    gap: 0.45rem;
+    gap: 0.5rem;
 
     .row {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       gap: 0.5rem;
-      color: #6a7f8f;
       font-size: 0.8rem;
 
+      .label {
+        color: var(--color-red-desc, #a94452);
+      }
+
       strong {
-        color: #405564;
+        color: var(--color-red-main, #dc2626);
+        font-weight: 700;
+      }
+
+      .accent {
+        color: #b91c1c;
+        font-weight: 700;
       }
     }
   }
 
   .member-id {
-    border-top: 1px solid #e7edf2;
-    padding: 0.55rem 0.8rem;
-    font-size: 0.72rem;
-    color: #94a4b0;
+    border-top: 1px solid #f6d9de;
+    padding: 0.5rem 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--color-red-desc, #a94452);
+    letter-spacing: 0.04em;
   }
 
+  // ── PLAY AREA ──────────────────────────────────────────────
   .content-main {
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
-  }
-
-  .draw-header {
-    border: 1px solid #d7dee7;
-    border-radius: 8px;
-    background: #fff;
-    padding: 0.7rem 0.85rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.8rem;
-  }
-
-  .draw-left {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .draw-title {
-    h1 {
-      margin: 0;
-      font-size: 1rem;
-      color: #405564;
-    }
-
-    span {
-      display: block;
-      margin-top: 0.2rem;
-      color: #7c90a0;
-      font-size: 0.75rem;
-    }
-  }
-
-  .draw-balls {
-    display: flex;
-    align-items: center;
-    gap: 0.32rem;
-  }
-
-  .ball {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-weight: 700;
-    font-size: 0.9rem;
-
-    &.red {
-      background: #2d9fe2;
-    }
-
-    &.blue {
-      background: #459bd4;
-    }
-
-    &.green {
-      background: #6ab2e3;
-    }
-  }
-
-  .plus-sign {
-    color: #5f7483;
-    font-size: 1rem;
-    font-weight: 700;
-  }
-
-  .draw-right {
-    min-width: 140px;
-    border: 1px solid #e7edf2;
-    border-radius: 6px;
-    padding: 0.45rem 0.6rem;
-    text-align: right;
-    display: flex;
-    flex-direction: column;
-    gap: 0.22rem;
-
-    span {
-      color: #7f94a4;
-      font-size: 0.72rem;
-    }
-
-    strong {
-      color: #2f8fd1;
-      font-size: 1.1rem;
-    }
+    animation: cd-sec-in 0.55s ease both;
+    animation-delay: 0.28s;
   }
 
   .state-block {
-    color: #5f7483;
+    color: var(--color-red-desc, #a94452);
     font-weight: 700;
     padding: 0.8rem;
-    border: 1px solid #e7edf2;
+    border: 1px solid #fee2e2;
     border-radius: 6px;
     background: #fff;
 
     &.error {
-      color: #2f6d96;
+      color: #b91c1c;
     }
   }
 
@@ -379,11 +295,51 @@ onBeforeUnmount(() => {
     .cd-layout {
       grid-template-columns: 1fr;
     }
+  }
+}
 
-    .draw-header {
-      flex-direction: column;
-      align-items: flex-start;
-    }
+// ── KEYFRAMES ────────────────────────────────────────────────
+@keyframes cd-sec-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes cd-page-out {
+  to {
+    opacity: 0;
+    transform: scale(0.97) translateY(-8px);
+  }
+}
+
+@keyframes cd-card-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(185, 28, 28, 0);
+  }
+  50% {
+    box-shadow: 0 0 14px 3px rgba(185, 28, 28, 0.15);
+  }
+}
+
+@keyframes cd-orb-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(1);
+  }
+  8% {
+    opacity: 0.55;
+  }
+  88% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100vh) scale(0.6);
   }
 }
 </style>

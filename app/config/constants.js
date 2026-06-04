@@ -7,8 +7,8 @@ export const GAME_6HC_OF = {
 
 export const LOTTERY = {
   '6HC':{ id: 1001, key: '6HC', name: '六合彩', sort: 1 },
-  'LHC-CD':{ id: 100100, key: 'LHC-CD', name: '六合彩(CD)', sort: 100 },
-  'LHC-OF':{ id: 100101, key: 'LHC-OF', name: '六合彩(OF)', sort: 101 },
+  'LHC-CD':{ id: 100100, key: 'LHC-CD', name: '六合彩', sub:"CD", sort: 100 },
+  'LHC-OF':{ id: 100101, key: 'LHC-OF', name: '六合彩', sub:'OF', sort: 101 },
 
   'K3':{ id: 2001, key: 'K3', name: '快3', sort: 2 },
   'PK10':{ id: 3001, key: 'PK10', name: 'PK10', sort: 3 },

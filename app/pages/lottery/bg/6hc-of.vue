@@ -27,8 +27,8 @@ const router = useRouter()
 const { user, isLoggedIn, init } = useAuth()
 const { $dialog } = useNuxtApp()
 const state = reactive({
-  lotteryId: LOTTERY['6HC'].id,
-  lotteryInfo: GET_CONT.lotteryById(LOTTERY['6HC'].id),
+  lotteryId: LOTTERY['LHC-OF'].id,
+  lotteryInfo: GET_CONT.lotteryById(LOTTERY['LHC-OF'].id),
   userDialogVisible: false,
   openCodeDialogVisible: false,
   ruleDialogVisible: false,
@@ -598,6 +598,7 @@ onBeforeUnmount(() => {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: none;
@@ -612,9 +613,12 @@ onBeforeUnmount(() => {
 }
 
 @keyframes card-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(185, 28, 28, 0);
   }
+
   50% {
     box-shadow: 0 0 14px 3px rgba(185, 28, 28, 0.18);
   }
@@ -625,12 +629,15 @@ onBeforeUnmount(() => {
     opacity: 0;
     transform: translateY(0) scale(1);
   }
+
   8% {
     opacity: 0.65;
   }
+
   88% {
     opacity: 0.25;
   }
+
   100% {
     opacity: 0;
     transform: translateY(-100vh) scale(0.6);

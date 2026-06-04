@@ -1,7 +1,7 @@
 import { Storage } from './storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
-import OrdersClass from './orders'
 import { prdDbId } from './config'
+import LOTTERY_BASE from './lotteryBase'
 
 type OpenCodeRecord = {
   issue: string
@@ -115,17 +115,18 @@ const JACKPOT_BASE_MIN = Math.ceil(BASE_FIRST_PRIZE / BASE_PERCENT) + Math.ceil(
 const JACKPOT_BASE_MAX = BASE_FIRST_PRIZE * 7
 // 每注選 6 顆；開獎 7 顆（openCode[0..5]=正碼、openCode[6]=特別號）
 const ISSUE_PRIZE_TIERS: IssuePrizeTier[] = [
-  { normalMatch: 6, needSpecial: false, type: 'pool',  ratio: 0.70, minAmount: BASE_FIRST_PRIZE }, // 頭獎
-  { normalMatch: 5, needSpecial: true,  type: 'pool',  ratio: 0.20, minAmount: 50000 },             // 二獎（最低50000）
-  { normalMatch: 5, needSpecial: false, type: 'pool',  ratio: 0.10, minAmount: 3500 },              // 三獎（最低3500，高於四獎3000，避免逆序）
-  { normalMatch: 4, needSpecial: true,  type: 'fixed', amount: 3000 },                              // 四獎
+  { normalMatch: 6, needSpecial: false, type: 'pool', ratio: 0.70, minAmount: BASE_FIRST_PRIZE }, // 頭獎
+  { normalMatch: 5, needSpecial: true, type: 'pool', ratio: 0.20, minAmount: 50000 },             // 二獎（最低50000）
+  { normalMatch: 5, needSpecial: false, type: 'pool', ratio: 0.10, minAmount: 3500 },              // 三獎（最低3500，高於四獎3000，避免逆序）
+  { normalMatch: 4, needSpecial: true, type: 'fixed', amount: 3000 },                              // 四獎
   { normalMatch: 4, needSpecial: false, type: 'fixed', amount: 200 },                               // 五獎
-  { normalMatch: 3, needSpecial: true,  type: 'fixed', amount: 10 },                                // 六獎
+  { normalMatch: 3, needSpecial: true, type: 'fixed', amount: 10 },                                // 六獎
   { normalMatch: 3, needSpecial: false, type: 'fixed', amount: 5 },                                 // 七獎
 ]
 // ────────────────────────────────────────────────────────────────
 
 export default class LHC_OF {
+  key: string
   id: number
   recordOpenCode: OpenCodeRecord[]
   currentIndex: number
@@ -138,6 +139,7 @@ export default class LHC_OF {
   jackpotBaseSetAt: number
 
   constructor() {
+    this.key = 'LHC-OF'
     this.id = LOTTERY['LHC-OF'].id
     this.recordOpenCode = []
     this.currentIndex = -1
@@ -156,7 +158,7 @@ export default class LHC_OF {
     this.handle.prdOpenCode()
     Storage.games[LOTTERY['LHC-OF'].key] = this
     console.log('LHC_OF.init.success', this.recordOpenCode)
-    new OrdersClass({ id: LOTTERY['LHC-OF'].id, key: LOTTERY['LHC-OF'].key })
+    LOTTERY_BASE.getOrders(LOTTERY['LHC-OF'].id, LOTTERY['LHC-OF'].key)
   }
 
   circle() {
@@ -242,14 +244,7 @@ export default class LHC_OF {
       if (this.recordOpenCode.length === 0) return '19900101001'
       return this.recordOpenCode[this.currentIndex]?.issue ?? this.recordOpenCode[0]?.issue ?? '19900101001'
     },
-    orders: () => {
-      const key = LOTTERY['LHC-OF'].key
-      const map = Storage.lottery.orders as Record<string, OrdersClass | undefined>
-      if (!map[key]) {
-        map[key] = new OrdersClass({ id: LOTTERY['LHC-OF'].id, key })
-      }
-      return map[key] as OrdersClass
-    },
+    orders: () => LOTTERY_BASE.getOrders(LOTTERY['LHC-OF'].id, LOTTERY['LHC-OF'].key),
     user: (userId: string) => {
       return Storage.get.user(userId) as UserStoreLike
     },
@@ -346,7 +341,8 @@ export default class LHC_OF {
       const issue = this.recordOpenCode[this.currentIndex]?.issue ?? ''
       const currentIssueJackpot = Number(this.issueJackpotMap[issue] ?? 0)
       const carryJackpot = Number(this.carryJackpot ?? 0)
-      const totalReal = (this.jackpotBase + (currentIssueJackpot * JACKPOT_PERCENT) + carryJackpot) * BASE_PERCENT
+      const totalReal = LOTTERY_BASE.jackpotCalc(this.jackpotBase, currentIssueJackpot, carryJackpot, JACKPOT_PERCENT, BASE_PERCENT)
+
       if (totalReal < BASE_FIRST_PRIZE) this._handle.jackpotBase()
 
       return {
@@ -470,13 +466,12 @@ export default class LHC_OF {
   }
   _handle = {
     jackpotBase: () => {
-      const random = Math.floor(Math.random() * (JACKPOT_BASE_MAX - JACKPOT_BASE_MIN + 1)) + JACKPOT_BASE_MIN
+      const random = LOTTERY_BASE.jackpotBase(JACKPOT_BASE_MIN, JACKPOT_BASE_MAX)
       this.jackpotBase = random
       this.jackpotBaseSetAt = Date.now()
       return random
     }
   }
-
   handle = {
     ensureUserRecord: (user: UserStoreLike) => {
       if (!user.record) {
@@ -586,7 +581,7 @@ export default class LHC_OF {
         betCode: string[]
       }>
       const issuePool = Number(this.issueJackpotMap[safeIssue] ?? 0)
-      const totalPool = Number((this.jackpotBase + (issuePool * JACKPOT_PERCENT) + this.carryJackpot) * BASE_PERCENT)
+      const totalPool = LOTTERY_BASE.jackpotCalc(this.jackpotBase, issuePool, this.carryJackpot, JACKPOT_PERCENT, BASE_PERCENT)
       const evaluateRows = issueOrders.map((row) => {
         const { normalCount, hasSpecial } = this.handle.getMatchResult(row.betCode, openCode)
         return { ...row, normalCount, hasSpecial, payout: 0 }
@@ -696,10 +691,7 @@ export default class LHC_OF {
     },
     createOrderId: (issue: string) => {
       const safeIssue = String(issue ?? '').trim() || this._get.latestIssue()
-      const next = Number(this.issueOrderSeqMap[safeIssue] ?? 0) + 1
-      this.issueOrderSeqMap[safeIssue] = next
-      const serial = String(next).padStart(6, '0')
-      return `LHC-OF${safeIssue}${serial}`
+      return LOTTERY_BASE.createOrderId('LHC-OF', this.issueOrderSeqMap, safeIssue)
     },
     buildOrderRows: (input: { issue: string; userId: string; amount: number; groups: any[] }) => {
       const groups = Array.isArray(input.groups) ? input.groups : []
@@ -711,11 +703,7 @@ export default class LHC_OF {
       const unitCoin = totalBetCount > 0 ? Number(input.amount) / totalBetCount : 0
       const betTime = Date.now()
 
-      const toCode = (play: any): string => {
-        const num = Number(play?.num ?? play?.label)
-        if (!Number.isFinite(num) || num <= 0) return ''
-        return String(num).padStart(2, '0')
-      }
+      const toCode = (play: any): string => LOTTERY_BASE.normalizeBetCode(play)
 
       return groups.map((group: any, idx: number) => {
         const playList = Array.isArray(group?.playList) ? group.playList : []
