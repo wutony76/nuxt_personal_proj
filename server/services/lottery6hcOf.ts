@@ -425,7 +425,7 @@ export default class LHC_OF {
       // if (sec < 340) return STATUS_TIME.PREPARE_CLOSE_1
       if (sec < 350) return STATUS_TIME.CLOSED
       if (sec < 360) return STATUS_TIME.PREPARE_OPEN
-      if (sec < 375) return STATUS_TIME.OPENING
+      if (sec < 400) return STATUS_TIME.OPENING
       return STATUS_TIME.OPENED
     },
     formatCountdown: (seconds: number) => {
@@ -447,7 +447,7 @@ export default class LHC_OF {
       else if (sec < 340) endSec = 340
       else if (sec < 350) endSec = 350
       else if (sec < 360) endSec = 360
-      else if (sec < 375) endSec = 375
+      else if (sec < 400) endSec = 400
       return record.startAt + endSec * 1000
     }
   }

@@ -122,20 +122,20 @@ watch(isOpening, (opening) => {
 const openingElapsedMs = computed(() => {
   if (!isOpening.value || !time.statusEndAt) return 0
   const remainMs = Math.max(0, time.statusEndAt - openingNowMs.value)
-  return Math.max(0, 15000 - remainMs)
+  return Math.max(0, 40000 - remainMs)
 })
 
 // 開出 index 集合（0-6）：順序 1,2,3 → 4 → 5 → 7特別號 → 6
 const openingRevealedIndices = computed(() => {
   const e = openingElapsedMs.value
   const s = new Set<number>()
-  if (e >= 6000)  s.add(0)
-  if (e >= 6350)  s.add(1)
-  if (e >= 6700)  s.add(2)
-  if (e >= 7500)  s.add(3)
-  if (e >= 9500)  s.add(4)
-  if (e >= 12000) s.add(6)
-  if (e >= 15000) s.add(5)
+  if (e >= 9571)  s.add(0)
+  if (e >= 13493) s.add(1)
+  if (e >= 17414) s.add(2)
+  if (e >= 21786) s.add(3)
+  if (e >= 27357) s.add(4)
+  if (e >= 33429) s.add(6)
+  if (e >= 37000) s.add(5)
   return s
 })
 
