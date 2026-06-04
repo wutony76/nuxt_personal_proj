@@ -30,16 +30,24 @@ const ROUTE_DICT: Record<string, string> = {
 
 const state = reactive({
   list: [] as LobbyItem[],
+  leaving: false,
 })
+
+const _handlers = {
+  enterDelay: (base: number, idx: number, step = 0.12) => `${base + idx * step}s`,
+}
 
 const init = () => {
   state.list = GET_CONT.lotteryAll()
 }
 
 const click = {
-  start: (key: string) => {
+  start: async (key: string) => {
+    if (state.leaving) return
     const target = ROUTE_DICT[key]
     if (!target) return
+    state.leaving = true
+    await new Promise<void>(resolve => setTimeout(resolve, 500))
     router.push(target)
   },
 }
@@ -50,7 +58,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="hall-stage">
+  <main class="hall-stage" :class="{ 'is-leaving': state.leaving }">
     <!-- TOP BAR -->
     <header class="hall-top">
       <div class="hall-top__inner">
@@ -70,15 +78,23 @@ onMounted(() => {
 
     <!-- HERO -->
     <section class="hall-hero">
+      <div class="hall-hero__particles">
+        <span v-for="i in 10" :key="i" class="hall-hero__particle" />
+      </div>
       <div class="hall-hero__inner">
         <div class="hall-hero__text">
           <div class="hall-hero__zh">彩 票 大 廳</div>
-          <div class="hall-hero__line"></div>
+          <div class="hall-hero__line" />
           <div class="mono hall-hero__en">LOTTERY · HALL · ALL GAMES · 2026</div>
           <div class="mono hall-hero__tagline">凡 局 皆 成 勢 · 萬 數 自 歸 平</div>
         </div>
         <div class="hall-hero__icons">
-          <div v-for="item in state.list" :key="item.key" class="hall-hero__icon">
+          <div
+            v-for="(item, idx) in state.list"
+            :key="item.key"
+            class="hall-hero__icon"
+            :style="`--enter-delay: ${_handlers.enterDelay(0.55, idx, 0.15)}`"
+          >
             <div class="brush hall-hero__dot">{{ item.name.charAt(0) }}</div>
             <div class="hall-hero__icon-txt">
               <b class="brush">{{ item.name }}</b>
@@ -113,7 +129,12 @@ onMounted(() => {
       </div>
 
       <div class="games-grid">
-        <div v-for="(item, idx) in state.list" :key="item.key" class="gc">
+        <div
+          v-for="(item, idx) in state.list"
+          :key="item.key"
+          class="gc"
+          :style="`--enter-delay: ${_handlers.enterDelay(1.05, idx, 0.14)}`"
+        >
           <div class="brush gc__big-num">{{ CHINESE_NUMS[idx] || '' }}</div>
           <div class="mono gc__meta">L · {{ String(idx + 1).padStart(2, '0') }} / {{ item.key }}</div>
           <h3 class="brush gc__name">{{ item.name }}</h3>
@@ -137,13 +158,25 @@ onMounted(() => {
     <!-- TICKER -->
     <div class="ticker">
       <span class="bebas ticker__lbl">▍ TICKER</span>
-      <span class="ticker__item">官方 × 信用 同期同彩</span>
-      <span class="ticker__div">◆</span>
-      <span class="ticker__item">即時賠率比對</span>
-      <span class="ticker__div">◆</span>
-      <span class="ticker__item">OFFICIAL × CREDIT · 2026</span>
-      <span class="ticker__div">◆</span>
-      <span class="ticker__item"> DUI CHONG JU</span>
+      <div class="ticker__band">
+        <div class="ticker__track">
+          <span class="ticker__item">官方 × 信用 同期同彩</span>
+          <span class="ticker__div">◆</span>
+          <span class="ticker__item">即時賠率比對</span>
+          <span class="ticker__div">◆</span>
+          <span class="ticker__item">OFFICIAL × CREDIT · 2026</span>
+          <span class="ticker__div">◆</span>
+          <span class="ticker__item">DUI CHONG JU</span>
+          <span class="ticker__div">◆ ◆ ◆</span>
+          <span class="ticker__item">官方 × 信用 同期同彩</span>
+          <span class="ticker__div">◆</span>
+          <span class="ticker__item">即時賠率比對</span>
+          <span class="ticker__div">◆</span>
+          <span class="ticker__item">OFFICIAL × CREDIT · 2026</span>
+          <span class="ticker__div">◆</span>
+          <span class="ticker__item">DUI CHONG JU</span>
+        </div>
+      </div>
     </div>
 
     <!-- FOOTER -->
@@ -170,19 +203,80 @@ onMounted(() => {
   font-variant-numeric: tabular-nums;
 }
 
+// ===== KEYFRAMES =====
+@keyframes slideDown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+@keyframes fadeSlideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes leaveStage {
+  0%   { opacity: 1; transform: scale(1);    filter: brightness(1); }
+  25%  {             transform: scale(1.01); filter: brightness(1.6); }
+  100% { opacity: 0; transform: scale(1.03); filter: brightness(0.3); }
+}
+
+@keyframes shimmerText {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-7px); }
+}
+
+@keyframes lineExpand {
+  from { width: 0;    opacity: 0; }
+  to   { width: 80px; opacity: 1; }
+}
+
+@keyframes dotGlow {
+  0%, 100% { box-shadow: 0 0 0 2px var(--gold), 0 4px 8px rgba(0,0,0,.3); }
+  50%       { box-shadow: 0 0 0 2px var(--gold), 0 4px 16px rgba(0,0,0,.4), 0 0 22px 4px rgba(245,200,66,.45); }
+}
+
+@keyframes particleRise {
+  0%   { transform: translateY(0)     scale(1);   opacity: 0; }
+  12%  {                                           opacity: .9; }
+  88%  {                                           opacity: .35; }
+  100% { transform: translateY(-130px) scale(.25); opacity: 0; }
+}
+
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes cdShimmer {
+  0%        { left: -80%; opacity: 0; }
+  5%        {              opacity: 1; }
+  45%, 100% { left: 160%; opacity: 0; }
+}
+
+// ===== STAGE =====
 .hall-stage {
-  --red: var(--color-red-main);
-  --red-deep: #7f1d1d;
-  --red-wine: #5a0a14;
-  --red-ink: #2e060c;
+  --red:        var(--color-red-main);
+  --red-deep:   #7f1d1d;
+  --red-wine:   #5a0a14;
+  --red-ink:    #2e060c;
   --red-bright: #b91c1c;
-  --gold: var(--color-gold);
-  --gold-deep: var(--color-gold);
-  --gold-bright: var(--color-yellow-black-btn);
-  --paper: #fff5dc;
-  --paper-2: #fbe7bd;
-  --paper-3: #f5d59a;
-  --ivory: #fff9e8;
+  --gold:       var(--color-gold);
+  --gold-deep:  var(--color-gold);
+  --gold-bright:var(--color-yellow-black-btn);
+  --paper:      #fff5dc;
+  --paper-2:    #fbe7bd;
+  --paper-3:    #f5d59a;
+  --ivory:      #fff9e8;
 
   width: 100%;
   min-height: 100vh;
@@ -192,6 +286,11 @@ onMounted(() => {
   -webkit-font-smoothing: antialiased;
   display: flex;
   flex-direction: column;
+
+  &.is-leaving {
+    animation: leaveStage 0.55s ease-in forwards;
+    pointer-events: none;
+  }
 }
 
 // ===== TOP BAR =====
@@ -199,6 +298,7 @@ onMounted(() => {
   background: var(--red-ink);
   border-bottom: 2px solid var(--gold);
   padding: 16px 36px;
+  animation: slideDown 0.65s cubic-bezier(.22,.68,0,1.2) both;
 
   &__inner {
     max-width: var(--base-width);
@@ -221,9 +321,7 @@ onMounted(() => {
     text-decoration: none;
     transition: color 0.2s;
 
-    &:hover {
-      color: var(--gold-bright);
-    }
+    &:hover { color: var(--gold-bright); }
   }
 
   &__brand {
@@ -247,15 +345,25 @@ onMounted(() => {
     margin-top: 3px;
   }
 
-  &__right {
-    text-align: right;
-  }
+  &__right { text-align: right; }
 
   &__title {
     font-size: 48px;
-    color: var(--gold-bright);
     line-height: 0.95;
     letter-spacing: 0.04em;
+    background: linear-gradient(
+      90deg,
+      var(--gold-bright) 0%,
+      #fffef2 38%,
+      var(--gold-bright) 52%,
+      var(--gold-bright) 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    animation: shimmerText 3.5s linear 1s infinite;
   }
 }
 
@@ -268,6 +376,32 @@ onMounted(() => {
   padding: 60px 36px 70px;
   position: relative;
   overflow: hidden;
+  animation: fadeIn 0.7s ease-out 0.2s both;
+
+  &__particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  &__particle {
+    position: absolute;
+    border-radius: 50%;
+    background: var(--gold-bright);
+    animation: particleRise 8s ease-in-out infinite;
+
+    &:nth-child(1)  { left:  8%; bottom: 10%; width: 4px; height: 4px; animation-delay:  0s; }
+    &:nth-child(2)  { left: 20%; bottom:  5%; width: 6px; height: 6px; animation-delay:  1.4s; }
+    &:nth-child(3)  { left: 35%; bottom: 20%; width: 3px; height: 3px; animation-delay:  2.8s; }
+    &:nth-child(4)  { left: 50%; bottom:  8%; width: 5px; height: 5px; animation-delay:  0.7s; }
+    &:nth-child(5)  { left: 62%; bottom: 28%; width: 3px; height: 3px; animation-delay:  3.5s; }
+    &:nth-child(6)  { left: 77%; bottom: 14%; width: 4px; height: 4px; animation-delay:  1.9s; }
+    &:nth-child(7)  { left: 88%; bottom: 32%; width: 3px; height: 3px; animation-delay:  4.2s; }
+    &:nth-child(8)  { left: 14%; bottom: 42%; width: 3px; height: 3px; animation-delay:  5.1s; }
+    &:nth-child(9)  { left: 44%; bottom: 48%; width: 5px; height: 5px; animation-delay:  2.2s; }
+    &:nth-child(10) { left: 70%; bottom: 50%; width: 4px; height: 4px; animation-delay:  6.0s; }
+  }
 
   &__inner {
     max-width: var(--base-width);
@@ -277,12 +411,15 @@ onMounted(() => {
     align-items: center;
     flex-wrap: wrap;
     gap: 40px;
+    position: relative;
+    z-index: 1;
   }
 
   &__text {
     display: flex;
     flex-direction: column;
     gap: 14px;
+    animation: fadeSlideUp 0.7s ease-out 0.38s both;
   }
 
   &__zh {
@@ -292,12 +429,14 @@ onMounted(() => {
     line-height: 0.9;
     letter-spacing: 0.14em;
     color: var(--gold-bright);
+    animation: heroFloat 5s ease-in-out 1.6s infinite;
   }
 
   &__line {
     width: 80px;
     height: 1.5px;
     background: var(--gold);
+    animation: lineExpand 0.9s ease-out 0.7s both;
   }
 
   &__en {
@@ -323,6 +462,7 @@ onMounted(() => {
     display: flex;
     gap: 12px;
     align-items: center;
+    animation: fadeSlideUp 0.5s ease-out var(--enter-delay, 0.55s) both;
   }
 
   &__dot {
@@ -335,8 +475,9 @@ onMounted(() => {
     place-items: center;
     font-size: 24px;
     border: 2px solid var(--red-deep);
-    box-shadow: 0 0 0 2px var(--gold), 0 4px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 0 2px var(--gold), 0 4px 8px rgba(0,0,0,.3);
     flex-shrink: 0;
+    animation: dotGlow 3s ease-in-out 2s infinite;
   }
 
   &__icon-txt {
@@ -366,6 +507,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: fadeSlideUp 0.5s ease-out 0.78s both;
 
   &__inner {
     display: flex;
@@ -399,6 +541,7 @@ onMounted(() => {
     grid-template-columns: 100px 1fr 200px;
     align-items: end;
     gap: 28px;
+    animation: fadeSlideUp 0.55s ease-out 0.9s both;
   }
 
   &__lt {
@@ -426,9 +569,7 @@ onMounted(() => {
       margin: 0 auto 16px;
     }
 
-    &::after {
-      margin: 16px auto 0;
-    }
+    &::after { margin: 16px auto 0; }
 
     h2 {
       font-size: 72px;
@@ -437,9 +578,7 @@ onMounted(() => {
       letter-spacing: 0.04em;
       white-space: nowrap;
 
-      .gold {
-        color: var(--gold-deep);
-      }
+      .gold { color: var(--gold-deep); }
     }
   }
 
@@ -476,6 +615,13 @@ onMounted(() => {
   min-height: 340px;
   display: flex;
   flex-direction: column;
+  animation: fadeSlideUp 0.6s ease-out var(--enter-delay, 1.05s) both;
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 18px 50px rgba(0,0,0,.18), 0 0 0 1.5px var(--red-bright);
+  }
 
   &::before {
     content: '';
@@ -485,10 +631,10 @@ onMounted(() => {
     right: 0;
     height: 6px;
     background: repeating-linear-gradient(90deg,
-        var(--red) 0 12px,
-        var(--gold) 12px 14px,
-        var(--red) 14px 26px,
-        var(--gold) 26px 28px);
+      var(--red) 0 12px,
+      var(--gold) 12px 14px,
+      var(--red) 14px 26px,
+      var(--gold) 26px 28px);
   }
 
   &__big-num {
@@ -571,8 +717,9 @@ onMounted(() => {
     padding: 14px 10px;
     border: 1.5px solid;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.22s;
     background: transparent;
+    position: relative;
 
     &--of {
       border-color: var(--red-deep);
@@ -582,9 +729,7 @@ onMounted(() => {
         background: var(--red-deep);
         color: var(--paper);
 
-        .gc__mode-tag {
-          color: var(--paper-3);
-        }
+        .gc__mode-tag { color: var(--paper-3); }
       }
     }
 
@@ -592,14 +737,22 @@ onMounted(() => {
       border-color: var(--gold-deep);
       color: var(--red-ink);
       background: var(--gold);
+      overflow: hidden;
 
-      &:hover {
-        background: var(--gold-bright);
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -80%;
+        width: 50%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent);
+        animation: cdShimmer 3.2s ease-in-out 2.5s infinite;
       }
 
-      .gc__mode-tag {
-        color: #8a4a3a;
-      }
+      &:hover { background: var(--gold-bright); }
+
+      .gc__mode-tag { color: #8a4a3a; }
     }
   }
 
@@ -624,23 +777,40 @@ onMounted(() => {
   padding: 14px 36px;
   display: flex;
   align-items: center;
-  gap: 24px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   color: var(--paper-2);
   letter-spacing: 0.15em;
-  flex-wrap: wrap;
+  overflow: hidden;
+  animation: fadeIn 0.5s ease-out 1.5s both;
 
   &__lbl {
     font-family: 'Bebas Neue', sans-serif;
     font-size: 16px;
     letter-spacing: 0.25em;
     color: var(--gold-bright);
+    flex-shrink: 0;
+    margin-right: 24px;
   }
 
-  &__div {
-    color: var(--gold);
+  &__band {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
   }
+
+  &__track {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    width: max-content;
+    white-space: nowrap;
+    animation: tickerScroll 24s linear infinite;
+  }
+
+  &__div { color: var(--gold); }
 }
 
 // ===== FOOTER =====
@@ -655,9 +825,8 @@ onMounted(() => {
   font-size: 10px;
   letter-spacing: 0.25em;
   border-top: 1px solid var(--gold);
+  animation: fadeIn 0.5s ease-out 1.6s both;
 
-  &__copy {
-    color: var(--gold);
-  }
+  &__copy { color: var(--gold); }
 }
 </style>
