@@ -2,19 +2,40 @@
   <Transition name="bg-panel">
     <div v-if="active" class="bg-auto-panel-warp">
       <div class="bg-auto-panel-inner">
-        <Auto />
-        <Chat />
+        <component :is="AutoComp" />
+        <component :is="ChatComp" />
       </div>
     </div>
   </Transition>
 </template>
 
 <script setup lang="ts">
+import { computed, defineAsyncComponent } from 'vue'
 import { useBgAutoActive } from '~/composables/useBgAutoActive'
-import Auto from '~/components/lottery/bg/6hc/of/block/footer/Auto.vue'
-import Chat from '~/components/lottery/bg/6hc/of/block/footer/Chat.vue'
 
-const { active } = useBgAutoActive()
+const { active, lotteryType } = useBgAutoActive()
+
+const AUTO_COMPS = {
+  'of': defineAsyncComponent(() => import('~/components/lottery/bg/6hc/of/block/footer/Auto.vue')),
+  'cd': defineAsyncComponent(() => import('~/components/lottery/bg/6hc/cd/block/footer/Auto.vue')),
+}
+
+const CHAT_COMPS = {
+  'of': defineAsyncComponent(() => import('~/components/lottery/bg/6hc/of/block/footer/Chat.vue')),
+  'cd': defineAsyncComponent(() => import('~/components/lottery/bg/6hc/cd/block/footer/Chat.vue')),
+}
+
+const AutoComp = computed(() => {
+  if (lotteryType.value === '6hc-of') return AUTO_COMPS['of']
+  if (lotteryType.value === '6hc-cd') return AUTO_COMPS['cd']
+  return null
+})
+
+const ChatComp = computed(() => {
+  if (lotteryType.value === '6hc-of') return CHAT_COMPS['of']
+  if (lotteryType.value === '6hc-cd') return CHAT_COMPS['cd']
+  return null
+})
 </script>
 
 <style lang="scss">

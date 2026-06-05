@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { use6hcCredit } from '~/composables/use6hcCredit'
+import { useBgAutoActive } from '~/composables/useBgAutoActive'
 import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
 import PlayPanel from '~/components/lottery/bg/6hc/cd/PlayPanel.vue'
 import Header from '~/components/lottery/bg/6hc/cd/block/Header.vue'
@@ -9,6 +10,7 @@ import Header from '~/components/lottery/bg/6hc/cd/block/Header.vue'
 const route = useRoute()
 const router = useRouter()
 const credit = use6hcCredit()
+const { activate, deactivate } = useBgAutoActive()
 
 const state = reactive({
   entered: false,
@@ -48,11 +50,13 @@ onMounted(async () => {
   await credit.actions.initPlay()
   await _actions.syncPlayByRoute()
   credit.actions.startCountdown()
+  activate('6hc-cd')
   state.entered = true
 })
 
 onBeforeUnmount(() => {
   credit.actions.stopCountdown()
+  deactivate()
 })
 </script>
 

@@ -24,7 +24,7 @@ const use6hc = use6hcOfficial()
 const { fetch: mxFetch } = use6hc
 const router = useRouter()
 const { user, isLoggedIn, init } = useAuth()
-const { activate } = useBgAutoActive()
+const { activate, deactivate } = useBgAutoActive()
 const { $dialog } = useNuxtApp()
 const state = reactive({
   lotteryId: LOTTERY['LHC-OF'].id,
@@ -126,12 +126,13 @@ onMounted(async () => {
   const userId = String(user.value?.id ?? '')
   await use6hc.init.startServerTimeSync()
   await mxFetch.initPageData(userId)
-  activate()
+  activate('6hc-of')
   state.entered = true
 })
 
 onBeforeUnmount(() => {
   mxFetch.stopOrderDetailSync()
+  deactivate()
 })
 
 </script>
