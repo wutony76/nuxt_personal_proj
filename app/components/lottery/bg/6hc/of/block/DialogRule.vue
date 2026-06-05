@@ -49,7 +49,7 @@ const timeline = [
   { range: '5 分 40 秒', status: '已封盤', desc: '停止接受投注' },
   { range: '5 分 50 秒', status: '準備開獎', desc: '系統整理當期注單' },
   { range: '6 分 00 秒', status: '正在開獎中', desc: '隨機攪出 7 顆號碼' },
-  { range: '6 分 15 秒 後', status: '已開獎', desc: '結算完成，可查閱結果' },
+  { range: '6 分 40 秒 後', status: '已開獎', desc: '結算完成，可查閱結果' },
 ]
 
 const playTypes = [
@@ -100,7 +100,7 @@ const playTypes = [
 
         <!-- 每期時間流程 -->
         <div id="section-timeline" class="rule-section">
-          <h4 class="rule-title">每期時間流程（共 7 分鐘）</h4>
+          <h4 class="rule-title">遊戲流程（共 7 分鐘）</h4>
           <div class="timeline-table-wrap">
             <table class="rule-table">
               <colgroup>
@@ -143,8 +143,12 @@ const playTypes = [
         <!-- 中獎分級 -->
         <div id="section-prize" class="rule-section">
           <h4 class="rule-title">獎金結構</h4>
-          <p class="rule-note">頭/二/三獎為獎池制，依下注金額比例分配；頭獎每人最低 200,000、二獎最低 50,000、三獎最低 3,500。四至七獎為固定金額 × 下注額。</p>
-          <div class="prize-pool-rows" v-if="jackpotBase > 0 || totalPool > 0">
+          <p class="rule-note">
+            頭/二/三獎為獎池制，依下注金額比例分配；<br>
+            頭獎每人最低 200,000、二獎最低 50,000、三獎最低 3,500。<br>
+            四至七獎為固定金額 × 注數。
+          </p>
+          <!-- <div class="prize-pool-rows" v-if="jackpotBase > 0 || totalPool > 0">
             <div class="prize-pool-row">
               <span class="pool-label">池底金額</span>
               <span class="pool-value pool-value-base">{{ jackpotBase.toLocaleString('zh-TW', {
@@ -168,7 +172,7 @@ const playTypes = [
                 maximumFractionDigits: 2
               }) }} F幣</span>
             </div>
-          </div>
+          </div> -->
           <div class="prize-table-wrap">
             <table class="rule-table prize-table">
               <colgroup>
