@@ -7,6 +7,18 @@ const { state: mxState, danSelector, tuoSelector } = use6hcOfficial()
 
 const dantuoMode = ref<'dan' | 'tuo'>('dan')
 
+const _all1to49Selected = computed(() =>
+  mxState.playList
+    .filter((p: any) => p.id !== 50)
+    .every((p: any) => p.selected)
+)
+
+watch(_all1to49Selected, (allSelected) => {
+  if (mxState.status !== GAME_6HC_OF.DUPLEX.key) return
+  const ball50 = mxState.playList.find((p: any) => p.id === 50)
+  if (ball50) ball50.selected = allSelected
+})
+
 const selectedCount = computed(() => {
   if (mxState.status === GAME_6HC_OF.DANTUO.key) {
     return `膽:${danSelector.value.length} 拖:${tuoSelector.value.length}`

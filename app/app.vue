@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from './composables/useAuth'
 import Dialog from './components/Dialog.vue'
+import BgAutoPanel from './components/lottery/bg/BgAutoPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -36,5 +37,6 @@ const handleLogout = async () => {
       <NuxtPage />
     </NuxtLayout>
     <Dialog />
+    <BgAutoPanel />
   </div>
 </template>

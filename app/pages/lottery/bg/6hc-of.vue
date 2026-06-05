@@ -18,13 +18,13 @@ import DialogRule from '~/components/lottery/bg/6hc/of/block/DialogRule.vue'
 import BarTabs from '~/components/lottery/bg/6hc/of/base/BarTabs.vue'
 import IssueBlock from '~/components/lottery/bg/6hc/of/block/record/Issue.vue'
 import AnalyzeBlock from '~/components/lottery/bg/6hc/of/block/record/Analyze.vue'
-import Auto from '~/components/lottery/bg/6hc/of/block/footer/Auto.vue'
-import Chat from '~/components/lottery/bg/6hc/of/block/footer/Chat.vue'
+import { useBgAutoActive } from '~/composables/useBgAutoActive'
 
 const use6hc = use6hcOfficial()
 const { fetch: mxFetch } = use6hc
 const router = useRouter()
 const { user, isLoggedIn, init } = useAuth()
+const { activate } = useBgAutoActive()
 const { $dialog } = useNuxtApp()
 const state = reactive({
   lotteryId: LOTTERY['LHC-OF'].id,
@@ -126,12 +126,11 @@ onMounted(async () => {
   const userId = String(user.value?.id ?? '')
   await use6hc.init.startServerTimeSync()
   await mxFetch.initPageData(userId)
+  activate()
   state.entered = true
 })
 
 onBeforeUnmount(() => {
-  use6hc.init.stopServerTimeSync()
-  mxFetch.stopCurrentInfoPolling()
   mxFetch.stopOrderDetailSync()
 })
 
@@ -177,13 +176,6 @@ onBeforeUnmount(() => {
         <AnalyzeBlock />
       </section>
     </main>
-    <section class="footer-warp">
-      <div class="main">
-        <Auto />
-        <Chat />
-      </div>
-    </section>
-
     <Transition name="float-btn">
       <div v-if="showFloatingBtn" class="opening-float-wrap">
         <button class="opening-float-btn" type="button" @click="scrollToHeader" aria-label="前往開獎">
@@ -325,31 +317,6 @@ onBeforeUnmount(() => {
     animation-delay: 0.38s;
   }
 
-
-  .footer-warp {
-    display: flex;
-    align-items: stretch;
-    justify-content: center;
-    margin-top: 1.2rem;
-    min-height: 300px;
-    background: #e1d4d4;
-    border-top: 1px solid #dcb4b4;
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: #fff;
-    padding: 1rem 0;
-    animation: sec-in 0.55s ease both;
-    animation-delay: 0.48s;
-
-    .main {
-      width: 100%;
-      max-width: var(--base-width);
-      margin: 0 auto;
-      display: flex;
-      align-items: stretch;
-      gap: 0.75rem;
-    }
-  }
 
   .user-dialog-mask {
     position: fixed;
