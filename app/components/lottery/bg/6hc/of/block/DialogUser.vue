@@ -101,8 +101,8 @@ function isBallHit(code: string, openCode: string[]): boolean {
       </header>
 
       <div class="user-dialog-summary">
-        <div>當期累積獎金：{{ actions.thousands(data.jackpot.currentIssueJackpot) }}</div>
-        <div>累積滾存獎金：{{ actions.thousands(data.jackpot.carryJackpot) }}</div>
+        <div>當期累積獎池金額：{{ actions.thousands(data.jackpot.currentIssueJackpot) }}</div>
+        <div>累積滾存獎池金額：{{ actions.thousands(data.jackpot.carryJackpot) }}</div>
         <div>可領獎期數：{{ data.claimableIssues.length }}</div>
         <button type="button" class="claim-btn" :disabled="data.claimableIssues.length === 0 || data.isSubmittingClaim"
           @click="emit('claim')">
@@ -134,7 +134,7 @@ function isBallHit(code: string, openCode: string[]): boolean {
                     <th class="sortable-th" @click="toggleBalanceTimeSort">
                       時間
                       <span class="sort-icon">{{ !balanceSortActive ? '⇅' : balanceSortOrder === 'asc' ? '↑' : '↓'
-                      }}</span>
+                        }}</span>
                     </th>
                     <th>期數</th>
                     <th>類型</th>
@@ -191,7 +191,7 @@ function isBallHit(code: string, openCode: string[]): boolean {
                     <th class="sortable-th" @click="toggleSort('orderId')">
                       注單序號
                       <span class="sort-icon">{{ betSortField === 'orderId' ? (betSortOrder === 'asc' ? '↑' : '↓') : '⇅'
-                        }}</span>
+                      }}</span>
                     </th>
                     <th>投注期數</th>
                     <th>投注號碼</th>
