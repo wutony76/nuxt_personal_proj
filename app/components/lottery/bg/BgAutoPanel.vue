@@ -2,40 +2,26 @@
   <Transition name="bg-panel">
     <div v-if="active" class="bg-auto-panel-warp">
       <div class="bg-auto-panel-inner">
-        <component :is="AutoComp" />
-        <component :is="ChatComp" />
+        <OfAuto v-if="lotteryType === '6hc-of'" />
+        <CdAuto v-else-if="lotteryType === '6hc-cd'" />
+        <OfChat v-if="lotteryType === '6hc-of'" />
+        <CdChat v-else-if="lotteryType === '6hc-cd'" />
       </div>
     </div>
   </Transition>
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { useBgAutoActive } from '~/composables/useBgAutoActive'
 
 const { active, lotteryType } = useBgAutoActive()
 
-const AUTO_COMPS = {
-  'of': defineAsyncComponent(() => import('~/components/lottery/bg/6hc/of/block/footer/Auto.vue')),
-  'cd': defineAsyncComponent(() => import('~/components/lottery/bg/6hc/cd/block/footer/Auto.vue')),
-}
+const OfAuto = defineAsyncComponent(() => import('~/components/lottery/bg/6hc/of/block/footer/Auto.vue'))
+const OfChat = defineAsyncComponent(() => import('~/components/lottery/bg/6hc/of/block/footer/Chat.vue'))
 
-const CHAT_COMPS = {
-  'of': defineAsyncComponent(() => import('~/components/lottery/bg/6hc/of/block/footer/Chat.vue')),
-  'cd': defineAsyncComponent(() => import('~/components/lottery/bg/6hc/cd/block/footer/Chat.vue')),
-}
-
-const AutoComp = computed(() => {
-  if (lotteryType.value === '6hc-of') return AUTO_COMPS['of']
-  if (lotteryType.value === '6hc-cd') return AUTO_COMPS['cd']
-  return null
-})
-
-const ChatComp = computed(() => {
-  if (lotteryType.value === '6hc-of') return CHAT_COMPS['of']
-  if (lotteryType.value === '6hc-cd') return CHAT_COMPS['cd']
-  return null
-})
+const CdAuto = defineAsyncComponent(() => import('~/components/lottery/bg/6hc/cd/block/footer/Auto.vue'))
+const CdChat = defineAsyncComponent(() => import('~/components/lottery/bg/6hc/cd/block/footer/Chat.vue'))
 </script>
 
 <style lang="scss">
@@ -73,6 +59,9 @@ const ChatComp = computed(() => {
 }
 
 @keyframes sec-out {
-  to { opacity: 0; transform: translateY(20px); }
+  to {
+    opacity: 0;
+    transform: translateY(20px);
+  }
 }
 </style>

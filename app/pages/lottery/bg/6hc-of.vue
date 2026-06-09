@@ -131,7 +131,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  mxFetch.stopOrderDetailSync()
+  use6hc.init.stopServerTimeSync()
+  mxFetch.stopJackpotPolling()
   deactivate()
 })
 

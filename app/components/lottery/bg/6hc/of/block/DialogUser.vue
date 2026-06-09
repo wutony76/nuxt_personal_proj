@@ -48,7 +48,7 @@ const balanceSortActive = ref(false)
 
 const filteredBalanceChanges = computed(() => {
   const list = props.data.balanceChanges.slice()
-  if (!balanceSortActive.value) return list.reverse()
+  if (!balanceSortActive.value) return list
   const dir = balanceSortOrder.value === 'asc' ? 1 : -1
   return list.sort((a, b) => (a.createdAt - b.createdAt) * dir)
 })
@@ -65,9 +65,7 @@ const filteredBetHistory = computed(() => {
   let list = props.data.betHistory.slice()
   if (betIssueFilter.value) list = list.filter((i) => i.issue === betIssueFilter.value)
 
-  if (betSortField.value === 'default') {
-    list.reverse()
-  } else {
+  if (betSortField.value !== 'default') {
     const dir = betSortOrder.value === 'asc' ? 1 : -1
     list.sort((a, b) => {
       if (betSortField.value === 'orderId') return a.orderId.localeCompare(b.orderId) * dir
@@ -162,7 +160,7 @@ function isBallHit(code: string, openCode: string[]): boolean {
           <!-- 下注紀錄 -->
           <section v-if="activeTab === 'bets'" class="dialog-block">
             <div class="table-filter">
-              <div v-if="betIssueFilter" class="issue-open-code-label"> 開獎</div>
+              <div v-if="betIssueFilter" class="issue-open-code-label">開獎</div>
               <div v-if="betIssueFilter" class="issue-open-code">
                 <template v-if="selectedIssueOpenCode">
                   <LotteryBg6hcOfBaseBall v-for="code in selectedIssueOpenCode" :key="code"
@@ -170,7 +168,6 @@ function isBallHit(code: string, openCode: string[]): boolean {
                 </template>
                 <span v-else class="issue-open-code-pending">未開獎</span>
               </div>
-
               <select v-model="betIssueFilter" class="issue-select">
                 <option value="">全部期數</option>
                 <option v-for="issue in betIssues" :key="issue" :value="issue">{{ issue }}</option>
@@ -335,9 +332,7 @@ function isBallHit(code: string, openCode: string[]): boolean {
             }
           }
         }
-
       }
-
     }
   }
 
