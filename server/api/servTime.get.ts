@@ -1,5 +1,7 @@
+import { MEMORY } from '../services/base'
+
 export default defineEventHandler(() => {
   return {
-    serverTime: Date.now()
+    serverTime: MEMORY.now.getTime()
   }
 })

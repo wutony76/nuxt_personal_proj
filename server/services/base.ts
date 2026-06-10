@@ -1,14 +1,19 @@
 
+export class MEMORY {
+  static now: Date = new Date()
+}
 export default class BaseClass {
   protected isRunning = false
-  private timer: ReturnType<typeof setTimeout> | null = null
+  // protected now: Date = new Date()
+  private _loopTimer: ReturnType<typeof setTimeout> | null = null
   private intervalMs = 300
 
   protected circle(task: () => void) {
     const runTask = () => {
+      MEMORY.now = new Date()
       task()
       if (!this.isRunning) return
-      this.timer = setTimeout(runTask, this.intervalMs)
+      this._loopTimer = setTimeout(runTask, this.intervalMs)
     }
     runTask()
   }
@@ -21,9 +26,9 @@ export default class BaseClass {
 
   public stopCircle() {
     this.isRunning = false
-    if (this.timer) {
-      clearTimeout(this.timer)
-      this.timer = null
+    if (this._loopTimer) {
+      clearTimeout(this._loopTimer)
+      this._loopTimer = null
     }
   }
 }

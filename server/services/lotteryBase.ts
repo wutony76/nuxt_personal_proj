@@ -1,6 +1,7 @@
 import { Storage } from './storage'
 import { STATUS_TIME } from '~/config/constants'
 import OrdersClass from './orders'
+import BaseClass from './base'
 
 type PlayItem = {
   num?: number | string
@@ -32,7 +33,7 @@ export const CYCLE_SECONDS = 7 * 60
 export const CYCLE_MS = CYCLE_SECONDS * 1000
 export const TOTAL_ISSUES_PER_DAY = 205
 
-export default class LOTTERY_BASE {
+export default class LOTTERY_BASE extends BaseClass {
   // STATIC CONST
   static BASE_FIRST_PRIZE = 200000
   static JACKPOT_PERCENT = 0.8
@@ -49,6 +50,7 @@ export default class LOTTERY_BASE {
   issueOrderSeqMap: Record<string, number>
 
   constructor(key: string, id: number) {
+    super()
     this.key = key
     this.id = id
     this.recordOpenCode = []

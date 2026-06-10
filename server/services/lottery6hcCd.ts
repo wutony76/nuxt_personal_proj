@@ -1,6 +1,7 @@
 import { Storage } from './storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import LOTTERY_BASE from './lotteryBase'
+import { MEMORY } from './base'
 
 type OpenCodeHistoryItem = {
   issue: string
@@ -469,7 +470,7 @@ export default class LHC_CD extends LOTTERY_BASE {
   }
 
   circle() {
-    this.handle.refreshCurrent(new Date())
+    this.handle.refreshCurrent(MEMORY.now)
     this.handle.settleClosedIssueIfNeeded()
   }
 
