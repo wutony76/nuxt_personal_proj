@@ -212,6 +212,7 @@ export const api = {
     },
     current6hcOf: () => $fetch<Lottery6hcCurrent>('/api/lottery/6hc-of/current'),
     jackpot6hcOf: () => $fetch<{ issue: string; currentIssueJackpot: number; carryJackpot: number; jackpotBase: number; jackpotBaseSetAt: number }>('/api/lottery/6hc-of/jackpot'),
+    jackpot6hcCd: () => $fetch<{ issue: string; currentIssueJackpot: number; carryJackpot: number; jackpotBase: number; jackpotBaseSetAt: number }>('/api/lottery/6hc-cd/jackpot'),
     road6hcOf: () => $fetch<{ plays: Lottery6hcRoadPlay[] }>('/api/lottery/6hc-of/road'),
     openCodeHistory6hcOf: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/6hc-of/opencode-history'),
     userRecord6hcOf: () => $fetch<LotteryUserRecordResponse>('/api/lottery/6hc-of/user-record'),

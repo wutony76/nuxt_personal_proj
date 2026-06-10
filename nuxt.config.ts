@@ -13,6 +13,11 @@ export default defineNuxtConfig({
     serv: new URL('./server', import.meta.url).pathname,
   },
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
+    server: {
+      hmr: {
+        port: 6101
+      }
+    }
   }
 })

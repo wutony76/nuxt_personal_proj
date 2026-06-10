@@ -108,7 +108,7 @@ const click = {
   },
 }
 
-watch(() => time.countdownSeconds, (seconds) => {
+watch(() => time.statusRemainSec, (seconds) => {
   if (!state.enabled) return
   if (seconds === 0 && state.lastPeriodSeconds !== 0) {
     _actions.autoBet()

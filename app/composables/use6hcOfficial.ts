@@ -695,7 +695,7 @@ const init = {
     }, 1000)
     syncTimer = setInterval(() => {
       init.syncServerTime()
-    }, 3000)
+    }, 15000)
   },
   stopServerTimeSync: () => {
     if (tickTimer) {

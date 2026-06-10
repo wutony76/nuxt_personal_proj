@@ -1,5 +1,5 @@
-import { computed, reactive } from 'vue'
-import { LOTTERY } from '~/config/constants'
+import { computed, reactive, ref, watch } from 'vue'
+import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import { CREDIT_PLAY_DEFINITIONS } from '~/config/bg/6hc-cd'
 import { api, type Lottery6hcCurrent } from '~/services/api'
 import { handle as utHandle } from '~/utils/common'
@@ -77,9 +77,12 @@ const wallet = reactive({
 })
 
 const time = reactive({
-  countdownSeconds: 300 as number,
-  countdownLabel: '00:05:00' as string,
-  countdownTimer: null as ReturnType<typeof setInterval> | null,
+  syncedAtServerMs: 0,
+  syncedAtClientMs: 0,
+  nowMs: Date.now(),
+  statusEndAt: 0,
+  statusRemainSec: 0,
+  statusRemainLabel: '00:00',
 })
 
 
@@ -90,8 +93,105 @@ const orderQuery = reactive({
 const jackpot = reactive({
   base: 0 as number,
   setAt: 0 as number,
+  currentIssueJackpot: 0 as number,
+  carryJackpot: 0 as number,
 })
+
+const livePool = computed(() => {
+  const real = Number((jackpot.currentIssueJackpot + jackpot.carryJackpot).toFixed(2))
+  return Number((jackpot.base + real).toFixed(2))
+})
+
+const isOpening = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPENING)
+
+const openingNowMs = ref(Date.now())
+let openingRafId: number | null = null
+
+function _startOpeningTick() {
+  function tick() {
+    openingNowMs.value = Date.now()
+    openingRafId = requestAnimationFrame(tick)
+  }
+  openingRafId = requestAnimationFrame(tick)
+}
+
+function _stopOpeningTick() {
+  if (openingRafId !== null) cancelAnimationFrame(openingRafId)
+  openingRafId = null
+}
+
+watch(isOpening, (opening) => {
+  if (opening) _startOpeningTick()
+  else _stopOpeningTick()
+}, { immediate: true })
+
+const openingElapsedMs = computed(() => {
+  if (!isOpening.value || !time.statusEndAt) return 0
+  const remainMs = Math.max(0, time.statusEndAt - openingNowMs.value)
+  return Math.max(0, 40000 - remainMs)
+})
+
+const openingRevealedIndices = computed(() => {
+  const e = openingElapsedMs.value
+  const s = new Set<number>()
+  if (e >= 9571) s.add(0)
+  if (e >= 13493) s.add(1)
+  if (e >= 17414) s.add(2)
+  if (e >= 21786) s.add(3)
+  if (e >= 27357) s.add(4)
+  if (e >= 33429) s.add(6)
+  if (e >= 37000) s.add(5)
+  return s
+})
+
 const creditService = new Lottery6hcCreditService()
+
+// ── Module-level server time sync helpers ────────────────────────────────
+
+const MIN_REFRESH_DELAY_MS = 250
+let tickTimer: ReturnType<typeof setInterval> | null = null
+let syncTimer: ReturnType<typeof setInterval> | null = null
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+let jackpotPollTimer: ReturnType<typeof setInterval> | null = null
+
+function _clearCurrentInfoTimer() {
+  if (refreshTimer) {
+    clearTimeout(refreshTimer)
+    refreshTimer = null
+  }
+}
+
+function _scheduleNextCurrentInfoFetch(statusEndAt?: number) {
+  _clearCurrentInfoTimer()
+  if (!statusEndAt) {
+    refreshTimer = setTimeout(() => fetch.refreshCurrentInfo(), 1000)
+    return
+  }
+  const delay = Math.max(MIN_REFRESH_DELAY_MS, statusEndAt - time.nowMs + 50)
+  refreshTimer = setTimeout(() => fetch.refreshCurrentInfo(), delay)
+}
+
+function _updateStatusRemain() {
+  if (!time.statusEndAt) {
+    time.statusRemainSec = 0
+    time.statusRemainLabel = '00:00'
+    return
+  }
+  const remainSec = Math.max(0, Math.floor((time.statusEndAt - time.nowMs) / 1000))
+  time.statusRemainSec = remainSec
+  const min = Math.floor(remainSec / 60)
+  const sec = remainSec % 60
+  time.statusRemainLabel = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+}
+
+function _tickServerNow() {
+  if (time.syncedAtServerMs <= 0 || time.syncedAtClientMs <= 0) {
+    time.nowMs = Date.now()
+  } else {
+    time.nowMs = time.syncedAtServerMs + (Date.now() - time.syncedAtClientMs)
+  }
+  _updateStatusRemain()
+}
 
 const fetch = {
   initPageData: async (userId?: string | number | null) => {
@@ -104,17 +204,25 @@ const fetch = {
       // fetch.walletState(),
       // fetch.betMeta(),
     ])
-    // fetch.startJackpotPolling()
+    fetch.startJackpotPolling()
   },
 
   currentInfo: async () => {
     const result = await creditService.fetchCurrentInfo()
     current.runtime = result
+    if (result.statusEndAt > 0) {
+      time.statusEndAt = result.statusEndAt
+      _tickServerNow()
+    }
     if (result.jackpot?.jackpotBase && result.jackpot.jackpotBase > 0) {
       jackpot.base = result.jackpot.jackpotBase
       if (result.jackpot.jackpotBaseSetAt > 0) jackpot.setAt = result.jackpot.jackpotBaseSetAt
+      // 初始化：polling 尚未跑過時從 currentInfo 補上，避免初始畫面顯示 0
+      if (!jackpotPollTimer) {
+        if (result.jackpot.currentIssueJackpot != null) jackpot.currentIssueJackpot = Number(result.jackpot.currentIssueJackpot)
+        if (result.jackpot.carryJackpot != null) jackpot.carryJackpot = Number(result.jackpot.carryJackpot)
+      }
     }
-    // init.setStatusEndAt(result.statusEndAt)
 
     const _userId = orderQuery.userId
     const issue = String(result?.issueCurrent ?? '')
@@ -128,23 +236,56 @@ const fetch = {
     try {
       const prevStatus = String(current.runtime?.currentStatus ?? '')
       const data = await fetch.currentInfo()
-      console.log('---data', data)
       const nextStatus = String(data?.currentStatus ?? '')
       if (prevStatus.includes('開獎中') && !nextStatus.includes('開獎中')) {
         // fetch.roadPlays()
       }
-      // handle.scheduleNextCurrentInfoFetch(data?.statusEndAt)
+      _scheduleNextCurrentInfoFetch(data?.statusEndAt)
     } catch {
-      // Keep page usable even when runtime data is temporarily unavailable.
-      // handle.scheduleNextCurrentInfoFetch()
+      _scheduleNextCurrentInfoFetch()
     }
   },
-
+  startJackpotPolling: () => {
+    if (jackpotPollTimer) return
+    jackpotPollTimer = setInterval(async () => {
+      try {
+        const result = await creditService.fetchJackpot()
+        if (result.jackpotBase > 0) jackpot.base = result.jackpotBase
+        if (result.jackpotBaseSetAt > 0) jackpot.setAt = result.jackpotBaseSetAt
+        if (result.currentIssueJackpot != null) jackpot.currentIssueJackpot = Number(result.currentIssueJackpot)
+        if (result.carryJackpot != null) jackpot.carryJackpot = Number(result.carryJackpot)
+      } catch { /* silent */ }
+    }, 5000)
+  },
+  stopJackpotPolling: () => {
+    if (!jackpotPollTimer) return
+    clearInterval(jackpotPollTimer)
+    jackpotPollTimer = null
+  },
 }
 
 const init = {
-  run: () => {
-  }
+  syncServerTime: async () => {
+    try {
+      const result = await creditService.fetchServerTime()
+      time.syncedAtServerMs = result.serverTime
+      time.syncedAtClientMs = Date.now()
+      _tickServerNow()
+    } catch { }
+  },
+  startServerTimeSync: async () => {
+    if (tickTimer) return
+    await init.syncServerTime()
+    tickTimer = setInterval(_tickServerNow, 1000)
+    syncTimer = setInterval(init.syncServerTime, 15000)
+  },
+  stopServerTimeSync: () => {
+    if (tickTimer) { clearInterval(tickTimer); tickTimer = null }
+    if (syncTimer) { clearInterval(syncTimer); syncTimer = null }
+    _clearCurrentInfoTimer()
+    fetch.stopJackpotPolling()
+  },
+  run: () => { }
 }
 init.run()
 
@@ -188,33 +329,6 @@ export const use6hcCredit = () => {
   }
 
   const _actions = {
-    // ── Countdown ──────────────────────────────────────────────
-    formatCountdown: (total: number): string => {
-      const safeTotal = Number.isFinite(total) && total > 0 ? total : 0
-      const hour = String(Math.floor(safeTotal / 3600)).padStart(2, '0')
-      const minute = String(Math.floor((safeTotal % 3600) / 60)).padStart(2, '0')
-      const second = String(safeTotal % 60).padStart(2, '0')
-      return `${hour}:${minute}:${second}`
-    },
-    syncCountdown: () => {
-      time.countdownSeconds = Math.max(0, time.countdownSeconds - 1)
-      time.countdownLabel = _actions.formatCountdown(time.countdownSeconds)
-      if (time.countdownSeconds === 0) {
-        time.countdownSeconds = 300
-        time.countdownLabel = _actions.formatCountdown(time.countdownSeconds)
-      }
-    },
-    startCountdown: () => {
-      _actions.stopCountdown()
-      time.countdownLabel = _actions.formatCountdown(time.countdownSeconds)
-      time.countdownTimer = setInterval(_actions.syncCountdown, 1000)
-    },
-    stopCountdown: () => {
-      if (time.countdownTimer) {
-        clearInterval(time.countdownTimer)
-        time.countdownTimer = null
-      }
-    },
     // ── User ───────────────────────────────────────────────────
     initUserInfo: async () => {
       await auth.init()
@@ -395,8 +509,9 @@ export const use6hcCredit = () => {
 
     //
     time,
-    livePool: false,
-    isOpening: false,
-    openingRevealedIndices: [],
+    livePool,
+    jackpot,
+    isOpening,
+    openingRevealedIndices,
   }
 }

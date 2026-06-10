@@ -1,26 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import Ball from '~/components/lottery/bg/6hc/cd/base/Ball.vue'
 import { STATUS_TIME } from '~/config/constants'
+import { lottery_id as cdLotteryId } from '~/services/lottery6hcCreditService'
 
 // ── Types ──────────────────────────────────────────────────────────────────
-
-type CdHeaderBall = {
-  num: string
-  countShow: number
-}
-type CdHeaderData = {
-  name: string
-  lotteryId: string | number
-  issueLatest: string
-  issueCurrent: string
-  currentStatus: string
-  countdown: string
-  openCodes: string[]
-  specialCode: string
-  creditLimit: number
-  balanceLimit: number
-  panType: string
-}
 
 type OpenCodeItem = string | number | { num?: string | number; animal?: string }
 type OpenCodePlayItem = {
@@ -37,9 +21,6 @@ type HeaderData = {
   issueCurrent?: string | number
   currentStatus?: string
   countdown?: string
-  totalJackpot?: string | number
-  estimatedJackpot?: string | number
-  winRate?: string | number
   openCode?: OpenCodeItem[]
   openCodePlay?: OpenCodePlayItem[]
 }
@@ -57,9 +38,6 @@ const DEFAULT_HEADER_DATA: Required<HeaderData> = {
   issueCurrent: '999',
   currentStatus: '開獎中',
   countdown: '00:00',
-  totalJackpot: '1,000,000,000',
-  estimatedJackpot: '1,000,000',
-  winRate: '98.76%',
   openCode: ['1', '2', '3', '4', '5', '6', '14'],
   openCodePlay: []
 }
@@ -71,7 +49,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (event: 'open-opencode-dialog'): void
 }>()
-const { current: mxCurrent, time: mxTime, livePool, isOpening, openingRevealedIndices } = use6hcCredit()
+const { current: mxCurrent, time: mxTime, isOpening, livePool: mxLivePool } = use6hcCredit()
 
 
 // ── Normalized data ───────────────────────────────────────────────────────
@@ -84,10 +62,7 @@ const normalizedData = computed(() => {
     issueLatest: source.issueLatest ?? DEFAULT_HEADER_DATA.issueLatest,
     issueCurrent: source.issueCurrent ?? DEFAULT_HEADER_DATA.issueCurrent,
     currentStatus: source.currentStatus ?? DEFAULT_HEADER_DATA.currentStatus,
-    countdown: mxTime.countdownLabel || source.countdown || DEFAULT_HEADER_DATA.countdown,
-    totalJackpot: source.totalJackpot ?? DEFAULT_HEADER_DATA.totalJackpot,
-    estimatedJackpot: source.estimatedJackpot ?? DEFAULT_HEADER_DATA.estimatedJackpot,
-    winRate: source.winRate ?? DEFAULT_HEADER_DATA.winRate,
+    countdown: (mxTime.statusRemainSec > 0 ? mxTime.statusRemainLabel : '') || source.countdown || DEFAULT_HEADER_DATA.countdown,
     openCode:
       Array.isArray(source.openCode) && source.openCode.length > 0
         ? source.openCode
@@ -101,21 +76,121 @@ const normalizedData = computed(() => {
 
 
 // ── Individual computeds ──────────────────────────────────────────────────
-const lotteryName = computed(() => normalizedData.value.name || '六合彩(OF)')
-const lotteryId = computed(() => normalizedData.value.id || '-')
+const lotteryName = computed(() => normalizedData.value.name || '六合彩(CD)')
+const lotteryId = computed(() => cdLotteryId || normalizedData.value.id || '-')
 const issueLatest = computed(() => String(normalizedData.value.issueLatest))
 const issueCurrent = computed(() => String(normalizedData.value.issueCurrent || issueLatest.value))
 const currentStatus = computed(() => String(normalizedData.value.currentStatus))
 const countdown = computed(() => String(normalizedData.value.countdown))
 
-const totalJackpot = computed(() => String(normalizedData.value.totalJackpot))
-const estimatedJackpot = computed(() => String(normalizedData.value.estimatedJackpot))
-const winRate = computed(() => String(normalizedData.value.winRate))
-const displayCurrentStatus = computed(() => currentStatus.value)
+// ── Jackpot animation ─────────────────────────────────────────────────────
+const cdLivePool = mxLivePool
 
 const displayPool = ref(0)
 let rafId: number | null = null
 
+function animateTo(target: number, durationMs = 15000) {
+  if (rafId !== null) cancelAnimationFrame(rafId)
+  const from = displayPool.value
+  const diff = target - from
+  if (Math.abs(diff) < 0.01) { displayPool.value = target; return }
+  const start = performance.now()
+  function step(now: number) {
+    const t = Math.min((now - start) / durationMs, 1)
+    const ease = 1 - Math.pow(1 - t, 3)
+    displayPool.value = Number((from + diff * ease).toFixed(2))
+    if (t < 1) { rafId = requestAnimationFrame(step) }
+    else { rafId = null }
+  }
+  rafId = requestAnimationFrame(step)
+}
+
+onMounted(() => {
+  displayPool.value = cdLivePool.value
+  watch(cdLivePool, (newVal) => {
+    if (newVal > displayPool.value) {
+      animateTo(newVal)
+    } else {
+      if (rafId !== null) cancelAnimationFrame(rafId)
+      rafId = null
+      displayPool.value = newVal
+    }
+  })
+})
+
+onUnmounted(() => {
+  if (rafId !== null) cancelAnimationFrame(rafId)
+})
+
+const totalJackpot = computed(() => {
+  if (cdLivePool.value > 0) {
+    return displayPool.value.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+  return String(mxCurrent.runtime?.jackpot?.currentIssueJackpot ?? '1,000,000,000')
+})
+
+const estimatedJackpot = computed(() => {
+  if (cdLivePool.value > 0) {
+    return (displayPool.value * 0.4).toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+  return String(mxCurrent.runtime?.jackpot?.carryJackpot ?? '1,000,000')
+})
+
+const winRate = computed(() => '25.84%')
+
+// ── Status display ────────────────────────────────────────────────────────
+const _handlers = {
+  parseCountdownSeconds: (countdownLabel: string) => {
+    if (!countdownLabel) return Number.POSITIVE_INFINITY
+    const timeParts = countdownLabel
+      .split(':')
+      .map((item) => Number(item))
+      .filter((item) => Number.isFinite(item) && item >= 0)
+    if (timeParts.length === 2) {
+      const minute = timeParts[0] ?? 0
+      const second = timeParts[1] ?? 0
+      return (minute * 60) + second
+    }
+    if (timeParts.length === 3) {
+      const hour = timeParts[0] ?? 0
+      const minute = timeParts[1] ?? 0
+      const second = timeParts[2] ?? 0
+      return (hour * 3600) + (minute * 60) + second
+    }
+    return Number.POSITIVE_INFINITY
+  }
+}
+
+const displayCurrentStatus = computed(() => {
+  if (currentStatus.value !== STATUS_TIME.OPEN) return currentStatus.value
+  const remainSeconds = _handlers.parseCountdownSeconds(countdown.value)
+  if (remainSeconds === 5) return STATUS_TIME.PREPARE_CLOSE_5
+  if (remainSeconds === 4) return STATUS_TIME.PREPARE_CLOSE_4
+  if (remainSeconds === 3) return STATUS_TIME.PREPARE_CLOSE_3
+  if (remainSeconds === 2) return STATUS_TIME.PREPARE_CLOSE_2
+  if (remainSeconds === 1) return STATUS_TIME.PREPARE_CLOSE_1
+  return currentStatus.value
+})
+
+const openBalls = computed(() => {
+  const playList = normalizedData.value.openCodePlay
+  if (Array.isArray(playList) && playList.length > 0) {
+    return playList.map((item) => ({
+      num: String(item.num ?? item.label ?? '').padStart(2, '0'),
+      countShow: Number(item.countShow ?? -1)
+    }))
+  }
+  return normalizedData.value.openCode.map((item) => ({
+    num: String(typeof item === 'object' && item !== null ? (item as any).num ?? '' : item).padStart(2, '0'),
+    countShow: -1
+  }))
+})
+
+const openingBalls = computed(() => {
+  const codes = Array.isArray(mxCurrent.runtime?.openingCode) ? (mxCurrent.runtime!.openingCode as string[]) : []
+  if (codes.length === 0) return Array.from({ length: 7 }, () => '??')
+  return codes.map((c) => String(c).padStart(2, '0'))
+})
 </script>
 
 <template>
@@ -129,7 +204,7 @@ let rafId: number | null = null
       <div class="info-bonus">
         <div class="row">
           <span class="label">總獎金</span>
-          <span class="val">{{ totalJackpot }}</span>
+          <span class="val val-big">{{ totalJackpot }}</span>
         </div>
         <div class="row">
           <span class="label">預估頭獎</span>
@@ -162,29 +237,25 @@ let rafId: number | null = null
                 <div class="ball-legend-count">攪出次數</div>
               </div>
             </div>
-            <!-- <div v-for="(ball, idx) in openBalls" :key="`${idx}-${ball.num}`" class="ball-warp">
+            <div v-for="(ball, idx) in openBalls" :key="`${idx}-${ball.num}`" class="ball-warp">
               <span v-if="idx === openBalls.length - 1" class="plus">+</span>
-              <div class="cd-ball" :class="[getBallClass(ball.num), { special: idx === openBalls.length - 1 }]">
-                {{ ball.num }}
-              </div>
-            </div> -->
+              <Ball :data="{ label: ball.num, num: ball.num, selected: true, countShow: ball.countShow }" :is-click="false" />
+            </div>
           </div>
 
-          <!-- <Transition name="overlay-fade">
-            <div v-if="current.isOpening" class="opening-overlay">
+          <Transition name="overlay-fade">
+            <div v-if="isOpening" class="opening-overlay">
               <div class="opening-issue">第{{ issueCurrent }}期 正在開獎</div>
               <div class="opening-balls">
                 <div v-for="(code, idx) in openingBalls" :key="idx" class="opening-slot">
                   <span v-if="idx === openingBalls.length - 1" class="opening-plus">+</span>
                   <div class="opening-ball-inner">
-                    <div class="cd-ball" :class="[getBallClass(code), { special: idx === openingBalls.length - 1 }]">
-                      {{ code }}
-                    </div>
+                    <Ball :data="{ label: code, num: code, selected: true }" :is-click="false" />
                   </div>
                 </div>
               </div>
             </div>
-          </Transition> -->
+          </Transition>
         </div>
       </div>
     </div>
@@ -418,7 +489,7 @@ let rafId: number | null = null
           align-items: center;
           flex-shrink: 0;
 
-          .cd-ball {
+          :deep(.ball) {
             width: 45px;
             height: 45px;
             font-size: 26px;
@@ -476,7 +547,7 @@ let rafId: number | null = null
               }
 
               .opening-ball-inner {
-                .cd-ball {
+                :deep(.ball) {
                   width: 45px;
                   height: 45px;
                   font-size: 26px;
@@ -490,31 +561,6 @@ let rafId: number | null = null
     }
   }
 
-  .cd-ball {
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-weight: 700;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.35);
-
-    &.red {
-      background: radial-gradient(circle at 38% 32%, #f87171, #b91c1c 70%);
-    }
-
-    &.blue {
-      background: radial-gradient(circle at 38% 32%, #60a5fa, #1d4ed8 70%);
-    }
-
-    &.green {
-      background: radial-gradient(circle at 38% 32%, #4ade80, #15803d 70%);
-    }
-
-    &.special {
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 0 2.5px rgba(245, 200, 66, 0.6);
-    }
-  }
 }
 
 @keyframes cd-header-in {

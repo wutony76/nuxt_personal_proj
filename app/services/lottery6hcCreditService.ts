@@ -45,7 +45,7 @@ export class Lottery6hcCreditService {
   }
 
   fetchJackpot() {
-    return api.lottery.jackpot6hcOf()
+    return api.lottery.jackpot6hcCd()
   }
 
   fetchServerTime() {

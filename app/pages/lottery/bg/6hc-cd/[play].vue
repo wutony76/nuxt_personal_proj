@@ -56,7 +56,7 @@ onMounted(async () => {
     return
   }
   const _userId = String(user.value?.id ?? '')
-  // await use6hc.init.startServerTimeSync()
+  await use6hc.init.startServerTimeSync()
   await mxFetch.initPageData(_userId)
 
   activate('6hc-cd')
@@ -64,7 +64,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  use6hc.actions.stopCountdown()
+  use6hc.init.stopServerTimeSync()
   deactivate()
 })
 </script>
