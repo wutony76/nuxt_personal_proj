@@ -45,3 +45,9 @@ export const actions = {
     return Math.round(result)
   },
 }
+
+export const handle = {
+  normalizeUserId: (userId?: string | number | null) => {
+    return String(userId ?? '').trim()
+  },
+}

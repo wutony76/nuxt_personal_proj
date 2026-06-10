@@ -1,9 +1,22 @@
 import { computed, reactive } from 'vue'
 import { LOTTERY } from '~/config/constants'
 import { CREDIT_PLAY_DEFINITIONS } from '~/config/bg/6hc-cd'
-import { api } from '~/services/api'
+import { api, type Lottery6hcCurrent } from '~/services/api'
+import { handle as utHandle } from '~/utils/common'
+import { Lottery6hcCreditService } from '~/services/lottery6hcCreditService'
+
 
 // ── Types ──────────────────────────────────────────────────────────────────
+type CurrentDetailRow = {
+  id: string
+  time: string
+  bets: string[]
+  danBets?: string[]
+  tuoBets?: string[]
+  coin: number
+  betCount: number
+  status: Status
+}
 
 interface PlayOption {
   id: string
@@ -46,14 +59,13 @@ const state = reactive({
 })
 
 const current = reactive({
-  drawLabel: '澳門六合彩' as string,
-  lotteryId: '-' as string | number,
-  issue: '-' as string,
-  issueLatest: '-' as string,
-  openCodes: [] as string[],
-  specialCode: '-' as string,
-  currentStatus: '投注中' as string,
-  isOpening: false as boolean,
+  detail: [],
+  runtime: null as Lottery6hcCurrent | null,
+  orderCache: {
+    isLoading: false,
+    isSuccess: false,
+    errorMessage: ''
+  }
 })
 
 const wallet = reactive({
@@ -70,7 +82,71 @@ const time = reactive({
   countdownTimer: null as ReturnType<typeof setInterval> | null,
 })
 
-// ── Composable ────────────────────────────────────────────────────────────
+
+const orderQuery = reactive({
+  userId: '',
+  issue: ''
+})
+const jackpot = reactive({
+  base: 0 as number,
+  setAt: 0 as number,
+})
+const creditService = new Lottery6hcCreditService()
+
+const fetch = {
+  initPageData: async (userId?: string | number | null) => {
+    const _userId = utHandle.normalizeUserId(userId)
+    orderQuery.userId = _userId
+    // await fetch.orderDetailFromCache(normalizedUserId)
+    await Promise.all([
+      fetch.refreshCurrentInfo(),
+      // fetch.roadPlays(),
+      // fetch.walletState(),
+      // fetch.betMeta(),
+    ])
+    // fetch.startJackpotPolling()
+  },
+
+  currentInfo: async () => {
+    const result = await creditService.fetchCurrentInfo()
+    current.runtime = result
+    if (result.jackpot?.jackpotBase && result.jackpot.jackpotBase > 0) {
+      jackpot.base = result.jackpot.jackpotBase
+      if (result.jackpot.jackpotBaseSetAt > 0) jackpot.setAt = result.jackpot.jackpotBaseSetAt
+    }
+    // init.setStatusEndAt(result.statusEndAt)
+
+    const _userId = orderQuery.userId
+    const issue = String(result?.issueCurrent ?? '')
+    if (_userId && issue) {
+      orderQuery.issue = issue
+      // handle.startOrderDetailSync(_userId, issue)
+    }
+    return result
+  },
+  refreshCurrentInfo: async () => {
+    try {
+      const prevStatus = String(current.runtime?.currentStatus ?? '')
+      const data = await fetch.currentInfo()
+      console.log('---data', data)
+      const nextStatus = String(data?.currentStatus ?? '')
+      if (prevStatus.includes('開獎中') && !nextStatus.includes('開獎中')) {
+        // fetch.roadPlays()
+      }
+      // handle.scheduleNextCurrentInfoFetch(data?.statusEndAt)
+    } catch {
+      // Keep page usable even when runtime data is temporarily unavailable.
+      // handle.scheduleNextCurrentInfoFetch()
+    }
+  },
+
+}
+
+const init = {
+  run: () => {
+  }
+}
+init.run()
 
 export const use6hcCredit = () => {
   const auth = useAuth()
@@ -308,11 +384,19 @@ export const use6hcCredit = () => {
     state,
     current,
     wallet,
-    time,
     playList,
     availableCodes,
     canSubmit,
     click,
     actions: _actions,
+    init,
+    fetch,
+
+
+    //
+    time,
+    livePool: false,
+    isOpening: false,
+    openingRevealedIndices: [],
   }
 }

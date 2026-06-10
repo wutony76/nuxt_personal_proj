@@ -1,6 +1,6 @@
 import {
   api,
-  type Lottery6hcOfCurrent,
+  type Lottery6hcCurrent,
   type Lottery6hcRoadPlay,
   type LotteryBetPayload,
   type LotteryBetResponse,
@@ -10,10 +10,14 @@ import {
   type LotteryOpenCodeHistoryResponse
 } from '~/services/api'
 
+import { LOTTERY } from '~/config/constants'
 
-export class lottery6hcCreditService {
+
+export const lottery_id = LOTTERY['LHC-CD'].id
+
+export class Lottery6hcCreditService {
   fetchCurrentInfo() {
-    return api.lottery.current6hcOf() as Promise<Lottery6hcOfCurrent>
+    return api.lottery.currentInfo(lottery_id) as Promise<Lottery6hcCurrent>
   }
 
   fetchRoadPlays() {

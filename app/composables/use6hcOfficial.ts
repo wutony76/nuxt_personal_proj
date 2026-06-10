@@ -4,7 +4,7 @@ import { actions } from '~/utils/common'
 import { GAME_6HC_OF, LOTTERY, SORT, STATUS_TIME } from '~/config/constants'
 import { PLAYLIST } from '~/config/bg/6hc-of'
 import {
-  type Lottery6hcOfCurrent,
+  type Lottery6hcCurrent,
   type Lottery6hcRoadPlay,
   type LotteryBetOrder,
   type LotteryUserBalanceChange,
@@ -39,7 +39,7 @@ const state = reactive({
 })
 const current = reactive({
   detail: [] as CurrentDetailRow[],
-  runtime: null as Lottery6hcOfCurrent | null,
+  runtime: null as Lottery6hcCurrent | null,
   orderCache: {
     isLoading: false,
     isSuccess: false,
@@ -129,7 +129,7 @@ const openingElapsedMs = computed(() => {
 const openingRevealedIndices = computed(() => {
   const e = openingElapsedMs.value
   const s = new Set<number>()
-  if (e >= 9571)  s.add(0)
+  if (e >= 9571) s.add(0)
   if (e >= 13493) s.add(1)
   if (e >= 17414) s.add(2)
   if (e >= 21786) s.add(3)

@@ -2,34 +2,38 @@ import { computed } from 'vue'
 import { type AuthUser } from '~/services/api'
 import { AuthService } from '~/services/authService'
 
+const state = reactive({
+  user: null as AuthUser | null,
+  init: false as boolean,
+})
+
+const authService = new AuthService()
+let initPromise: Promise<void> | null = null
+
 export const useAuth = () => {
-  const user = useState<AuthUser | null>('auth-user', () => null)
-  const initialized = useState<boolean>('auth-initialized', () => false)
-  const authService = new AuthService()
-
   const init = async () => {
-    if (initialized.value) {
-      return
+    if (state.init) return
+    if (!initPromise) {
+      initPromise = (async () => {
+        try {
+          const result = await authService.fetchMe()
+          state.user = result.user
+        } catch {
+          state.user = null
+        } finally {
+          state.init = true
+          initPromise = null
+        }
+      })()
     }
-
-    try {
-      const result = await authService.fetchMe()
-      user.value = result.user
-    } catch {
-      user.value = null
-    } finally {
-      initialized.value = true
-    }
+    return initPromise
   }
 
   const login = async (email: string, password: string) => {
     await init()
-
     try {
       const result = await authService.submitLogin({ email, password })
-
-      user.value = result.user
-
+      state.user = result.user
       return { ok: true, message: '' }
     } catch (error: unknown) {
       const fallbackMessage = '登入失敗，請稍後再試。'
@@ -45,12 +49,15 @@ export const useAuth = () => {
     try {
       await authService.submitLogout()
     } finally {
-      user.value = null
-      initialized.value = true
+      state.user = null
+      state.init = false
+      initPromise = null
     }
   }
 
-  const isLoggedIn = computed(() => Boolean(user.value))
+  const user = computed(() => state.user)
+  const initialized = computed(() => state.init)
+  const isLoggedIn = computed(() => Boolean(state.user))
 
   return {
     user,

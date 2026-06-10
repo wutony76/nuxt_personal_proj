@@ -8,7 +8,6 @@ type CdHeaderBall = {
   num: string
   countShow: number
 }
-
 type CdHeaderData = {
   name: string
   lotteryId: string | number
@@ -23,125 +22,100 @@ type CdHeaderData = {
   panType: string
 }
 
+type OpenCodeItem = string | number | { num?: string | number; animal?: string }
+type OpenCodePlayItem = {
+  num?: string | number
+  label?: string | number
+  animal?: string
+  countIssue?: number
+  countShow?: number
+}
+type HeaderData = {
+  name?: string
+  id?: string | number
+  issueLatest?: string | number
+  issueCurrent?: string | number
+  currentStatus?: string
+  countdown?: string
+  totalJackpot?: string | number
+  estimatedJackpot?: string | number
+  winRate?: string | number
+  openCode?: OpenCodeItem[]
+  openCodePlay?: OpenCodePlayItem[]
+}
+type LotteryInfoData = {
+  name?: string
+  id?: string | number
+}
+
 // ── Default fallbacks ─────────────────────────────────────────────────────
 
-const DEFAULT_CD_HEADER_DATA: CdHeaderData = {
+const DEFAULT_HEADER_DATA: Required<HeaderData> = {
   name: '六合彩',
-  lotteryId: '-',
+  id: '-',
   issueLatest: '999',
   issueCurrent: '999',
-  currentStatus: '投注中',
-  countdown: '00:00:00',
-  openCodes: ['01', '02', '03', '04', '05', '06'],
-  specialCode: '07',
-  creditLimit: 0,
-  balanceLimit: 0,
-  panType: '盤口A',
+  currentStatus: '開獎中',
+  countdown: '00:00',
+  totalJackpot: '1,000,000,000',
+  estimatedJackpot: '1,000,000',
+  winRate: '98.76%',
+  openCode: ['1', '2', '3', '4', '5', '6', '14'],
+  openCodePlay: []
 }
 
 // ── Composable ────────────────────────────────────────────────────────────
-
+const props = defineProps<{
+  lotteryInfo?: LotteryInfoData
+}>()
 const emit = defineEmits<{
   (event: 'open-opencode-dialog'): void
 }>()
+const { current: mxCurrent, time: mxTime, livePool, isOpening, openingRevealedIndices } = use6hcCredit()
 
-const { current, wallet, time } = use6hcCredit()
 
 // ── Normalized data ───────────────────────────────────────────────────────
+const normalizedData = computed(() => {
+  const source = (mxCurrent.runtime ?? {}) as Partial<HeaderData>
+  const base = props.lotteryInfo ?? {}
+  return {
+    name: base.name ?? DEFAULT_HEADER_DATA.name,
+    id: base.id ?? DEFAULT_HEADER_DATA.id,
+    issueLatest: source.issueLatest ?? DEFAULT_HEADER_DATA.issueLatest,
+    issueCurrent: source.issueCurrent ?? DEFAULT_HEADER_DATA.issueCurrent,
+    currentStatus: source.currentStatus ?? DEFAULT_HEADER_DATA.currentStatus,
+    countdown: mxTime.countdownLabel || source.countdown || DEFAULT_HEADER_DATA.countdown,
+    totalJackpot: source.totalJackpot ?? DEFAULT_HEADER_DATA.totalJackpot,
+    estimatedJackpot: source.estimatedJackpot ?? DEFAULT_HEADER_DATA.estimatedJackpot,
+    winRate: source.winRate ?? DEFAULT_HEADER_DATA.winRate,
+    openCode:
+      Array.isArray(source.openCode) && source.openCode.length > 0
+        ? source.openCode
+        : DEFAULT_HEADER_DATA.openCode,
+    openCodePlay:
+      Array.isArray(source.openCodePlay) && source.openCodePlay.length > 0
+        ? source.openCodePlay
+        : DEFAULT_HEADER_DATA.openCodePlay
+  }
+})
 
-const normalizedData = computed((): CdHeaderData => ({
-  name: current.drawLabel || DEFAULT_CD_HEADER_DATA.name,
-  lotteryId: current.lotteryId || DEFAULT_CD_HEADER_DATA.lotteryId,
-  issueLatest: current.issueLatest || DEFAULT_CD_HEADER_DATA.issueLatest,
-  issueCurrent: current.issue || DEFAULT_CD_HEADER_DATA.issueCurrent,
-  currentStatus: current.currentStatus || DEFAULT_CD_HEADER_DATA.currentStatus,
-  countdown: time.countdownLabel || DEFAULT_CD_HEADER_DATA.countdown,
-  openCodes: Array.isArray(current.openCodes) && current.openCodes.length > 0
-    ? current.openCodes
-    : DEFAULT_CD_HEADER_DATA.openCodes,
-  specialCode: current.specialCode || DEFAULT_CD_HEADER_DATA.specialCode,
-  creditLimit: wallet.creditLimit ?? DEFAULT_CD_HEADER_DATA.creditLimit,
-  balanceLimit: wallet.balanceLimit ?? DEFAULT_CD_HEADER_DATA.balanceLimit,
-  panType: wallet.panType || DEFAULT_CD_HEADER_DATA.panType,
-}))
 
 // ── Individual computeds ──────────────────────────────────────────────────
-
-const lotteryName = computed(() => normalizedData.value.name)
-const lotteryId = computed(() => normalizedData.value.lotteryId)
+const lotteryName = computed(() => normalizedData.value.name || '六合彩(OF)')
+const lotteryId = computed(() => normalizedData.value.id || '-')
 const issueLatest = computed(() => String(normalizedData.value.issueLatest))
 const issueCurrent = computed(() => String(normalizedData.value.issueCurrent || issueLatest.value))
 const currentStatus = computed(() => String(normalizedData.value.currentStatus))
 const countdown = computed(() => String(normalizedData.value.countdown))
-const creditLimit = computed(() => normalizedData.value.creditLimit)
-const balanceLimit = computed(() => normalizedData.value.balanceLimit)
-const panType = computed(() => normalizedData.value.panType)
 
-// ── Ball color ────────────────────────────────────────────────────────────
+const totalJackpot = computed(() => String(normalizedData.value.totalJackpot))
+const estimatedJackpot = computed(() => String(normalizedData.value.estimatedJackpot))
+const winRate = computed(() => String(normalizedData.value.winRate))
+const displayCurrentStatus = computed(() => currentStatus.value)
 
-const ballClassMap = {
-  red: new Set(['01', '02', '07', '08', '12', '13', '18', '19', '23', '24', '29', '30', '34', '35', '40', '45', '46']),
-  blue: new Set(['03', '04', '09', '10', '14', '15', '20', '25', '26', '31', '36', '37', '41', '42', '47', '48']),
-  green: new Set(['05', '06', '11', '16', '17', '21', '22', '27', '28', '32', '33', '38', '39', '43', '44', '49'])
-}
+const displayPool = ref(0)
+let rafId: number | null = null
 
-function getBallClass(code: string | number) {
-  const n = String(code || '').padStart(2, '0')
-  if (ballClassMap.red.has(n)) return 'red'
-  if (ballClassMap.blue.has(n)) return 'blue'
-  return 'green'
-}
-
-// ── Status & countdown logic ──────────────────────────────────────────────
-
-const _handlers = {
-  parseCountdownSeconds: (countdownLabel: string): number => {
-    if (!countdownLabel) return Number.POSITIVE_INFINITY
-    const timeParts = countdownLabel
-      .split(':')
-      .map((item) => Number(item))
-      .filter((item) => Number.isFinite(item) && item >= 0)
-
-    if (timeParts.length === 2) {
-      const [minute = 0, second = 0] = timeParts
-      return (minute * 60) + second
-    }
-
-    if (timeParts.length === 3) {
-      const [hour = 0, minute = 0, second = 0] = timeParts
-      return (hour * 3600) + (minute * 60) + second
-    }
-
-    return Number.POSITIVE_INFINITY
-  },
-}
-
-const displayCurrentStatus = computed(() => {
-  if (currentStatus.value !== STATUS_TIME.OPEN) return currentStatus.value
-  const remainSeconds = _handlers.parseCountdownSeconds(countdown.value)
-  if (remainSeconds === 5) return STATUS_TIME.PREPARE_CLOSE_5
-  if (remainSeconds === 4) return STATUS_TIME.PREPARE_CLOSE_4
-  if (remainSeconds === 3) return STATUS_TIME.PREPARE_CLOSE_3
-  if (remainSeconds === 2) return STATUS_TIME.PREPARE_CLOSE_2
-  if (remainSeconds === 1) return STATUS_TIME.PREPARE_CLOSE_1
-  return currentStatus.value
-})
-
-// ── Ball computeds ────────────────────────────────────────────────────────
-
-const openBalls = computed((): CdHeaderBall[] => {
-  const codes = normalizedData.value.openCodes
-  const special = normalizedData.value.specialCode
-  return [...codes, special].filter(Boolean).map((c) => ({
-    num: String(c).padStart(2, '0'),
-    countShow: -1,
-  }))
-})
-
-const openingBalls = computed(() => {
-  if (!current.isOpening) return Array.from({ length: 7 }, () => '??')
-  return openBalls.value.map((b) => b.num)
-})
 </script>
 
 <template>
@@ -149,21 +123,21 @@ const openingBalls = computed(() => {
     <div class="left">
       <div class="info">
         <h1 class="title">{{ lotteryName }}</h1>
-        <p class="sub">信 用 盤</p>
+        <p class="sub">信用玩法</p>
         <p class="lotteryId">LOTTERY_ID: {{ lotteryId }}</p>
       </div>
       <div class="info-bonus">
         <div class="row">
-          <span class="label">盤口類型</span>
-          <span class="val">{{ panType }}</span>
+          <span class="label">總獎金</span>
+          <span class="val">{{ totalJackpot }}</span>
         </div>
         <div class="row">
-          <span class="label">信用額度</span>
-          <span class="val val-big">{{ Number(creditLimit || 0).toLocaleString() }}</span>
+          <span class="label">預估頭獎</span>
+          <span class="val val-big">{{ estimatedJackpot }}</span>
         </div>
         <div class="row">
-          <span class="label">剩餘額度</span>
-          <span class="accent">{{ Number(balanceLimit || 0).toLocaleString() }}</span>
+          <span class="label">中獎機率</span>
+          <span class="accent">{{ winRate }}</span>
         </div>
       </div>
     </div>
@@ -188,15 +162,15 @@ const openingBalls = computed(() => {
                 <div class="ball-legend-count">攪出次數</div>
               </div>
             </div>
-            <div v-for="(ball, idx) in openBalls" :key="`${idx}-${ball.num}`" class="ball-warp">
+            <!-- <div v-for="(ball, idx) in openBalls" :key="`${idx}-${ball.num}`" class="ball-warp">
               <span v-if="idx === openBalls.length - 1" class="plus">+</span>
               <div class="cd-ball" :class="[getBallClass(ball.num), { special: idx === openBalls.length - 1 }]">
                 {{ ball.num }}
               </div>
-            </div>
+            </div> -->
           </div>
 
-          <Transition name="overlay-fade">
+          <!-- <Transition name="overlay-fade">
             <div v-if="current.isOpening" class="opening-overlay">
               <div class="opening-issue">第{{ issueCurrent }}期 正在開獎</div>
               <div class="opening-balls">
@@ -210,7 +184,7 @@ const openingBalls = computed(() => {
                 </div>
               </div>
             </div>
-          </Transition>
+          </Transition> -->
         </div>
       </div>
     </div>

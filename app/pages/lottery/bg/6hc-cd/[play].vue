@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
+import { useAuth } from '~/composables/useAuth'
 import { use6hcCredit } from '~/composables/use6hcCredit'
+
 import { useBgAutoActive } from '~/composables/useBgAutoActive'
 import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
 import PlayPanel from '~/components/lottery/bg/6hc/cd/PlayPanel.vue'
 import Header from '~/components/lottery/bg/6hc/cd/block/Header.vue'
 
+const { user, isLoggedIn, init } = useAuth()
 const route = useRoute()
 const router = useRouter()
-const credit = use6hcCredit()
+const use6hc = use6hcCredit()
+const { fetch: mxFetch } = use6hc
 const { activate, deactivate } = useBgAutoActive()
 
 const state = reactive({
@@ -17,9 +21,9 @@ const state = reactive({
   leaving: false,
 })
 
-const playList = computed(() => credit.playList.value || [])
-const availableCodes = computed(() => credit.availableCodes.value || [])
-const canSubmit = computed(() => Boolean(credit.canSubmit.value))
+const playList = computed(() => use6hc.playList.value || [])
+const availableCodes = computed(() => use6hc.availableCodes.value || [])
+const canSubmit = computed(() => Boolean(use6hc.canSubmit.value))
 const playKeySet = computed(() => new Set(playList.value.map((item: any) => item.key)))
 const routePlayKey = computed(() => String(route.params.play || '').toLowerCase())
 
@@ -31,7 +35,7 @@ const _actions = {
       await router.replace('/lottery/bg/6hc-cd/tema')
       return
     }
-    await credit.actions.fetchPlayByKey(target)
+    await use6hc.actions.fetchPlayByKey(target)
   },
 }
 
@@ -46,16 +50,21 @@ onBeforeRouteLeave((_to, _from, next) => {
 })
 
 onMounted(async () => {
-  await credit.actions.initUserInfo()
-  await credit.actions.initPlay()
-  await _actions.syncPlayByRoute()
-  credit.actions.startCountdown()
+  await init()
+  if (!isLoggedIn.value) {
+    router.replace('/login')
+    return
+  }
+  const _userId = String(user.value?.id ?? '')
+  // await use6hc.init.startServerTimeSync()
+  await mxFetch.initPageData(_userId)
+
   activate('6hc-cd')
   state.entered = true
 })
 
 onBeforeUnmount(() => {
-  credit.actions.stopCountdown()
+  use6hc.actions.stopCountdown()
   deactivate()
 })
 </script>
@@ -65,7 +74,6 @@ onBeforeUnmount(() => {
     <div class="bg-fx" aria-hidden="true">
       <span v-for="i in 8" :key="i" class="orb" :style="`--i: ${i}`" />
     </div>
-
     <LotteryBgBaseTop />
 
     <main class="main">
@@ -75,7 +83,7 @@ onBeforeUnmount(() => {
       <!-- CONTENT LAYOUT -->
       <section class="cd-layout">
         <!-- MEMBER SIDEBAR -->
-        <aside class="member-side">
+        <!-- <aside class="member-side">
           <article class="member-card">
             <div class="member-head">
               <span class="member-head__name">{{ credit.wallet.userName }}</span>
@@ -97,40 +105,27 @@ onBeforeUnmount(() => {
             </div>
             <div class="member-id">USER_ID: {{ credit.wallet.userId }}</div>
           </article>
-        </aside>
+        </aside> -->
 
         <!-- PLAY AREA -->
-        <section class="content-main">
-          <PlayTabs
-            :plays="playList"
-            :selected-key="credit.state.selectedPlayKey"
-            base-path="/lottery/bg/6hc-cd" />
+        <!-- <section class="content-main">
+          <PlayTabs :plays="playList" :selected-key="credit.state.selectedPlayKey" base-path="/lottery/bg/6hc-cd" />
 
           <div v-if="credit.state.fetchStatus === 'loading'" class="state-block">玩法資料載入中...</div>
-          <div v-else-if="credit.state.fetchStatus === 'error'" class="state-block error">{{ credit.state.errorMessage }}</div>
-          <PlayPanel
-            v-else-if="credit.state.activePlay"
-            :play="credit.state.activePlay"
-            :selected-type="credit.state.selectedTypeName"
-            :available-codes="availableCodes"
-            :selected-codes="credit.state.selectedCodes"
-            :amount="credit.state.amount"
-            :custom-code-input="credit.state.customCodeInput"
-            :can-submit="canSubmit"
-            :submit-status="credit.state.submitStatus"
-            :message="credit.state.message"
-            :error-message="credit.state.errorMessage"
-            :last-order-id="credit.state.lastOrderId"
-            :last-orders="credit.state.lastOrders"
-            @select-type="credit.click.handleSelectType"
-            @toggle-code="credit.click.handleToggleCode"
-            @quick-amount="credit.click.handleQuickAmount"
-            @submit-bet="credit.click.handleSubmitBet"
-            @append-custom-code="credit.click.handleAppendCustomCode"
-            @reset-selection="credit.click.handleResetSelection"
-            @update:amount="credit.state.amount = $event"
+          <div v-else-if="credit.state.fetchStatus === 'error'" class="state-block error">{{ credit.state.errorMessage
+            }}</div>
+          <PlayPanel v-else-if="credit.state.activePlay" :play="credit.state.activePlay"
+            :selected-type="credit.state.selectedTypeName" :available-codes="availableCodes"
+            :selected-codes="credit.state.selectedCodes" :amount="credit.state.amount"
+            :custom-code-input="credit.state.customCodeInput" :can-submit="canSubmit"
+            :submit-status="credit.state.submitStatus" :message="credit.state.message"
+            :error-message="credit.state.errorMessage" :last-order-id="credit.state.lastOrderId"
+            :last-orders="credit.state.lastOrders" @select-type="credit.click.handleSelectType"
+            @toggle-code="credit.click.handleToggleCode" @quick-amount="credit.click.handleQuickAmount"
+            @submit-bet="credit.click.handleSubmitBet" @append-custom-code="credit.click.handleAppendCustomCode"
+            @reset-selection="credit.click.handleResetSelection" @update:amount="credit.state.amount = $event"
             @update:custom-code-input="credit.state.customCodeInput = $event" />
-        </section>
+        </section> -->
       </section>
     </main>
   </div>
@@ -169,7 +164,7 @@ onBeforeUnmount(() => {
     }
   }
 
-  > .main {
+  >.main {
     position: relative;
     z-index: 1;
     width: min(1360px, 97%);
@@ -308,6 +303,7 @@ onBeforeUnmount(() => {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: none;
@@ -322,9 +318,12 @@ onBeforeUnmount(() => {
 }
 
 @keyframes cd-card-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(185, 28, 28, 0);
   }
+
   50% {
     box-shadow: 0 0 14px 3px rgba(185, 28, 28, 0.15);
   }
@@ -335,12 +334,15 @@ onBeforeUnmount(() => {
     opacity: 0;
     transform: translateY(0) scale(1);
   }
+
   8% {
     opacity: 0.55;
   }
+
   88% {
     opacity: 0.2;
   }
+
   100% {
     opacity: 0;
     transform: translateY(-100vh) scale(0.6);
