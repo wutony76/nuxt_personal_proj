@@ -1,6 +1,6 @@
 import lodash from 'lodash'
 import { Storage } from './storage'
-import { PLAYLIST } from '~/config/bg/6hc-of'
+import { PLAYLIST } from '#shared/config/6hc-of'
 import { LOTTERY } from '~/config/constants'
 
 const { cloneDeep } = lodash

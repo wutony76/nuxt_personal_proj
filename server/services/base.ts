@@ -1,10 +1,19 @@
 
+import { SX } from '#shared/config/6hc-cd'
+
 export class MEMORY {
   static now: Date = new Date()
 }
+
+export const _handle = {
+  currentShengxiao(): string {
+    const year = MEMORY.now.getFullYear()
+    return SX[((year - 2020) % 12 + 12) % 12] as string
+  },
+}
+
 export default class BaseClass {
   protected isRunning = false
-  // protected now: Date = new Date()
   private _loopTimer: ReturnType<typeof setTimeout> | null = null
   private intervalMs = 300
 

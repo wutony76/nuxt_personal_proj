@@ -549,7 +549,7 @@ export default class LHC_OF extends LOTTERY_BASE {
     LOTTERY_BASE.getOrders(LOTTERY['LHC-OF'].id, LOTTERY['LHC-OF'].key)
   }
 
-  circle() {
+  override circle() {
     this.handle.refreshCurrent(new Date())
     this.handle.settleClosedIssueIfNeeded()
   }

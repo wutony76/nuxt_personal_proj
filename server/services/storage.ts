@@ -83,7 +83,7 @@ export class Storage {
   static account: Record<string, AuthRecord> = {}
   static sessions = new Map<string, SessionRecord>()
   static users: Record<string, unknown> = {}
-  static games: Record<string, unknown> = {}
+  static games: Record<string, any> = {}
   static lotteryStore: LotteryStore = createDefaultLotteryStore()
   static lottery = {
     orders: {}

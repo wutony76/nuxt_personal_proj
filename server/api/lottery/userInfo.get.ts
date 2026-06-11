@@ -1,10 +1,11 @@
 import { Storage } from '../../services/storage'
 import { sessionController } from '../../services/auth'
 import { LOTTERY } from '~/config/constants'
+import type Users from '../../services/users'
 
 export default defineEventHandler((event) => {
   const _login = sessionController.require(event)
-  const _user = Storage.get.user(_login.id)
+  const _user = Storage.get.user(_login.id) as Users
   // console.log('TTT2.API bet.post.user', _user)
   const query = getQuery(event)
   const lotteryKey = query.lottery as string || LOTTERY['LHC-OF'].key

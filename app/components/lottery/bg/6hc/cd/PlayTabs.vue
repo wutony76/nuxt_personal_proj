@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 /**
- * @typedef {import('~/config/bg/6hc-cd').CreditPlayDefinition} CreditPlayDefinition
+ * @typedef {import('#shared/config/6hc-cd').CreditPlayDefinition} CreditPlayDefinition
  */
 
 const props = defineProps({

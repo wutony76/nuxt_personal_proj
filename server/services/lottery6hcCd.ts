@@ -469,7 +469,7 @@ export default class LHC_CD extends LOTTERY_BASE {
     LOTTERY_BASE.getOrders(this.id, this.key)
   }
 
-  circle() {
+  override circle() {
     this.handle.refreshCurrent(MEMORY.now)
     this.handle.settleClosedIssueIfNeeded()
   }

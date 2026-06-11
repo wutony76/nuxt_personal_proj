@@ -148,7 +148,7 @@ class TetriminosEngine {
     const types: PieceType[] = ['I', 'O', 'T', 'S', 'Z', 'J', 'L']
     const type = types[Math.floor(Math.random() * types.length)] ?? 'T'
     const matrix = BASE_SHAPES[type].map((r) => [...r])
-    const x = Math.floor((this.cols - matrix[0].length) / 2)
+    const x = Math.floor((this.cols - matrix[0]!.length) / 2)
     const y = 0
     if (!this.canPlace(matrix, x, y)) {
       return false
@@ -159,8 +159,8 @@ class TetriminosEngine {
 
   private canPlace(matrix: number[][], x: number, y: number) {
     for (let r = 0; r < matrix.length; r += 1) {
-      for (let c = 0; c < matrix[r].length; c += 1) {
-        if (!matrix[r][c]) continue
+      for (let c = 0; c < matrix[r]!.length; c += 1) {
+        if (!matrix[r]![c]) continue
         const nx = x + c
         const ny = y + r
         if (nx < 0 || nx >= this.cols || ny < 0 || ny >= this.rows) {
@@ -178,12 +178,12 @@ class TetriminosEngine {
     if (!this.active) return
     const id = PIECE_ID[this.active.type]
     for (let r = 0; r < this.active.matrix.length; r += 1) {
-      for (let c = 0; c < this.active.matrix[r].length; c += 1) {
-        if (!this.active.matrix[r][c]) continue
+      for (let c = 0; c < this.active.matrix[r]!.length; c += 1) {
+        if (!this.active.matrix[r]![c]) continue
         const nx = this.active.x + c
         const ny = this.active.y + r
         if (ny >= 0 && ny < this.rows && nx >= 0 && nx < this.cols) {
-          this.board[ny][nx] = id
+          this.board[ny]![nx] = id
         }
       }
     }
@@ -216,7 +216,7 @@ class TetriminosEngine {
     const next: number[][] = Array.from({ length: w }, () => Array.from({ length: h }, () => 0))
     for (let r = 0; r < h; r += 1) {
       for (let c = 0; c < w; c += 1) {
-        next[c][h - 1 - r] = matrix[r][c]
+        next[c]![h - 1 - r] = matrix[r]![c]!
       }
     }
     return next
@@ -263,12 +263,12 @@ const rebuildBoardView = () => {
   if (snap.active) {
     const id = PIECE_ID[snap.active.type]
     for (let r = 0; r < snap.active.matrix.length; r += 1) {
-      for (let c = 0; c < snap.active.matrix[r].length; c += 1) {
-        if (!snap.active.matrix[r][c]) continue
+      for (let c = 0; c < snap.active.matrix[r]!.length; c += 1) {
+        if (!snap.active.matrix[r]![c]) continue
         const y = snap.active.y + r
         const x = snap.active.x + c
-        if (y >= 0 && y < merged.length && x >= 0 && x < merged[0].length) {
-          merged[y][x] = id
+        if (y >= 0 && y < merged.length && x >= 0 && x < merged[0]!.length) {
+          merged[y]![x] = id
         }
       }
     }

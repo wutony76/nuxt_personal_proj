@@ -1,6 +1,6 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
-import { CREDIT_PLAY_DEFINITIONS } from '~/config/bg/6hc-cd'
+import { CREDIT_PLAY_DEFINITIONS } from '#shared/config/6hc-cd'
 import { api, type Lottery6hcCurrent } from '~/services/api'
 import { handle as utHandle } from '~/utils/common'
 import { Lottery6hcCreditService } from '~/services/lottery6hcCreditService'

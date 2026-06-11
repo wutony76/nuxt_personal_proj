@@ -2,7 +2,7 @@ import { cloneDeep } from 'lodash'
 import { computed, reactive, ref, watch } from 'vue'
 import { actions } from '~/utils/common'
 import { GAME_6HC_OF, LOTTERY, SORT, STATUS_TIME } from '~/config/constants'
-import { PLAYLIST } from '~/config/bg/6hc-of'
+import { PLAYLIST } from '#shared/config/6hc-of'
 import {
   type Lottery6hcCurrent,
   type Lottery6hcRoadPlay,

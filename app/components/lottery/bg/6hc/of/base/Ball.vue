@@ -14,7 +14,7 @@
 </template>
 
 <script setup>
-import { LHC_COLORS } from '~/config/bg/6hc-of'
+import { LHC_COLORS } from '#shared/config/6hc-of'
 
 const props = defineProps({
   data: {

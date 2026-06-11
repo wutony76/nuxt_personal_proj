@@ -1,46 +1,35 @@
+/** 生肖列表（子鼠起，依序 12 生肖） */
+export const SX = ['鼠', '牛', '虎', '兔', '龍', '蛇', '馬', '羊', '猴', '雞', '狗', '豬'] as const
+
+export type SxType = (typeof SX)[number]
+
+/** 六合彩色波對應號碼 */
 export const LHC_COLORS = {
   red: ['01', '02', '07', '08', '12', '13', '18', '19', '23', '24', '29', '30', '34', '35', '40', '45', '46', '红波'],
   blue: ['03', '04', '09', '10', '14', '15', '20', '25', '26', '31', '36', '37', '41', '42', '47', '48', '蓝波'],
   green: ['05', '06', '11', '16', '17', '21', '22', '27', '28', '32', '33', '38', '39', '43', '44', '49', '绿波'],
-}
-// 五行
+} as const satisfies Record<string, readonly string[]>
+
+export type LhcColorKey = keyof typeof LHC_COLORS
+
+/** 五行對應號碼（金木水火土） */
 export const WUXING = {
   j: ['01', '06', '11', '16', '21', '26', '31', '36', '41', '46'],
   m: ['02', '07', '12', '17', '22', '27', '32', '37', '42', '47'],
   s: ['03', '08', '13', '18', '23', '28', '33', '38', '43', '48'],
   h: ['04', '09', '14', '19', '24', '29', '34', '39', '44', '49'],
   t: ['05', '10', '15', '20', '25', '30', '35', '40', '45'],
-}
-export const SX = ['鼠', '牛', '虎', '兔', '龍', '蛇', '馬', '羊', '猴', '雞', '狗', '豬']
-export const WS = ['0尾', '1尾', '2尾', '3尾', '4尾', '5尾', '6尾', '7尾', '8尾', '9尾']
-// 生成生肖數字
-export function shengxiaoAll(animal) {
-  if (!animal) return {}
-  const pos = sx.indexOf(animal)
-  if (pos === -1) {
-    console.log('無效的生肖', animal, pos)
-    return {}
-  }
-  const tmp = [].concat(sx.slice(0, pos + 1).reverse()).concat(sx.slice(pos + 1).reverse())
-  const ret = {}
-  for (let i = 0; i < 4; i++) {
-    for (let j = 0; j < 12; j++) {
-      if (Array.isArray(ret[tmp[j]])) {
-        const s = i * 12 + parseInt(ret[tmp[j]][0])
-        ret[tmp[j]].push(String(s))
-      } else {
-        ret[tmp[j]] = []
-        let t = j + 1
-        t = t < 10 ? '0' + t : String(t)
-        ret[tmp[j]].push(t)
-      }
-    }
-  }
-  ret[animal].push('49')
-  return ret
-}
-// 生成尾數數字
-export const weishuAll = {
+} as const satisfies Record<string, readonly string[]>
+
+export type WuxingKey = keyof typeof WUXING
+
+/** 尾數列表（0尾 ~ 9尾） */
+export const WS = ['0尾', '1尾', '2尾', '3尾', '4尾', '5尾', '6尾', '7尾', '8尾', '9尾'] as const
+
+export type WsType = (typeof WS)[number]
+
+/** 尾數對應號碼表 */
+export const weishuAll: Record<string, string[]> = {
   '0尾': ['10', '20', '30', '40'],
   '1尾': ['01', '11', '21', '31', '41'],
   '2尾': ['02', '12', '22', '32', '42'],
@@ -53,43 +42,73 @@ export const weishuAll = {
   '9尾': ['09', '19', '29', '39', '49'],
 }
 
+/**
+ * 依生肖推算對應號碼
+ * @param animal - 生肖名稱（需為 SX 陣列中的有效值）
+ * @returns 以生肖為 key 的號碼對應表，無效生肖回傳空物件
+ */
+export function shengxiaoAll(animal: string): Record<string, string[]> {
+  if (!animal) return {}
+  const sxList = SX as readonly string[]
+  const pos = sxList.indexOf(animal)
+  if (pos === -1) {
+    console.log('無效的生肖', animal, pos)
+    return {}
+  }
+  const tmp = ([] as string[])
+    .concat(sxList.slice(0, pos + 1).reverse())
+    .concat(sxList.slice(pos + 1).reverse())
+  const ret: Record<string, string[]> = {}
+  for (let i = 0; i < 4; i++) {
+    for (let j = 0; j < 12; j++) {
+      const key = tmp[j] as string
+      if (Array.isArray(ret[key])) {
+        const s = i * 12 + parseInt(ret[key]![0]!)
+        ret[key]!.push(String(s))
+      } else {
+        ret[key] = []
+        let t = j + 1
+        const tStr = t < 10 ? '0' + t : String(t)
+        ret[key]!.push(tStr)
+      }
+    }
+  }
+  ret[animal]?.push('49')
+  return ret
+}
 
+// ── CREDIT_PLAY_DEFINITIONS helpers ─────────────────────────────────────────
 
+type NumberOption = { id: string; label: string; num: number }
+type SimpleOption = { id: string; label: string }
+type PlayOption = NumberOption | SimpleOption
 
-
-
-
-// 
-const makeNumberOptions = (prefix) => {
-  return Array.from({ length: 49 }, (_, index) => {
+const makeNumberOptions = (prefix: string): NumberOption[] =>
+  Array.from({ length: 49 }, (_, index) => {
     const num = index + 1
     const label = String(num).padStart(2, '0')
-    return {
-      id: `${prefix}-${label}`,
-      label,
-      num
-    }
+    return { id: `${prefix}-${label}`, label, num }
   })
-}
 
-const makeSimpleOptions = (prefix, labels) => {
-  return labels.map((label, index) => ({
-    id: `${prefix}-${index + 1}`,
-    label
-  }))
-}
+const makeSimpleOptions = (prefix: string, labels: string[]): SimpleOption[] =>
+  labels.map((label, index) => ({ id: `${prefix}-${index + 1}`, label }))
 
 const TEMA_SIDE_OPTIONS = ['特大', '特小', '特單', '特雙', '合單', '合雙', '尾大', '尾小']
 const COLOR_OPTIONS = ['紅波', '藍波', '綠波']
-const BANBO_OPTIONS = [
-  '紅單', '紅雙', '紅大', '紅小',
-  '藍單', '藍雙', '藍大', '藍小',
-  '綠單', '綠雙', '綠大', '綠小'
-]
-const SHENGXIAO_OPTIONS = ['鼠', '牛', '虎', '兔', '龍', '蛇', '馬', '羊', '猴', '雞', '狗', '豬']
+const BANBO_OPTIONS = ['紅單', '紅雙', '紅大', '紅小', '藍單', '藍雙', '藍大', '藍小', '綠單', '綠雙', '綠大', '綠小']
+const SHENGXIAO_OPTIONS = [...SX]
 
-/** @type {CreditPlayDefinition[]} */
-export const CREDIT_PLAY_DEFINITIONS = [
+export type CreditPlayDefinition = {
+  key: string
+  name: string
+  source: string
+  description: string
+  playTypeNames: string[]
+  groupNames: string[]
+  playTypeOptions: Record<string, PlayOption[]>
+}
+
+export const CREDIT_PLAY_DEFINITIONS: CreditPlayDefinition[] = [
   {
     key: 'banbo',
     name: '半波',
@@ -97,9 +116,7 @@ export const CREDIT_PLAY_DEFINITIONS = [
     description: '色波、單雙、大小與合數等組合玩法。',
     playTypeNames: ['半波'],
     groupNames: ['半波'],
-    playTypeOptions: {
-      半波: makeSimpleOptions('banbo-half', BANBO_OPTIONS)
-    }
+    playTypeOptions: { 半波: makeSimpleOptions('banbo-half', BANBO_OPTIONS) },
   },
   {
     key: 'duoxuanzhongyi',
@@ -114,8 +131,8 @@ export const CREDIT_PLAY_DEFINITIONS = [
       七選中一: makeNumberOptions('duoxuanzhongyi-7'),
       八選中一: makeNumberOptions('duoxuanzhongyi-8'),
       九選中一: makeNumberOptions('duoxuanzhongyi-9'),
-      十選中一: makeNumberOptions('duoxuanzhongyi-10')
-    }
+      十選中一: makeNumberOptions('duoxuanzhongyi-10'),
+    },
   },
   {
     key: 'ixiaolian',
@@ -125,8 +142,8 @@ export const CREDIT_PLAY_DEFINITIONS = [
     playTypeNames: ['一肖量'],
     groupNames: ['一肖量'],
     playTypeOptions: {
-      一肖量: makeSimpleOptions('ixiaolian-animal', ['特肖', '一肖中', '一肖不中', '二肖連中', '三肖連中', '四肖連中'])
-    }
+      一肖量: makeSimpleOptions('ixiaolian-animal', ['特肖', '一肖中', '一肖不中', '二肖連中', '三肖連中', '四肖連中']),
+    },
   },
   {
     key: 'lianma',
@@ -140,8 +157,8 @@ export const CREDIT_PLAY_DEFINITIONS = [
       三中二: makeSimpleOptions('lianma-3in2', ['三中二之中三', '三中二之中二']),
       二全中: makeSimpleOptions('lianma-2all', ['二全中']),
       二中特: makeSimpleOptions('lianma-2tema', ['二中特之中特', '二中特之中二']),
-      特串: makeSimpleOptions('lianma-chain', ['特串'])
-    }
+      特串: makeSimpleOptions('lianma-chain', ['特串']),
+    },
   },
   {
     key: 'qima',
@@ -151,8 +168,8 @@ export const CREDIT_PLAY_DEFINITIONS = [
     playTypeNames: ['七码'],
     groupNames: ['單雙', '大小'],
     playTypeOptions: {
-      七碼: makeSimpleOptions('qima-7', ['單1', '單2', '單3', '單4', '雙1', '雙2', '雙3', '雙4', '大1', '大2', '大3', '大4', '小1', '小2', '小3', '小4'])
-    }
+      七碼: makeSimpleOptions('qima-7', ['單1', '單2', '單3', '單4', '雙1', '雙2', '雙3', '雙4', '大1', '大2', '大3', '大4', '小1', '小2', '小3', '小4']),
+    },
   },
   {
     key: 'shengxiao',
@@ -161,9 +178,7 @@ export const CREDIT_PLAY_DEFINITIONS = [
     description: '特肖、一肖、合肖與連肖等生肖延伸玩法。',
     playTypeNames: ['特肖'],
     groupNames: ['特肖'],
-    playTypeOptions: {
-      特肖: makeSimpleOptions('shengxiao-special', SHENGXIAO_OPTIONS)
-    }
+    playTypeOptions: { 特肖: makeSimpleOptions('shengxiao-special', SHENGXIAO_OPTIONS) },
   },
   {
     key: 'tema',
@@ -173,17 +188,9 @@ export const CREDIT_PLAY_DEFINITIONS = [
     playTypeNames: ['特碼A', '特碼B'],
     groupNames: ['特碼', '兩面', '色波'],
     playTypeOptions: {
-      特碼A: [
-        ...makeNumberOptions('tema-a-num'),
-        ...makeSimpleOptions('tema-a-side', TEMA_SIDE_OPTIONS),
-        ...makeSimpleOptions('tema-a-color', COLOR_OPTIONS)
-      ],
-      特碼B: [
-        ...makeNumberOptions('tema-b-num'),
-        ...makeSimpleOptions('tema-b-side', TEMA_SIDE_OPTIONS),
-        ...makeSimpleOptions('tema-b-color', COLOR_OPTIONS)
-      ]
-    }
+      特碼A: [...makeNumberOptions('tema-a-num'), ...makeSimpleOptions('tema-a-side', TEMA_SIDE_OPTIONS), ...makeSimpleOptions('tema-a-color', COLOR_OPTIONS)],
+      特碼B: [...makeNumberOptions('tema-b-num'), ...makeSimpleOptions('tema-b-side', TEMA_SIDE_OPTIONS), ...makeSimpleOptions('tema-b-color', COLOR_OPTIONS)],
+    },
   },
   {
     key: 'touweishu',
@@ -194,8 +201,8 @@ export const CREDIT_PLAY_DEFINITIONS = [
     groupNames: ['尾數'],
     playTypeOptions: {
       尾數中: makeSimpleOptions('touweishu-in', ['0尾', '1尾', '2尾', '3尾', '4尾', '5尾', '6尾', '7尾', '8尾', '9尾']),
-      尾數不中: makeSimpleOptions('touweishu-not', ['0尾', '1尾', '2尾', '3尾', '4尾', '5尾', '6尾', '7尾', '8尾', '9尾'])
-    }
+      尾數不中: makeSimpleOptions('touweishu-not', ['0尾', '1尾', '2尾', '3尾', '4尾', '5尾', '6尾', '7尾', '8尾', '9尾']),
+    },
   },
   {
     key: 'weishulian',
@@ -205,8 +212,8 @@ export const CREDIT_PLAY_DEFINITIONS = [
     playTypeNames: ['尾數量'],
     groupNames: ['尾數量'],
     playTypeOptions: {
-      尾數量: makeSimpleOptions('weishulian-tail', ['二尾連中', '三尾連中', '四尾連中', '二尾連不中', '三尾連不中', '四尾連不中'])
-    }
+      尾數量: makeSimpleOptions('weishulian-tail', ['二尾連中', '三尾連中', '四尾連中', '二尾連不中', '三尾連不中', '四尾連不中']),
+    },
   },
   {
     key: 'wuxing',
@@ -215,9 +222,7 @@ export const CREDIT_PLAY_DEFINITIONS = [
     description: '以五行分類對應號碼進行投注。',
     playTypeNames: ['五行'],
     groupNames: ['五行'],
-    playTypeOptions: {
-      五行: makeSimpleOptions('wuxing', ['金', '木', '水', '火', '土'])
-    }
+    playTypeOptions: { 五行: makeSimpleOptions('wuxing', ['金', '木', '水', '火', '土']) },
   },
   {
     key: 'zhengma',
@@ -227,15 +232,9 @@ export const CREDIT_PLAY_DEFINITIONS = [
     playTypeNames: ['正碼A', '正碼B'],
     groupNames: ['正碼', '兩面'],
     playTypeOptions: {
-      正碼A: [
-        ...makeNumberOptions('zhengma-a-num'),
-        ...makeSimpleOptions('zhengma-a-side', ['總單', '總雙', '總大', '總小'])
-      ],
-      正碼B: [
-        ...makeNumberOptions('zhengma-b-num'),
-        ...makeSimpleOptions('zhengma-b-side', ['總單', '總雙', '總大', '總小'])
-      ]
-    }
+      正碼A: [...makeNumberOptions('zhengma-a-num'), ...makeSimpleOptions('zhengma-a-side', ['總單', '總雙', '總大', '總小'])],
+      正碼B: [...makeNumberOptions('zhengma-b-num'), ...makeSimpleOptions('zhengma-b-side', ['總單', '總雙', '總大', '總小'])],
+    },
   },
   {
     key: 'zhengmate',
@@ -250,8 +249,8 @@ export const CREDIT_PLAY_DEFINITIONS = [
       正三特: [...makeNumberOptions('zhengmate-3-num'), ...makeSimpleOptions('zhengmate-3-side', TEMA_SIDE_OPTIONS), ...makeSimpleOptions('zhengmate-3-color', COLOR_OPTIONS)],
       正四特: [...makeNumberOptions('zhengmate-4-num'), ...makeSimpleOptions('zhengmate-4-side', TEMA_SIDE_OPTIONS), ...makeSimpleOptions('zhengmate-4-color', COLOR_OPTIONS)],
       正五特: [...makeNumberOptions('zhengmate-5-num'), ...makeSimpleOptions('zhengmate-5-side', TEMA_SIDE_OPTIONS), ...makeSimpleOptions('zhengmate-5-color', COLOR_OPTIONS)],
-      正六特: [...makeNumberOptions('zhengmate-6-num'), ...makeSimpleOptions('zhengmate-6-side', TEMA_SIDE_OPTIONS), ...makeSimpleOptions('zhengmate-6-color', COLOR_OPTIONS)]
-    }
+      正六特: [...makeNumberOptions('zhengmate-6-num'), ...makeSimpleOptions('zhengmate-6-side', TEMA_SIDE_OPTIONS), ...makeSimpleOptions('zhengmate-6-color', COLOR_OPTIONS)],
+    },
   },
   {
     key: 'zhengterenzhong',
@@ -265,8 +264,8 @@ export const CREDIT_PLAY_DEFINITIONS = [
       二粒任中: makeNumberOptions('zhengterenzhong-2'),
       三粒任中: makeNumberOptions('zhengterenzhong-3'),
       四粒任中: makeNumberOptions('zhengterenzhong-4'),
-      五粒任中: makeNumberOptions('zhengterenzhong-5')
-    }
+      五粒任中: makeNumberOptions('zhengterenzhong-5'),
+    },
   },
   {
     key: 'zixuanbuzhong',
@@ -281,8 +280,7 @@ export const CREDIT_PLAY_DEFINITIONS = [
       七不中: makeNumberOptions('zixuanbuzhong-7'),
       八不中: makeNumberOptions('zixuanbuzhong-8'),
       九不中: makeNumberOptions('zixuanbuzhong-9'),
-      十不中: makeNumberOptions('zixuanbuzhong-10')
-    }
-  }
+      十不中: makeNumberOptions('zixuanbuzhong-10'),
+    },
+  },
 ]
-
