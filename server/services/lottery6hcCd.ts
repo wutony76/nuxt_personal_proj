@@ -2,6 +2,7 @@ import { Storage } from './storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import LOTTERY_BASE from './lotteryBase'
 import { MEMORY } from './base'
+import { shengxiaoAll } from '#shared/config/6hc-cd'
 
 type OpenCodeHistoryItem = {
   issue: string
@@ -99,13 +100,15 @@ export default class LHC_CD extends LOTTERY_BASE {
   carryJackpot: number
   jackpotBase: number
   jackpotBaseSetAt: number
+  animal: string
+  _animalMapCache: { animal: string; map: Record<string, string> } | null
 
   declare _get: LOTTERY_BASE['_get'] & {
     user: (userId: string) => UserStoreLike
     userRecord: (userId: string) => UserRecord
   }
-
   declare handle: LOTTERY_BASE['handle'] & {
+    animalByNumber: () => Record<string, string>
     openCodePlay: (openCode: string[]) => Array<Record<string, unknown>>
     buildOrderRows: (input: { issue: string; userId: string; amount: number; groups: Group[] }) => BetOrderRow[]
     addIssueJackpot: (issue: string, amount: number) => void
@@ -116,7 +119,6 @@ export default class LHC_CD extends LOTTERY_BASE {
     appendBetHistory: (row: BetOrderRow) => void
     ensureUserRecord: (user: UserStoreLike) => UserRecord
   }
-
   declare get: LOTTERY_BASE['get'] & {
     currentStatus: () => string
     currentIssue: () => string
@@ -134,6 +136,8 @@ export default class LHC_CD extends LOTTERY_BASE {
     this.carryJackpot = 0
     this.jackpotBase = 0
     this.jackpotBaseSetAt = 0
+    this.animal = MEMORY.animal
+    this._animalMapCache = null
 
     Object.assign(this._get, {
       user: (userId: string) => {
@@ -146,12 +150,27 @@ export default class LHC_CD extends LOTTERY_BASE {
     })
 
     Object.assign(this.handle, {
+      // 依當年生肖建立「號碼 → 生肖」對照表（以 animal 為 key 快取）
+      animalByNumber: () => {
+        if (this._animalMapCache?.animal === this.animal) return this._animalMapCache.map
+        const table = shengxiaoAll(this.animal)
+        const map: Record<string, string> = {}
+        Object.entries(table).forEach(([sx, nums]) => {
+          nums.forEach((n) => { map[String(n).padStart(2, '0')] = sx })
+        })
+        this._animalMapCache = { animal: this.animal, map }
+        return map
+      },
       openCodePlay: (openCode: string[]) => {
+        const animalMap = this.handle.animalByNumber()
         return openCode
           .map((code) => {
             const num = Number(code)
             if (!Number.isFinite(num)) return null
-            return (Storage.get.lotteryPlay(LOTTERY['6HC'].id, num) ?? null) as Record<string, unknown> | null
+            const play = Storage.get.lotteryPlay(LOTTERY['6HC'].id, num)
+            if (!play) return null
+            const key = String(code).padStart(2, '0')
+            return { ...(play as Record<string, unknown>), animal: animalMap[key] ?? '' } as Record<string, unknown>
           })
           .filter((play): play is Record<string, unknown> => Boolean(play))
       },

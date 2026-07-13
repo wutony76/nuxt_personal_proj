@@ -177,11 +177,13 @@ const openBalls = computed(() => {
   if (Array.isArray(playList) && playList.length > 0) {
     return playList.map((item) => ({
       num: String(item.num ?? item.label ?? '').padStart(2, '0'),
+      animal: String(item.animal ?? ''),
       countShow: Number(item.countShow ?? -1)
     }))
   }
   return normalizedData.value.openCode.map((item) => ({
     num: String(typeof item === 'object' && item !== null ? (item as any).num ?? '' : item).padStart(2, '0'),
+    animal: String(typeof item === 'object' && item !== null ? (item as any).animal ?? '' : ''),
     countShow: -1
   }))
 })
@@ -233,13 +235,16 @@ const openingBalls = computed(() => {
               <div class="ball-legend-title">
                 <span>開獎號碼</span>
               </div>
-              <div class="ball-legend-counts">
-                <div class="ball-legend-count">攪出次數</div>
-              </div>
+              <div class="ball-legend-animal">生肖</div>
+              <div class="ball-legend-count">攪出次數</div>
             </div>
             <div v-for="(ball, idx) in openBalls" :key="`${idx}-${ball.num}`" class="ball-warp">
               <span v-if="idx === openBalls.length - 1" class="plus">+</span>
-              <Ball :data="{ label: ball.num, num: ball.num, selected: true, countShow: ball.countShow }" :is-click="false" />
+              <div class="ball-col">
+                <Ball :data="{ label: ball.num, num: ball.num, selected: true }" :is-click="false" />
+                <span class="ball-animal">{{ ball.animal || '—' }}</span>
+                <span class="ball-count">{{ ball.countShow >= 0 ? ball.countShow : '—' }}</span>
+              </div>
             </div>
           </div>
 
@@ -447,6 +452,7 @@ const openingBalls = computed(() => {
             align-items: flex-start;
             justify-content: flex-start;
             flex-shrink: 0;
+            gap: 6px;
             margin-right: 0.25rem;
             padding: 0.375rem 0.625rem;
             background: #fff;
@@ -467,27 +473,49 @@ const openingBalls = computed(() => {
               }
             }
 
-            .ball-legend-counts {
-              margin-top: 6px;
-              display: grid;
-              gap: 2px;
-            }
-
+            .ball-legend-animal,
             .ball-legend-count {
-              text-align: left;
+              height: 16px;
+              display: flex;
+              align-items: center;
               font-size: 12px;
               color: var(--color-red-desc);
               border: 1px solid var(--color-red-desc);
               border-radius: 0.25rem;
               padding: 0 0.25rem;
             }
+
+            .ball-legend-animal {
+              visibility: hidden;
+            }
           }
         }
 
         .ball-warp {
           display: inline-flex;
-          align-items: center;
+          align-items: flex-start;
           flex-shrink: 0;
+
+          .ball-col {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+
+            .ball-animal,
+            .ball-count {
+              height: 16px;
+              display: flex;
+              align-items: center;
+              font-size: 12px;
+              line-height: 1;
+              color: var(--color-red-desc);
+            }
+
+            .ball-animal {
+              font-weight: 600;
+            }
+          }
 
           :deep(.ball) {
             width: 45px;
@@ -499,10 +527,10 @@ const openingBalls = computed(() => {
           .plus {
             margin-right: 0.5rem;
             display: inline-flex;
-            align-items: flex-start;
+            align-items: center;
             justify-content: start;
             flex-shrink: 0;
-            height: 60px;
+            height: 45px;
             font-size: 22px;
             line-height: 1;
             font-weight: 700;
