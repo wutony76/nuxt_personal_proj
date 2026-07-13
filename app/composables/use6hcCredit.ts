@@ -73,7 +73,10 @@ const wallet = reactive({
   userId: '-' as string,
   creditLimit: 0 as number,
   balanceLimit: 0 as number,
-  panType: '盤口A' as string,
+  coin: 0 as number,
+  currentBets: 0 as number,
+  totalBets: 0 as number,
+  analysis: '-' as string,
 })
 
 const time = reactive({
@@ -200,11 +203,27 @@ const fetch = {
     // await fetch.orderDetailFromCache(normalizedUserId)
     await Promise.all([
       fetch.refreshCurrentInfo(),
+      fetch.userInfo(),
       // fetch.roadPlays(),
       // fetch.walletState(),
       // fetch.betMeta(),
     ])
     fetch.startJackpotPolling()
+  },
+
+  userInfo: async () => {
+    const { user } = useAuth()
+    wallet.userName = String(user.value?.name || 'Guest')
+    wallet.userId = String(user.value?.id || '-')
+    try {
+      const res = await api.lottery.userInfo(LOTTERY['LHC-CD'].key)
+      wallet.coin = Number(res?.coin ?? 0)
+      wallet.currentBets = Number(res?.currentBets ?? 0)
+      wallet.totalBets = Number(res?.totalBets ?? 0)
+      wallet.analysis = String(res?.analysis ?? '-')
+    } catch {
+      wallet.analysis = '-'
+    }
   },
 
   currentInfo: async () => {

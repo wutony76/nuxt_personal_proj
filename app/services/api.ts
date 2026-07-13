@@ -221,7 +221,8 @@ export const api = {
         method: 'POST'
       }),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
-    userInfo: () => $fetch<LotteryState>('/api/lottery/userInfo'),
+    userInfo: (lottery?: string) =>
+      $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),
     bet: (payload: LotteryBetPayload) =>
       $fetch<LotteryBetResponse>('/api/lottery/bet', {
         method: 'POST',

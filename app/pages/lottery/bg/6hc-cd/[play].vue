@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
 import { use6hcCredit } from '~/composables/use6hcCredit'
+import { actions } from '~/utils/common'
 
 import { useBgAutoActive } from '~/composables/useBgAutoActive'
 import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
@@ -26,6 +27,22 @@ const availableCodes = computed(() => use6hc.availableCodes.value || [])
 const canSubmit = computed(() => Boolean(use6hc.canSubmit.value))
 const playKeySet = computed(() => new Set(playList.value.map((item: any) => item.key)))
 const routePlayKey = computed(() => String(route.params.play || '').toLowerCase())
+
+const userInfo = computed(() => ({
+  name: user.value?.name || 'USER',
+  coin: Number(use6hc.wallet.coin ?? 0),
+  currentBets: Number(use6hc.wallet.currentBets ?? 0),
+  totalBets: Number(use6hc.wallet.totalBets ?? 0),
+  analysis: String(use6hc.wallet.analysis ?? '-'),
+  userId: user.value?.id || 'xxxxx',
+}))
+
+const click = {
+  // CD 尚無明細 Dialog，先重新拉取使用者資訊（餘額 / 投注）
+  openUserDialog: async () => {
+    await mxFetch.userInfo()
+  },
+}
 
 const _actions = {
   syncPlayByRoute: async () => {
@@ -81,6 +98,28 @@ onBeforeUnmount(() => {
       <Header />
 
       <!-- CONTENT LAYOUT -->
+      <section class="info-warp">
+        <aside class="info-side">
+          <div class="user-warp" @click="click.openUserDialog()">
+            <div class="user-title"> {{ userInfo.name }} </div>
+            <div class="user-content">
+              <div class="row">
+                F幣餘額: {{ actions.thousands(userInfo.coin) }}
+                <button type="button" class="deposit-btn" @click.stop="click.openUserDialog()">明細</button>
+              </div>
+              <div class="row">當期已投注: {{ actions.thousands(userInfo.currentBets) }}</div>
+              <div class="row">累計已投注: {{ actions.thousands(userInfo.totalBets) }}</div>
+              <div class="row">投注百分比: {{ userInfo.analysis }}</div>
+            </div>
+            <p class="user-id">USER_ID: {{ userInfo.userId }}</p>
+          </div>
+        </aside>
+        <div class="info-main">
+          <!-- TODO: CD 版 Road 走勢圖尚未實作 -->
+        </div>
+      </section>
+
+
       <section class="cd-layout">
         <!-- MEMBER SIDEBAR -->
         <!-- <aside class="member-side">
@@ -90,10 +129,6 @@ onBeforeUnmount(() => {
               <span class="member-head__tag">CREDIT</span>
             </div>
             <div class="member-body">
-              <div class="row">
-                <span class="label">盤口類型</span>
-                <strong>{{ credit.wallet.panType }}</strong>
-              </div>
               <div class="row">
                 <span class="label">信用額度</span>
                 <strong>{{ Number(credit.wallet.creditLimit || 0).toLocaleString() }}</strong>
@@ -172,6 +207,86 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+  }
+
+  // ── USER INFO ──────────────────────────────────────────────
+  .info-warp {
+    margin-top: 0.75rem;
+    display: flex;
+    gap: 0.75rem;
+    min-height: 200px;
+    align-items: stretch;
+    animation: cd-sec-in 0.55s ease both;
+    animation-delay: 0.18s;
+
+    .info-side {
+      width: 22%;
+    }
+
+    .user-warp {
+      min-height: 200px;
+      height: 250px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      cursor: pointer;
+      border: 1px solid var(--color-red-700);
+      border-radius: 6px;
+      background: color-mix(in srgb, var(--color-red-main) 6%, #fff);
+      animation: cd-card-glow 3.5s ease-in-out infinite;
+
+      .user-title {
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-bottom: 1px solid #f6d9de;
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: var(--color-red-main);
+      }
+
+      .user-content {
+        flex: 1;
+        display: grid;
+        padding: 0.75rem;
+        font-size: 13px;
+        color: var(--color-red-desc);
+
+        .row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+        }
+
+        .deposit-btn {
+          border: 1px solid #f2b7c1;
+          border-radius: 0.25rem;
+          background: #fff;
+          padding: 0.25rem 0.5rem;
+          font-size: 12px;
+          font-weight: 700;
+          color: var(--color-red-main);
+          cursor: pointer;
+        }
+      }
+
+      .user-id {
+        margin: 0;
+        border-top: 1px solid #f6d9de;
+        padding: 0.5rem 0.75rem;
+        font-size: 12px;
+        color: var(--color-red-desc);
+      }
+    }
+
+    .info-main {
+      width: 100%;
+      min-height: 100%;
+      flex: 1;
+      display: flex;
+    }
   }
 
   // ── LAYOUT ─────────────────────────────────────────────────
