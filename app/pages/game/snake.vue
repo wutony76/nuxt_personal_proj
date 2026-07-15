@@ -522,7 +522,7 @@ onUnmounted(() => {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  // background: radial-gradient(circle at top, #102510, #030603 60%);
+  /* background: radial-gradient(circle at top, #102510, #030603 60%); */
   overflow: hidden;
   isolation: isolate;
 

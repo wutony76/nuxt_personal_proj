@@ -153,7 +153,7 @@ const _actions = {
     line-height: 1.3;
     border: none;
     border-right: 1px solid var(--color-red-desc);
-    // background: #fff;
+    /* background: #fff; */
     color: var(--color-red-desc);
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
@@ -165,13 +165,13 @@ const _actions = {
     &.active {
       background: var(--color-red-desc);
       color: #fff;
-      // color: var(--color-yellow-text);
+      /* color: var(--color-yellow-text); */
     }
 
-    // &.tuo.active {
-    //   background: rgba(29, 111, 168, 0.08);
-    //   color: #1d6fa8;
-    // }
+    /* &.tuo.active { */
+    /*   background: rgba(29, 111, 168, 0.08); */
+    /*   color: #1d6fa8; */
+    /* } */
   }
 }
 

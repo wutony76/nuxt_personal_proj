@@ -204,7 +204,7 @@ onBeforeUnmount(() => {
     gap: 0.75rem;
   }
 
-  // ── USER INFO ──────────────────────────────────────────────
+  /* ── USER INFO ────────────────────────────────────────────── */
   .info-warp {
     display: flex;
     gap: 0.75rem;
@@ -283,7 +283,7 @@ onBeforeUnmount(() => {
     }
   }
 
-  // ── PLAY TABS ──────────────────────────────────────────────
+  /* ── PLAY TABS ────────────────────────────────────────────── */
   .play-tabs {
     display: flex;
     flex-wrap: wrap;
@@ -314,7 +314,7 @@ onBeforeUnmount(() => {
     }
   }
 
-  // ── PLAY AREA ──────────────────────────────────────────────
+  /* ── PLAY AREA ────────────────────────────────────────────── */
   .play-warp {
     position: relative;
     display: flex;
@@ -348,10 +348,10 @@ onBeforeUnmount(() => {
 
         background: #fff;
         border: 1px solid #fee2e2;
-        // border-radius: 0px 6px 6px 0px;
+        /* border-radius: 0px 6px 6px 0px; */
         border-radius: 6px;
-        // border-top: unset;
-        // border-left: unset;
+        /* border-top: unset; */
+        /* border-left: unset; */
         overflow: hidden;
         display: flex;
         flex-direction: column;
@@ -374,12 +374,12 @@ onBeforeUnmount(() => {
     .play-tabs {
       position: absolute;
       top: -30px;
-      gap: 2px;
+      gap: 3px;
 
       .play-tab {
         height: 30px;
         padding: 0 13px;
-        padding-left: 15px;
+        // padding-left: 15px;
         display: inline-flex;
         align-items: center;
         border-radius: 9px 13px 0 0;
@@ -390,15 +390,16 @@ onBeforeUnmount(() => {
           background: var(--color-red-bets);
           color: var(--color-yellow-text);
 
-          // 前方（左側）黃條
+          /* 前方（左側）黃條 */
           &::before {
             content: '';
             position: absolute;
             left: 5px;
             top: 0;
             bottom: 0;
-            width: 4px;
-            background: var(--color-yellow-text);
+            width: 3px;
+            /* background: var(--color-yellow-text); */
+            background: #c9a227;
             border-radius: 13px 0 0 0;
           }
         }
@@ -407,7 +408,7 @@ onBeforeUnmount(() => {
 
   }
 
-  // ── LAYOUT ─────────────────────────────────────────────────
+  /* ── LAYOUT ───────────────────────────────────────────────── */
   .cd-layout {
     display: grid;
     grid-template-columns: 230px 1fr;
@@ -416,7 +417,7 @@ onBeforeUnmount(() => {
     animation-delay: 0.18s;
   }
 
-  // ── MEMBER CARD ────────────────────────────────────────────
+  /* ── MEMBER CARD ──────────────────────────────────────────── */
   .member-card {
     border: 1px solid var(--color-red-700, #b91c1c);
     border-radius: 8px;
@@ -501,7 +502,7 @@ onBeforeUnmount(() => {
     letter-spacing: 0.04em;
   }
 
-  // ── PLAY AREA ──────────────────────────────────────────────
+  /* ── PLAY AREA ────────────────────────────────────────────── */
   .content-main {
     display: flex;
     flex-direction: column;
@@ -530,7 +531,7 @@ onBeforeUnmount(() => {
   }
 }
 
-// ── KEYFRAMES ────────────────────────────────────────────────
+/* ── KEYFRAMES ──────────────────────────────────────────────── */
 @keyframes cd-sec-in {
   from {
     opacity: 0;

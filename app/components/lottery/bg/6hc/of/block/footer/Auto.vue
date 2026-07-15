@@ -280,7 +280,7 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-// component-scoped color tokens
+/* component-scoped color tokens */
 $c-border: #dcb4b4;
 $c-bg: #efe6e6;
 $c-muted: #9ca3af;

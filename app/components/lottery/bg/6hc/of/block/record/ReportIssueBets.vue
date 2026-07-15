@@ -389,13 +389,13 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
     width: 100%;
     box-sizing: border-box;
     padding: 0.55rem 0.65rem;
-    // background: linear-gradient(
-    //   180deg,
-    //   color-mix(in srgb, var(--color-red-main) 4%, #fff) 0%,
-    //   #fff 100%
-    // );
-    // border: 1px solid var(--color-red-content);
-    // border-top: 1px solid color-mix(in srgb, var(--color-red-main) 14%, var(--color-red-content));
+    /* background: linear-gradient( */
+    /*   180deg, */
+    /*   color-mix(in srgb, var(--color-red-main) 4%, #fff) 0%, */
+    /*   #fff 100% */
+    /* ); */
+    /* border: 1px solid var(--color-red-content); */
+    /* border-top: 1px solid color-mix(in srgb, var(--color-red-main) 14%, var(--color-red-content)); */
 
     :deep(.pagination-wrap) {
       width: 100%;

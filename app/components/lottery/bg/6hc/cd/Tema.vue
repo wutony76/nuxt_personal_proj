@@ -2,7 +2,7 @@
 import { cloneDeep } from 'lodash-es'
 import { LHC_COLORS } from '#shared/config/6hc-cd'
 
-type PlayItem = { playId: string | number; name: string }
+type PlayItem = { playId: string | number; name: string; coin?: string | number; selected?: boolean }
 
 // 各群組每列（欄）數量
 const GROUP_COLUMNS: Record<string, number> = {
@@ -51,6 +51,14 @@ const _handlers = {
   },
   isSelected: (item: PlayItem) => mxState.selectedCodes.includes(String(item.playId)),
   isHovered: (item: PlayItem) => hoverKey.value === String(item.playId),
+  // 該號碼顯示的金額（字串）：優先自身輸入值，否則選中時帶預設金額
+  coinOf: (item: PlayItem) => {
+    // const key = String(item.playId)
+    // if (key in coinMap) return coinMap[key]
+    // return _handlers.isSelected(item) ? String(mxState.amount) : '0'
+    return item.coin ?? 0
+    // return _handlers.isSelected(item) ? String(mxState.amount) : '0'
+  },
   // 直向（column-major）排成 rows × columns 的表格矩陣
   toMatrix: (list: PlayItem[] = [], columns: number) => {
     const rows = Math.ceil(list.length / columns)
@@ -79,9 +87,25 @@ const click = {
     const key = String(item.playId)
     if (mxState.selectedCodes.includes(key)) {
       mxState.selectedCodes = mxState.selectedCodes.filter((code) => code !== key)
+      // item.coin = 0
+      item.selected = false
       return
     }
     mxState.selectedCodes = [...mxState.selectedCodes, key]
+    if (!item.coin) item.coin = mxState.amount
+    item.selected = true
+  },
+  // 直接輸入金額：保留原始輸入字串（不重格式化，避免跳動）；有值→選取、歸零/空→取消
+  onCoinInput: (item: PlayItem, event: Event) => {
+    const key = String(item.playId)
+    const raw = (event.target as HTMLInputElement).value
+    item.coin = raw
+    const num = Math.max(0, Math.floor(Number(raw) || 0))
+    if (num > 0) {
+      if (!mxState.selectedCodes.includes(key)) mxState.selectedCodes = [...mxState.selectedCodes, key]
+    } else {
+      mxState.selectedCodes = mxState.selectedCodes.filter((code) => code !== key)
+    }
   },
   hoverEnter: (item: PlayItem) => {
     hoverKey.value = String(item.playId)
@@ -129,8 +153,8 @@ const click = {
                 clickable: !!item,
               }" @click="item && click.toggle(item)" @mouseenter="item && click.hoverEnter(item)"
                 @mouseleave="click.hoverLeave()">
-                <input v-if="item" type="number" min="0" readonly
-                  :value="_handlers.isSelected(item) ? mxState.amount : 0" />
+                <input v-if="item" type="number" min="0" :value="_handlers.coinOf(item)" @click.stop
+                  @input="click.onCoinInput(item, $event)" />
               </td>
             </template>
           </tr>
@@ -146,7 +170,8 @@ const click = {
   flex-direction: column;
   gap: 0.75rem;
   margin-top: 1rem;
-  padding: 0 0.75rem 0.75rem; // 表格內縮，與 .right 卡片外框保留間距
+  padding: 0 0.75rem 0.75rem;
+  /* 表格內縮，與 .right 卡片外框保留間距 */
 
   .play-group {
     display: flex;
@@ -163,7 +188,8 @@ const click = {
     .play-table {
       width: 100%;
       border-collapse: collapse;
-      table-layout: fixed; // 欄寬固定，避免 active 內容變化（值/粗體）撐寬欄位
+      table-layout: fixed;
+      /* 欄寬固定，避免 active 內容變化（值/粗體）撐寬欄位 */
 
       th,
       td {
@@ -180,19 +206,19 @@ const click = {
         background: #fdeef0;
       }
 
-      // 號碼欄固定窄寬，金額欄自動吸收剩餘寬度
+      /* 號碼欄固定窄寬，金額欄自動吸收剩餘寬度 */
       .th-code,
       .td-code {
         width: 52px;
         white-space: nowrap;
       }
 
-      // 膠囊型玩法（兩面 / 色波）：號碼為文字，號碼欄改自動分配避免超出
+      /* 膠囊型玩法（兩面 / 色波）：號碼為文字，號碼欄改自動分配避免超出 */
       &.pill-table {
 
         .th-code,
         .td-code {
-          // width: auto;
+          /* width: auto; */
           width: 70px;
         }
       }
@@ -213,11 +239,12 @@ const click = {
           text-align: center;
           font-size: 13px;
           color: #4b4b4b;
-          pointer-events: none; // 點擊交給整格 td 處理
+          cursor: text;
+          /* 可直接輸入金額 */
         }
       }
 
-      // 整格可點擊 / hover / 選中（事件與樣式都在 td 這層）
+      /* 整格可點擊 / hover / 選中（事件與樣式都在 td 這層） */
       .td-code.clickable,
       .td-amount.clickable {
         cursor: pointer;
@@ -230,7 +257,7 @@ const click = {
 
       .td-code.active,
       .td-amount.active {
-        // background: #fff5f6;
+        /* background: #fff5f6; */
         background: var(--color-yellow-text);
       }
 
@@ -241,14 +268,16 @@ const click = {
       }
     }
 
-    // ── 選項（號碼球 / 膠囊） ──────────────────────────────
+    /* ── 選項（號碼球 / 膠囊） ────────────────────────────── */
     .option {
-      box-sizing: border-box; // border 計入尺寸，active 時寬度不變
+      box-sizing: border-box;
+      /* border 計入尺寸，active 時寬度不變 */
       font-weight: 600;
       background: #fff;
       color: var(--color-red-desc);
       transition: all 0.15s ease;
-      pointer-events: none; // 點擊交給整格 td 處理
+      pointer-events: none;
+      /* 點擊交給整格 td 處理 */
 
       &.is-ball {
         width: 34px;
@@ -275,7 +304,7 @@ const click = {
       &.c-red {
         border-color: var(--6hcOf-ball-red);
 
-        // 波色膠囊：文字色跟邊框一致（號碼球維持黑字）
+        /* 波色膠囊：文字色跟邊框一致（號碼球維持黑字） */
         &.is-pill {
           color: var(--6hcOf-ball-red);
         }
@@ -305,11 +334,11 @@ const click = {
         }
       }
 
-      // 選中：底色統一變黃，尺寸不變
+      /* 選中：底色統一變黃，尺寸不變 */
       &.active {
-        // background: var(--6hcOf-ball-yellow);
-        // border-color: var(--6hcOf-ball-yellow);
-        // color: #000;
+        /* background: var(--6hcOf-ball-yellow); */
+        /* border-color: var(--6hcOf-ball-yellow); */
+        /* color: #000; */
       }
     }
   }

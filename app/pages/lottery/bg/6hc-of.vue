@@ -197,7 +197,7 @@ onBeforeUnmount(() => {
 
 <style lang="scss">
 .lottery-6hc-of {
-  // font-family: 'Noto Serif TC', serif;
+  /* font-family: 'Noto Serif TC', serif; */
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -231,7 +231,7 @@ onBeforeUnmount(() => {
 
   .user-warp {
     min-height: 200px;
-    // height: 100%;
+    /* height: 100%; */
     height: 250px;
     display: flex;
     flex-direction: column;
@@ -256,7 +256,7 @@ onBeforeUnmount(() => {
   .user-content {
     flex: 1;
     display: grid;
-    // gap: 0.5rem;
+    /* gap: 0.5rem; */
     padding: 0.75rem;
     font-size: 13px;
     color: var(--color-red-desc);
@@ -337,7 +337,7 @@ onBeforeUnmount(() => {
     overflow: auto;
     background: #fff;
     border-radius: 8px;
-    // border: 1px solid var(--color-red-700);
+    /* border: 1px solid var(--color-red-700); */
     border: 4px solid var(--color-red-black-btn);
     padding: 0.75rem;
   }
@@ -356,7 +356,7 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    // margin-bottom: 0.75rem;
+    /* margin-bottom: 0.75rem; */
     margin-bottom: 10px;
     flex-wrap: wrap;
     font-size: 13px;
@@ -415,7 +415,7 @@ onBeforeUnmount(() => {
 
       .no-records {
         height: 150px;
-        // min-height: 120px;
+        /* min-height: 120px; */
         color: var(--color-red-desc);
       }
     }

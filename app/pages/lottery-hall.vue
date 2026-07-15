@@ -195,7 +195,7 @@ onMounted(() => {
   font-variant-numeric: tabular-nums;
 }
 
-// ===== KEYFRAMES =====
+/* ===== KEYFRAMES ===== */
 @keyframes slideDown {
   from {
     transform: translateY(-100%);
@@ -342,7 +342,7 @@ onMounted(() => {
   }
 }
 
-// ===== STAGE =====
+/* ===== STAGE ===== */
 .hall-stage {
   --red: var(--color-red-main);
   --red-deep: #7f1d1d;
@@ -372,7 +372,7 @@ onMounted(() => {
   }
 }
 
-// ===== TOP BAR =====
+/* ===== TOP BAR ===== */
 .hall-top {
   background: var(--red-ink);
   border-bottom: 2px solid var(--gold);
@@ -448,7 +448,7 @@ onMounted(() => {
   }
 }
 
-// ===== HERO =====
+/* ===== HERO ===== */
 .hall-hero {
   background:
     radial-gradient(ellipse 1200px 600px at 30% 60%, #c01a26 0%, transparent 60%),
@@ -648,7 +648,7 @@ onMounted(() => {
   }
 }
 
-// ===== BRUSH DIVIDER =====
+/* ===== BRUSH DIVIDER ===== */
 .brush-div {
   height: 56px;
   background: var(--red);
@@ -678,7 +678,7 @@ onMounted(() => {
   }
 }
 
-// ===== GAMES =====
+/* ===== GAMES ===== */
 .games-band {
   background: var(--paper);
   padding: 60px 36px 80px;
@@ -930,7 +930,7 @@ onMounted(() => {
   }
 }
 
-// ===== TICKER =====
+/* ===== TICKER ===== */
 .ticker {
   background: var(--red-deep);
   border-top: 2px solid var(--gold);
@@ -976,7 +976,7 @@ onMounted(() => {
   }
 }
 
-// ===== FOOTER =====
+/* ===== FOOTER ===== */
 .hall-foot {
   background: var(--red-ink);
   color: var(--paper-3);

@@ -181,7 +181,7 @@ const isShowHighlighted = (play: { id?: number | string; num?: number | string }
   align-items: stretch;
   justify-content: center;
   border-radius: var(--base-radius);
-  // background: #fff;
+  /* background: #fff; */
   border: 1px solid #f6d9de;
   padding: 0.65rem;
 

@@ -91,7 +91,7 @@ const dialogClick = {
   width: 100%;
   max-width: 320px;
   background: #fff;
-  // border: 1px solid #d1d5db;
+  /* border: 1px solid #d1d5db; */
   border: 4px solid var(--color-red-black-btn);
   border-radius: 10px;
   box-shadow: 0 12px 28px var(--color-red-content) 30%;
@@ -111,7 +111,7 @@ const dialogClick = {
       height: 23px;
 
       svg {
-        // width: 23px;
+        /* width: 23px; */
       }
     }
 
@@ -144,15 +144,15 @@ const dialogClick = {
     display: flex;
     justify-content: space-between;
     gap: 8px;
-    // background: #f1f5f9;
-    // border-top: 1px solid #d1d5db;
+    /* background: #f1f5f9; */
+    /* border-top: 1px solid #d1d5db; */
 
     &.single-action {
       justify-content: center;
     }
 
     .btn-dialog {
-      // border: 1px solid var(--color-red-main);
+      /* border: 1px solid var(--color-red-main); */
       border-radius: 4px;
       background: var(--color-red-black-btn);
       color: #fff;

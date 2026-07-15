@@ -270,7 +270,7 @@ const playTypes = [
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    // margin-bottom: 14px;
+    /* margin-bottom: 14px; */
     padding: 8px 10px;
     background: #fff5f6;
     border: 1px solid #fee2e2;
@@ -375,7 +375,7 @@ const playTypes = [
     }
   }
 
-  // 表格共用
+  /* 表格共用 */
   .rule-table {
     width: 100%;
     border-collapse: collapse;
@@ -406,7 +406,7 @@ const playTypes = [
     }
   }
 
-  // 時間流程
+  /* 時間流程 */
   .timeline-table-wrap {
     overflow-x: auto;
   }
@@ -448,7 +448,7 @@ const playTypes = [
     }
   }
 
-  // 玩法卡片
+  /* 玩法卡片 */
   .play-cards {
     display: grid;
     gap: 10px;
@@ -483,7 +483,7 @@ const playTypes = [
     }
   }
 
-  // 中獎分級
+  /* 中獎分級 */
   .prize-pool-rows {
     display: grid;
     gap: 4px;
