@@ -5,6 +5,8 @@ import { api, type Lottery6hcCurrent } from '~/services/api'
 import { handle as utHandle } from '~/utils/common'
 import { Lottery6hcCreditService } from '~/services/lottery6hcCreditService'
 
+import C_TEMA from '#shared/config/cd/c_tema'
+
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type CurrentDetailRow = {
@@ -44,8 +46,11 @@ interface CreditBetPayload {
 // ── Module-level singletons (shared across components) ─────────────────────
 
 const state = reactive({
-  selectedPlayKey: 'tema' as string,
+  select: C_TEMA[0].key as string,
+  selectTabId: C_TEMA[0].list[0].tabId as number,
+  selectTabName: C_TEMA[0].list[0].tabName as string,
   selectedTypeName: '' as string,
+
   activePlay: null as CreditPlayDefinition | null,
   selectedCodes: [] as string[],
   amount: 10 as number,
@@ -103,6 +108,14 @@ const jackpot = reactive({
 const livePool = computed(() => {
   const real = Number((jackpot.currentIssueJackpot + jackpot.carryJackpot).toFixed(2))
   return Number((jackpot.base + real).toFixed(2))
+})
+
+// 依目前 select(玩法) + selectTabId(分頁) 取出對應 config 的 tabGroup 群組
+const groupList = computed(() => {
+  const play = C_TEMA.find((item) => item.key === state.select)
+  return play?.list ?? []
+  // const tab = play?.list.find((item) => item.tabId === state.selectTabId)
+  // return tab?.tabGroup ?? []
 })
 
 const isOpening = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPENING)
@@ -413,13 +426,13 @@ export const use6hcCredit = () => {
       }
     },
     fetchPlayByKey: async (playKey: string) => {
-      if (state.fetchStatus === 'loading' || state.selectedPlayKey === playKey) return
+      if (state.fetchStatus === 'loading' || state.select === playKey) return
       state.fetchStatus = 'loading'
       state.errorMessage = ''
       try {
         const nextPlay = _handlers.resolvePlayDefinition(playKey)
         if (!nextPlay) throw new Error('找不到指定玩法')
-        state.selectedPlayKey = playKey
+        state.select = playKey
         state.activePlay = nextPlay
         state.selectedTypeName = nextPlay.playTypeNames[0] || ''
         state.selectedCodes = []
@@ -433,7 +446,7 @@ export const use6hcCredit = () => {
       state.fetchStatus = 'loading'
       state.errorMessage = ''
       try {
-        const initialPlay = _handlers.resolvePlayDefinition(state.selectedPlayKey)
+        const initialPlay = _handlers.resolvePlayDefinition(state.select)
         if (!initialPlay) throw new Error('初始化玩法失敗')
         state.activePlay = initialPlay
         state.selectedTypeName = initialPlay.playTypeNames[0] || ''
@@ -525,6 +538,7 @@ export const use6hcCredit = () => {
     init,
     fetch,
 
+    groupList,
 
     //
     time,

@@ -5,10 +5,13 @@ import { useAuth } from '~/composables/useAuth'
 import { use6hcCredit } from '~/composables/use6hcCredit'
 import { actions } from '~/utils/common'
 
+import TemaPlay from '~/components/lottery/bg/6hc/cd/Tema.vue'
+
 import { useBgAutoActive } from '~/composables/useBgAutoActive'
 import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
 import PlayPanel from '~/components/lottery/bg/6hc/cd/PlayPanel.vue'
 import Header from '~/components/lottery/bg/6hc/cd/block/Header.vue'
+import BarTabs from '~/components/lottery/bg/6hc/cd/base/BarTabs.vue'
 
 const { user, isLoggedIn, init } = useAuth()
 const route = useRoute()
@@ -21,6 +24,11 @@ const state = reactive({
   entered: false,
   leaving: false,
 })
+
+const playMap = {
+  TEMA: TemaPlay
+}
+
 
 const playList = computed(() => use6hc.playList.value || [])
 const availableCodes = computed(() => use6hc.availableCodes.value || [])
@@ -36,6 +44,11 @@ const userInfo = computed(() => ({
   analysis: String(use6hc.wallet.analysis ?? '-'),
   userId: user.value?.id || 'xxxxx',
 }))
+const currentPlay = computed(() => {
+  const _key = (use6hc.state.select) as keyof typeof playMap
+  return playMap[_key] ?? TemaPlay
+})
+
 
 const click = {
   // CD 尚無明細 Dialog，先重新拉取使用者資訊（餘額 / 投注）
@@ -119,49 +132,21 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
-
-      <section class="cd-layout">
-        <!-- MEMBER SIDEBAR -->
-        <!-- <aside class="member-side">
-          <article class="member-card">
-            <div class="member-head">
-              <span class="member-head__name">{{ credit.wallet.userName }}</span>
-              <span class="member-head__tag">CREDIT</span>
-            </div>
-            <div class="member-body">
-              <div class="row">
-                <span class="label">信用額度</span>
-                <strong>{{ Number(credit.wallet.creditLimit || 0).toLocaleString() }}</strong>
-              </div>
-              <div class="row">
-                <span class="label">剩餘額度</span>
-                <strong class="accent">{{ Number(credit.wallet.balanceLimit || 0).toLocaleString() }}</strong>
-              </div>
-            </div>
-            <div class="member-id">USER_ID: {{ credit.wallet.userId }}</div>
-          </article>
-        </aside> -->
-
-        <!-- PLAY AREA -->
-        <!-- <section class="content-main">
-          <PlayTabs :plays="playList" :selected-key="credit.state.selectedPlayKey" base-path="/lottery/bg/6hc-cd" />
-
-          <div v-if="credit.state.fetchStatus === 'loading'" class="state-block">玩法資料載入中...</div>
-          <div v-else-if="credit.state.fetchStatus === 'error'" class="state-block error">{{ credit.state.errorMessage
-            }}</div>
-          <PlayPanel v-else-if="credit.state.activePlay" :play="credit.state.activePlay"
-            :selected-type="credit.state.selectedTypeName" :available-codes="availableCodes"
-            :selected-codes="credit.state.selectedCodes" :amount="credit.state.amount"
-            :custom-code-input="credit.state.customCodeInput" :can-submit="canSubmit"
-            :submit-status="credit.state.submitStatus" :message="credit.state.message"
-            :error-message="credit.state.errorMessage" :last-order-id="credit.state.lastOrderId"
-            :last-orders="credit.state.lastOrders" @select-type="credit.click.handleSelectType"
-            @toggle-code="credit.click.handleToggleCode" @quick-amount="credit.click.handleQuickAmount"
-            @submit-bet="credit.click.handleSubmitBet" @append-custom-code="credit.click.handleAppendCustomCode"
-            @reset-selection="credit.click.handleResetSelection" @update:amount="credit.state.amount = $event"
-            @update:custom-code-input="credit.state.customCodeInput = $event" />
-        </section> -->
+      <section class="play-warp">
+        <div class="tabs-warp">
+          <BarTabs />
+        </div>
+        <div class="selector-warp">
+          <!-- <div class="left">
+            <div v-for="play in playList" :key="play.key"> {{ play.name }} </div>
+          </div> -->
+          <div class="right selector">
+            <div class="head"> {{ `[ ${use6hc.state.selectTabName} ] 請選擇注項` }} </div>
+            <component :is="currentPlay" />
+          </div>
+        </div>
       </section>
+
     </main>
   </div>
 </template>
@@ -211,7 +196,6 @@ onBeforeUnmount(() => {
 
   // ── USER INFO ──────────────────────────────────────────────
   .info-warp {
-    margin-top: 0.75rem;
     display: flex;
     gap: 0.75rem;
     min-height: 200px;
@@ -287,6 +271,68 @@ onBeforeUnmount(() => {
       flex: 1;
       display: flex;
     }
+  }
+
+  // ── PLAY AREA ──────────────────────────────────────────────
+  .play-warp {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    // gap: 0.75rem;
+    min-height: 500px;
+
+    border: 1px solid var(--color-red-700);
+    border-radius: 0.5rem;
+    background: #fff;
+    padding: 0.75rem;
+    box-shadow: 0 0.1rem 0.325rem rgba(0, 0, 0, 0.07);
+    animation: sec-in 0.55s ease both;
+    animation-delay: 0.28s;
+
+    // .tabs-warp {
+    //   margin-left: 200px;
+    // }
+
+    .selector-warp {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+
+      .left {
+        width: 200px;
+        flex-shrink: 0;
+        background: #7f1d1d;
+      }
+
+      .right {
+        flex: 1;
+        min-width: 0;
+
+        background: #fff;
+        border: 1px solid #fee2e2;
+        // border-radius: 0px 6px 6px 0px;
+        border-radius: 6px;
+        // border-top: unset;
+        // border-left: unset;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+
+        .head {
+          height: 36px;
+          background: var(--color-red-bets);
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border-bottom: 1px solid var(--color-red-bets);
+          padding: 0 12px;
+          font-size: 13px;
+          font-weight: 600;
+        }
+      }
+    }
+
   }
 
   // ── LAYOUT ─────────────────────────────────────────────────

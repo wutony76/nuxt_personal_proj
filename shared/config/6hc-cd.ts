@@ -107,8 +107,14 @@ export type CreditPlayDefinition = {
   groupNames: string[]
   playTypeOptions: Record<string, PlayOption[]>
 }
+type TypePlayItem = {
+  key: string
+  name: string
+}
 
-export const CREDIT_PLAY_DEFINITIONS: CreditPlayDefinition[] = [
+
+// ── CREDIT_PLAY_DEFINITIONS ──
+export const __CREDIT_PLAY_DEFINITIONS: CreditPlayDefinition[] = [
   {
     key: 'banbo',
     name: '半波',
@@ -283,4 +289,11 @@ export const CREDIT_PLAY_DEFINITIONS: CreditPlayDefinition[] = [
       十不中: makeNumberOptions('zixuanbuzhong-10'),
     },
   },
+]
+export const CREDIT_PLAY_DEFINITIONS: TypePlayItem[] = [
+  { key: 'tema', name: '特碼' },
+  { key: 'zhengma', name: '正碼' },
+  { key: 'zhengmate', name: '正碼特' },
+  { key: 'lianma', name: '連碼' },
+  { key: 'qima', name: '七碼' },
 ]

@@ -18,6 +18,6 @@
 
   display: flex;
   align-items: center;
-  justify-content: ceter;
+  justify-content: center;
 }
 </style>

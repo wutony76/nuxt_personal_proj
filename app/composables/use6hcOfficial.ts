@@ -644,6 +644,7 @@ const fetch = {
     fetch.startJackpotPolling()
   },
   // Keep backward compatibility with old typo usage.
+  // cspell:ignore crrent
   crrentInfo: async () => fetch.refreshCurrentInfo()
 }
 
