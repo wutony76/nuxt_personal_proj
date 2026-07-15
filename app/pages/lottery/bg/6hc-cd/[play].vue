@@ -55,6 +55,10 @@ const click = {
   openUserDialog: async () => {
     await mxFetch.userInfo()
   },
+  selectPlay: (playKey: string) => {
+    if (!playKey || playKey === routePlayKey.value) return
+    router.push(`/lottery/bg/6hc-cd/${playKey}`)
+  },
 }
 
 const _actions = {
@@ -131,8 +135,14 @@ onBeforeUnmount(() => {
           <!-- TODO: CD 版 Road 走勢圖尚未實作 -->
         </div>
       </section>
-
       <section class="play-warp">
+        <div class="play-tabs">
+          <button v-for="play in playList" :key="play.key" type="button" class="play-tab"
+            :class="{ active: play.key === use6hc.state.select }" @click="click.selectPlay(play.key)">
+            {{ play.name }}
+          </button>
+        </div>
+
         <div class="tabs-warp">
           <BarTabs />
         </div>
@@ -273,13 +283,45 @@ onBeforeUnmount(() => {
     }
   }
 
+  // ── PLAY TABS ──────────────────────────────────────────────
+  .play-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    animation: cd-sec-in 0.55s ease both;
+    animation-delay: 0.24s;
+
+    .play-tab {
+      padding: 8px 20px;
+      border: 1px solid var(--color-red-700);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-red-main);
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:hover:not(.active) {
+        background: #fff5f6;
+      }
+
+      &.active {
+        background: var(--color-red-main);
+        border-color: var(--color-red-main);
+        color: #fff;
+      }
+    }
+  }
+
   // ── PLAY AREA ──────────────────────────────────────────────
   .play-warp {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    // gap: 0.75rem;
     min-height: 500px;
+    margin-top: 1.9rem;
 
     border: 1px solid var(--color-red-700);
     border-radius: 0.5rem;
@@ -288,10 +330,6 @@ onBeforeUnmount(() => {
     box-shadow: 0 0.1rem 0.325rem rgba(0, 0, 0, 0.07);
     animation: sec-in 0.55s ease both;
     animation-delay: 0.28s;
-
-    // .tabs-warp {
-    //   margin-left: 200px;
-    // }
 
     .selector-warp {
       display: flex;
@@ -329,6 +367,40 @@ onBeforeUnmount(() => {
           padding: 0 12px;
           font-size: 13px;
           font-weight: 600;
+        }
+      }
+    }
+
+    .play-tabs {
+      position: absolute;
+      top: -30px;
+      gap: 2px;
+
+      .play-tab {
+        height: 30px;
+        padding: 0 13px;
+        padding-left: 15px;
+        display: inline-flex;
+        align-items: center;
+        border-radius: 9px 13px 0 0;
+
+        &.active {
+          position: relative;
+          border: 1px solid var(--color-red-bets);
+          background: var(--color-red-bets);
+          color: var(--color-yellow-text);
+
+          // 前方（左側）黃條
+          &::before {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--color-yellow-text);
+            border-radius: 13px 0 0 0;
+          }
         }
       }
     }
