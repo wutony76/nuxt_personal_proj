@@ -230,17 +230,26 @@ const click = {
       .td-amount {
         padding: 6px 8px;
 
+        /* 參考 6hc-of coin-input 樣式 */
         input {
           width: 100%;
           height: 28px;
-          border: 1px solid #cfd8dc;
+          border: 1px solid #f3b7bf;
           border-radius: 4px;
           background: #fff;
           text-align: center;
           font-size: 13px;
-          color: #4b4b4b;
+          font-weight: 700;
+          color: var(--color-red-main);
+          outline: none;
           cursor: text;
           /* 可直接輸入金額 */
+          transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+          &:focus {
+            border-color: var(--color-red-main);
+            box-shadow: 0 0 0 2px rgba(213, 63, 83, 0.12);
+          }
         }
       }
 

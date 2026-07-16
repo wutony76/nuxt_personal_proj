@@ -12,6 +12,7 @@ import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
 import PlayPanel from '~/components/lottery/bg/6hc/cd/PlayPanel.vue'
 import Header from '~/components/lottery/bg/6hc/cd/block/Header.vue'
 import BarTabs from '~/components/lottery/bg/6hc/cd/base/BarTabs.vue'
+import Controls from '~/components/lottery/bg/6hc/cd/block/controls/Index.vue'
 
 const { user, isLoggedIn, init } = useAuth()
 const route = useRoute()
@@ -23,7 +24,9 @@ const { activate, deactivate } = useBgAutoActive()
 const state = reactive({
   entered: false,
   leaving: false,
+  showFloat: false, // 進場動畫跑完才顯示浮動投注鈕
 })
+let floatTimer: ReturnType<typeof setTimeout> | null = null
 
 const playMap = {
   TEMA: TemaPlay
@@ -48,6 +51,7 @@ const currentPlay = computed(() => {
   const _key = (use6hc.state.select) as keyof typeof playMap
   return playMap[_key] ?? TemaPlay
 })
+const selectedCount = computed(() => use6hc.state.selectedCodes.length)
 
 
 const click = {
@@ -58,6 +62,10 @@ const click = {
   selectPlay: (playKey: string) => {
     if (!playKey || playKey === routePlayKey.value) return
     router.push(`/lottery/bg/6hc-cd/${playKey}`)
+  },
+  submitBet: async () => {
+    if (!canSubmit.value) return
+    await use6hc.click.handleSubmitBet()
   },
 }
 
@@ -95,10 +103,13 @@ onMounted(async () => {
 
   activate('6hc-cd')
   state.entered = true
+  // 等頁面進場動畫（約 0.83s）結束後再顯示浮動投注鈕
+  floatTimer = setTimeout(() => { state.showFloat = true }, 900)
 })
 
 onBeforeUnmount(() => {
   use6hc.init.stopServerTimeSync()
+  if (floatTimer) { clearTimeout(floatTimer); floatTimer = null }
   deactivate()
 })
 </script>
@@ -158,6 +169,24 @@ onBeforeUnmount(() => {
       </section>
 
     </main>
+
+    <Teleport to="body">
+      <Transition name="float-btn">
+        <div v-if="state.showFloat" class="opening-float-wrap">
+          <button class="opening-float-btn" type="button" @click="click.submitBet()" aria-label="送出下注">
+            <span class="float-btn-text">投</span>
+          </button>
+          <!-- <p class="opening-float-label">{{ selectedCount }} 注</p> -->
+        </div>
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <div class="cd-controls-float">
+        <Controls />
+      </div>
+    </Teleport>
+
   </div>
 </template>
 
@@ -528,6 +557,135 @@ onBeforeUnmount(() => {
     .cd-layout {
       grid-template-columns: 1fr;
     }
+  }
+}
+
+/* ── FLOAT CONTROLS（浮動固定在投注鈕上方） ─────────────────── */
+.cd-controls-float {
+  position: fixed;
+  right: 5.3rem;
+  // bottom: 9rem;
+  bottom: 1.5rem;
+  z-index: 200;
+}
+
+/* ── FLOAT SUBMIT BUTTON ────────────────────────────────────── */
+.opening-float-wrap {
+  top: unset;
+  transform: unset;
+
+  position: fixed;
+  right: 1.25rem;
+  bottom: 5rem;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.opening-float-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #b91c1c 0%, #dc2626 45%, #d97706 100%);
+  border: 2.5px solid #fbbf24;
+  box-shadow: 0 4px 18px rgba(185, 28, 28, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  animation: float-btn-sway 0.7s ease-in-out infinite;
+  transition: box-shadow 0.2s;
+
+  &:hover:not(:disabled) {
+    animation: none;
+    transform: scale(1.12);
+    box-shadow: 0 6px 28px rgba(185, 28, 28, 0.65), 0 0 0 6px rgba(251, 191, 36, 0.2);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.93);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    animation: none;
+  }
+
+  .float-btn-text {
+    font-size: 50px;
+    font-weight: 900;
+    color: #fff;
+    -webkit-text-stroke: 3px var(--color-red-main);
+    paint-order: stroke fill;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    pointer-events: none;
+  }
+}
+
+.opening-float-label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-red-main);
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+
+@keyframes float-btn-sway {
+
+  0%,
+  100% {
+    transform: rotate(-18deg);
+  }
+
+  50% {
+    transform: rotate(18deg);
+  }
+}
+
+.float-btn-enter-active {
+  animation: float-btn-slide-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.float-btn-leave-active {
+  animation: float-btn-slide-out 0.3s ease-in forwards;
+}
+
+@keyframes float-btn-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateX(90px) scale(0.4);
+  }
+
+  60% {
+    transform: translateX(-10px) scale(1.1);
+    opacity: 1;
+  }
+
+  80% {
+    transform: translateX(5px) scale(0.95);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes float-btn-slide-out {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(90px) scale(0.4);
   }
 }
 
