@@ -69,10 +69,15 @@ const click = {
     if (mxState.selectedCodes.includes(key)) {
       mxState.selectedCodes = mxState.selectedCodes.filter((code) => code !== key)
       item.select = false
+
+      // --- select items ---
+      _handlers.selectItems()
       return
     }
+
     mxState.selectedCodes = [...mxState.selectedCodes, key]
-    if (!item.coin) item.coin = mxState.amount
+    // if (!item.coin) item.coin = mxState.amount
+    item.coin = mxState.amount
     item.select = true
 
     // --- select items ---

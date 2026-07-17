@@ -141,7 +141,7 @@ const click = {
     .btn-detail {
       position: absolute;
       bottom: -40px;
-      right: -80px;
+      right: -90px;
       display: inline-flex;
       align-items: center;
       gap: 4px;
