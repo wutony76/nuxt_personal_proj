@@ -574,7 +574,7 @@ onBeforeUnmount(() => {
   position: fixed;
   right: 5.3rem;
   // bottom: 9rem;
-  bottom: 1.5rem;
+  bottom: 3rem;
   z-index: 200;
   transform-origin: bottom right;
 }
@@ -599,7 +599,7 @@ onBeforeUnmount(() => {
 
   position: fixed;
   right: 1.25rem;
-  bottom: 5rem;
+  bottom: 6.5rem;
   z-index: 200;
   display: flex;
   flex-direction: column;

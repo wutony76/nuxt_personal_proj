@@ -2,7 +2,7 @@
 import { cloneDeep } from 'lodash-es'
 import { LHC_COLORS } from '#shared/config/6hc-cd'
 
-type PlayItem = { playId: string | number; name: string; coin?: string | number; selected?: boolean }
+type PlayItem = { playId: string | number; name: string; coin?: string | number; select?: boolean }
 
 // 各群組每列（欄）數量
 const GROUP_COLUMNS: Record<string, number> = {
@@ -11,26 +11,16 @@ const GROUP_COLUMNS: Record<string, number> = {
   色波: 3,
 }
 const DEFAULT_COLUMNS = 5
-
-const { state: mxState, groupList: mxGroupList } = use6hcCredit()
-
+const MIN_COIN = 0
+const MAX_COIN = 99999
+const { state: mxState, groupList: mxGroupList, select: mxSelect } = use6hcCredit()
+const state = reactive({
+  selectItems: []
+})
 const hoverKey = ref<string | null>(null)
 
-const layout = computed(() => {
-  const _layout = cloneDeep(mxGroupList.value.find((item) => item.tabId === mxState.selectTabId))
-  if (!_layout || !_layout.tabGroup) return []
-  _layout?.tabGroup?.forEach((group) => {
-    group.groupList.forEach((item) => {
-      item.selected = false
-      item.coin = 0
-      // console.log('ITEM.', item)
-    })
-  })
-  return _layout
-})
 
-
-
+// --- HANDLE HANDLE ---
 const _handlers = {
   columnsOf: (groupName: string) => GROUP_COLUMNS[groupName] ?? DEFAULT_COLUMNS,
   isNumber: (name: string) => /^\d+$/.test(String(name)),
@@ -51,13 +41,14 @@ const _handlers = {
   },
   isSelected: (item: PlayItem) => mxState.selectedCodes.includes(String(item.playId)),
   isHovered: (item: PlayItem) => hoverKey.value === String(item.playId),
-  // 該號碼顯示的金額（字串）：優先自身輸入值，否則選中時帶預設金額
-  coinOf: (item: PlayItem) => {
-    // const key = String(item.playId)
-    // if (key in coinMap) return coinMap[key]
-    // return _handlers.isSelected(item) ? String(mxState.amount) : '0'
-    return item.coin ?? 0
-    // return _handlers.isSelected(item) ? String(mxState.amount) : '0'
+  // 該號碼顯示的金額：取自身輸入值（item.coin）
+  coinOf: (item: PlayItem) => item.coin ?? 0,
+  // 僅保留數字，並限制在 [MIN_COIN, MAX_COIN] 範圍內
+  normalizeCoin: (raw: string) => {
+    const digits = raw.replace(/\D/g, '')
+    if (!digits) return ''
+    const num = Math.min(MAX_COIN, Math.max(MIN_COIN, Math.trunc(Number(digits))))
+    return String(num)
   },
   // 直向（column-major）排成 rows × columns 的表格矩陣
   toMatrix: (list: PlayItem[] = [], columns: number) => {
@@ -66,8 +57,64 @@ const _handlers = {
       Array.from({ length: columns }, (_, colIndex) => list[rowIndex + colIndex * rows] ?? null)
     )
   },
+  selectItems: () => {
+    const _selects = state.selectItems.filter(item => item.select)
+    mxSelect.items = _selects
+  }
+}
+const click = {
+  toggle: (item: PlayItem) => {
+    const key = String(item.playId)
+    if (mxState.selectedCodes.includes(key)) {
+      mxState.selectedCodes = mxState.selectedCodes.filter((code) => code !== key)
+      item.select = false
+      return
+    }
+    mxState.selectedCodes = [...mxState.selectedCodes, key]
+    if (!item.coin) item.coin = mxState.amount
+    item.select = true
+
+    // --- select items ---
+    _handlers.selectItems()
+  },
+  // 直接輸入金額：僅允許數字，並限制在 [MIN_COIN, MAX_COIN]；有值→選取、歸零/空→取消
+  onCoinInput: (item: PlayItem, event: Event) => {
+    const key = String(item.playId)
+    const target = event.target as HTMLInputElement
+    const normalized = _handlers.normalizeCoin(target.value)
+    item.coin = normalized
+    target.value = normalized
+    const num = Math.max(0, Math.floor(Number(normalized) || 0))
+    if (num > 0) {
+      if (!mxState.selectedCodes.includes(key)) mxState.selectedCodes = [...mxState.selectedCodes, key]
+    } else {
+      mxState.selectedCodes = mxState.selectedCodes.filter((code) => code !== key)
+    }
+  },
+  hoverEnter: (item: PlayItem) => {
+    hoverKey.value = String(item.playId)
+  },
+  hoverLeave: () => {
+    hoverKey.value = null
+  },
 }
 
+// --- COMPUTED ---
+const layout = computed(() => {
+  state.selectItems = []
+  const _found = mxGroupList.value.find((item) => item.tabId === mxState.selectTabId)
+  if (!_found || !_found.tabGroup) return null
+  // 包成 reactive，讓 item.coin / item.select 的讀寫具反應性（watch 更新才會反映到畫面）
+  const _layout = reactive(cloneDeep(_found))
+  _layout.tabGroup.forEach((group) => {
+    group.groupList.forEach((item: PlayItem) => {
+      item.select = false
+      item.coin = 0
+      state.selectItems.push(item)
+    })
+  })
+  return _layout
+})
 // 每個群組預先算好欄數與表格矩陣
 const tableGroups = computed(() =>
   (layout.value?.tabGroup ?? []).map((group) => {
@@ -82,45 +129,21 @@ const tableGroups = computed(() =>
   })
 )
 
-const click = {
-  toggle: (item: PlayItem) => {
-    const key = String(item.playId)
-    if (mxState.selectedCodes.includes(key)) {
-      mxState.selectedCodes = mxState.selectedCodes.filter((code) => code !== key)
-      // item.coin = 0
-      item.selected = false
-      return
-    }
-    mxState.selectedCodes = [...mxState.selectedCodes, key]
-    if (!item.coin) item.coin = mxState.amount
-    item.selected = true
-  },
-  // 直接輸入金額：保留原始輸入字串（不重格式化，避免跳動）；有值→選取、歸零/空→取消
-  onCoinInput: (item: PlayItem, event: Event) => {
-    const key = String(item.playId)
-    const raw = (event.target as HTMLInputElement).value
-    item.coin = raw
-    const num = Math.max(0, Math.floor(Number(raw) || 0))
-    if (num > 0) {
-      if (!mxState.selectedCodes.includes(key)) mxState.selectedCodes = [...mxState.selectedCodes, key]
-    } else {
-      mxState.selectedCodes = mxState.selectedCodes.filter((code) => code !== key)
-    }
-  },
-  hoverEnter: (item: PlayItem) => {
-    hoverKey.value = String(item.playId)
-  },
-  hoverLeave: () => {
-    hoverKey.value = null
-  },
-}
+// --- WATCH ---
+watch(() => mxState.amount, (val) => {
+  console.log('watch. amount', val)
+  mxSelect.items.forEach(item => {
+    item.coin = val
+  })
+})
+
+
 </script>
 
 <template>
   <div class="main-play-base tema">
     <div v-for="group in tableGroups" :key="`tema-${group.groupName}`" class="play-group">
       <div class="group-title">{{ group.groupName }}</div>
-
       <table class="play-table" :class="{ 'pill-table': group.isPill }">
         <thead>
           <tr>
@@ -153,8 +176,8 @@ const click = {
                 clickable: !!item,
               }" @click="item && click.toggle(item)" @mouseenter="item && click.hoverEnter(item)"
                 @mouseleave="click.hoverLeave()">
-                <input v-if="item" type="number" min="0" :value="_handlers.coinOf(item)" @click.stop
-                  @input="click.onCoinInput(item, $event)" />
+                <input v-if="item" type="number" :min="MIN_COIN" :max="MAX_COIN" :value="_handlers.coinOf(item)"
+                  @click.stop @input="click.onCoinInput(item, $event)" />
               </td>
             </template>
           </tr>
@@ -218,7 +241,6 @@ const click = {
 
         .th-code,
         .td-code {
-          /* width: auto; */
           width: 70px;
         }
       }
@@ -266,7 +288,6 @@ const click = {
 
       .td-code.active,
       .td-amount.active {
-        /* background: #fff5f6; */
         background: var(--color-yellow-text);
       }
 
@@ -342,17 +363,7 @@ const click = {
           color: var(--6hcOf-ball-yellow);
         }
       }
-
-      /* 選中：底色統一變黃，尺寸不變 */
-      &.active {
-        /* background: var(--6hcOf-ball-yellow); */
-        /* border-color: var(--6hcOf-ball-yellow); */
-        /* color: #000; */
-      }
     }
   }
-
-
-  &.tema {}
 }
 </style>

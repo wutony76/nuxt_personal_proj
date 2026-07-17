@@ -62,7 +62,6 @@ const state = reactive({
   lastOrderId: '' as string,
   lastOrders: [] as unknown[],
 })
-
 const current = reactive({
   detail: [],
   runtime: null as Lottery6hcCurrent | null,
@@ -72,7 +71,6 @@ const current = reactive({
     errorMessage: ''
   }
 })
-
 const wallet = reactive({
   userName: '-' as string,
   userId: '-' as string,
@@ -83,7 +81,6 @@ const wallet = reactive({
   totalBets: 0 as number,
   analysis: '-' as string,
 })
-
 const time = reactive({
   syncedAtServerMs: 0,
   syncedAtClientMs: 0,
@@ -91,6 +88,9 @@ const time = reactive({
   statusEndAt: 0,
   statusRemainSec: 0,
   statusRemainLabel: '00:00',
+})
+const select = reactive({
+  items: []
 })
 
 
@@ -530,6 +530,8 @@ export const use6hcCredit = () => {
     state,
     current,
     wallet,
+    select,
+
     playList,
     availableCodes,
     canSubmit,

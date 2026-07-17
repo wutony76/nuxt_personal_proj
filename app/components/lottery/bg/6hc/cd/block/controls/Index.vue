@@ -1,20 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { actions } from '~/utils/common'
 import { STATUS_TIME } from '~/config/constants'
 import { use6hcCredit } from '~/composables/use6hcCredit'
 
-const QUICK_AMOUNTS = [5, 20, 100, 500, 900]
-
+// const QUICK_AMOUNTS = [5, 20, 100, 500, 900]
+const QUICK_AMOUNTS = [1, 5, 20, 50, 100, 300]
+const MAX_COIN = 99999
 const credit = use6hcCredit()
-const { state: mxState, current } = credit
+const { state: mxState, current, select: mxSelect } = credit
 
 const isOpen = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPEN)
-const totalBet = computed(() => mxState.selectedCodes.length * Number(mxState.amount || 0))
+// const totalBet = computed(() => mxState.selectedCodes.length * Number(mxState.amount || 0))
+const totalBet = computed(() => mxSelect.items.reduce((acc, item) => acc + Number(item.coin || 0), 0) || 0)
 const canSubmit = computed(() => Boolean(credit.canSubmit.value) && isOpen.value)
 const submitLabel = computed(() => (isOpen.value ? '投注' : '尚未開盤'))
 
 const _handlers = {
-  normalizeAmount: (val: string | number) => Math.max(1, Math.trunc(Number(val) || 1)),
+  normalizeAmount: (val: string | number) => Math.min(MAX_COIN, Math.max(1, Math.trunc(Number(val) || 1))),
 }
 
 const click = {
@@ -22,7 +25,12 @@ const click = {
     mxState.amount = _handlers.normalizeAmount(Number(mxState.amount || 0) + n)
   },
   onAmountInput: (event: Event) => {
-    mxState.amount = _handlers.normalizeAmount((event.target as HTMLInputElement).value)
+    const target = event.target as HTMLInputElement
+    const normalized = _handlers.normalizeAmount(target.value)
+    mxState.amount = normalized
+    // 夾值後強制寫回 DOM value：避免夾值結果與現有 state 相同時，
+    // Vue 判斷值未變而不更新畫面，導致輸入框仍顯示未受限的原始數字
+    target.value = String(normalized)
   },
   submit: async () => {
     if (!canSubmit.value) return
@@ -40,15 +48,18 @@ const click = {
           +{{ n }}
         </button>
       </div>
-
       <!-- 金額 / 總投注 -->
       <div class="amount-row">
         <label class="amount-field">
           <span class="amount-label">投注金額(注)</span>
-          <input type="number" min="1" class="amount-input" :value="mxState.amount" @input="click.onAmountInput" />
+          <input type="number" min="1" :max="MAX_COIN" class="amount-input" :value="mxState.amount"
+            @input="click.onAmountInput" />
         </label>
-        <span class="total">總投注：{{ totalBet }}</span>
+        <span class="total" :class="{ 'has-bet': totalBet > 0 }">
+          總投注：<strong class="total-value">{{ actions.thousands(totalBet) }}</strong>
+        </span>
       </div>
+      <button type="button" class="btn-detail"> 當前注項 </button>
     </div>
     <div class="right">
       <button type="button" class="submit-btn" @click="click.submit"> 投注 </button>
@@ -66,12 +77,11 @@ const click = {
   gap: 10px;
   padding: 12px;
   background: linear-gradient(180deg, #ffffff 0%, #fff6f7 100%);
-  border: 3px solid #7f1d1d;
+  border: 2px solid #7f1d1d;
   border-radius: 6px;
   box-shadow: 0 10px 28px rgba(127, 29, 29, 0.2), 0 2px 6px rgba(127, 29, 29, 0.1);
-  overflow: hidden;
 
-  /* 頂部漸層飾條 */
+  /* 頂部漸層飾條（自帶圓角，避免外層需要 overflow: hidden 而擋住 .total） */
   &::before {
     content: '';
     position: absolute;
@@ -79,17 +89,85 @@ const click = {
     left: 0;
     right: 0;
     height: 5px;
+    border-radius: 6px 6px 0 0;
     background: linear-gradient(90deg, #7f1d1d 0%, #c9a227 50%, #7f1d1d 100%);
   }
 
   /* 左側：金額區（縱向） */
   .left {
+    position: relative;
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
     gap: 5px;
+
+    /* 總投注 */
+    .total {
+      position: absolute;
+      bottom: -39px;
+      right: 0px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-red-desc);
+      white-space: nowrap;
+      transition: color 0.2s ease;
+
+      .total-value {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--color-red-main);
+      }
+
+      /* 有投注金額時，加強視覺提示 */
+      &.has-bet {
+        color: var(--color-red-desc);
+
+        .total-value {
+          text-shadow: 0 1px 2px rgba(127, 29, 29, 0.2);
+        }
+      }
+    }
+
+    .btn-detail {
+      position: absolute;
+      bottom: -40px;
+      right: -80px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid var(--color-red-desc);
+      border-radius: 3px;
+      // background: linear-gradient(180deg, #ffffff 0%, #fff2f4 100%);
+      background: #fde1e5;
+      padding: 2px 5px;
+      font-size: 11px;
+      font-weight: 700;
+      // color: var(--color-red-desc);
+      color: var(--color-red-desc);
+      // var(--color-red-desc);
+      cursor: pointer;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(127, 29, 29, 0.12);
+      transition: all 0.18s ease;
+
+      &:hover {
+        border-color: var(--color-red-main);
+        background: linear-gradient(180deg, #fff5f6 0%, #ffe1e5 100%);
+        color: var(--color-red-main);
+        box-shadow: 0 4px 12px rgba(185, 28, 28, 0.22);
+        transform: translateY(-1px);
+      }
+
+      &:active {
+        transform: translateY(0) scale(0.95);
+        box-shadow: 0 1px 4px rgba(127, 29, 29, 0.15);
+      }
+    }
   }
 
   /* 右側：送出鈕 */
@@ -194,16 +272,29 @@ const click = {
       }
     }
 
-    /* 總投注 chip */
-    .total {
-      padding: 5px 12px;
-      // border-radius: 999px;
-      // background: #fff;
-      // border: 1px solid #f2b7c1;
-      font-size: 13px;
-      font-weight: 800;
-      color: var(--color-red-main);
+    /* 注項查詢：次要動作，走 outline 樣式 */
+    .query-btn {
+      flex-shrink: 0;
+      border: 1px solid var(--color-red-desc);
+      border-radius: 999px;
+      background: transparent;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-red-desc);
+      cursor: pointer;
       white-space: nowrap;
+      transition: all 0.15s ease;
+
+      &:hover {
+        border-color: var(--color-red-main);
+        background: rgba(127, 29, 29, 0.06);
+        color: var(--color-red-main);
+      }
+
+      &:active {
+        transform: scale(0.96);
+      }
     }
   }
 
