@@ -25,6 +25,7 @@ const state = reactive({
   entered: false,
   leaving: false,
   showFloat: false, // 進場動畫跑完才顯示浮動投注鈕
+  showControls: false, // 投注鈕開關：控制 Controls 面板顯示（進場動畫後才開）
 })
 let floatTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -67,6 +68,9 @@ const click = {
     if (!canSubmit.value) return
     await use6hc.click.handleSubmitBet()
   },
+  toggleControls: () => {
+    state.showControls = !state.showControls
+  },
 }
 
 const _actions = {
@@ -103,8 +107,11 @@ onMounted(async () => {
 
   activate('6hc-cd')
   state.entered = true
-  // 等頁面進場動畫（約 0.83s）結束後再顯示浮動投注鈕
-  floatTimer = setTimeout(() => { state.showFloat = true }, 900)
+  // 等頁面進場動畫（約 0.83s）結束後再顯示浮動投注鈕與 Controls 面板
+  floatTimer = setTimeout(() => {
+    state.showFloat = true
+    state.showControls = true
+  }, 900)
 })
 
 onBeforeUnmount(() => {
@@ -173,18 +180,20 @@ onBeforeUnmount(() => {
     <Teleport to="body">
       <Transition name="float-btn">
         <div v-if="state.showFloat" class="opening-float-wrap">
-          <button class="opening-float-btn" type="button" @click="click.submitBet()" aria-label="送出下注">
+          <button class="opening-float-btn" type="button" :class="{ active: state.showControls }"
+            @click="click.toggleControls()" aria-label="開啟投注面板">
             <span class="float-btn-text">投</span>
           </button>
-          <!-- <p class="opening-float-label">{{ selectedCount }} 注</p> -->
         </div>
       </Transition>
     </Teleport>
 
     <Teleport to="body">
-      <div class="cd-controls-float">
-        <Controls />
-      </div>
+      <Transition name="controls-pop">
+        <div v-if="state.showControls" class="cd-controls-float">
+          <Controls />
+        </div>
+      </Transition>
     </Teleport>
 
   </div>
@@ -567,12 +576,26 @@ onBeforeUnmount(() => {
   // bottom: 9rem;
   bottom: 1.5rem;
   z-index: 200;
+  transform-origin: bottom right;
+}
+
+/* Controls 開關過場 */
+.controls-pop-enter-active,
+.controls-pop-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.controls-pop-enter-from,
+.controls-pop-leave-to {
+  opacity: 0;
+  transform: translateY(14px) scale(0.96);
 }
 
 /* ── FLOAT SUBMIT BUTTON ────────────────────────────────────── */
 .opening-float-wrap {
   top: unset;
   transform: unset;
+  cursor: pointer;
 
   position: fixed;
   right: 1.25rem;
@@ -612,6 +635,13 @@ onBeforeUnmount(() => {
     opacity: 0.5;
     cursor: not-allowed;
     animation: none;
+  }
+
+  /* 面板開啟中：停搖擺、微放大、加光暈 */
+  &.active {
+    animation: none;
+    transform: scale(1.06);
+    box-shadow: 0 6px 22px rgba(185, 28, 28, 0.6), 0 0 0 5px rgba(251, 191, 36, 0.28);
   }
 
   .float-btn-text {

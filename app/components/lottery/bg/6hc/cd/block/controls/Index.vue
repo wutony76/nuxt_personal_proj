@@ -51,10 +51,7 @@ const click = {
       </div>
     </div>
     <div class="right">
-      <!-- 送出 -->
-      <button type="button" class="submit-btn" :class="{ open: isOpen }" @click="click.submit">
-        投注
-      </button>
+      <button type="button" class="submit-btn" @click="click.submit"> 投注 </button>
     </div>
   </div>
 </template>
@@ -69,7 +66,7 @@ const click = {
   gap: 10px;
   padding: 12px;
   background: linear-gradient(180deg, #ffffff 0%, #fff6f7 100%);
-  border: 1px solid #f2b7c1;
+  border: 3px solid #7f1d1d;
   border-radius: 6px;
   box-shadow: 0 10px 28px rgba(127, 29, 29, 0.2), 0 2px 6px rgba(127, 29, 29, 0.1);
   overflow: hidden;
@@ -81,7 +78,7 @@ const click = {
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
+    height: 5px;
     background: linear-gradient(90deg, #7f1d1d 0%, #c9a227 50%, #7f1d1d 100%);
   }
 
@@ -220,7 +217,8 @@ const click = {
     border: none;
     border-radius: 10px;
     /* 尚未開盤：暖金 */
-    background: linear-gradient(160deg, #e6d29a 0%, #cbb069 100%);
+    // background: linear-gradient(160deg, #e6d29a 0%, #cbb069 100%);
+    background: linear-gradient(160deg, #dc2626 0%, #b91c1c 55%, #d97706 100%);
     color: #fff;
     font-size: 17px;
     font-weight: 800;
