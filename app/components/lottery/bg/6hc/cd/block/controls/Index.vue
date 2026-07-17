@@ -52,8 +52,8 @@ const click = {
     </div>
     <div class="right">
       <!-- 送出 -->
-      <button type="button" class="submit-btn" :class="{ open: isOpen }" :disabled="!canSubmit" @click="click.submit">
-        {{ submitLabel }}
+      <button type="button" class="submit-btn" :class="{ open: isOpen }" @click="click.submit">
+        投注
       </button>
     </div>
   </div>
@@ -62,11 +62,11 @@ const click = {
 <style scoped lang="scss">
 .controls-wrap {
   position: relative;
-  width: 500px;
+  width: 570px;
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  gap: 5px;
+  gap: 10px;
   padding: 12px;
   background: linear-gradient(180deg, #ffffff 0%, #fff6f7 100%);
   border: 1px solid #f2b7c1;
@@ -100,6 +100,17 @@ const click = {
     width: 40%;
     flex-shrink: 0;
     display: flex;
+    display: flex;
+    align-items: center;
+    justify-content: end;
+
+
+    .submit-btn {
+      width: 200px;
+      height: 50px;
+      min-height: unset;
+      border-radius: 6px;
+    }
   }
 
   /* 快選金額 */
@@ -122,7 +133,7 @@ const click = {
       // flex: 1;
       // height: 34px;
       // border: 1px solid #f2b7c1;
-      // border-radius: 8px;
+      // border-radius: 6px;
       // background: linear-gradient(180deg, #fff 0%, #fff2f4 100%);
       // font-size: 14px;
       // font-weight: 800;
@@ -189,9 +200,9 @@ const click = {
     /* 總投注 chip */
     .total {
       padding: 5px 12px;
-      border-radius: 999px;
-      background: #fff;
-      border: 1px solid #f2b7c1;
+      // border-radius: 999px;
+      // background: #fff;
+      // border: 1px solid #f2b7c1;
       font-size: 13px;
       font-weight: 800;
       color: var(--color-red-main);
@@ -201,6 +212,8 @@ const click = {
 
   /* 送出鈕（右側，撐滿高度） */
   .submit-btn {
+    position: relative;
+    overflow: hidden;
     width: 100%;
     height: 100%;
     min-height: 74px;
@@ -217,14 +230,51 @@ const click = {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
     transition: all 0.18s ease;
 
+    /* 金光掃過 */
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -150%;
+      width: 55%;
+      height: 100%;
+      background: linear-gradient(100deg,
+          transparent 0%,
+          rgba(255, 255, 255, 0.15) 40%,
+          rgba(255, 255, 255, 0.75) 50%,
+          rgba(255, 255, 255, 0.15) 60%,
+          transparent 100%);
+      transform: skewX(-20deg);
+      pointer-events: none;
+      animation: submit-shine 3.2s ease-in-out infinite;
+    }
+
+    /* hover / 點擊：質感金 + 深金棕字 */
+    &:hover,
+    &:active {
+      background: linear-gradient(160deg, #ffe487 0%, #f6c945 48%, #e2a72c 100%);
+      color: #5a3a00;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+      box-shadow: 0 8px 20px rgba(214, 158, 44, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.65), inset 0 -1px 0 rgba(120, 80, 0, 0.15);
+    }
+
     /* 開盤中且可送出 */
     &.open:not(:disabled) {
       background: linear-gradient(160deg, #dc2626 0%, #b91c1c 55%, #d97706 100%);
       cursor: pointer;
       box-shadow: 0 6px 18px rgba(185, 28, 28, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 
+      /* hover / 點擊：質感金 + 深金棕字（覆蓋漸層）*/
+      &:hover,
+      &:active {
+        background: linear-gradient(160deg, #ffe487 0%, #f6c945 48%, #e2a72c 100%);
+        color: #5a3a00;
+        filter: none;
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+        box-shadow: 0 8px 20px rgba(214, 158, 44, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.65), inset 0 -1px 0 rgba(120, 80, 0, 0.15);
+      }
+
       &:hover {
-        filter: brightness(1.06) saturate(1.1);
         transform: translateY(-1px);
       }
 
@@ -232,6 +282,18 @@ const click = {
         transform: translateY(0) scale(0.97);
       }
     }
+  }
+}
+
+/* 金光掃過動畫（掃一次後停一下再掃）*/
+@keyframes submit-shine {
+  0% {
+    left: -150%;
+  }
+
+  55%,
+  100% {
+    left: 150%;
   }
 }
 </style>
