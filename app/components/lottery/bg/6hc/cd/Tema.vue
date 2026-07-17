@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { cloneDeep } from 'lodash-es'
 import { LHC_COLORS } from '#shared/config/6hc-cd'
+import { use6hcCredit } from '~/composables/use6hcCredit'
 
 type PlayItem = { playId: string | number; name: string; coin?: string | number; select?: boolean }
 
@@ -131,7 +132,6 @@ const tableGroups = computed(() =>
 
 // --- WATCH ---
 watch(() => mxState.amount, (val) => {
-  console.log('watch. amount', val)
   mxSelect.items.forEach(item => {
     item.coin = val
   })

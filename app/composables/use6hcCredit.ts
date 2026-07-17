@@ -90,7 +90,8 @@ const time = reactive({
   statusRemainLabel: '00:00',
 })
 const select = reactive({
-  items: []
+  items: [],
+  show: true, // 「當前注項」面板顯示開關（預設開啟）
 })
 
 

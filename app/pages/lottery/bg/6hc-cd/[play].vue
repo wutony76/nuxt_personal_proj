@@ -13,6 +13,7 @@ import PlayPanel from '~/components/lottery/bg/6hc/cd/PlayPanel.vue'
 import Header from '~/components/lottery/bg/6hc/cd/block/Header.vue'
 import BarTabs from '~/components/lottery/bg/6hc/cd/base/BarTabs.vue'
 import Controls from '~/components/lottery/bg/6hc/cd/block/controls/Index.vue'
+import CurrPlayItems from '~/components/lottery/bg/6hc/cd/block/controls/CurrPlayItems.vue'
 
 const { user, isLoggedIn, init } = useAuth()
 const route = useRoute()
@@ -196,6 +197,13 @@ onBeforeUnmount(() => {
       </Transition>
     </Teleport>
 
+    <Teleport to="body">
+      <Transition name="curr-play-items">
+        <div v-if="state.showControls && use6hc.select.show" class="cd-curr-items-float">
+          <CurrPlayItems />
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -587,6 +595,30 @@ onBeforeUnmount(() => {
 
 .controls-pop-enter-from,
 .controls-pop-leave-to {
+  opacity: 0;
+  transform: translateY(14px) scale(0.96);
+}
+
+/* ── 當前注項（浮動在 Controls 面板正上方，同寬對齊） ─────────── */
+.cd-curr-items-float {
+  position: fixed;
+  right: 5.3rem;
+  /* 3rem（Controls 底距）+ Controls 面板高度 + 間距 */
+  bottom: calc(3rem + 106px);
+  width: 570px;
+  max-height: 40vh;
+  z-index: 200;
+  transform-origin: bottom right;
+}
+
+/* 當前注項 開關過場 */
+.curr-play-items-enter-active,
+.curr-play-items-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.curr-play-items-enter-from,
+.curr-play-items-leave-to {
   opacity: 0;
   transform: translateY(14px) scale(0.96);
 }

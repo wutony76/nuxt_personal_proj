@@ -36,6 +36,10 @@ const click = {
     if (!canSubmit.value) return
     await credit.click.handleSubmitBet()
   },
+  toggleCurrItems: () => {
+    console.log('click toggleCurrItems', mxSelect.show)
+    mxSelect.show = !mxSelect.show
+  },
 }
 </script>
 
@@ -59,7 +63,9 @@ const click = {
           總投注：<strong class="total-value">{{ actions.thousands(totalBet) }}</strong>
         </span>
       </div>
-      <button type="button" class="btn-detail"> 當前注項 </button>
+      <button type="button" class="btn-detail" :class="{ active: mxSelect.show }" @click="click.toggleCurrItems">
+        當前注項
+      </button>
     </div>
     <div class="right">
       <button type="button" class="submit-btn" @click="click.submit"> 投注 </button>
@@ -89,7 +95,6 @@ const click = {
     left: 0;
     right: 0;
     height: 5px;
-    border-radius: 6px 6px 0 0;
     background: linear-gradient(90deg, #7f1d1d 0%, #c9a227 50%, #7f1d1d 100%);
   }
 
@@ -140,16 +145,14 @@ const click = {
       display: inline-flex;
       align-items: center;
       gap: 4px;
+      flex-shrink: 0;
       border: 1px solid var(--color-red-desc);
       border-radius: 3px;
-      // background: linear-gradient(180deg, #ffffff 0%, #fff2f4 100%);
       background: #fde1e5;
-      padding: 2px 5px;
+      padding: 2px 8px;
       font-size: 11px;
       font-weight: 700;
-      // color: var(--color-red-desc);
       color: var(--color-red-desc);
-      // var(--color-red-desc);
       cursor: pointer;
       white-space: nowrap;
       box-shadow: 0 2px 6px rgba(127, 29, 29, 0.12);
@@ -166,6 +169,13 @@ const click = {
       &:active {
         transform: translateY(0) scale(0.95);
         box-shadow: 0 1px 4px rgba(127, 29, 29, 0.15);
+      }
+
+      /* 面板開啟中：填色回饋 */
+      &.active {
+        border-color: var(--color-red-main);
+        background: var(--color-red-main);
+        color: #fff;
       }
     }
   }
