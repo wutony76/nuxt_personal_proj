@@ -1,0 +1,65 @@
+/* Scoped under .lottery-6hc-cd (page root). 參照 lhc_of.scss 的 6hc-of 樣式 */
+.lottery-6hc-cd {
+  .block-main {
+    padding: 0.75rem;
+    border: 1px solid var(--color-red-700);
+    border-radius: var(--base-radius);
+  }
+
+  /* 報表投注明細表（參照 6hc-of .report-table，色票沿用本專案 CSS 變數） */
+  $report-table-border: var(--color-red-content);
+  $report-table-header-bg: color-mix(in srgb, var(--color-red-main) 8%, #fff);
+  $report-table-header-ft: var(--color-red-desc);
+  $report-table-total-bg: color-mix(in srgb, var(--color-red-main) 5%, #f9f9f9);
+
+  .report-table {
+    width: 100%;
+    border: 1px solid $report-table-border;
+    border-collapse: collapse;
+
+    tr {
+      min-height: 35px;
+
+      td,
+      th {
+        border-right: 1px solid $report-table-border;
+        border-bottom: 1px solid $report-table-border;
+        padding: 6px 4px;
+        text-align: center;
+        font-size: 12px;
+
+        &:last-child {
+          border-right: none;
+        }
+      }
+
+      &:first-child th {
+        height: 40px;
+        background: $report-table-header-bg;
+        color: $report-table-header-ft;
+        font-weight: 700;
+      }
+
+      &:last-child td,
+      &:last-child th {
+        border-bottom: none;
+      }
+    }
+
+    tr.total-row td {
+      background: $report-table-total-bg;
+      font-weight: 600;
+    }
+
+    tr.tr-no-records {
+      height: 100%;
+
+      .no-records {
+        height: 100%;
+        min-height: 120px;
+        color: var(--color-red-desc);
+        vertical-align: middle;
+      }
+    }
+  }
+}

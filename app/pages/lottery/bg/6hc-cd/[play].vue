@@ -12,6 +12,7 @@ import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
 import PlayPanel from '~/components/lottery/bg/6hc/cd/PlayPanel.vue'
 import Header from '~/components/lottery/bg/6hc/cd/block/Header.vue'
 import BarTabs from '~/components/lottery/bg/6hc/cd/base/BarTabs.vue'
+import IssueBlock from '~/components/lottery/bg/6hc/cd/block/record/Issue.vue'
 import Controls from '~/components/lottery/bg/6hc/cd/block/controls/Index.vue'
 import CurrPlayItems from '~/components/lottery/bg/6hc/cd/block/controls/CurrPlayItems.vue'
 
@@ -174,7 +175,9 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </section>
-
+      <section class="record-warp">
+        <IssueBlock />
+      </section>
     </main>
 
     <Teleport to="body">

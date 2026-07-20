@@ -25,13 +25,20 @@ type WatchInput = FetchInput & {
   onChange: (records: Order[]) => void
 }
 
+export type LhcDbKind = 'official' | 'credit'
+
 class LotteryDb extends Dexie {
   lhc_official_orders!: Table<Order, string>
+  lhc_credit_orders!: Table<Order, string>
 
   constructor() {
     super('Lottery_DB')
     this.version(1).stores({
       lhc_official_orders: '&order_id,user_id,issue,bet_time,[user_id+issue]'
+    })
+    // v2：新增信用盤（6hc-cd）訂單表（additive schema，不影響既有 official 表）
+    this.version(2).stores({
+      lhc_credit_orders: '&order_id,user_id,issue,bet_time,[user_id+issue]'
     })
   }
 }
@@ -45,7 +52,8 @@ const _getDb = () => {
   return _db
 }
 
-export const useLhcDb = () => {
+export const useLhcDb = (kind: LhcDbKind = 'official') => {
+  const _table = (db: LotteryDb) => (kind === 'credit' ? db.lhc_credit_orders : db.lhc_official_orders)
   /**
    * Save one official order into IndexedDB.
    * @param record target order record.
@@ -54,7 +62,7 @@ export const useLhcDb = () => {
   const saveOrder = async (record: Order) => {
     const db = _getDb()
     if (!db) return false
-    await db.lhc_official_orders.put(record)
+    await _table(db).put(record)
     return true
   }
 
@@ -68,7 +76,7 @@ export const useLhcDb = () => {
     if (!db || !input.userId) return [] as Order[]
 
     const limit = Math.max(1, Math.trunc(input.limit ?? 20))
-    const rows = await db.lhc_official_orders
+    const rows = await _table(db)
       .orderBy('bet_time')
       .reverse()
       .filter((item) => item.user_id === input.userId && (!input.issue || item.issue === input.issue))
@@ -112,14 +120,14 @@ export const useLhcDb = () => {
     const db = _getDb()
     if (!db || !userId) return 0
 
-    const total = await db.lhc_official_orders.where('user_id').equals(userId).count()
+    const total = await _table(db).where('user_id').equals(userId).count()
     if (total <= 5000) return 0
 
-    const oldRows = await db.lhc_official_orders.where('user_id').equals(userId).sortBy('bet_time')
+    const oldRows = await _table(db).where('user_id').equals(userId).sortBy('bet_time')
     const removedRows = oldRows.slice(0, 1000)
     if (removedRows.length === 0) return 0
 
-    await db.lhc_official_orders.bulkDelete(removedRows.map((item) => item.order_id))
+    await _table(db).bulkDelete(removedRows.map((item) => item.order_id))
     return removedRows.length
   }
 

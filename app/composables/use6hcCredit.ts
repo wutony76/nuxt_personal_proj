@@ -54,7 +54,7 @@ const state = reactive({
   lastOrders: [] as unknown[],
 })
 const current = reactive({
-  detail: [],
+  detail: [] as CurrentDetailRow[],
   runtime: null as Lottery6hcCurrent | null,
   orderCache: {
     isLoading: false,
@@ -153,6 +153,72 @@ const openingRevealedIndices = computed(() => {
 })
 
 const creditService = new Lottery6hcCreditService()
+
+// ── 當期注單（本地 IndexedDB，信用盤專屬表 lhc_credit_orders） ───────────────
+const lhcDb = useLhcDb('credit')
+let orderDetailUnsubscribe: (() => void) | null = null
+let orderDetailIssue = ''
+
+function _formatTime(timestamp: number): string {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return '--:--:--'
+  const date = new Date(timestamp)
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  const ss = String(date.getSeconds()).padStart(2, '0')
+  return `${hh}:${mm}:${ss}`
+}
+
+function _toDetailRows(orders: Order[]): CurrentDetailRow[] {
+  return orders.map((order) => ({
+    id: String(order.order_id),
+    time: _formatTime(order.bet_time),
+    bets: Array.isArray(order.bet_code) ? order.bet_code : [],
+    coin: Number(order.coin ?? 0),
+    betCount: Number(order.bet_count ?? 0) || (Array.isArray(order.bet_code) ? order.bet_code.length : 1),
+    status: order.status ?? 'success',
+  }))
+}
+
+// 下注成功後把回傳訂單存進本地 DB（user_id 一律用前端 userId，確保 watch 對得上）
+async function _saveOrders(orders: unknown, userId: string, issue: string) {
+  if (!Array.isArray(orders) || orders.length === 0) return
+  try {
+    await Promise.all(orders.map((raw) => {
+      const o = raw as Partial<Order>
+      const row: Order = {
+        order_id: String(o.order_id ?? ''),
+        user_id: userId,
+        issue: String(o.issue ?? issue),
+        bet_time: Number(o.bet_time ?? Date.now()),
+        coin: Number(o.coin ?? 0),
+        bet_count: Number(o.bet_count ?? 0) || (Array.isArray(o.bet_code) ? o.bet_code.length : 1),
+        bet_code: Array.isArray(o.bet_code) ? o.bet_code : [],
+        status: (o.status as Status) ?? 'success',
+      }
+      return row.order_id ? lhcDb.saveOrder(row) : Promise.resolve(false)
+    }))
+    await lhcDb.cleanupOrders(userId)
+  } catch { /* 快取失敗不影響下注 UX */ }
+}
+
+function _stopOrderDetailSync() {
+  if (orderDetailUnsubscribe) { orderDetailUnsubscribe(); orderDetailUnsubscribe = null }
+  orderDetailIssue = ''
+}
+
+// 依 user + issue 監看當期注單；同期已訂閱則略過，換期才重新訂閱
+function _startOrderDetailSync(userId: string, issue: string) {
+  if (!userId || !issue) return
+  if (orderDetailUnsubscribe && orderDetailIssue === issue) return
+  _stopOrderDetailSync()
+  orderDetailIssue = issue
+  orderDetailUnsubscribe = lhcDb.watchOrders({
+    userId,
+    issue,
+    limit: 50,
+    onChange: (records) => { current.detail = _toDetailRows(records) },
+  })
+}
 
 // ── Module-level server time sync helpers ────────────────────────────────
 
@@ -257,7 +323,7 @@ const fetch = {
     const issue = String(result?.issueCurrent ?? '')
     if (_userId && issue) {
       orderQuery.issue = issue
-      // handle.startOrderDetailSync(_userId, issue)
+      _startOrderDetailSync(_userId, issue)
     }
     return result
   },
@@ -336,6 +402,9 @@ const fetch = {
       // state.message = `下注成功，共 ${betItems.length} 筆，總額 ${totalAmount}，單號 ${state.lastOrderId || '-'}`
       state.message = `下注成功`
 
+      // 存入本地當期注單（供「當期注單」liveQuery 監看即時顯示）
+      await _saveOrders(result?.orders, orderQuery.userId, String(current.runtime?.issueCurrent ?? orderQuery.issue))
+
       //--- HANDLE 清空選取 --
       state.selectedCodes = []
       select.items = []
@@ -371,6 +440,7 @@ const init = {
     if (syncTimer) { clearInterval(syncTimer); syncTimer = null }
     _clearCurrentInfoTimer()
     fetch.stopJackpotPolling()
+    _stopOrderDetailSync()
   },
   run: () => { }
 }
