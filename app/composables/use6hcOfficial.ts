@@ -601,6 +601,7 @@ const fetch = {
 
     const normalizedUserId = handle.normalizeUserId(userId)
     const issue = String(current.runtime?.issueCurrent ?? '')
+    console.log('6HC-OF,fetch.bets', groups, amount)
 
     const betResult = await officialService.submitBet({
       lottery: LOTTERY['LHC-OF'],

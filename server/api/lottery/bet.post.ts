@@ -19,6 +19,8 @@ type BetResult = {
 }
 
 export default defineEventHandler(async (event) => {
+  console.log('TTT2.API bet', event)
+
   const payload = await readBody<BetPayload>(event)
   const _login = sessionController.require(event)
   const _user = Storage.get.user(_login.id) as LoginUser | undefined

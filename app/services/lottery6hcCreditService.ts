@@ -41,6 +41,7 @@ export class Lottery6hcCreditService {
   }
 
   submitBet(payload: LotteryBetPayload) {
+    console.log('6HC-CD,submitBet', payload)
     return api.lottery.bet(payload) as Promise<LotteryBetResponse>
   }
 

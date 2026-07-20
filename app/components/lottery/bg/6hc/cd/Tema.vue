@@ -107,6 +107,7 @@ const click = {
 
 // --- COMPUTED ---
 const layout = computed(() => {
+  void mxSelect.resetToken // 依 resetToken 觸發重新 init（下注成功後清空號碼球選取 / 金額）
   state.selectItems = []
   const _found = mxGroupList.value.find((item) => item.tabId === mxState.selectTabId)
   if (!_found || !_found.tabGroup) return null
@@ -183,6 +184,7 @@ watch(() => mxState.amount, (val) => {
                 @mouseleave="click.hoverLeave()">
                 <input v-if="item" type="number" :min="MIN_COIN" :max="MAX_COIN" :value="_handlers.coinOf(item)"
                   @click.stop @input="click.onCoinInput(item, $event)" />
+                <!-- {{ item?.select }} -->
               </td>
             </template>
           </tr>

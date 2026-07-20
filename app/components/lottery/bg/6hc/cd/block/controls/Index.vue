@@ -9,7 +9,7 @@ const QUICK_AMOUNTS = [1, 5, 20, 50, 100, 300]
 const MAX_COIN = 99999
 const { $dialog } = useNuxtApp()
 const credit = use6hcCredit()
-const { state: mxState, current, select: mxSelect } = credit
+const { state: mxState, current, select: mxSelect, fetch: mxFetch } = credit
 
 const isOpen = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPEN)
 // const totalBet = computed(() => mxState.selectedCodes.length * Number(mxState.amount || 0))
@@ -36,20 +36,16 @@ const click = {
     target.value = String(normalized)
   },
   bet: () => {
-    console.log('click.bet')
     if (submitting.value) return
     if (!isOpen.value) return $dialog.alert('請等待開盤')
     if (!hasBet.value) return $dialog.alert('尚未選擇注項')
 
-    credit.click.handleSubmitBet().then(() => {
-      console.log('click.bet success')
+    mxFetch.bets().then(() => {
       if (mxState.submitStatus === 'success') $dialog.alert(mxState.message || '下注成功')
-    }).catch((error) => {
-      console.log('click.bet error', error)
+      else if (mxState.submitStatus === 'error') $dialog.alert(mxState.errorMessage || '下注失敗')
     })
   },
   toggleCurrItems: () => {
-    console.log('click toggleCurrItems', mxSelect.show)
     mxSelect.show = !mxSelect.show
   },
 }

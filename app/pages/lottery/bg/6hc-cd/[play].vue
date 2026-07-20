@@ -37,7 +37,6 @@ const playMap = {
 
 const playList = computed(() => use6hc.playList.value || [])
 const availableCodes = computed(() => use6hc.availableCodes.value || [])
-const canSubmit = computed(() => Boolean(use6hc.canSubmit.value))
 const playKeySet = computed(() => new Set(playList.value.map((item: any) => item.key)))
 const routePlayKey = computed(() => String(route.params.play || '').toLowerCase())
 
@@ -64,10 +63,6 @@ const click = {
   selectPlay: (playKey: string) => {
     if (!playKey || playKey === routePlayKey.value) return
     router.push(`/lottery/bg/6hc-cd/${playKey}`)
-  },
-  submitBet: async () => {
-    if (!canSubmit.value) return
-    await use6hc.click.handleSubmitBet()
   },
   toggleControls: () => {
     state.showControls = !state.showControls
@@ -107,6 +102,8 @@ onMounted(async () => {
   const _userId = String(user.value?.id ?? '')
   await use6hc.init.startServerTimeSync()
   await mxFetch.initPageData(_userId)
+  // 首次載入依當前路由初始化玩法（設定 activePlay），watch 僅在路由變更時觸發
+  await _actions.syncPlayByRoute()
 
   activate('6hc-cd')
   state.entered = true

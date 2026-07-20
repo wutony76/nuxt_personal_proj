@@ -19,13 +19,11 @@ type CurrentDetailRow = {
   betCount: number
   status: Status
 }
-
 interface PlayOption {
   id: string
   label: string
   num?: number
 }
-
 interface CreditPlayDefinition {
   key: string
   name: string
@@ -34,13 +32,6 @@ interface CreditPlayDefinition {
   playTypeNames: string[]
   groupNames: string[]
   playTypeOptions: Record<string, PlayOption[]>
-}
-
-interface CreditBetPayload {
-  playKey: string
-  typeName: string
-  codes: string[]
-  amount: number
 }
 
 // ── Module-level singletons (shared across components) ─────────────────────
@@ -92,6 +83,7 @@ const time = reactive({
 const select = reactive({
   items: [],
   show: true, // 「當前注項」面板顯示開關（預設開啟）
+  resetToken: 0, // 下注成功後 +1，通知玩法頁重新 init layout（coin=0 / select=false）
 })
 
 
@@ -110,7 +102,6 @@ const livePool = computed(() => {
   const real = Number((jackpot.currentIssueJackpot + jackpot.carryJackpot).toFixed(2))
   return Number((jackpot.base + real).toFixed(2))
 })
-
 // 依目前 select(玩法) + selectTabId(分頁) 取出對應 config 的 tabGroup 群組
 const groupList = computed(() => {
   const play = C_TEMA.find((item) => item.key === state.select)
@@ -210,6 +201,13 @@ function _tickServerNow() {
   _updateStatusRemain()
 }
 
+function _getBetErrorMessage(error: unknown): string {
+  const err = error as any
+  if (err?.data?.statusMessage) return String(err.data.statusMessage)
+  if (error instanceof Error) return error.message
+  return '下注失敗，請稍後重試'
+}
+
 const fetch = {
   initPageData: async (userId?: string | number | null) => {
     const _userId = utHandle.normalizeUserId(userId)
@@ -224,7 +222,6 @@ const fetch = {
     ])
     fetch.startJackpotPolling()
   },
-
   userInfo: async () => {
     const { user } = useAuth()
     wallet.userName = String(user.value?.name || 'Guest')
@@ -239,7 +236,6 @@ const fetch = {
       wallet.analysis = '-'
     }
   },
-
   currentInfo: async () => {
     const result = await creditService.fetchCurrentInfo()
     current.runtime = result
@@ -294,6 +290,64 @@ const fetch = {
     if (!jackpotPollTimer) return
     clearInterval(jackpotPollTimer)
     jackpotPollTimer = null
+  },
+  bets: async () => {
+    if (state.submitStatus === 'loading') return
+    // 取有金額的注項（每注各自 coin）
+    const betItems = (select.items as Array<{ playId?: string | number; name: string | number; coin?: string | number }>)
+      .filter((it) => Number(it?.coin) > 0)
+    const activePlay = state.activePlay
+    if (!activePlay || betItems.length === 0) {
+      state.message = '請先選擇注項並填入金額'
+      return
+    }
+    const totalAmount = betItems.reduce((acc, it) => acc + Number(it.coin || 0), 0)
+    if (!(totalAmount > 0)) {
+      state.message = '下注金額需大於 0'
+      return
+    }
+    state.submitStatus = 'loading'
+    state.errorMessage = ''
+    state.message = ''
+    try {
+      const groups = [
+        {
+          playKey: activePlay.key,
+          playTypeName: state.selectedTypeName,
+          playList: betItems.map((it, index) => {
+            const num = Number(it.name)
+            return {
+              playId: it.playId || `${activePlay.key}-${state.selectedTypeName}-${index + 1}`,
+              label: String(it.name),
+              num: Number.isFinite(num) && num > 0 ? num : undefined,
+              amount: Number(it.coin), // 每注各自金額
+            }
+          }),
+        },
+      ]
+      const result = await creditService.submitBet({
+        lottery: { id: LOTTERY['LHC-CD'].id, key: LOTTERY['LHC-CD'].key },
+        amount: totalAmount, // 總額 = 各注加總
+        groups,
+      })
+      state.lastOrderId = String(result?.orderId || '')
+      state.lastOrders = Array.isArray(result?.orders) ? result.orders : []
+      state.submitStatus = 'success'
+      // state.message = `下注成功，共 ${betItems.length} 筆，總額 ${totalAmount}，單號 ${state.lastOrderId || '-'}`
+      state.message = `下注成功`
+
+      //--- HANDLE 清空選取 --
+      state.selectedCodes = []
+      select.items = []
+      select.resetToken++ // 觸發玩法頁 layout 重新 init（號碼球 select=false / 金額 coin=0）
+
+      // 更新餘額 / 注項統計 / 當期資訊
+      await fetch.userInfo()
+      await fetch.refreshCurrentInfo()
+    } catch (error) {
+      state.submitStatus = 'error'
+      state.errorMessage = _getBetErrorMessage(error)
+    }
   },
 }
 
@@ -366,9 +420,6 @@ export const use6hcCredit = () => {
     handleResetSelection: () => {
       _actions.resetSelection()
     },
-    handleSubmitBet: async () => {
-      await _actions.submitBet()
-    },
   }
 
   const _actions = {
@@ -437,7 +488,8 @@ export const use6hcCredit = () => {
       }
     },
     fetchPlayByKey: async (playKey: string) => {
-      if (state.fetchStatus === 'loading' || state.select === playKey) return
+      // 同玩法且已初始化才略過；首次載入（activePlay 尚未設定）仍需設定 activePlay
+      if (state.fetchStatus === 'loading' || (state.select === playKey && state.activePlay)) return
       state.fetchStatus = 'loading'
       state.errorMessage = ''
       try {
@@ -468,98 +520,16 @@ export const use6hcCredit = () => {
         state.errorMessage = error instanceof Error ? error.message : '初始化失敗'
       }
     },
-    // ── Bet ─────────────────────────────────────────────────────
-    submitBet: async () => {
-      if (state.submitStatus === 'loading') return
-      // 取有金額的注項（每注各自 coin）
-      const betItems = (select.items as Array<{ playId?: string | number; name: string | number; coin?: string | number }>)
-        .filter((it) => Number(it?.coin) > 0)
-      if (!state.activePlay || betItems.length === 0) {
-        state.message = '請先選擇注項並填入金額'
-        return
-      }
-      const totalAmount = betItems.reduce((acc, it) => acc + Number(it.coin || 0), 0)
-      if (!(totalAmount > 0)) {
-        state.message = '下注金額需大於 0'
-        return
-      }
-      state.submitStatus = 'loading'
-      state.errorMessage = ''
-      state.message = ''
-      try {
-        const groups = [
-          {
-            playKey: state.activePlay.key,
-            playTypeName: state.selectedTypeName,
-            playList: betItems.map((it, index) => {
-              const num = Number(it.name)
-              return {
-                playId: it.playId || `${state.activePlay!.key}-${state.selectedTypeName}-${index + 1}`,
-                label: String(it.name),
-                num: Number.isFinite(num) && num > 0 ? num : undefined,
-                amount: Number(it.coin), // 每注各自金額
-              }
-            }),
-          },
-        ]
-        const result = await api.lottery.bet({
-          lottery: { id: LOTTERY['LHC-CD'].id, key: LOTTERY['LHC-CD'].key },
-          amount: totalAmount, // 總額 = 各注加總
-          groups,
-        }) as any
-        state.lastOrderId = String(result?.orderId || '')
-        state.lastOrders = Array.isArray(result?.orders) ? result.orders : []
-        state.submitStatus = 'success'
-        state.message = `下注成功，共 ${betItems.length} 筆，總額 ${totalAmount}，單號 ${state.lastOrderId || '-'}`
-        // 清空選取
-        state.selectedCodes = []
-        select.items = []
-        // 更新餘額 / 注項統計 / 當期資訊
-        await fetch.userInfo()
-        await fetch.refreshCurrentInfo()
-      } catch (error) {
-        state.submitStatus = 'error'
-        state.errorMessage = _handlers.getErrorMessage(error)
-      }
-    },
   }
 
   const _handlers = {
     resolvePlayDefinition: (playKey: string): CreditPlayDefinition | null => {
       return (CREDIT_PLAY_DEFINITIONS as CreditPlayDefinition[]).find((item) => item.key === playKey) || null
     },
-    toApiGroups: (payload: CreditBetPayload) => {
-      const optionMap = new Map(
-        _handlers.getTypeOptions(state.activePlay!, payload.typeName)
-          .map((option) => [String(option.label), option])
-      )
-      return [
-        {
-          playKey: payload.playKey,
-          playTypeName: payload.typeName,
-          playList: payload.codes.map((code, index) => {
-            const option = optionMap.get(String(code))
-            const num = Number(code)
-            return {
-              playId: option?.id || `${payload.playKey}-${payload.typeName}-${index + 1}`,
-              label: code,
-              num: Number.isFinite(num) && num > 0 ? num : undefined,
-              amount: payload.amount,
-            }
-          }),
-        },
-      ]
-    },
     getTypeOptions: (play: CreditPlayDefinition | null, typeName: string): PlayOption[] => {
       if (!play || !typeName) return []
       const options = (play.playTypeOptions || {})[typeName]
       return Array.isArray(options) ? options : []
-    },
-    getErrorMessage: (error: unknown): string => {
-      const err = error as any
-      if (err?.data?.statusMessage) return String(err.data.statusMessage)
-      if (error instanceof Error) return error.message
-      return '下注失敗，請稍後重試'
     },
   }
 
