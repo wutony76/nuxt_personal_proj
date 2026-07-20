@@ -137,7 +137,7 @@ function _stopOpeningTick() {
   openingRafId = null
 }
 
-watch(isOpening, (opening) => {
+const stopOpeningWatch = watch(isOpening, (opening) => {
   if (opening) _startOpeningTick()
   else _stopOpeningTick()
 }, { immediate: true })
@@ -322,6 +322,16 @@ const init = {
 }
 init.run()
 
+// HMR cleanup: stop module-scoped watcher / RAF / timers before this module
+// is hot-replaced, so old singleton effects don't pile up across dev reloads.
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    stopOpeningWatch()
+    _stopOpeningTick()
+    init.stopServerTimeSync()
+  })
+}
+
 export const use6hcCredit = () => {
   const auth = useAuth()
 
@@ -460,27 +470,53 @@ export const use6hcCredit = () => {
     },
     // ── Bet ─────────────────────────────────────────────────────
     submitBet: async () => {
-      if (!canSubmit.value || !state.activePlay) return
+      if (state.submitStatus === 'loading') return
+      // 取有金額的注項（每注各自 coin）
+      const betItems = (select.items as Array<{ playId?: string | number; name: string | number; coin?: string | number }>)
+        .filter((it) => Number(it?.coin) > 0)
+      if (!state.activePlay || betItems.length === 0) {
+        state.message = '請先選擇注項並填入金額'
+        return
+      }
+      const totalAmount = betItems.reduce((acc, it) => acc + Number(it.coin || 0), 0)
+      if (!(totalAmount > 0)) {
+        state.message = '下注金額需大於 0'
+        return
+      }
       state.submitStatus = 'loading'
       state.errorMessage = ''
       state.message = ''
       try {
-        const payload: CreditBetPayload = {
-          playKey: state.activePlay.key,
-          typeName: state.selectedTypeName,
-          codes: [...state.selectedCodes],
-          amount: Number(state.amount),
-        }
-        const groups = _handlers.toApiGroups(payload)
+        const groups = [
+          {
+            playKey: state.activePlay.key,
+            playTypeName: state.selectedTypeName,
+            playList: betItems.map((it, index) => {
+              const num = Number(it.name)
+              return {
+                playId: it.playId || `${state.activePlay!.key}-${state.selectedTypeName}-${index + 1}`,
+                label: String(it.name),
+                num: Number.isFinite(num) && num > 0 ? num : undefined,
+                amount: Number(it.coin), // 每注各自金額
+              }
+            }),
+          },
+        ]
         const result = await api.lottery.bet({
           lottery: { id: LOTTERY['LHC-CD'].id, key: LOTTERY['LHC-CD'].key },
-          amount: Number(state.amount),
+          amount: totalAmount, // 總額 = 各注加總
           groups,
         }) as any
         state.lastOrderId = String(result?.orderId || '')
         state.lastOrders = Array.isArray(result?.orders) ? result.orders : []
         state.submitStatus = 'success'
-        state.message = `下注成功，共 ${state.selectedCodes.length} 筆，單號 ${state.lastOrderId || '-'}`
+        state.message = `下注成功，共 ${betItems.length} 筆，總額 ${totalAmount}，單號 ${state.lastOrderId || '-'}`
+        // 清空選取
+        state.selectedCodes = []
+        select.items = []
+        // 更新餘額 / 注項統計 / 當期資訊
+        await fetch.userInfo()
+        await fetch.refreshCurrentInfo()
       } catch (error) {
         state.submitStatus = 'error'
         state.errorMessage = _handlers.getErrorMessage(error)

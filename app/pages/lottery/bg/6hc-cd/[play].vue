@@ -90,10 +90,12 @@ watch(routePlayKey, async () => {
   await _actions.syncPlayByRoute()
 })
 
-onBeforeRouteLeave((_to, _from, next) => {
-  if (!state.entered) { next(); return }
+onBeforeRouteLeave((_to, _from) => {
+  if (!state.entered) return true
   state.leaving = true
-  setTimeout(() => next(), 380)
+  return new Promise<boolean>((resolve) => {
+    setTimeout(() => resolve(true), 380)
+  })
 })
 
 onMounted(async () => {

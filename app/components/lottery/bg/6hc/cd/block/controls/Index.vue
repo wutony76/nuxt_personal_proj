@@ -7,13 +7,16 @@ import { use6hcCredit } from '~/composables/use6hcCredit'
 // const QUICK_AMOUNTS = [5, 20, 100, 500, 900]
 const QUICK_AMOUNTS = [1, 5, 20, 50, 100, 300]
 const MAX_COIN = 99999
+const { $dialog } = useNuxtApp()
 const credit = use6hcCredit()
 const { state: mxState, current, select: mxSelect } = credit
 
 const isOpen = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPEN)
 // const totalBet = computed(() => mxState.selectedCodes.length * Number(mxState.amount || 0))
 const totalBet = computed(() => mxSelect.items.reduce((acc, item) => acc + Number(item.coin || 0), 0) || 0)
-const canSubmit = computed(() => Boolean(credit.canSubmit.value) && isOpen.value)
+const submitting = computed(() => mxState.submitStatus === 'loading')
+const hasBet = computed(() => mxSelect.items.some((item) => Number(item.coin) > 0))
+const canSubmit = computed(() => isOpen.value && hasBet.value && !submitting.value)
 const submitLabel = computed(() => (isOpen.value ? '投注' : '尚未開盤'))
 
 const _handlers = {
@@ -32,9 +35,18 @@ const click = {
     // Vue 判斷值未變而不更新畫面，導致輸入框仍顯示未受限的原始數字
     target.value = String(normalized)
   },
-  submit: async () => {
-    if (!canSubmit.value) return
-    await credit.click.handleSubmitBet()
+  bet: () => {
+    console.log('click.bet')
+    if (submitting.value) return
+    if (!isOpen.value) return $dialog.alert('請等待開盤')
+    if (!hasBet.value) return $dialog.alert('尚未選擇注項')
+
+    credit.click.handleSubmitBet().then(() => {
+      console.log('click.bet success')
+      if (mxState.submitStatus === 'success') $dialog.alert(mxState.message || '下注成功')
+    }).catch((error) => {
+      console.log('click.bet error', error)
+    })
   },
   toggleCurrItems: () => {
     console.log('click toggleCurrItems', mxSelect.show)
@@ -68,7 +80,9 @@ const click = {
       </button>
     </div>
     <div class="right">
-      <button type="button" class="submit-btn" @click="click.submit"> 投注 </button>
+      <button type="button" class="submit-btn" :class="{ open: canSubmit }" @click="click.bet">
+        投注
+      </button>
     </div>
   </div>
 </template>

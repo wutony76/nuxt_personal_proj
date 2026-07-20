@@ -28,7 +28,7 @@ type BetOrderRow = {
 type Group = {
   playTypeName?: string
   playKey?: string
-  playList?: Array<{ num?: number | string; label?: string | number }>
+  playList?: Array<{ num?: number | string; label?: string | number; amount?: number | string; coin?: number | string }>
 }
 
 type PlayBetsPayload = {
@@ -184,11 +184,13 @@ export default class LHC_CD extends LOTTERY_BASE {
             const orderId = this.handle.createOrderId(input.issue)
             const betCode = LOTTERY_BASE.normalizeBetCode(play)
             if (!betCode) return
+            // 每注各自金額（fallback 到整體 amount）
+            const playCoin = Number(play?.amount ?? play?.coin ?? input.amount)
             rows.push({
               issue: input.issue,
               user_id: input.userId,
               bet_time: Date.now(),
-              coin: input.amount,
+              coin: Number.isFinite(playCoin) && playCoin > 0 ? playCoin : input.amount,
               order_id: `${orderId}(1/1)`,
               status: 'success',
               bet_code: [betCode],

@@ -1,3 +1,5 @@
 <script setup>
-await navigateTo('/lottery/bg/6hc-cd/tema', { replace: true })
+definePageMeta({
+  redirect: '/lottery/bg/6hc-cd/tema',
+})
 </script>
