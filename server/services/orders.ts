@@ -6,6 +6,7 @@ type OrderRow = {
   coin: number
   orderId: string
   betCode: string[]
+  tabId?: number
 }
 
 type AddInput = Partial<OrderRow> & { issue: string; userId: string; coin: number }
@@ -31,12 +32,14 @@ export default class OrdersClass {
     record: (data: AddInput) => {
       const issue = data.issue
       const coin = Number(data.coin)
+      const tabId = Number(data.tabId)
       const payload: OrderRow = {
         issue,
         userId: String(data.userId ?? ''),
         coin,
         orderId: String(data.orderId ?? ''),
-        betCode: Array.isArray(data.betCode) ? data.betCode : []
+        betCode: Array.isArray(data.betCode) ? data.betCode : [],
+        tabId: Number.isFinite(tabId) && tabId > 0 ? tabId : 0
       }
 
       if (this.orders[issue]) this.orders[issue].push(payload)

@@ -16,6 +16,7 @@ type OpenCodeHistoryItem = {
 type BetOrderRow = {
   issue: string
   user_id: string
+  select_tab_id: number
   bet_time: number
   coin: number
   order_id: string
@@ -28,7 +29,15 @@ type BetOrderRow = {
 type Group = {
   playTypeName?: string
   playKey?: string
-  playList?: Array<{ num?: number | string; label?: string | number; amount?: number | string; coin?: number | string }>
+  selectTabId?: number | string
+  playList?: Array<{
+    playId?: number | string
+    selectTabId?: number | string
+    num?: number | string
+    label?: string | number
+    amount?: number | string
+    coin?: number | string
+  }>
 }
 
 type PlayBetsPayload = {
@@ -83,6 +92,20 @@ type UserStoreLike = {
 type IssuePrizeTier =
   | { normalMatch: number; needSpecial: boolean; type: 'pool'; ratio: number; minAmount?: number }
   | { normalMatch: number; needSpecial: boolean; type: 'fixed'; amount: number }
+
+// 取分頁 id（tabId）：優先每注帶的 selectTabId，其次群組層級，最後由 playId 前綴（如 2000-001）推回
+function _resolveTabId(play?: { playId?: number | string; selectTabId?: number | string }, group?: { selectTabId?: number | string }): number {
+  const candidates = [
+    play?.selectTabId,
+    group?.selectTabId,
+    String(play?.playId ?? '').split('-')[0]
+  ]
+  for (const candidate of candidates) {
+    const id = Number(candidate)
+    if (Number.isFinite(id) && id > 0) return id
+  }
+  return 0
+}
 
 const ISSUE_PRIZE_TIERS: IssuePrizeTier[] = [
   { normalMatch: 6, needSpecial: false, type: 'pool', ratio: 0.70, minAmount: LOTTERY_BASE.BASE_FIRST_PRIZE },
@@ -189,6 +212,7 @@ export default class LHC_CD extends LOTTERY_BASE {
             rows.push({
               issue: input.issue,
               user_id: input.userId,
+              select_tab_id: _resolveTabId(play, group),
               bet_time: Date.now(),
               coin: Number.isFinite(playCoin) && playCoin > 0 ? playCoin : input.amount,
               order_id: `${orderId}(1/1)`,
@@ -204,6 +228,7 @@ export default class LHC_CD extends LOTTERY_BASE {
         return [{
           issue: input.issue,
           user_id: input.userId,
+          select_tab_id: 0,
           bet_time: Date.now(),
           coin: input.amount,
           order_id: `${orderId}(1/1)`,
@@ -522,6 +547,7 @@ export default class LHC_CD extends LOTTERY_BASE {
         userId: row.user_id,
         coin: row.coin,
         orderId: row.order_id,
+        tabId: row.select_tab_id,
         betCode: row.bet_code
       })
       this.handle.appendBetHistory(row)

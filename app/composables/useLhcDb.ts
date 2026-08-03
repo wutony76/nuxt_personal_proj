@@ -13,6 +13,9 @@ export type Order = {
   dan_code?: string[]
   tuo_code?: string[]
   status: Status
+  play_key?: string
+  play_type_name?: string
+  select_tab_id?: number
 }
 
 type FetchInput = {

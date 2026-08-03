@@ -26,6 +26,12 @@ const betTotalCoin = computed(() => actions.thousands(mxCurrent.detail.reduce((a
 
 const _handlers = {
   isNumber: (name: string | number) => /^\d+$/.test(String(name)),
+  // 玩法欄小字：主標已顯示 tabName（如 特碼A），小字補玩法名，重複則不顯示
+  playSubName: (detail: { tabName?: string; playName?: string; playTypeName?: string }) => {
+    const main = detail.tabName || detail.playName || ''
+    const sub = detail.playTypeName || detail.playName || ''
+    return sub && sub !== main ? sub : ''
+  },
   // 依號碼 / 波色文字推得色系（read from #shared/config/6hc-cd 的 LHC_COLORS）
   colorOf: (name: string | number) => {
     const s = String(name)
@@ -91,6 +97,7 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
         <colgroup>
           <col class="col-id" />
           <col class="col-time" />
+          <col class="col-play" />
           <col class="col-bet" />
           <col class="col-coin" />
           <!-- <col class="col-status" /> -->
@@ -99,6 +106,7 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
           <tr>
             <th class="col-id">投注單號</th>
             <th class="col-time">投注時間</th>
+            <th class="col-play">投注玩法</th>
             <th class="col-bet">投注號碼</th>
             <th class="col-coin">注數 / 金額</th>
             <!-- <th class="col-status">狀態</th> -->
@@ -108,6 +116,12 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
           <tr v-for="(detail, rowIdx) in thisPageDetail" :key="rowIdx">
             <td class="col-id">{{ detail.id }}</td>
             <td class="col-time">{{ detail.time }}</td>
+            <td class="col-play">
+              <div class="play-cell">
+                <span class="name">{{ detail.tabName || detail.playName || '-' }}</span>
+                <span v-if="_handlers.playSubName(detail)" class="type">{{ _handlers.playSubName(detail) }}</span>
+              </div>
+            </td>
             <td class="col-bet">
               <div class="order-bets">
                 <span v-for="(ball, ballIdx) in detail.bets" :key="ballIdx" class="option" :class="[
@@ -127,7 +141,7 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
             <!-- <td class="col-status">{{ STATUS_MAP.get(detail.status) || 'none' }}</td> -->
           </tr>
           <tr v-if="!hasData" class="tr-no-records">
-            <td colspan="4" class="no-records">暫無資料</td>
+            <td colspan="5" class="no-records">暫無資料</td>
           </tr>
         </tbody>
       </table>
@@ -315,6 +329,34 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
 
       col.col-time {
         width: 14%;
+      }
+
+      col.col-play {
+        width: 15%;
+      }
+
+      td.col-play {
+        text-align: center;
+        vertical-align: middle;
+
+        .play-cell {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 1px;
+
+          .name {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--color-red-main);
+          }
+
+          .type {
+            font-size: 10px;
+            color: var(--color-red-desc);
+            font-weight: 600;
+          }
+        }
       }
 
       col.col-bet {

@@ -18,6 +18,11 @@ type CurrentDetailRow = {
   coin: number
   betCount: number
   status: Status
+  playKey?: string
+  playName?: string
+  playTypeName?: string
+  tabId?: number
+  tabName?: string
 }
 interface PlayOption {
   id: string
@@ -168,6 +173,24 @@ function _formatTime(timestamp: number): string {
   return `${hh}:${mm}:${ss}`
 }
 
+// 依 play_key 從設定取玩法中文名（如 lianma → 連碼），取不到則退回 key
+function _resolvePlayName(playKey?: string): string {
+  if (!playKey) return ''
+  const def = (CREDIT_PLAY_DEFINITIONS as Array<{ key: string; name: string }>).find((d) => d.key === playKey)
+  return def?.name ?? playKey
+}
+
+// 依 select_tab_id 從 config 取分頁名（如 2000 → 特碼A），取不到則回空字串
+function _resolveTabName(tabId?: number): string {
+  const id = Number(tabId)
+  if (!Number.isFinite(id) || id <= 0) return ''
+  for (const play of C_TEMA) {
+    const tab = play.list?.find((item) => Number(item.tabId) === id)
+    if (tab?.tabName) return String(tab.tabName)
+  }
+  return ''
+}
+
 function _toDetailRows(orders: Order[]): CurrentDetailRow[] {
   return orders.map((order) => ({
     id: String(order.order_id),
@@ -176,6 +199,11 @@ function _toDetailRows(orders: Order[]): CurrentDetailRow[] {
     coin: Number(order.coin ?? 0),
     betCount: Number(order.bet_count ?? 0) || (Array.isArray(order.bet_code) ? order.bet_code.length : 1),
     status: order.status ?? 'success',
+    playKey: order.play_key ?? '',
+    playName: _resolvePlayName(order.play_key),
+    playTypeName: order.play_type_name ?? '',
+    tabId: Number(order.select_tab_id ?? 0),
+    tabName: _resolveTabName(order.select_tab_id),
   }))
 }
 
@@ -194,6 +222,9 @@ async function _saveOrders(orders: unknown, userId: string, issue: string) {
         bet_count: Number(o.bet_count ?? 0) || (Array.isArray(o.bet_code) ? o.bet_code.length : 1),
         bet_code: Array.isArray(o.bet_code) ? o.bet_code : [],
         status: (o.status as Status) ?? 'success',
+        play_key: String(o.play_key ?? state.activePlay?.key ?? ''),
+        play_type_name: String(o.play_type_name ?? state.selectedTypeName ?? ''),
+        select_tab_id: Number(o.select_tab_id ?? state.selectTabId ?? 0),
       }
       return row.order_id ? lhcDb.saveOrder(row) : Promise.resolve(false)
     }))
@@ -383,7 +414,8 @@ const fetch = {
           playList: betItems.map((it, index) => {
             const num = Number(it.name)
             return {
-              playId: it.playId || `${activePlay.key}-${state.selectedTypeName}-${index + 1}`,
+              playId: it.playId,
+              selectTabId: state.selectTabId,
               label: String(it.name),
               num: Number.isFinite(num) && num > 0 ? num : undefined,
               amount: Number(it.coin), // 每注各自金額
