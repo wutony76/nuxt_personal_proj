@@ -1,5 +1,5 @@
 import { computed, reactive, ref, watch } from 'vue'
-import { LOTTERY, STATUS_TIME } from '~/config/constants'
+import { LOTTERY, SORT, STATUS_TIME } from '~/config/constants'
 import { CREDIT_PLAY_DEFINITIONS } from '#shared/config/6hc-cd'
 import { api, type Lottery6hcCurrent, type Lottery6hcRoadPlay } from '~/services/api'
 import { handle as utHandle } from '~/utils/common'
@@ -79,6 +79,10 @@ const road = reactive({
   plays: [] as Lottery6hcRoadPlay[],
   fetchStatus: 'idle' as 'idle' | 'loading' | 'success' | 'error',
   errorMessage: '' as string,
+})
+// 注號分析排序模式（預設 / 下注次數(自) / 攪出次數(系) / 相隔期數(系)）
+const analyze = reactive({
+  status: SORT.DEFAULT as string,
 })
 const wallet = reactive({
   userName: '-' as string,
@@ -652,6 +656,27 @@ export const use6hcCredit = () => {
       state.selectedCodes = []
       _actions.syncSelectItems()
     },
+    // 依號碼套用選取（號碼推薦「加入注項」用）：以注項名稱比對號碼球，套用當前金額
+    // 與 randomSelect 相同語意 — 取代當前分頁既有選取；回傳實際套用注數（0 表示此分頁無對應號碼）
+    selectByNumbers: (numbers: Array<string | number>) => {
+      if (state.submitStatus === 'loading') return 0
+      const wanted = new Set(
+        (Array.isArray(numbers) ? numbers : [])
+          .map((num) => Number(num))
+          .filter((num) => Number.isFinite(num) && num > 0)
+      )
+      if (wanted.size === 0) return 0
+      const matched = select.pool.filter((item) => wanted.has(Number(item.name)))
+      if (matched.length === 0) return 0
+      const matchedIds = new Set(matched.map((item) => String(item.playId)))
+      select.pool.forEach((item) => {
+        item.select = matchedIds.has(String(item.playId))
+        item.coin = item.select ? state.amount : 0
+      })
+      state.selectedCodes = Array.from(matchedIds)
+      _actions.syncSelectItems()
+      return matched.length
+    },
     // ── Play ────────────────────────────────────────────────────
     fetchTypeByName: async (typeName: string) => {
       if (state.fetchStatus === 'loading' || !state.activePlay) return
@@ -733,6 +758,7 @@ export const use6hcCredit = () => {
     state,
     current,
     road,
+    analyze,
     wallet,
     select,
 

@@ -267,10 +267,10 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
 
   /* 單一 report-table：沿用 .lottery-6hc-of .report-table（lhc_of.scss），此處只補版面與欄寬 */
   .report-issue-bets {
-    flex: 0 1 auto;
+    /* 撐滿卡片剩餘高度（同 6hc-of），內容超過則內部捲動（sticky 表頭 + 固定 footer）；
+       原本是 flex: 0 1 auto + max-height，會縮成內容高度，導致卡片下方留白、footer 與分頁上移 */
+    flex: 1 1 auto;
     min-height: 0;
-    /* 參照 6hc-of：界定捲動區高度，內容超過則內部捲動（sticky 表頭 + 固定 footer） */
-    max-height: 380px;
     width: 100%;
     overflow: scroll;
     overflow-x: hidden;
@@ -306,9 +306,10 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
       height: auto;
       min-height: 0;
 
+      /* 暫無資料：撐滿捲動區高度（同 6hc-of），避免空狀態只有一小塊 */
       &.is-empty {
-        height: 170px;
-        min-height: 170px;
+        height: 100%;
+        min-height: 100%;
       }
 
       /* 暫無資料：隱藏最後一列（no-records）下框線 */

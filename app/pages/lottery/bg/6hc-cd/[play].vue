@@ -15,6 +15,7 @@ import BarTabs from '~/components/lottery/bg/6hc/cd/base/BarTabs.vue'
 import AutoSelect from '~/components/lottery/bg/6hc/cd/block/controls/AutoSelect.vue'
 import Road from '~/components/lottery/bg/6hc/cd/block/Road.vue'
 import IssueBlock from '~/components/lottery/bg/6hc/cd/block/record/Issue.vue'
+import AnalyzeBlock from '~/components/lottery/bg/6hc/cd/block/Analyze.vue'
 import Controls from '~/components/lottery/bg/6hc/cd/block/controls/Index.vue'
 import CurrPlayItems from '~/components/lottery/bg/6hc/cd/block/controls/CurrPlayItems.vue'
 
@@ -180,15 +181,16 @@ onBeforeUnmount(() => {
       </section>
       <section class="record-warp">
         <IssueBlock />
+        <AnalyzeBlock />
       </section>
     </main>
 
     <Teleport to="body">
-      <Transition name="float-btn">
-        <div v-if="state.showFloat" class="opening-float-wrap">
-          <button class="opening-float-btn" type="button" :class="{ active: state.showControls }"
+      <Transition name="cd-float-btn">
+        <div v-if="state.showFloat" class="cd-opening-float-wrap">
+          <button class="cd-opening-float-btn" type="button" :class="{ active: state.showControls }"
             @click="click.toggleControls()" aria-label="開啟投注面板">
-            <span class="float-btn-text">投</span>
+            <span class="cd-float-btn-text">投</span>
           </button>
         </div>
       </Transition>
@@ -379,7 +381,8 @@ onBeforeUnmount(() => {
     background: #fff;
     padding: 0.75rem;
     box-shadow: 0 0.1rem 0.325rem rgba(0, 0, 0, 0.07);
-    animation: sec-in 0.55s ease both;
+    /* 原本寫 sec-in（定義在 6hc-of 頁），直接進入本頁時該 keyframes 不存在 → 沒有進場動畫 */
+    animation: cd-sec-in 0.55s ease both;
     animation-delay: 0.28s;
 
     /* 分頁（左）與隨機選號（右）同一列 */
@@ -466,6 +469,18 @@ onBeforeUnmount(() => {
       }
     }
 
+  }
+
+  /* ── RECORD（當期注單 60% / 注號分析 40%） ─────────────────── */
+  .record-warp {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+    height: 500px;
+    margin-top: 0.75rem;
+    gap: 0.75rem;
+    animation: cd-sec-in 0.55s ease both;
+    animation-delay: 0.38s;
   }
 
   /* ── LAYOUT ───────────────────────────────────────────────── */
@@ -638,11 +653,9 @@ onBeforeUnmount(() => {
 }
 
 /* ── FLOAT SUBMIT BUTTON ────────────────────────────────────── */
-.opening-float-wrap {
-  top: unset;
-  transform: unset;
-  cursor: pointer;
-
+/* 本頁 style 為全域（Teleport 到 body 需要），class / keyframes 一律加 cd- 前綴，
+   避免與 6hc-of 頁同名全域樣式互相覆蓋（of → cd 導覽時按鈕會被拉到畫面中間） */
+.cd-opening-float-wrap {
   position: fixed;
   right: 1.25rem;
   bottom: 6.5rem;
@@ -650,9 +663,10 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  cursor: pointer;
 }
 
-.opening-float-btn {
+.cd-opening-float-btn {
   width: 58px;
   height: 58px;
   border-radius: 50%;
@@ -664,7 +678,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   overflow: visible;
-  animation: float-btn-sway 0.7s ease-in-out infinite;
+  animation: cd-float-btn-sway 0.7s ease-in-out infinite;
   transition: box-shadow 0.2s;
 
   &:hover:not(:disabled) {
@@ -690,7 +704,7 @@ onBeforeUnmount(() => {
     box-shadow: 0 6px 22px rgba(185, 28, 28, 0.6), 0 0 0 5px rgba(251, 191, 36, 0.28);
   }
 
-  .float-btn-text {
+  .cd-float-btn-text {
     font-size: 50px;
     font-weight: 900;
     color: #fff;
@@ -703,16 +717,7 @@ onBeforeUnmount(() => {
   }
 }
 
-.opening-float-label {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-red-main);
-  white-space: nowrap;
-  letter-spacing: 0.03em;
-}
-
-@keyframes float-btn-sway {
+@keyframes cd-float-btn-sway {
 
   0%,
   100% {
@@ -724,15 +729,15 @@ onBeforeUnmount(() => {
   }
 }
 
-.float-btn-enter-active {
-  animation: float-btn-slide-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+.cd-float-btn-enter-active {
+  animation: cd-float-btn-slide-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.float-btn-leave-active {
-  animation: float-btn-slide-out 0.3s ease-in forwards;
+.cd-float-btn-leave-active {
+  animation: cd-float-btn-slide-out 0.3s ease-in forwards;
 }
 
-@keyframes float-btn-slide-in {
+@keyframes cd-float-btn-slide-in {
   0% {
     opacity: 0;
     transform: translateX(90px) scale(0.4);
@@ -753,7 +758,7 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes float-btn-slide-out {
+@keyframes cd-float-btn-slide-out {
   0% {
     opacity: 1;
     transform: translateX(0) scale(1);
