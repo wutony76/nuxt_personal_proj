@@ -1,7 +1,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import { CREDIT_PLAY_DEFINITIONS } from '#shared/config/6hc-cd'
-import { api, type Lottery6hcCurrent } from '~/services/api'
+import { api, type Lottery6hcCurrent, type Lottery6hcRoadPlay } from '~/services/api'
 import { handle as utHandle } from '~/utils/common'
 import { Lottery6hcCreditService } from '~/services/lottery6hcCreditService'
 
@@ -73,6 +73,12 @@ const current = reactive({
     isSuccess: false,
     errorMessage: ''
   }
+})
+// 球號分析（路珠）：49 顆球 + 相隔期數 / 攪出次數
+const road = reactive({
+  plays: [] as Lottery6hcRoadPlay[],
+  fetchStatus: 'idle' as 'idle' | 'loading' | 'success' | 'error',
+  errorMessage: '' as string,
 })
 const wallet = reactive({
   userName: '-' as string,
@@ -163,6 +169,17 @@ const openingRevealedIndices = computed(() => {
   if (e >= 33429) s.add(6)
   if (e >= 37000) s.add(5)
   return s
+})
+
+// 開獎中已開出的實際號碼集合（供 Road 高亮使用）
+const openingRevealedNumbers = computed(() => {
+  const codes = Array.isArray(current.runtime?.openingCode) ? (current.runtime.openingCode as string[]) : []
+  const numSet = new Set<number>()
+  openingRevealedIndices.value.forEach((idx) => {
+    const num = Number(codes[idx])
+    if (Number.isFinite(num) && num > 0) numSet.add(num)
+  })
+  return numSet
 })
 
 const creditService = new Lottery6hcCreditService()
@@ -321,7 +338,7 @@ const fetch = {
     await Promise.all([
       fetch.refreshCurrentInfo(),
       fetch.userInfo(),
-      // fetch.roadPlays(),
+      fetch.roadPlays(),
       // fetch.walletState(),
       // fetch.betMeta(),
     ])
@@ -366,13 +383,29 @@ const fetch = {
     }
     return result
   },
+  // 球號分析（路珠）
+  roadPlays: async () => {
+    if (road.fetchStatus === 'loading') return road.plays
+    road.fetchStatus = 'loading'
+    road.errorMessage = ''
+    try {
+      const result = await creditService.fetchRoadPlays()
+      road.plays = Array.isArray(result?.plays) ? result.plays : []
+      road.fetchStatus = 'success'
+    } catch (error) {
+      road.fetchStatus = 'error'
+      road.errorMessage = error instanceof Error ? error.message : '球號分析載入失敗'
+    }
+    return road.plays
+  },
   refreshCurrentInfo: async () => {
     try {
       const prevStatus = String(current.runtime?.currentStatus ?? '')
       const data = await fetch.currentInfo()
       const nextStatus = String(data?.currentStatus ?? '')
+      // 開獎結束 → 重新拉球號分析（相隔期數 / 攪出次數已變動）
       if (prevStatus.includes('開獎中') && !nextStatus.includes('開獎中')) {
-        // fetch.roadPlays()
+        fetch.roadPlays()
       }
       _scheduleNextCurrentInfoFetch(data?.statusEndAt)
     } catch {
@@ -699,6 +732,7 @@ export const use6hcCredit = () => {
   return {
     state,
     current,
+    road,
     wallet,
     select,
 
@@ -718,5 +752,6 @@ export const use6hcCredit = () => {
     jackpot,
     isOpening,
     openingRevealedIndices,
+    openingRevealedNumbers,
   }
 }

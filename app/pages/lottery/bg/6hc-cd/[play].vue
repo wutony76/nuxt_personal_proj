@@ -13,6 +13,7 @@ import PlayPanel from '~/components/lottery/bg/6hc/cd/PlayPanel.vue'
 import Header from '~/components/lottery/bg/6hc/cd/block/Header.vue'
 import BarTabs from '~/components/lottery/bg/6hc/cd/base/BarTabs.vue'
 import AutoSelect from '~/components/lottery/bg/6hc/cd/block/controls/AutoSelect.vue'
+import Road from '~/components/lottery/bg/6hc/cd/block/Road.vue'
 import IssueBlock from '~/components/lottery/bg/6hc/cd/block/record/Issue.vue'
 import Controls from '~/components/lottery/bg/6hc/cd/block/controls/Index.vue'
 import CurrPlayItems from '~/components/lottery/bg/6hc/cd/block/controls/CurrPlayItems.vue'
@@ -152,7 +153,7 @@ onBeforeUnmount(() => {
           </div>
         </aside>
         <div class="info-main">
-          <!-- TODO: CD 版 Road 走勢圖尚未實作 -->
+          <Road />
         </div>
       </section>
       <section class="play-warp">

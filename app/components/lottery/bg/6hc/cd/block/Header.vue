@@ -49,7 +49,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (event: 'open-opencode-dialog'): void
 }>()
-const { current: mxCurrent, time: mxTime, isOpening, livePool: mxLivePool } = use6hcCredit()
+const { current: mxCurrent, time: mxTime, isOpening, openingRevealedIndices, livePool: mxLivePool } = use6hcCredit()
 
 
 // ── Normalized data ───────────────────────────────────────────────────────
@@ -254,9 +254,13 @@ const openingBalls = computed(() => {
               <div class="opening-balls">
                 <div v-for="(code, idx) in openingBalls" :key="idx" class="opening-slot">
                   <span v-if="idx === openingBalls.length - 1" class="opening-plus">+</span>
-                  <div class="opening-ball-inner">
-                    <Ball :data="{ label: code, num: code, selected: true }" :is-click="false" />
-                  </div>
+                  <!-- 開球節奏與 Road 共用 openingRevealedIndices，未開出前顯示 ? -->
+                  <Transition name="ball-pop" mode="out-in">
+                    <div v-if="openingRevealedIndices.has(idx)" :key="`b-${idx}`" class="opening-ball-inner">
+                      <Ball :data="{ label: code, num: code, selected: true }" :is-click="false" />
+                    </div>
+                    <div v-else :key="`p-${idx}`" class="opening-placeholder">?</div>
+                  </Transition>
                 </div>
               </div>
             </div>
@@ -581,6 +585,22 @@ const openingBalls = computed(() => {
                   font-size: 26px;
                   cursor: default;
                 }
+              }
+
+              /* 尚未開出的球位 */
+              .opening-placeholder {
+                width: 45px;
+                height: 45px;
+                border-radius: 50%;
+                background: #fee2e2;
+                border: 2px dashed #fca5a5;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                font-weight: 900;
+                color: #fca5a5;
+                animation: placeholder-pulse 0.7s ease-in-out infinite alternate;
               }
             }
           }

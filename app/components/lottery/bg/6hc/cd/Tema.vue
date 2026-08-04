@@ -107,7 +107,7 @@ const layout = computed(() => {
   void mxSelect.resetToken // 依 resetToken 觸發重新 init（下注成功後清空號碼球選取 / 金額）
   const _found = mxGroupList.value.find((item) => item.tabId === mxState.selectTabId)
   if (!_found || !_found.tabGroup) {
-    mxActions.registerSelectPool([])
+    if (import.meta.client) mxActions.registerSelectPool([])
     return null
   }
   // 包成 reactive，讓 item.coin / item.select 的讀寫具反應性（watch 更新才會反映到畫面）
@@ -121,7 +121,9 @@ const layout = computed(() => {
     })
   })
   // 登記注項池給 composable（AutoSelect 隨機選號 / 清空共用同一批 reactive 物件）
-  mxActions.registerSelectPool(_pool)
+  // 僅在 client 登記：select 是 module 級 singleton，SSR 期間寫入會跨請求殘留，
+  // 導致第二次之後的 SSR 與 client 首次渲染不一致（AutoSelect hydration mismatch）
+  if (import.meta.client) mxActions.registerSelectPool(_pool)
   return _layout
 })
 // 每個群組預先算好欄數與表格矩陣

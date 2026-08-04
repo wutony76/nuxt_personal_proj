@@ -50,6 +50,7 @@ export type Lottery6hcRoadPlay = {
   countShow?: number
   selected?: boolean
   colorY?: boolean
+  animal?: string // 信用盤（6hc-cd）帶當年生肖
 }
 
 export type Lottery6hcCurrent = {
@@ -214,6 +215,7 @@ export const api = {
     jackpot6hcOf: () => $fetch<{ issue: string; currentIssueJackpot: number; carryJackpot: number; jackpotBase: number; jackpotBaseSetAt: number }>('/api/lottery/6hc-of/jackpot'),
     jackpot6hcCd: () => $fetch<{ issue: string; currentIssueJackpot: number; carryJackpot: number; jackpotBase: number; jackpotBaseSetAt: number }>('/api/lottery/6hc-cd/jackpot'),
     road6hcOf: () => $fetch<{ plays: Lottery6hcRoadPlay[] }>('/api/lottery/6hc-of/road'),
+    road6hcCd: () => $fetch<{ plays: Lottery6hcRoadPlay[] }>('/api/lottery/6hc-cd/road'),
     openCodeHistory6hcOf: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/6hc-of/opencode-history'),
     userRecord6hcOf: () => $fetch<LotteryUserRecordResponse>('/api/lottery/6hc-of/user-record'),
     claimOneIssue6hcOf: () =>

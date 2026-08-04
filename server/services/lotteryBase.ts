@@ -214,6 +214,51 @@ export default class LOTTERY_BASE extends BaseClass {
       const sec = this.timer.secondsFromIssueStart(current, nowMs)
       this.currentStatus = this.timer.getStatusBySeconds(sec)
     },
+    // 球號分析（路珠）：49 顆球帶上 countIssue（距上次開出的期數）/ countShow（累計攪出次數）
+    // 統計範圍僅到「已開獎」的期數，未開獎的當期不計入
+    buildRoadPlays: (): Array<Record<string, unknown>> => {
+      const source = Storage.config.LHC as Record<string, any> | undefined
+      const basePlays = source
+        ? Object.values(source)
+          .filter((item) => Number(item?.num) > 0 && Number(item?.num) <= 49)
+          .sort((a, b) => Number(a.num) - Number(b.num))
+        : []
+
+      const closedIndex = this.currentStatus === STATUS_TIME.OPENED
+        ? this.currentIndex
+        : Math.max(this.currentIndex - 1, -1)
+      const records = this.recordOpenCode.slice(0, closedIndex + 1)
+      const lastSeenMap = new Map<number, number>()
+      const showCountMap = new Map<number, number>()
+
+      records.forEach((record, issueIdx) => {
+        record.openCode.forEach((code) => {
+          const num = Number(code)
+          if (!Number.isFinite(num) || num < 1 || num > 49) return
+          showCountMap.set(num, Number(showCountMap.get(num) ?? 0) + 1)
+          lastSeenMap.set(num, issueIdx)
+        })
+      })
+
+      const statsMap = new Map<number, { countShow: number; countIssue: number }>()
+      for (let num = 1; num <= 49; num++) {
+        const countShow = Number(showCountMap.get(num) ?? 0)
+        const lastSeenIdx = Number(lastSeenMap.get(num) ?? -1)
+        const countIssue = lastSeenIdx < 0 ? records.length : (records.length - 1 - lastSeenIdx)
+        statsMap.set(num, { countShow, countIssue })
+      }
+
+      return basePlays.map((play) => {
+        const num = Number(play?.num ?? 0)
+        const stats = statsMap.get(num) ?? { countShow: 0, countIssue: 0 }
+        return {
+          ...play,
+          countShow: stats.countShow,
+          countIssue: stats.countIssue,
+          selected: true
+        }
+      })
+    },
     // 子類別覆寫此方法以提供實際的球號對照資料
     openCodePlay: (_openCode: string[]): Array<Record<string, unknown>> => []
   }

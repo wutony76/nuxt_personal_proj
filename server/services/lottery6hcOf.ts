@@ -109,7 +109,6 @@ export default class LHC_OF extends LOTTERY_BASE {
   declare handle: LOTTERY_BASE['handle'] & {
     openCodePlay: (openCode: string[]) => Array<Record<string, unknown>>
     buildOrderRows: (input: { issue: string; userId: string; amount: number; groups: any[] }) => BetOrderItem[]
-    buildRoadPlays: () => any[]
     addIssueJackpot: (issue: string, amount: number) => void
     getMatchResult: (betCode: string[], openCode: string[]) => { normalCount: number; hasSpecial: boolean }
     settleClosedIssueIfNeeded: () => void
@@ -202,53 +201,6 @@ export default class LHC_OF extends LOTTERY_BASE {
             row.tuo_code = tuoList.map(toCode).filter(Boolean)
           }
           return row
-        })
-      },
-      buildRoadPlays: () => {
-        const source = Storage.config.LHC as Record<string, any> | undefined
-        const basePlays = source
-          ? Object.values(source)
-            .filter((item) => Number(item?.num) > 0 && Number(item?.num) <= 49)
-            .sort((a, b) => Number(a.num) - Number(b.num))
-          : []
-
-        const statsMap = new Map<number, { countShow: number; countIssue: number }>()
-        for (let num = 1; num <= 49; num++) {
-          statsMap.set(num, { countShow: 0, countIssue: 0 })
-        }
-
-        const closedIndex = this.currentStatus === STATUS_TIME.OPENED
-          ? this.currentIndex
-          : Math.max(this.currentIndex - 1, -1)
-        const records = this.recordOpenCode.slice(0, closedIndex + 1)
-        const lastSeenMap = new Map<number, number>()
-        const showCountMap = new Map<number, number>()
-
-        records.forEach((record, issueIdx) => {
-          record.openCode.forEach((code) => {
-            const num = Number(code)
-            if (!Number.isFinite(num) || num < 1 || num > 49) return
-            showCountMap.set(num, Number(showCountMap.get(num) ?? 0) + 1)
-            lastSeenMap.set(num, issueIdx)
-          })
-        })
-
-        for (let num = 1; num <= 49; num++) {
-          const countShow = Number(showCountMap.get(num) ?? 0)
-          const lastSeenIdx = Number(lastSeenMap.get(num) ?? -1)
-          const countIssue = lastSeenIdx < 0 ? records.length : (records.length - 1 - lastSeenIdx)
-          statsMap.set(num, { countShow, countIssue })
-        }
-
-        return basePlays.map((play) => {
-          const num = Number(play?.num ?? 0)
-          const stats = statsMap.get(num) ?? { countShow: 0, countIssue: 0 }
-          return {
-            ...play,
-            countShow: stats.countShow,
-            countIssue: stats.countIssue,
-            selected: true
-          }
         })
       },
       addIssueJackpot: (issue: string, amount: number) => {

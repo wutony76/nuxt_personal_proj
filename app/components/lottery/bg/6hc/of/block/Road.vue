@@ -86,19 +86,28 @@ const anim = {
 }
 
 const fadingOutRevealedSet = ref(new Set<number>())
+// openingRevealedNumbers 依賴 isOpening，狀態一翻就會歸零，
+// 故開獎中先留快照，結束後才有號碼可做淡出
+const lastRevealedSet = ref(new Set<number>())
 let fadeOutTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(() => openingRevealedNumbers.value.size, (size) => {
+  if (!isOpening.value || size === 0) return
+  lastRevealedSet.value = new Set(openingRevealedNumbers.value)
+})
 
 watch(isOpening, (opening) => {
   if (opening) {
     anim.start()
     if (fadeOutTimer) { clearTimeout(fadeOutTimer); fadeOutTimer = null }
     fadingOutRevealedSet.value = new Set()
+    lastRevealedSet.value = new Set()
     return
   }
   anim.stop()
-  const revealed = new Set(openingRevealedNumbers.value)
-  if (revealed.size > 0) {
-    fadingOutRevealedSet.value = revealed
+  if (lastRevealedSet.value.size > 0) {
+    fadingOutRevealedSet.value = new Set(lastRevealedSet.value)
+    lastRevealedSet.value = new Set()
     fadeOutTimer = setTimeout(() => {
       fadingOutRevealedSet.value = new Set()
       fadeOutTimer = null

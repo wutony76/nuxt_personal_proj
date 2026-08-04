@@ -21,7 +21,7 @@ export class Lottery6hcCreditService {
   }
 
   fetchRoadPlays() {
-    return api.lottery.road6hcOf() as Promise<{ plays: Lottery6hcRoadPlay[] }>
+    return api.lottery.road6hcCd() as Promise<{ plays: Lottery6hcRoadPlay[] }>
   }
 
   fetchWalletState() {

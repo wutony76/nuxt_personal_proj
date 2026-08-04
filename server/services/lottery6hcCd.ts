@@ -147,6 +147,7 @@ export default class LHC_CD extends LOTTERY_BASE {
     currentIssue: () => string
     currentOpenCode: () => string[]
     openCodeHistory: () => OpenCodeHistoryItem[]
+    roadPlays: () => Array<Record<string, unknown>>
     userInfo: (userId: string) => any
     userDialogRecord: (userId: string) => any
     jackpotState: () => any
@@ -462,6 +463,15 @@ export default class LHC_CD extends LOTTERY_BASE {
             endAt: Number(item.endAt ?? 0),
             status: idx <= lastOpenedIndex ? 'opened' : 'pending'
           } satisfies OpenCodeHistoryItem))
+      },
+      // 球號分析（路珠）：49 顆球 + 相隔期數 / 攪出次數，並帶上當年生肖
+      roadPlays: () => {
+        this.handle.refreshCurrent(new Date())
+        const animalMap = this.handle.animalByNumber()
+        return this.handle.buildRoadPlays().map((play) => {
+          const key = String(play?.num ?? '').padStart(2, '0')
+          return { ...play, animal: animalMap[key] ?? '' }
+        })
       },
       userInfo: (userId: string) => {
         const _orders = this._get.orders()
