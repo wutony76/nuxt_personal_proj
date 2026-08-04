@@ -24,6 +24,13 @@ type CurrentDetailRow = {
   tabId?: number
   tabName?: string
 }
+// 玩法頁號碼球 / 膠囊注項（由 config tabGroup.groupList 複製而來，select / coin 為前端選取狀態）
+export type SelectItem = {
+  playId: string | number
+  name: string | number
+  coin?: string | number
+  select?: boolean
+}
 interface PlayOption {
   id: string
   label: string
@@ -86,7 +93,8 @@ const time = reactive({
   statusRemainLabel: '00:00',
 })
 const select = reactive({
-  items: [],
+  items: [] as SelectItem[],
+  pool: [] as SelectItem[], // 當前分頁所有可選注項（由玩法頁 layout 初始化時登記，供隨機選號使用）
   show: true, // 「當前注項」面板顯示開關（預設開啟）
   resetToken: 0, // 下注成功後 +1，通知玩法頁重新 init layout（coin=0 / select=false）
 })
@@ -574,6 +582,43 @@ export const use6hcCredit = () => {
       state.message = ''
       state.errorMessage = ''
     },
+    // ── Select pool（玩法頁注項池 / 隨機選號） ─────────────────────
+    // 玩法頁 layout 初始化時登記當前分頁所有注項（同一批 reactive 物件，直接改 select / coin 會反映到畫面）
+    registerSelectPool: (items: SelectItem[]) => {
+      select.pool = Array.isArray(items) ? items : []
+    },
+    // 依 pool 的 select 狀態同步「當前注項」清單
+    syncSelectItems: () => {
+      select.items = select.pool.filter((item) => Boolean(item.select))
+    },
+    // 隨機選號：從當前分頁的號碼球（純數字注項）隨機取 count 注，套用當前金額
+    // 兩面 / 色波等文字注項（特大特小、紅波…）互斥語意不適合亂數帶入，僅在無號碼球時才退回全部注項
+    randomSelect: (count: number) => {
+      if (state.submitStatus === 'loading') return 0
+      const pool = _handlers.randomPool()
+      if (pool.length === 0) return 0
+      const size = Math.max(1, Math.min(Math.trunc(Number(count) || 0) || 1, pool.length))
+      const picked = _handlers.shuffle(pool).slice(0, size)
+      const pickedIds = new Set(picked.map((item) => String(item.playId)))
+      // 先清掉當前分頁既有選取，再套用隨機結果（避免同分頁重複累加）
+      select.pool.forEach((item) => {
+        item.select = pickedIds.has(String(item.playId))
+        item.coin = item.select ? state.amount : 0
+      })
+      state.selectedCodes = Array.from(pickedIds)
+      _actions.syncSelectItems()
+      return picked.length
+    },
+    // 清空當前分頁選取（號碼球取消選取、金額歸零）
+    clearSelect: () => {
+      if (state.submitStatus === 'loading') return
+      select.pool.forEach((item) => {
+        item.select = false
+        item.coin = 0
+      })
+      state.selectedCodes = []
+      _actions.syncSelectItems()
+    },
     // ── Play ────────────────────────────────────────────────────
     fetchTypeByName: async (typeName: string) => {
       if (state.fetchStatus === 'loading' || !state.activePlay) return
@@ -625,6 +670,22 @@ export const use6hcCredit = () => {
   }
 
   const _handlers = {
+    // 隨機選號可取的注項：優先純數字號碼球，無號碼球時退回全部注項
+    randomPool: (): SelectItem[] => {
+      const balls = select.pool.filter((item) => /^\d+$/.test(String(item.name)))
+      return balls.length > 0 ? balls : [...select.pool]
+    },
+    // Fisher-Yates：回傳打亂後的新陣列（不動原 pool 順序）
+    shuffle: (list: SelectItem[]): SelectItem[] => {
+      const result = [...list]
+      for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        const tmp = result[i] as SelectItem
+        result[i] = result[j] as SelectItem
+        result[j] = tmp
+      }
+      return result
+    },
     resolvePlayDefinition: (playKey: string): CreditPlayDefinition | null => {
       return (CREDIT_PLAY_DEFINITIONS as CreditPlayDefinition[]).find((item) => item.key === playKey) || null
     },

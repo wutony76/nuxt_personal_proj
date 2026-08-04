@@ -12,6 +12,7 @@ import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
 import PlayPanel from '~/components/lottery/bg/6hc/cd/PlayPanel.vue'
 import Header from '~/components/lottery/bg/6hc/cd/block/Header.vue'
 import BarTabs from '~/components/lottery/bg/6hc/cd/base/BarTabs.vue'
+import AutoSelect from '~/components/lottery/bg/6hc/cd/block/controls/AutoSelect.vue'
 import IssueBlock from '~/components/lottery/bg/6hc/cd/block/record/Issue.vue'
 import Controls from '~/components/lottery/bg/6hc/cd/block/controls/Index.vue'
 import CurrPlayItems from '~/components/lottery/bg/6hc/cd/block/controls/CurrPlayItems.vue'
@@ -164,6 +165,7 @@ onBeforeUnmount(() => {
 
         <div class="tabs-warp">
           <BarTabs />
+          <AutoSelect />
         </div>
         <div class="selector-warp">
           <!-- <div class="left">
@@ -378,6 +380,15 @@ onBeforeUnmount(() => {
     box-shadow: 0 0.1rem 0.325rem rgba(0, 0, 0, 0.07);
     animation: sec-in 0.55s ease both;
     animation-delay: 0.28s;
+
+    /* 分頁（左）與隨機選號（右）同一列 */
+    .tabs-warp {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
 
     .selector-warp {
       display: flex;

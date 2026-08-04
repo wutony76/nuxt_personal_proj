@@ -14,10 +14,7 @@ const GROUP_COLUMNS: Record<string, number> = {
 const DEFAULT_COLUMNS = 5
 const MIN_COIN = 0
 const MAX_COIN = 99999
-const { state: mxState, groupList: mxGroupList, select: mxSelect } = use6hcCredit()
-const state = reactive({
-  selectItems: []
-})
+const { state: mxState, groupList: mxGroupList, select: mxSelect, actions: mxActions } = use6hcCredit()
 const hoverKey = ref<string | null>(null)
 
 
@@ -58,9 +55,9 @@ const _handlers = {
       Array.from({ length: columns }, (_, colIndex) => list[rowIndex + colIndex * rows] ?? null)
     )
   },
+  // 同步「當前注項」清單（改由 composable 依注項池統一計算，隨機選號 / 清空共用同一份邏輯）
   selectItems: () => {
-    const _selects = state.selectItems.filter(item => item.select)
-    mxSelect.items = _selects
+    mxActions.syncSelectItems()
   }
 }
 const click = {
@@ -108,18 +105,23 @@ const click = {
 // --- COMPUTED ---
 const layout = computed(() => {
   void mxSelect.resetToken // 依 resetToken 觸發重新 init（下注成功後清空號碼球選取 / 金額）
-  state.selectItems = []
   const _found = mxGroupList.value.find((item) => item.tabId === mxState.selectTabId)
-  if (!_found || !_found.tabGroup) return null
+  if (!_found || !_found.tabGroup) {
+    mxActions.registerSelectPool([])
+    return null
+  }
   // 包成 reactive，讓 item.coin / item.select 的讀寫具反應性（watch 更新才會反映到畫面）
   const _layout = reactive(cloneDeep(_found))
+  const _pool: PlayItem[] = []
   _layout.tabGroup.forEach((group) => {
     group.groupList.forEach((item: PlayItem) => {
       item.select = false
       item.coin = 0
-      state.selectItems.push(item)
+      _pool.push(item)
     })
   })
+  // 登記注項池給 composable（AutoSelect 隨機選號 / 清空共用同一批 reactive 物件）
+  mxActions.registerSelectPool(_pool)
   return _layout
 })
 // 每個群組預先算好欄數與表格矩陣
