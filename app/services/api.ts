@@ -217,9 +217,15 @@ export const api = {
     road6hcOf: () => $fetch<{ plays: Lottery6hcRoadPlay[] }>('/api/lottery/6hc-of/road'),
     road6hcCd: () => $fetch<{ plays: Lottery6hcRoadPlay[] }>('/api/lottery/6hc-cd/road'),
     openCodeHistory6hcOf: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/6hc-of/opencode-history'),
+    openCodeHistory6hcCd: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/6hc-cd/opencode-history'),
     userRecord6hcOf: () => $fetch<LotteryUserRecordResponse>('/api/lottery/6hc-of/user-record'),
+    userRecord6hcCd: () => $fetch<LotteryUserRecordResponse>('/api/lottery/6hc-cd/user-record'),
     claimOneIssue6hcOf: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/6hc-of/claim', {
+        method: 'POST'
+      }),
+    claimOneIssue6hcCd: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/6hc-cd/claim', {
         method: 'POST'
       }),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),

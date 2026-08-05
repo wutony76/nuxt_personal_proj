@@ -1,7 +1,15 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { LOTTERY, SORT, STATUS_TIME } from '~/config/constants'
 import { CREDIT_PLAY_DEFINITIONS } from '#shared/config/6hc-cd'
-import { api, type Lottery6hcCurrent, type Lottery6hcRoadPlay } from '~/services/api'
+import {
+  api,
+  type Lottery6hcCurrent,
+  type Lottery6hcRoadPlay,
+  type LotteryClaimableIssue,
+  type LotteryOpenCodeHistoryItem,
+  type LotteryUserBalanceChange,
+  type LotteryUserBetHistory
+} from '~/services/api'
 import { handle as utHandle } from '~/utils/common'
 import { Lottery6hcCreditService } from '~/services/lottery6hcCreditService'
 
@@ -83,6 +91,28 @@ const road = reactive({
 // 注號分析排序模式（預設 / 下注次數(自) / 攪出次數(系) / 相隔期數(系)）
 const analyze = reactive({
   status: SORT.DEFAULT as string,
+})
+// 下注紀錄 Dialog（餘額變動表 / 下注紀錄 / 可領獎金）
+const userRecord = reactive({
+  isLoading: false,
+  isSubmittingClaim: false,
+  isSuccess: false,
+  errorMessage: '',
+  balanceChanges: [] as LotteryUserBalanceChange[],
+  betHistory: [] as LotteryUserBetHistory[],
+  claimableIssues: [] as LotteryClaimableIssue[],
+  jackpot: {
+    issue: '',
+    currentIssueJackpot: 0,
+    carryJackpot: 0
+  }
+})
+// 開獎歷史 Dialog
+const openCodeHistory = reactive({
+  isLoading: false,
+  isSuccess: false,
+  errorMessage: '',
+  list: [] as LotteryOpenCodeHistoryItem[]
 })
 const wallet = reactive({
   userName: '-' as string,
@@ -401,6 +431,76 @@ const fetch = {
       road.errorMessage = error instanceof Error ? error.message : '球號分析載入失敗'
     }
     return road.plays
+  },
+  // 下注紀錄 Dialog：餘額變動表 / 下注紀錄 / 可領獎金
+  userDialogRecord: async () => {
+    if (userRecord.isLoading) return null
+    userRecord.isLoading = true
+    userRecord.isSuccess = false
+    userRecord.errorMessage = ''
+    try {
+      const result = await creditService.fetchUserRecord()
+      userRecord.balanceChanges = Array.isArray(result?.balanceChanges) ? result.balanceChanges : []
+      userRecord.betHistory = Array.isArray(result?.betHistory) ? result.betHistory : []
+      userRecord.claimableIssues = Array.isArray(result?.claimableIssues) ? result.claimableIssues : []
+      userRecord.jackpot = {
+        issue: String(result?.jackpot?.issue ?? ''),
+        currentIssueJackpot: Number(result?.jackpot?.currentIssueJackpot ?? 0),
+        carryJackpot: Number(result?.jackpot?.carryJackpot ?? 0)
+      }
+      userRecord.isSuccess = true
+      return result
+    } catch (error) {
+      userRecord.balanceChanges = []
+      userRecord.betHistory = []
+      userRecord.claimableIssues = []
+      userRecord.errorMessage = error instanceof Error ? error.message : '讀取會員紀錄失敗'
+      return null
+    } finally {
+      userRecord.isLoading = false
+    }
+  },
+  // 開獎歷史
+  openCodeHistory: async () => {
+    if (openCodeHistory.isLoading) return openCodeHistory.list
+    openCodeHistory.isLoading = true
+    openCodeHistory.isSuccess = false
+    openCodeHistory.errorMessage = ''
+    try {
+      const result = await creditService.fetchOpenCodeHistory()
+      openCodeHistory.list = Array.isArray(result?.history) ? result.history : []
+      openCodeHistory.isSuccess = true
+    } catch (error) {
+      openCodeHistory.list = []
+      openCodeHistory.errorMessage = error instanceof Error ? error.message : '讀取開獎歷史失敗'
+    } finally {
+      openCodeHistory.isLoading = false
+    }
+    return openCodeHistory.list
+  },
+  // 領取單期中獎獎金（成功後刷新餘額與紀錄）
+  claimOneIssue: async () => {
+    if (userRecord.isSubmittingClaim) return { ok: false, message: '領獎處理中' }
+    userRecord.isSubmittingClaim = true
+    userRecord.errorMessage = ''
+    try {
+      const result = await creditService.submitClaimOneIssue()
+      await Promise.all([
+        fetch.userInfo(),
+        fetch.userDialogRecord()
+      ])
+      return {
+        ok: Boolean(result?.ok),
+        message: String(result?.message ?? '領獎完成'),
+        issue: String(result?.issue ?? ''),
+        amount: Number(result?.amount ?? 0)
+      }
+    } catch (error) {
+      userRecord.errorMessage = error instanceof Error ? error.message : '領獎失敗'
+      return { ok: false, message: userRecord.errorMessage }
+    } finally {
+      userRecord.isSubmittingClaim = false
+    }
   },
   refreshCurrentInfo: async () => {
     try {
@@ -759,6 +859,8 @@ export const use6hcCredit = () => {
     current,
     road,
     analyze,
+    userRecord,
+    openCodeHistory,
     wallet,
     select,
 

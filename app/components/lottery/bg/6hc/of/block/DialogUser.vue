@@ -94,7 +94,7 @@ function isBallHit(code: string, openCode: string[]): boolean {
   <div v-if="visible" class="user-dialog-mask" @click.self="emit('close')">
     <section class="user-dialog">
       <header class="user-dialog-header">
-        <h3>會員資產 / 下注紀錄</h3>
+        <h3>下注紀錄</h3>
         <button type="button" class="close-btn" @click="emit('close')">×</button>
       </header>
 
@@ -132,7 +132,7 @@ function isBallHit(code: string, openCode: string[]): boolean {
                     <th class="sortable-th" @click="toggleBalanceTimeSort">
                       時間
                       <span class="sort-icon">{{ !balanceSortActive ? '⇅' : balanceSortOrder === 'asc' ? '↑' : '↓'
-                        }}</span>
+                      }}</span>
                     </th>
                     <th>期數</th>
                     <th>類型</th>
@@ -188,7 +188,7 @@ function isBallHit(code: string, openCode: string[]): boolean {
                     <th class="sortable-th" @click="toggleSort('orderId')">
                       注單序號
                       <span class="sort-icon">{{ betSortField === 'orderId' ? (betSortOrder === 'asc' ? '↑' : '↓') : '⇅'
-                      }}</span>
+                        }}</span>
                     </th>
                     <th>投注期數</th>
                     <th>投注號碼</th>

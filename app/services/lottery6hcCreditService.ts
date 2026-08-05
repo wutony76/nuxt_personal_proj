@@ -29,15 +29,15 @@ export class Lottery6hcCreditService {
   }
 
   fetchOpenCodeHistory() {
-    return api.lottery.openCodeHistory6hcOf() as Promise<LotteryOpenCodeHistoryResponse>
+    return api.lottery.openCodeHistory6hcCd() as Promise<LotteryOpenCodeHistoryResponse>
   }
 
   fetchUserRecord() {
-    return api.lottery.userRecord6hcOf() as Promise<LotteryUserRecordResponse>
+    return api.lottery.userRecord6hcCd() as Promise<LotteryUserRecordResponse>
   }
 
   submitClaimOneIssue() {
-    return api.lottery.claimOneIssue6hcOf() as Promise<LotteryClaimOneIssueResponse>
+    return api.lottery.claimOneIssue6hcCd() as Promise<LotteryClaimOneIssueResponse>
   }
 
   submitBet(payload: LotteryBetPayload) {

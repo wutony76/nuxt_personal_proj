@@ -16,6 +16,8 @@ import AutoSelect from '~/components/lottery/bg/6hc/cd/block/controls/AutoSelect
 import Road from '~/components/lottery/bg/6hc/cd/block/Road.vue'
 import IssueBlock from '~/components/lottery/bg/6hc/cd/block/record/Issue.vue'
 import AnalyzeBlock from '~/components/lottery/bg/6hc/cd/block/Analyze.vue'
+import DialogUser from '~/components/lottery/bg/6hc/cd/block/DialogUser.vue'
+import DialogOpenCode from '~/components/lottery/bg/6hc/cd/block/DialogOpenCode.vue'
 import Controls from '~/components/lottery/bg/6hc/cd/block/controls/Index.vue'
 import CurrPlayItems from '~/components/lottery/bg/6hc/cd/block/controls/CurrPlayItems.vue'
 
@@ -25,12 +27,15 @@ const router = useRouter()
 const use6hc = use6hcCredit()
 const { fetch: mxFetch } = use6hc
 const { activate, deactivate } = useBgAutoActive()
+const { $dialog } = useNuxtApp()
 
 const state = reactive({
   entered: false,
   leaving: false,
   showFloat: false, // 進場動畫跑完才顯示浮動投注鈕
   showControls: false, // 投注鈕開關：控制 Controls 面板顯示（進場動畫後才開）
+  userDialogVisible: false, // 下注紀錄（餘額變動表 / 下注紀錄）
+  openCodeDialogVisible: false, // 開獎歷史
 })
 let floatTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -57,12 +62,30 @@ const currentPlay = computed(() => {
   return playMap[_key] ?? TemaPlay
 })
 const selectedCount = computed(() => use6hc.state.selectedCodes.length)
+// 有下注的期數：開獎歷史用來淡化未下注的期數
+const betIssues = computed(() => use6hc.userRecord.betHistory.map((item) => item.issue))
 
 
 const click = {
-  // CD 尚無明細 Dialog，先重新拉取使用者資訊（餘額 / 投注）
+  // 下注紀錄（餘額變動表 / 下注紀錄 / 可領獎金）
   openUserDialog: async () => {
-    await mxFetch.userInfo()
+    state.userDialogVisible = true
+    await Promise.all([mxFetch.userInfo(), mxFetch.userDialogRecord()])
+  },
+  closeUserDialog: () => {
+    state.userDialogVisible = false
+  },
+  // 開獎歷史（同時取注單紀錄，用來淡化未下注的期數）
+  openOpenCodeDialog: async () => {
+    state.openCodeDialogVisible = true
+    await Promise.all([mxFetch.openCodeHistory(), mxFetch.userDialogRecord()])
+  },
+  closeOpenCodeDialog: () => {
+    state.openCodeDialogVisible = false
+  },
+  claimOneIssue: async () => {
+    const result = await mxFetch.claimOneIssue()
+    $dialog.alert(result?.message || '領獎完成')
   },
   selectPlay: (playKey: string) => {
     if (!playKey || playKey === routePlayKey.value) return
@@ -130,11 +153,12 @@ onBeforeUnmount(() => {
     <div class="bg-fx" aria-hidden="true">
       <span v-for="i in 8" :key="i" class="orb" :style="`--i: ${i}`" />
     </div>
-    <LotteryBgBaseTop />
+    <LotteryBgBaseTop @open-user-dialog="click.openUserDialog()"
+      @open-opencode-dialog="click.openOpenCodeDialog()" />
 
     <main class="main">
       <!-- DRAW HEADER -->
-      <Header />
+      <Header @open-opencode-dialog="click.openOpenCodeDialog()" />
 
       <!-- CONTENT LAYOUT -->
       <section class="info-warp">
@@ -211,6 +235,11 @@ onBeforeUnmount(() => {
         </div>
       </Transition>
     </Teleport>
+
+    <DialogUser :visible="state.userDialogVisible" :data="use6hc.userRecord" @close="click.closeUserDialog()"
+      @claim="click.claimOneIssue()" />
+    <DialogOpenCode :visible="state.openCodeDialogVisible" :data="use6hc.openCodeHistory"
+      :bet-issues="betIssues" @close="click.closeOpenCodeDialog()" />
   </div>
 </template>
 
