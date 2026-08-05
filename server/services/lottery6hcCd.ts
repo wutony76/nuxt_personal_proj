@@ -2,7 +2,7 @@ import { Storage } from './storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import LOTTERY_BASE from './lotteryBase'
 import { MEMORY } from './base'
-import { shengxiaoAll } from '#shared/config/6hc-cd'
+import { creditTemaOddsOf, judgeCreditTemaBet, shengxiaoAll, type CreditBetResult } from '#shared/config/6hc-cd'
 
 type OpenCodeHistoryItem = {
   issue: string
@@ -65,8 +65,12 @@ type UserBetHistory = {
   openCode: string[]
   matchCount: number
   specialMatch: boolean
-  winStatus: 'pending' | 'win' | 'lose'
+  /** 信用盤：tie = 和局退還本金（特碼兩面開出 49） */
+  winStatus: 'pending' | 'win' | 'lose' | 'tie'
+  /** 派彩金額（含本金） */
   winAmount: number
+  /** 該注賠率（含本金），未結算為 0 */
+  odds: number
 }
 
 type UserClaimableIssue = {
@@ -89,10 +93,6 @@ type UserStoreLike = {
   record?: UserRecord
 }
 
-type IssuePrizeTier =
-  | { normalMatch: number; needSpecial: boolean; type: 'pool'; ratio: number; minAmount?: number }
-  | { normalMatch: number; needSpecial: boolean; type: 'fixed'; amount: number }
-
 // 取分頁 id（tabId）：優先每注帶的 selectTabId，其次群組層級，最後由 playId 前綴（如 2000-001）推回
 function _resolveTabId(play?: { playId?: number | string; selectTabId?: number | string }, group?: { selectTabId?: number | string }): number {
   const candidates = [
@@ -106,16 +106,6 @@ function _resolveTabId(play?: { playId?: number | string; selectTabId?: number |
   }
   return 0
 }
-
-const ISSUE_PRIZE_TIERS: IssuePrizeTier[] = [
-  { normalMatch: 6, needSpecial: false, type: 'pool', ratio: 0.70, minAmount: LOTTERY_BASE.BASE_FIRST_PRIZE },
-  { normalMatch: 5, needSpecial: true, type: 'pool', ratio: 0.20, minAmount: 50000 },
-  { normalMatch: 5, needSpecial: false, type: 'pool', ratio: 0.10, minAmount: 3500 },
-  { normalMatch: 4, needSpecial: true, type: 'fixed', amount: 3000 },
-  { normalMatch: 4, needSpecial: false, type: 'fixed', amount: 200 },
-  { normalMatch: 3, needSpecial: true, type: 'fixed', amount: 10 },
-  { normalMatch: 3, needSpecial: false, type: 'fixed', amount: 5 },
-]
 
 export default class LHC_CD extends LOTTERY_BASE {
   issueJackpotMap: Record<string, number>
@@ -135,7 +125,6 @@ export default class LHC_CD extends LOTTERY_BASE {
     openCodePlay: (openCode: string[]) => Array<Record<string, unknown>>
     buildOrderRows: (input: { issue: string; userId: string; amount: number; groups: Group[] }) => BetOrderRow[]
     addIssueJackpot: (issue: string, amount: number) => void
-    getMatchResult: (betCode: string[], openCode: string[]) => { normalCount: number; hasSpecial: boolean }
     settleClosedIssueIfNeeded: () => void
     settleIssuePrize: (issue: string, openCode: string[]) => void
     pushBalanceChange: (userId: string, payload: { issue: string; type: 'bet' | 'claim'; amount: number; before: number; after: number; note: string }) => void
@@ -245,16 +234,6 @@ export default class LHC_CD extends LOTTERY_BASE {
         const current = Number(this.issueJackpotMap[safeIssue] ?? 0)
         this.issueJackpotMap[safeIssue] = Number((current + Number(amount ?? 0)).toFixed(2))
       },
-      getMatchResult: (betCode: string[], openCode: string[]) => {
-        const normalCodes = (Array.isArray(openCode) ? openCode : []).slice(0, 6)
-        const specialCode = (Array.isArray(openCode) ? openCode : [])[6] ?? ''
-        const normalSet = new Set(normalCodes.map((c) => String(c).padStart(2, '0')))
-        const specialPad = String(specialCode).padStart(2, '0')
-        const betPadded = (Array.isArray(betCode) ? betCode : []).map((c) => String(c).padStart(2, '0'))
-        const normalCount = betPadded.filter((c) => normalSet.has(c)).length
-        const hasSpecial = Boolean(specialPad) && betPadded.includes(specialPad)
-        return { normalCount, hasSpecial }
-      },
       settleClosedIssueIfNeeded: () => {
         const maxSettleIndex = this.currentStatus === STATUS_TIME.OPENED
           ? this.currentIndex
@@ -268,9 +247,12 @@ export default class LHC_CD extends LOTTERY_BASE {
           this.issueSettledMap[record.issue] = true
         }
       },
+      // 信用盤結算：每注獨立、以特別號按賠率派彩（非官方盤的獎池分層）
       settleIssuePrize: (issue: string, openCode: string[]) => {
         const safeIssue = String(issue ?? '')
         if (!safeIssue) return
+        const codes = Array.isArray(openCode) ? openCode : []
+        const specialCode = codes[6] ?? ''
         const _orders = this._get.orders()
         const issueOrders = (_orders.get.orders.currentIssue(safeIssue) ?? []) as Array<{
           issue: string
@@ -279,65 +261,42 @@ export default class LHC_CD extends LOTTERY_BASE {
           coin: number
           betCode: string[]
         }>
-        const issuePool = Number(this.issueJackpotMap[safeIssue] ?? 0)
-        const totalPool = LOTTERY_BASE.jackpotCalc(this.jackpotBase, issuePool, this.carryJackpot)
-        const evaluateRows = issueOrders.map((row) => {
-          const { normalCount, hasSpecial } = this.handle.getMatchResult(row.betCode, openCode)
-          return { ...row, normalCount, hasSpecial, payout: 0 }
-        })
-
-        let carryNext = 0
-        ISSUE_PRIZE_TIERS.forEach((tier) => {
-          const winners = evaluateRows.filter(
-            (row) => row.normalCount === tier.normalMatch && row.hasSpecial === tier.needSpecial
-          )
-          if (tier.type === 'pool') {
-            const tierPool = Number((totalPool * tier.ratio).toFixed(2))
-            if (winners.length === 0) {
-              carryNext = Number((carryNext + tierPool).toFixed(2))
-              return
-            }
-            const totalWinnerBets = Number(winners.reduce((s, r) => s + Number(r.coin ?? 0), 0).toFixed(2))
-            const naturalPerUnit = totalWinnerBets > 0 ? tierPool / totalWinnerBets : 0
-            const prizePerUnit = tier.minAmount !== undefined
-              ? Math.max(naturalPerUnit, tier.minAmount)
-              : naturalPerUnit
-            winners.forEach((row) => {
-              const coin = Number(row.coin ?? 1)
-              row.payout = Number((row.payout + Number((prizePerUnit * coin).toFixed(2))).toFixed(2))
-            })
-          } else {
-            winners.forEach((row) => {
-              const coin = Number(row.coin ?? 1)
-              row.payout = Number((row.payout + Number((tier.amount * coin).toFixed(2))).toFixed(2))
-            })
-          }
-        })
 
         const payoutByUser = new Map<string, number>()
-        evaluateRows.forEach((row) => {
+        issueOrders.forEach((row) => {
+          const coin = Number(row.coin ?? 0)
+          const betCode = Array.isArray(row.betCode) ? String(row.betCode[0] ?? '') : ''
+          const judged = judgeCreditTemaBet(betCode, specialCode, coin)
+          // 無法辨識的注項（尚未支援的玩法）視為和局退還本金，避免吞掉玩家注金
+          const result: CreditBetResult = judged?.result ?? 'tie'
+          const payout = judged?.payout ?? coin
+          const odds = judged?.odds ?? 0
+
           const user = this._get.user(row.userId)
           const record = this.handle.ensureUserRecord(user)
           const idx = record.betHistory.findIndex((item) => String(item.orderId) === String(row.orderId))
           if (idx >= 0) {
             const current = record.betHistory[idx]
-            if (!current) return
-            record.betHistory[idx] = {
-              orderId: String(current.orderId),
-              issue: String(current.issue),
-              betTime: Number(current.betTime),
-              coin: Number(current.coin),
-              betCode: Array.isArray(current.betCode) ? current.betCode : [],
-              openCode: [...openCode],
-              matchCount: row.normalCount,
-              specialMatch: row.hasSpecial,
-              winStatus: row.payout > 0 ? 'win' : 'lose',
-              winAmount: row.payout
+            if (current) {
+              record.betHistory[idx] = {
+                orderId: String(current.orderId),
+                issue: String(current.issue),
+                betTime: Number(current.betTime),
+                coin: Number(current.coin),
+                betCode: Array.isArray(current.betCode) ? current.betCode : [],
+                openCode: [...codes],
+                matchCount: result === 'win' ? 1 : 0,
+                specialMatch: result === 'win' && judged?.kind === 'number',
+                winStatus: result,
+                winAmount: payout,
+                odds
+              }
             }
           }
-          if (row.payout > 0) {
+
+          if (payout > 0) {
             const prev = Number(payoutByUser.get(row.userId) ?? 0)
-            payoutByUser.set(row.userId, Number((prev + row.payout).toFixed(2)))
+            payoutByUser.set(row.userId, Number((prev + payout).toFixed(2)))
           }
         })
 
@@ -365,7 +324,10 @@ export default class LHC_CD extends LOTTERY_BASE {
           }
         })
 
-        this.carryJackpot = Number(carryNext.toFixed(2))
+        // 信用盤以賠率派彩、不從獎池扣款，獎池僅作展示用：
+        // 當期投注額結算後滾入累積滾存，Header 的「總獎金 / 預估頭獎」才會持續累積
+        const issuePool = Number(this.issueJackpotMap[safeIssue] ?? 0)
+        this.carryJackpot = Number((Number(this.carryJackpot ?? 0) + issuePool).toFixed(2))
         this.issueJackpotMap[safeIssue] = 0
       },
       ensureUserRecord: (user: UserStoreLike) => {
@@ -423,7 +385,9 @@ export default class LHC_CD extends LOTTERY_BASE {
           matchCount: 0,
           specialMatch: false,
           winStatus: 'pending',
-          winAmount: 0
+          winAmount: 0,
+          // 下注時即記錄該注賠率，供下注紀錄顯示（未支援的玩法為 0）
+          odds: creditTemaOddsOf(String(row.bet_code?.[0] ?? ''))
         })
         if (record.betHistory.length > 5000) {
           record.betHistory = record.betHistory.slice(-4000)

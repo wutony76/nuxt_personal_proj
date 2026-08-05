@@ -137,8 +137,11 @@ export type LotteryUserBetHistory = {
   openCode: string[]
   matchCount: number
   specialMatch?: boolean
-  winStatus: 'pending' | 'win' | 'lose'
+  /** 信用盤（6hc-cd）：tie = 和局退還本金 */
+  winStatus: 'pending' | 'win' | 'lose' | 'tie'
   winAmount: number
+  /** 信用盤（6hc-cd）該注賠率（含本金） */
+  odds?: number
 }
 
 export type LotteryClaimableIssue = {

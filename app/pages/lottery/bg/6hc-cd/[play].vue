@@ -167,7 +167,7 @@ onBeforeUnmount(() => {
             <div class="user-title"> {{ userInfo.name }} </div>
             <div class="user-content">
               <div class="row">
-                F幣餘額: {{ actions.thousands(userInfo.coin) }}
+                F幣餘額: {{ actions.money(userInfo.coin) }}
                 <button type="button" class="deposit-btn" @click.stop="click.openUserDialog()">明細</button>
               </div>
               <div class="row">當期已投注: {{ actions.thousands(userInfo.currentBets) }}</div>

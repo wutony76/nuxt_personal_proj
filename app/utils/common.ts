@@ -31,6 +31,12 @@ export const actions = {
     if (!Number.isFinite(num)) return '0'
     return Math.trunc(num).toLocaleString('en-US')
   },
+  // 金額：千分位並保留最多 2 位小數（信用盤按賠率派彩會有小數，如 1.98 倍 → 19.8）
+  money: (val: number | string): string => {
+    const num = Number(val)
+    if (!Number.isFinite(num)) return '0'
+    return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+  },
   comb6: (n: number): number => {
     if (n < 6) return 0
     return Math.round(n * (n - 1) * (n - 2) * (n - 3) * (n - 4) * (n - 5) / 720)

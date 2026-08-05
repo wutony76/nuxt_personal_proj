@@ -297,3 +297,125 @@ export const CREDIT_PLAY_DEFINITIONS: TypePlayItem[] = [
   { key: 'lianma', name: '連碼' },
   { key: 'qima', name: '七碼' },
 ]
+
+// ── 信用盤（6hc-cd）賠率與中獎判定 ────────────────────────────────
+// 信用盤與官方盤（6hc-of）最大差異：官方盤是「獎池分層派彩」，
+// 信用盤是「每注獨立、按賠率派彩」，賠率含本金（下注即扣款，中獎派彩 = 注金 × 賠率）。
+
+/** 特碼賠率（信用盤通用值，含本金；可依營運需求調整） */
+export const CREDIT_TEMA_ODDS = {
+  /** 特碼單號（49 選 1，理論值 49） */
+  number: 48,
+  /** 兩面：特大／特小、特單／特雙、合單／合雙、尾大／尾小（理論值 2） */
+  side: 1.98,
+  /** 紅波 17 個號（理論值 2.88） */
+  colorRed: 2.7,
+  /** 藍波 16 個號（理論值 3.06） */
+  colorBlue: 2.9,
+  /** 綠波 16 個號（理論值 3.06） */
+  colorGreen: 2.9,
+} as const
+
+/** 特碼兩面：開出 49 號視為和局（信用盤通用規則），退還本金 */
+export const CREDIT_TIE_SPECIAL_NUMBER = 49
+
+export type CreditBetKind = 'number' | 'side' | 'color'
+export type CreditBetResult = 'win' | 'lose' | 'tie'
+export type CreditJudgeResult = {
+  kind: CreditBetKind
+  result: CreditBetResult
+  /** 該注項賠率（含本金） */
+  odds: number
+  /** 派彩金額：中獎 = 注金 × 賠率、和局 = 退還注金、未中 = 0 */
+  payout: number
+}
+
+/** 合數（十位 + 個位） */
+const _digitSum = (num: number): number =>
+  String(Math.abs(Math.trunc(num)))
+    .split('')
+    .reduce((sum, char) => sum + Number(char), 0)
+
+/** 兩面判定表（key 為注項名稱，值為「特別號是否符合」） */
+const CREDIT_SIDE_JUDGES: Record<string, (special: number) => boolean> = {
+  特大: (special) => special >= 25,
+  特小: (special) => special <= 24,
+  特單: (special) => special % 2 === 1,
+  特雙: (special) => special % 2 === 0,
+  合單: (special) => _digitSum(special) % 2 === 1,
+  合雙: (special) => _digitSum(special) % 2 === 0,
+  尾大: (special) => special % 10 >= 5,
+  尾小: (special) => special % 10 <= 4,
+}
+
+/** 色波判定表（key 為注項名稱，值為色波號碼清單與賠率） */
+const CREDIT_COLOR_JUDGES: Record<string, { codes: readonly string[]; odds: number }> = {
+  紅波: { codes: LHC_COLORS.red, odds: CREDIT_TEMA_ODDS.colorRed },
+  藍波: { codes: LHC_COLORS.blue, odds: CREDIT_TEMA_ODDS.colorBlue },
+  綠波: { codes: LHC_COLORS.green, odds: CREDIT_TEMA_ODDS.colorGreen },
+}
+
+const _payout = (kind: CreditBetKind, result: CreditBetResult, odds: number, coin: number): CreditJudgeResult => {
+  const amount = Number(coin)
+  const safeCoin = Number.isFinite(amount) && amount > 0 ? amount : 0
+  const payout = result === 'win'
+    ? Number((safeCoin * odds).toFixed(2))
+    : result === 'tie' ? safeCoin : 0
+  return { kind, result, odds, payout }
+}
+
+/**
+ * 取注項賠率（不需開獎結果，供下注時記錄與畫面顯示）
+ * @param betCode 注項（號碼或兩面／色波文字）
+ * @returns 賠率（含本金）；無法辨識回 0
+ */
+export function creditTemaOddsOf(betCode: string | number): number {
+  const code = String(betCode ?? '').trim()
+  if (!code) return 0
+  if (/^\d+$/.test(code)) return CREDIT_TEMA_ODDS.number
+  if (CREDIT_COLOR_JUDGES[code]) return CREDIT_COLOR_JUDGES[code]!.odds
+  if (CREDIT_SIDE_JUDGES[code]) return CREDIT_TEMA_ODDS.side
+  return 0
+}
+
+/**
+ * 特碼玩法中獎判定（以特別號 openCode[6] 結算）
+ * @param betCode 注項（號碼如 "04"，或兩面／色波文字如 "特大"、"紅波"）
+ * @param specialCode 該期特別號
+ * @param coin 該注注金
+ * @returns 判定結果；無法辨識的注項回 null（呼叫端自行決定處理方式）
+ */
+export function judgeCreditTemaBet(
+  betCode: string | number,
+  specialCode: string | number,
+  coin: number
+): CreditJudgeResult | null {
+  const special = Number(specialCode)
+  if (!Number.isFinite(special) || special <= 0) return null
+  const code = String(betCode ?? '').trim()
+  if (!code) return null
+
+  // 特碼單號
+  if (/^\d+$/.test(code)) {
+    const result: CreditBetResult = Number(code) === special ? 'win' : 'lose'
+    return _payout('number', result, CREDIT_TEMA_ODDS.number, coin)
+  }
+
+  // 色波（49 為綠波，不設和局）
+  const color = CREDIT_COLOR_JUDGES[code]
+  if (color) {
+    const padded = String(special).padStart(2, '0')
+    const result: CreditBetResult = color.codes.includes(padded) ? 'win' : 'lose'
+    return _payout('color', result, color.odds, coin)
+  }
+
+  // 兩面（開 49 為和局，退還本金）
+  const judge = CREDIT_SIDE_JUDGES[code]
+  if (judge) {
+    if (special === CREDIT_TIE_SPECIAL_NUMBER) return _payout('side', 'tie', CREDIT_TEMA_ODDS.side, coin)
+    const result: CreditBetResult = judge(special) ? 'win' : 'lose'
+    return _payout('side', result, CREDIT_TEMA_ODDS.side, coin)
+  }
+
+  return null
+}

@@ -11,6 +11,7 @@ const WIN_STATUS_TEXT: Record<string, string> = {
   pending: '未開獎',
   win: '中獎',
   lose: '未中獎',
+  tie: '和局', // 特碼兩面開出 49，退還本金
 }
 const BALANCE_TYPE_TEXT: Record<string, string> = {
   bet: '下注',
@@ -133,8 +134,8 @@ const click = {
       </header>
 
       <div class="cd-dialog-summary">
-        <div>當期累積獎池金額：{{ actions.thousands(data.jackpot.currentIssueJackpot) }}</div>
-        <div>累積滾存獎池金額：{{ actions.thousands(data.jackpot.carryJackpot) }}</div>
+        <div>當期累積獎池金額：{{ actions.money(data.jackpot.currentIssueJackpot) }}</div>
+        <div>累積滾存獎池金額：{{ actions.money(data.jackpot.carryJackpot) }}</div>
         <div>可領獎期數：{{ data.claimableIssues.length }}</div>
         <button type="button" class="claim-btn" :disabled="!canClaim" @click="emit('claim')">
           {{ data.isSubmittingClaim ? '領獎中...' : '領取中獎獎金' }}
@@ -180,9 +181,9 @@ const click = {
                   <td>{{ _handlers.balanceTypeText(item.type) }}</td>
                   <td class="note-cell">{{ item.note || '-' }}</td>
                   <td :class="item.amount < 0 ? 'amount-negative' : 'amount-positive'">
-                    {{ actions.thousands(item.amount) }}
+                    {{ actions.money(item.amount) }}
                   </td>
-                  <td>{{ actions.thousands(item.after) }}</td>
+                  <td>{{ actions.money(item.after) }}</td>
                 </tr>
                 <tr v-if="filteredBalanceChanges.length === 0" class="tr-no-records">
                   <td colspan="6" class="no-records">暫無資料</td>
@@ -216,12 +217,13 @@ const click = {
           <div class="dialog-table-wrap">
             <table class="report-table dialog-report-table bets-table">
               <colgroup>
-                <col style="width: 26%" />
-                <col style="width: 14%" />
-                <col style="width: 22%" />
-                <col style="width: 14%" />
+                <col style="width: 24%" />
+                <col style="width: 13%" />
+                <col style="width: 19%" />
+                <col style="width: 13%" />
+                <col style="width: 9%" />
                 <col style="width: 10%" />
-                <col style="width: 14%" />
+                <col style="width: 12%" />
               </colgroup>
               <thead>
                 <tr>
@@ -233,6 +235,7 @@ const click = {
                   <th>投注期數</th>
                   <th>投注號碼</th>
                   <th>注數 / 金額</th>
+                  <th>賠率</th>
                   <th>注單狀態</th>
                   <th class="sortable-th" @click="click.toggleBetSort('winAmount')">
                     中獎金額
@@ -242,8 +245,11 @@ const click = {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in filteredBetHistory" :key="item.orderId"
-                  :class="{ 'row-dimmed': item.winStatus === 'lose', 'row-win': item.winStatus === 'win' }">
+                <tr v-for="item in filteredBetHistory" :key="item.orderId" :class="{
+                  'row-dimmed': item.winStatus === 'lose',
+                  'row-win': item.winStatus === 'win',
+                  'row-tie': item.winStatus === 'tie',
+                }">
                   <td class="order-id">{{ item.orderId }}</td>
                   <td>{{ item.issue }}</td>
                   <td>
@@ -260,16 +266,17 @@ const click = {
                   <td>
                     <div class="coin-cell">
                       <span class="count">{{ _handlers.betCount(item) }} 注</span>
-                      <span class="amount">{{ actions.thousands(item.coin) }}</span>
+                      <span class="amount">{{ actions.money(item.coin) }}</span>
                     </div>
                   </td>
-                  <td :class="item.winStatus === 'win' ? 'win-status' : ''">
+                  <td class="odds-cell">{{ item.odds ? item.odds.toFixed(2) : '-' }}</td>
+                  <td :class="{ 'win-status': item.winStatus === 'win', 'tie-status': item.winStatus === 'tie' }">
                     {{ _handlers.winStatusText(item.winStatus) }}
                   </td>
-                  <td :class="item.winAmount > 0 ? 'win-amount' : ''">{{ actions.thousands(item.winAmount) }}</td>
+                  <td :class="item.winAmount > 0 ? 'win-amount' : ''">{{ actions.money(item.winAmount) }}</td>
                 </tr>
                 <tr v-if="filteredBetHistory.length === 0" class="tr-no-records">
-                  <td colspan="6" class="no-records">{{ state.betIssueFilter ? '該期無注單' : '暫無資料' }}</td>
+                  <td colspan="7" class="no-records">{{ state.betIssueFilter ? '該期無注單' : '暫無資料' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -519,6 +526,17 @@ const click = {
           color: #16a34a;
         }
 
+        /* 和局（退還本金） */
+        .tie-status {
+          font-weight: 600;
+          color: #2563eb;
+        }
+
+        .odds-cell {
+          font-weight: 600;
+          color: var(--color-red-desc);
+        }
+
         .win-amount {
           font-weight: 600;
           color: #ff8d00;
@@ -535,6 +553,14 @@ const click = {
 
           td:first-child {
             border-left: 3px solid #ff8d00;
+          }
+        }
+
+        .row-tie {
+          background: #f4f8ff;
+
+          td:first-child {
+            border-left: 3px solid #93c5fd;
           }
         }
 
