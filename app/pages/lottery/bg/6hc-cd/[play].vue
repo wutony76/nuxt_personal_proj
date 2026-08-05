@@ -18,6 +18,7 @@ import IssueBlock from '~/components/lottery/bg/6hc/cd/block/record/Issue.vue'
 import AnalyzeBlock from '~/components/lottery/bg/6hc/cd/block/Analyze.vue'
 import DialogUser from '~/components/lottery/bg/6hc/cd/block/DialogUser.vue'
 import DialogOpenCode from '~/components/lottery/bg/6hc/cd/block/DialogOpenCode.vue'
+import DialogRule from '~/components/lottery/bg/6hc/cd/block/DialogRule.vue'
 import Controls from '~/components/lottery/bg/6hc/cd/block/controls/Index.vue'
 import CurrPlayItems from '~/components/lottery/bg/6hc/cd/block/controls/CurrPlayItems.vue'
 
@@ -36,6 +37,7 @@ const state = reactive({
   showControls: false, // 投注鈕開關：控制 Controls 面板顯示（進場動畫後才開）
   userDialogVisible: false, // 下注紀錄（餘額變動表 / 下注紀錄）
   openCodeDialogVisible: false, // 開獎歷史
+  ruleDialogVisible: false, // 遊戲說明
 })
 let floatTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -82,6 +84,13 @@ const click = {
   },
   closeOpenCodeDialog: () => {
     state.openCodeDialogVisible = false
+  },
+  // 遊戲說明
+  openRuleDialog: () => {
+    state.ruleDialogVisible = true
+  },
+  closeRuleDialog: () => {
+    state.ruleDialogVisible = false
   },
   claimOneIssue: async () => {
     const result = await mxFetch.claimOneIssue()
@@ -154,7 +163,7 @@ onBeforeUnmount(() => {
       <span v-for="i in 8" :key="i" class="orb" :style="`--i: ${i}`" />
     </div>
     <LotteryBgBaseTop @open-user-dialog="click.openUserDialog()"
-      @open-opencode-dialog="click.openOpenCodeDialog()" />
+      @open-opencode-dialog="click.openOpenCodeDialog()" @open-rule-dialog="click.openRuleDialog()" />
 
     <main class="main">
       <!-- DRAW HEADER -->
@@ -240,6 +249,7 @@ onBeforeUnmount(() => {
       @claim="click.claimOneIssue()" />
     <DialogOpenCode :visible="state.openCodeDialogVisible" :data="use6hc.openCodeHistory"
       :bet-issues="betIssues" @close="click.closeOpenCodeDialog()" />
+    <DialogRule :visible="state.ruleDialogVisible" @close="click.closeRuleDialog()" />
   </div>
 </template>
 
