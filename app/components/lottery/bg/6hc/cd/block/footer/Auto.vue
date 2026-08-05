@@ -19,10 +19,16 @@
         </div>
       </div>
       <div class="auto-coin">
-        <span class="coin-label">金額</span>
+        <span class="coin-label">每注金額</span>
         <input type="number" min="1" max="99999" class="coin-input" :value="state.betAmount"
           @input="_handlers.onAmountInput" @blur="_handlers.onAmountInput" />
         <span class="auto-unit">元</span>
+      </div>
+      <div class="auto-coin">
+        <span class="coin-label">每期注數</span>
+        <input type="number" min="1" :max="maxCount" class="coin-input" :value="state.betCount"
+          @input="_handlers.onCountInput" @blur="_handlers.onCountInput" />
+        <span class="auto-unit">注 / 共 {{ actions.money(totalCost) }}</span>
       </div>
       <div class="auto-play-info">
         <span class="coin-label">玩法</span>
@@ -33,88 +39,116 @@
 </template>
 
 <script setup lang="ts">
+import { computed, reactive, watch } from 'vue'
+import { STATUS_TIME } from '~/config/constants'
+import { actions } from '~/utils/common'
 import { use6hcCredit } from '~/composables/use6hcCredit'
 
-const credit = use6hcCredit()
-const { state: mxState, time } = credit
+const MAX_AMOUNT = 99999
+const MAX_COUNT = 49 // 一個分頁最多 49 個號碼球
 
-const playInfo = computed(() => {
-  const play = mxState.activePlay?.name || '-'
-  const type = mxState.selectedTypeName || '-'
-  const codes = mxState.selectedCodes.length > 0 ? mxState.selectedCodes.join('、') : '（未選）'
-  return `${play} / ${type}：${codes}`
-})
+const credit = use6hcCredit()
+const { state: mxState, current: mxCurrent, select: mxSelect, wallet: mxWallet, fetch: mxFetch } = credit
 
 const state = reactive({
   enabled: false,
   betAmount: 10,
+  betCount: 5,
   isRunning: false,
-  lastPeriodSeconds: -1,
+  lastIssue: '', // 已自動投注過的期數，避免同期重複下注
   statusText: '尚未啟用',
   statusType: 'idle',
 })
 
+// --- COMPUTED ---
+const isOpen = computed(() => String(mxCurrent.runtime?.currentStatus ?? '') === STATUS_TIME.OPEN)
+// 可自動投注的號碼球數（與玩法頁隨機選號同一組 pool）
+const poolSize = computed(() => {
+  const balls = mxSelect.pool.filter((item) => /^\d+$/.test(String(item.name)))
+  return balls.length > 0 ? balls.length : mxSelect.pool.length
+})
+const maxCount = computed(() => Math.max(1, Math.min(MAX_COUNT, poolSize.value || MAX_COUNT)))
+const totalCost = computed(() => state.betCount * state.betAmount)
+const playInfo = computed(() => {
+  const play = mxState.activePlay?.name || '-'
+  const tab = mxState.selectTabName || '-'
+  return `${play} / ${tab}：隨機 ${state.betCount} 注`
+})
+
+// --- HANDLE ---
 const _handlers = {
-  setStatus(text: string, type: string) {
+  setStatus: (text: string, type: string) => {
     state.statusText = text
     state.statusType = type
   },
-  normalizeAmount(val: string | number) {
-    return Math.min(99999, Math.max(1, Math.trunc(Number(val) || 1)))
-  },
-  onAmountInput(e: Event) {
-    const target = e.target as HTMLInputElement
+  normalizeAmount: (val: string | number) => Math.min(MAX_AMOUNT, Math.max(1, Math.trunc(Number(val) || 1))),
+  normalizeCount: (val: string | number) => Math.min(maxCount.value, Math.max(1, Math.trunc(Number(val) || 1))),
+  onAmountInput: (event: Event) => {
+    const target = event.target as HTMLInputElement
     const val = _handlers.normalizeAmount(target.value)
     state.betAmount = val
+    target.value = String(val)
+  },
+  onCountInput: (event: Event) => {
+    const target = event.target as HTMLInputElement
+    const val = _handlers.normalizeCount(target.value)
+    state.betCount = val
     target.value = String(val)
   },
 }
 
 const _actions = {
-  async autoBet() {
+  // 開盤中 + 該期尚未自動投注 → 投注（以期數為單位，避免一期內重複觸發）
+  tryBet: () => {
+    if (!state.enabled || !isOpen.value) return
+    const issue = String(mxCurrent.runtime?.issueCurrent ?? '')
+    if (!issue || issue === state.lastIssue) return
+    _actions.autoBet(issue)
+  },
+  // 每期開盤自動下注：走 composable 的 autoBets（隨機取號，不動使用者手動選取的注項）
+  autoBet: async (issue: string) => {
     if (state.isRunning) return
-    if (mxState.selectedCodes.length === 0) {
-      _handlers.setStatus('未選號碼，跳過本期', 'low')
+    if (poolSize.value === 0) {
+      _handlers.setStatus('玩法未載入，跳過本期', 'low')
+      return
+    }
+    if (Number(mxWallet.coin ?? 0) < totalCost.value) {
+      _handlers.setStatus(`餘額不足（${actions.money(mxWallet.coin)}），跳過本期`, 'low')
       return
     }
     state.isRunning = true
-    const prevAmount = mxState.amount
-    mxState.amount = state.betAmount
-    _handlers.setStatus('投注中...', 'running')
+    _handlers.setStatus(`第${issue}期 投注中...`, 'running')
     try {
-      await credit.actions.submitBet()
-      if (mxState.submitStatus === 'success') {
-        _handlers.setStatus('下注成功', 'success')
+      const result = await mxFetch.autoBets({ count: state.betCount, amount: state.betAmount })
+      if (result?.ok) {
+        state.lastIssue = issue
+        _handlers.setStatus(`第${issue}期 — 下注成功（${result.count} 注 / ${actions.money(result.amount)}）`, 'success')
       } else {
-        _handlers.setStatus(mxState.errorMessage || '下注失敗', 'fail')
+        _handlers.setStatus(result?.message || '下注失敗', 'fail')
       }
     } catch {
       _handlers.setStatus('下注失敗，請稍後再試', 'fail')
     } finally {
-      mxState.amount = prevAmount
       state.isRunning = false
     }
   },
 }
 
 const click = {
-  toggle() {
+  toggle: () => {
     state.enabled = !state.enabled
     if (!state.enabled) {
       _handlers.setStatus('尚未啟用', 'idle')
-    } else {
-      _handlers.setStatus('等待開盤...', 'waiting')
+      return
     }
+    // 開啟時若已在開盤中，直接投注本期，否則等下一期開盤
+    state.lastIssue = ''
+    _handlers.setStatus('等待開盤...', 'waiting')
+    _actions.tryBet()
   },
 }
 
-watch(() => time.statusRemainSec, (seconds) => {
-  if (!state.enabled) return
-  if (seconds === 0 && state.lastPeriodSeconds !== 0) {
-    _actions.autoBet()
-  }
-  state.lastPeriodSeconds = seconds
-})
+watch([isOpen, () => mxCurrent.runtime?.issueCurrent], () => { _actions.tryBet() })
 </script>
 
 <style scoped lang="scss">

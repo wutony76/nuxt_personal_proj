@@ -357,6 +357,24 @@ function _tickServerNow() {
   _updateStatusRemain()
 }
 
+// 可隨機投注／選號的注項：優先純數字號碼球，無號碼球時退回全部注項
+function _randomBetPool(): SelectItem[] {
+  const balls = select.pool.filter((item) => /^\d+$/.test(String(item.name)))
+  return balls.length > 0 ? balls : [...select.pool]
+}
+
+// Fisher-Yates：回傳打亂後的新陣列（不動原 pool 順序）
+function _shuffleBetItems(list: SelectItem[]): SelectItem[] {
+  const result = [...list]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const tmp = result[i] as SelectItem
+    result[i] = result[j] as SelectItem
+    result[j] = tmp
+  }
+  return result
+}
+
 function _getBetErrorMessage(error: unknown): string {
   const err = error as any
   if (err?.data?.statusMessage) return String(err.data.statusMessage)
@@ -533,20 +551,40 @@ const fetch = {
     clearInterval(jackpotPollTimer)
     jackpotPollTimer = null
   },
+  // 玩法頁投注：以當前選取的注項（每注各自 coin）送單，成功後清空選取
   bets: async () => {
-    if (state.submitStatus === 'loading') return
-    // 取有金額的注項（每注各自 coin）
-    const betItems = (select.items as Array<{ playId?: string | number; name: string | number; coin?: string | number }>)
-      .filter((it) => Number(it?.coin) > 0)
+    const betItems = (select.items as SelectItem[]).filter((item) => Number(item?.coin) > 0)
+    if (betItems.length === 0) {
+      state.message = '請先選擇注項並填入金額'
+      return { ok: false, message: state.message }
+    }
+    return fetch.submitBetItems(betItems, { clearSelection: true })
+  },
+  // 自動投注：從當前分頁隨機取 count 注（每注 amount），不動使用者手動選取的注項
+  autoBets: async (input: { count: number; amount: number }) => {
+    const amount = Math.trunc(Number(input?.amount) || 0)
+    if (amount <= 0) return { ok: false, message: '自動投注金額需大於 0' }
+    const pool = _randomBetPool()
+    if (pool.length === 0) return { ok: false, message: '目前分頁沒有可自動投注的號碼' }
+    const size = Math.max(1, Math.min(Math.trunc(Number(input?.count) || 1), pool.length))
+    const items = _shuffleBetItems(pool)
+      .slice(0, size)
+      .map((item) => ({ playId: item.playId, name: item.name, coin: amount }))
+    return fetch.submitBetItems(items, { clearSelection: false })
+  },
+  // 共用送單流程（三段狀態 + 本地當期注單 + 餘額／當期資訊刷新）
+  submitBetItems: async (items: SelectItem[], options?: { clearSelection?: boolean }) => {
+    if (state.submitStatus === 'loading') return { ok: false, message: '投注處理中' }
     const activePlay = state.activePlay
+    const betItems = (Array.isArray(items) ? items : []).filter((item) => Number(item?.coin) > 0)
     if (!activePlay || betItems.length === 0) {
       state.message = '請先選擇注項並填入金額'
-      return
+      return { ok: false, message: state.message }
     }
-    const totalAmount = betItems.reduce((acc, it) => acc + Number(it.coin || 0), 0)
+    const totalAmount = betItems.reduce((acc, item) => acc + Number(item.coin || 0), 0)
     if (!(totalAmount > 0)) {
       state.message = '下注金額需大於 0'
-      return
+      return { ok: false, message: state.message }
     }
     state.submitStatus = 'loading'
     state.errorMessage = ''
@@ -556,14 +594,14 @@ const fetch = {
         {
           playKey: activePlay.key,
           playTypeName: state.selectedTypeName,
-          playList: betItems.map((it, index) => {
-            const num = Number(it.name)
+          playList: betItems.map((item) => {
+            const num = Number(item.name)
             return {
-              playId: it.playId,
+              playId: item.playId,
               selectTabId: state.selectTabId,
-              label: String(it.name),
+              label: String(item.name),
               num: Number.isFinite(num) && num > 0 ? num : undefined,
-              amount: Number(it.coin), // 每注各自金額
+              amount: Number(item.coin), // 每注各自金額
             }
           }),
         },
@@ -576,23 +614,26 @@ const fetch = {
       state.lastOrderId = String(result?.orderId || '')
       state.lastOrders = Array.isArray(result?.orders) ? result.orders : []
       state.submitStatus = 'success'
-      // state.message = `下注成功，共 ${betItems.length} 筆，總額 ${totalAmount}，單號 ${state.lastOrderId || '-'}`
-      state.message = `下注成功`
+      state.message = '下注成功'
 
       // 存入本地當期注單（供「當期注單」liveQuery 監看即時顯示）
       await _saveOrders(result?.orders, orderQuery.userId, String(current.runtime?.issueCurrent ?? orderQuery.issue))
 
-      //--- HANDLE 清空選取 --
-      state.selectedCodes = []
-      select.items = []
-      select.resetToken++ // 觸發玩法頁 layout 重新 init（號碼球 select=false / 金額 coin=0）
+      //--- HANDLE 清空選取（自動投注不清，避免蓋掉使用者正在編輯的注項） --
+      if (options?.clearSelection !== false) {
+        state.selectedCodes = []
+        select.items = []
+        select.resetToken++ // 觸發玩法頁 layout 重新 init（號碼球 select=false / 金額 coin=0）
+      }
 
       // 更新餘額 / 注項統計 / 當期資訊
       await fetch.userInfo()
       await fetch.refreshCurrentInfo()
+      return { ok: true, message: state.message, count: betItems.length, amount: totalAmount }
     } catch (error) {
       state.submitStatus = 'error'
       state.errorMessage = _getBetErrorMessage(error)
+      return { ok: false, message: state.errorMessage }
     }
   },
 }
@@ -828,22 +869,9 @@ export const use6hcCredit = () => {
   }
 
   const _handlers = {
-    // 隨機選號可取的注項：優先純數字號碼球，無號碼球時退回全部注項
-    randomPool: (): SelectItem[] => {
-      const balls = select.pool.filter((item) => /^\d+$/.test(String(item.name)))
-      return balls.length > 0 ? balls : [...select.pool]
-    },
-    // Fisher-Yates：回傳打亂後的新陣列（不動原 pool 順序）
-    shuffle: (list: SelectItem[]): SelectItem[] => {
-      const result = [...list]
-      for (let i = result.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        const tmp = result[i] as SelectItem
-        result[i] = result[j] as SelectItem
-        result[j] = tmp
-      }
-      return result
-    },
+    // 隨機選號 / 自動投注共用同一組 pool 與洗牌邏輯（module-level）
+    randomPool: (): SelectItem[] => _randomBetPool(),
+    shuffle: (list: SelectItem[]): SelectItem[] => _shuffleBetItems(list),
     resolvePlayDefinition: (playKey: string): CreditPlayDefinition | null => {
       return (CREDIT_PLAY_DEFINITIONS as CreditPlayDefinition[]).find((item) => item.key === playKey) || null
     },
