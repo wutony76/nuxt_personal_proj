@@ -183,7 +183,7 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   width: 100%;
   min-width: 0;
   gap: 0.2rem;
@@ -365,7 +365,7 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
       }
 
       td.col-bet {
-        text-align: left;
+        text-align: center;
         vertical-align: middle;
         padding: 0.3rem 0.4rem;
       }
