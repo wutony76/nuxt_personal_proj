@@ -151,6 +151,7 @@ watch(
   .main {
     font-size: 13px;
     color: var(--color-red-desc);
+    margin-top: unset;
 
     :deep(.ball) {
       width: 2.7rem;
