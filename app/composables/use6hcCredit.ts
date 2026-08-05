@@ -4,6 +4,7 @@ import { CREDIT_PLAY_DEFINITIONS } from '#shared/config/6hc-cd'
 import {
   api,
   type Lottery6hcCurrent,
+  type Lottery6hcCdJackpot,
   type Lottery6hcRoadPlay,
   type LotteryClaimableIssue,
   type LotteryOpenCodeHistoryItem,
@@ -149,6 +150,10 @@ const jackpot = reactive({
   setAt: 0 as number,
   currentIssueJackpot: 0 as number,
   carryJackpot: 0 as number,
+  /** 可發放累積池（當期抽水 + 累積滾存，不含展示用池底） */
+  distributable: 0 as number,
+  /** 最近一次爆池紀錄 */
+  lastHit: null as Lottery6hcCdJackpot['lastHit'],
 })
 
 const livePool = computed(() => {
@@ -543,6 +548,8 @@ const fetch = {
         if (result.jackpotBaseSetAt > 0) jackpot.setAt = result.jackpotBaseSetAt
         if (result.currentIssueJackpot != null) jackpot.currentIssueJackpot = Number(result.currentIssueJackpot)
         if (result.carryJackpot != null) jackpot.carryJackpot = Number(result.carryJackpot)
+        jackpot.distributable = Number(result.distributable ?? (Number(result.currentIssueJackpot ?? 0) + Number(result.carryJackpot ?? 0)))
+        jackpot.lastHit = result.lastHit ?? null
       } catch { /* silent */ }
     }, 5000)
   },

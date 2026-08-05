@@ -419,3 +419,119 @@ export function judgeCreditTemaBet(
 
   return null
 }
+
+// ── 獎池（抽水入池 + 爆池發放） ───────────────────────────────────
+// 信用盤按賠率派彩由莊家支付，獎池不參與一般派彩；獎池改由「每注抽水」累積，
+// 並在爆池期一次發放給該期有份的注單（三類注項皆可參與）。
+export const CREDIT_JACKPOT = {
+  /** 每筆投注額撥入獎池的比例 */
+  rakeRatio: 0.01,
+  /** 爆池期：特別號開出此號碼時發放（49 同時是特碼兩面的和局號） */
+  hitNumber: 49,
+  /** 觸發時發放累積池的比例，其餘滾存至下期 */
+  payoutRatio: 0.5,
+  /** 累積池低於此金額不發放（避免發出零星小額）；以 rakeRatio 1% 換算 ≈ 需累積 10 萬投注額 */
+  minPool: 1000,
+  /** 分配權重（依「注金 × 權重」比例分配）：單號命中最難，和局的兩面權重最低 */
+  weights: { number: 3, color: 2, side: 1 },
+} as const
+
+export type CreditJackpotShare = {
+  orderId: string
+  userId: string
+  coin: number
+  kind: CreditBetKind
+  weight: number
+  weighted: number
+  amount: number
+}
+
+export type CreditJackpotResult = {
+  triggered: boolean
+  /** 未觸發原因：非爆池期 / 累積池未達門檻 / 無有份注單 */
+  reason: 'hit' | 'not-hit-issue' | 'pool-too-low' | 'no-eligible'
+  /** 可發放累積池（當期抽水 + 累積滾存） */
+  pool: number
+  /** 實際發出總額 */
+  payout: number
+  /** 滾存至下期 */
+  remain: number
+  shares: CreditJackpotShare[]
+}
+
+type CreditJackpotRow = {
+  orderId: string
+  userId: string
+  coin: number
+  kind: CreditBetKind | null
+  result: CreditBetResult
+}
+
+/**
+ * 計算爆池分配（純函式，server 結算與測試共用）
+ * 有份條件：爆池期中「非未中」的注單 —— 單號命中 49、綠波命中、兩面和局
+ * @param rows 該期注單（已判定結果）
+ * @param specialCode 該期特別號
+ * @param pool 可發放累積池（當期抽水 + 累積滾存）
+ */
+export function buildCreditJackpotShares(
+  rows: CreditJackpotRow[],
+  specialCode: string | number,
+  pool: number
+): CreditJackpotResult {
+  const safePool = Math.max(0, Number(Number(pool ?? 0).toFixed(2)))
+  const base: CreditJackpotResult = {
+    triggered: false,
+    reason: 'not-hit-issue',
+    pool: safePool,
+    payout: 0,
+    remain: safePool,
+    shares: [],
+  }
+
+  if (Number(specialCode) !== CREDIT_JACKPOT.hitNumber) return base
+  if (safePool < CREDIT_JACKPOT.minPool) return { ...base, reason: 'pool-too-low' }
+
+  const eligible = (Array.isArray(rows) ? rows : [])
+    .map((row) => {
+      const coin = Number(row?.coin ?? 0)
+      const kind = row?.kind
+      if (!kind || row?.result === 'lose' || !(coin > 0)) return null
+      const weight = Number(CREDIT_JACKPOT.weights[kind] ?? 0)
+      if (!(weight > 0)) return null
+      return { row, coin, kind, weight, weighted: coin * weight }
+    })
+    .filter((item): item is { row: CreditJackpotRow; coin: number; kind: CreditBetKind; weight: number; weighted: number } => Boolean(item))
+
+  if (eligible.length === 0) return { ...base, reason: 'no-eligible' }
+
+  const totalWeighted = eligible.reduce((sum, item) => sum + item.weighted, 0)
+  const budget = Number((safePool * CREDIT_JACKPOT.payoutRatio).toFixed(2))
+  let distributed = 0
+  const shares: CreditJackpotShare[] = eligible.map((item, index) => {
+    // 最後一筆吃尾差，避免四捨五入造成總額不符
+    const amount = index === eligible.length - 1
+      ? Number((budget - distributed).toFixed(2))
+      : Number((budget * item.weighted / totalWeighted).toFixed(2))
+    distributed = Number((distributed + amount).toFixed(2))
+    return {
+      orderId: String(item.row.orderId),
+      userId: String(item.row.userId),
+      coin: item.coin,
+      kind: item.kind,
+      weight: item.weight,
+      weighted: item.weighted,
+      amount,
+    }
+  })
+
+  const payout = Number(distributed.toFixed(2))
+  return {
+    triggered: true,
+    reason: 'hit',
+    pool: safePool,
+    payout,
+    remain: Number((safePool - payout).toFixed(2)),
+    shares,
+  }
+}

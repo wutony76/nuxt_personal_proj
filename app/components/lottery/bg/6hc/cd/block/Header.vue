@@ -2,6 +2,7 @@
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import Ball from '~/components/lottery/bg/6hc/cd/base/Ball.vue'
 import { STATUS_TIME } from '~/config/constants'
+import { CREDIT_JACKPOT } from '#shared/config/6hc-cd'
 import { lottery_id as cdLotteryId } from '~/services/lottery6hcCreditService'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -49,7 +50,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (event: 'open-opencode-dialog'): void
 }>()
-const { current: mxCurrent, time: mxTime, isOpening, openingRevealedIndices, livePool: mxLivePool } = use6hcCredit()
+const { current: mxCurrent, time: mxTime, isOpening, openingRevealedIndices, livePool: mxLivePool, jackpot: mxJackpot } = use6hcCredit()
 
 
 // ── Normalized data ───────────────────────────────────────────────────────
@@ -129,14 +130,21 @@ const totalJackpot = computed(() => {
   return String(mxCurrent.runtime?.jackpot?.currentIssueJackpot ?? '1,000,000,000')
 })
 
+// 預估爆池發放金額 = 可發放累積池 × 發放比例（不含展示用池底）
 const estimatedJackpot = computed(() => {
-  if (cdLivePool.value > 0) {
-    return (displayPool.value * 0.4).toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  }
-  return String(mxCurrent.runtime?.jackpot?.carryJackpot ?? '1,000,000')
+  const amount = Number(mxJackpot.distributable ?? 0) * CREDIT_JACKPOT.payoutRatio
+  return amount.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 })
 
-const winRate = computed(() => '25.84%')
+// 爆池機率：特別號 49 選 1
+const winRate = computed(() => `${((1 / 49) * 100).toFixed(2)}%`)
+
+// 最近一次爆池
+const lastHitText = computed(() => {
+  const hit = mxJackpot.lastHit
+  if (!hit) return '尚未爆池'
+  return `第${hit.issue}期 / ${Number(hit.payout).toLocaleString('zh-TW')}（${hit.winners} 人）`
+})
 
 // ── Status display ────────────────────────────────────────────────────────
 const _handlers = {
@@ -209,12 +217,16 @@ const openingBalls = computed(() => {
           <span class="val val-big">{{ totalJackpot }}</span>
         </div>
         <div class="row">
-          <span class="label">預估頭獎</span>
+          <span class="label">預估爆池</span>
           <span class="val val-big">{{ estimatedJackpot }}</span>
         </div>
         <div class="row">
-          <span class="label">中獎機率</span>
-          <span class="accent">{{ winRate }}</span>
+          <span class="label">爆池機率</span>
+          <span class="accent">{{ winRate }}（特別號 {{ CREDIT_JACKPOT.hitNumber }}）</span>
+        </div>
+        <div class="row">
+          <span class="label">上次爆池</span>
+          <span class="accent">{{ lastHitText }}</span>
         </div>
       </div>
     </div>

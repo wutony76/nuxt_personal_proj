@@ -53,6 +53,30 @@ export type Lottery6hcRoadPlay = {
   animal?: string // 信用盤（6hc-cd）帶當年生肖
 }
 
+/** 信用盤（6hc-cd）獎池狀態：含可發放累積池、發放參數與最近一次爆池紀錄 */
+export type Lottery6hcCdJackpot = {
+  issue: string
+  currentIssueJackpot: number
+  carryJackpot: number
+  jackpotBase: number
+  jackpotBaseSetAt: number
+  /** 可發放累積池 = 當期抽水 + 累積滾存（不含展示用池底） */
+  distributable?: number
+  rakeRatio?: number
+  hitNumber?: number
+  payoutRatio?: number
+  minPool?: number
+  lastHit?: {
+    issue: string
+    specialCode: string
+    pool: number
+    payout: number
+    winners: number
+    orders: number
+    createdAt: number
+  } | null
+}
+
 export type Lottery6hcCurrent = {
   issueCurrent: string
   issueLatest: string
@@ -142,6 +166,8 @@ export type LotteryUserBetHistory = {
   winAmount: number
   /** 信用盤（6hc-cd）該注賠率（含本金） */
   odds?: number
+  /** 信用盤（6hc-cd）爆池加碼金額 */
+  jackpotAmount?: number
 }
 
 export type LotteryClaimableIssue = {
@@ -216,7 +242,7 @@ export const api = {
     },
     current6hcOf: () => $fetch<Lottery6hcCurrent>('/api/lottery/6hc-of/current'),
     jackpot6hcOf: () => $fetch<{ issue: string; currentIssueJackpot: number; carryJackpot: number; jackpotBase: number; jackpotBaseSetAt: number }>('/api/lottery/6hc-of/jackpot'),
-    jackpot6hcCd: () => $fetch<{ issue: string; currentIssueJackpot: number; carryJackpot: number; jackpotBase: number; jackpotBaseSetAt: number }>('/api/lottery/6hc-cd/jackpot'),
+    jackpot6hcCd: () => $fetch<Lottery6hcCdJackpot>('/api/lottery/6hc-cd/jackpot'),
     road6hcOf: () => $fetch<{ plays: Lottery6hcRoadPlay[] }>('/api/lottery/6hc-of/road'),
     road6hcCd: () => $fetch<{ plays: Lottery6hcRoadPlay[] }>('/api/lottery/6hc-cd/road'),
     openCodeHistory6hcOf: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/6hc-of/opencode-history'),

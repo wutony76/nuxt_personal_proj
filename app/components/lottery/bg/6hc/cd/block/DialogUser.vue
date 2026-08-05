@@ -273,7 +273,12 @@ const click = {
                   <td :class="{ 'win-status': item.winStatus === 'win', 'tie-status': item.winStatus === 'tie' }">
                     {{ _handlers.winStatusText(item.winStatus) }}
                   </td>
-                  <td :class="item.winAmount > 0 ? 'win-amount' : ''">{{ actions.money(item.winAmount) }}</td>
+                  <td :class="item.winAmount > 0 ? 'win-amount' : ''">
+                    {{ actions.money(item.winAmount) }}
+                    <span v-if="item.jackpotAmount" class="jackpot-amount">
+                      ＋加碼 {{ actions.money(item.jackpotAmount) }}
+                    </span>
+                  </td>
                 </tr>
                 <tr v-if="filteredBetHistory.length === 0" class="tr-no-records">
                   <td colspan="7" class="no-records">{{ state.betIssueFilter ? '該期無注單' : '暫無資料' }}</td>
@@ -540,6 +545,15 @@ const click = {
         .win-amount {
           font-weight: 600;
           color: #ff8d00;
+        }
+
+        /* 爆池加碼 */
+        .jackpot-amount {
+          display: block;
+          margin-top: 1px;
+          font-size: 10px;
+          font-weight: 700;
+          color: #7c3aed;
         }
 
         .row-dimmed {

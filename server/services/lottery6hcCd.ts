@@ -2,7 +2,15 @@ import { Storage } from './storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import LOTTERY_BASE from './lotteryBase'
 import { MEMORY } from './base'
-import { creditTemaOddsOf, judgeCreditTemaBet, shengxiaoAll, type CreditBetResult } from '#shared/config/6hc-cd'
+import {
+  buildCreditJackpotShares,
+  CREDIT_JACKPOT,
+  creditTemaOddsOf,
+  judgeCreditTemaBet,
+  shengxiaoAll,
+  type CreditBetKind,
+  type CreditBetResult
+} from '#shared/config/6hc-cd'
 
 type OpenCodeHistoryItem = {
   issue: string
@@ -71,6 +79,8 @@ type UserBetHistory = {
   winAmount: number
   /** 該注賠率（含本金），未結算為 0 */
   odds: number
+  /** 爆池加碼金額（非爆池期或無份為 0） */
+  jackpotAmount: number
 }
 
 type UserClaimableIssue = {
@@ -107,12 +117,24 @@ function _resolveTabId(play?: { playId?: number | string; selectTabId?: number |
   return 0
 }
 
+type JackpotHit = {
+  issue: string
+  specialCode: string
+  pool: number
+  payout: number
+  winners: number
+  orders: number
+  createdAt: number
+}
+
 export default class LHC_CD extends LOTTERY_BASE {
   issueJackpotMap: Record<string, number>
   issueSettledMap: Record<string, boolean>
   carryJackpot: number
   jackpotBase: number
   jackpotBaseSetAt: number
+  /** 最近一次爆池紀錄（供頁首與說明頁展示） */
+  lastJackpotHit: JackpotHit | null
   animal: string
   _animalMapCache: { animal: string; map: Record<string, string> } | null
 
@@ -149,6 +171,7 @@ export default class LHC_CD extends LOTTERY_BASE {
     this.carryJackpot = 0
     this.jackpotBase = 0
     this.jackpotBaseSetAt = 0
+    this.lastJackpotHit = null
     this.animal = MEMORY.animal
     this._animalMapCache = null
 
@@ -263,6 +286,14 @@ export default class LHC_CD extends LOTTERY_BASE {
         }>
 
         const payoutByUser = new Map<string, number>()
+        // 逐注判定結果（供獎池分配計算）
+        const judgedRows: Array<{
+          orderId: string
+          userId: string
+          coin: number
+          kind: CreditBetKind | null
+          result: CreditBetResult
+        }> = []
         issueOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
           const betCode = Array.isArray(row.betCode) ? String(row.betCode[0] ?? '') : ''
@@ -289,7 +320,8 @@ export default class LHC_CD extends LOTTERY_BASE {
                 specialMatch: result === 'win' && judged?.kind === 'number',
                 winStatus: result,
                 winAmount: payout,
-                odds
+                odds,
+                jackpotAmount: 0 // 爆池加碼於下方獎池分配時寫入
               }
             }
           }
@@ -298,6 +330,39 @@ export default class LHC_CD extends LOTTERY_BASE {
             const prev = Number(payoutByUser.get(row.userId) ?? 0)
             payoutByUser.set(row.userId, Number((prev + payout).toFixed(2)))
           }
+
+          judgedRows.push({
+            orderId: String(row.orderId),
+            userId: String(row.userId),
+            coin,
+            kind: judged?.kind ?? null,
+            result
+          })
+        })
+
+        // ── 獎池發放（爆池期：特別號 = CREDIT_JACKPOT.hitNumber） ──
+        // 可發放累積池 = 當期抽水 + 累積滾存（不含展示用池底 jackpotBase）
+        const issuePool = Number(this.issueJackpotMap[safeIssue] ?? 0)
+        const distributable = Number((issuePool + Number(this.carryJackpot ?? 0)).toFixed(2))
+        const jackpot = buildCreditJackpotShares(judgedRows, specialCode, distributable)
+        const jackpotByUser = new Map<string, number>()
+        jackpot.shares.forEach((share) => {
+          if (!(share.amount > 0)) return
+          const prev = Number(jackpotByUser.get(share.userId) ?? 0)
+          jackpotByUser.set(share.userId, Number((prev + share.amount).toFixed(2)))
+          // 記錄在該注單上，供下注紀錄顯示「頭獎加碼」
+          const user = this._get.user(share.userId)
+          const record = this.handle.ensureUserRecord(user)
+          const idx = record.betHistory.findIndex((item) => String(item.orderId) === share.orderId)
+          const current = record.betHistory[idx]
+          if (idx >= 0 && current) {
+            record.betHistory[idx] = { ...current, jackpotAmount: share.amount }
+          }
+        })
+        // 加碼併入該期可領金額（與賠率派彩同一條領獎管道）
+        jackpotByUser.forEach((amount, userId) => {
+          const prev = Number(payoutByUser.get(userId) ?? 0)
+          payoutByUser.set(userId, Number((prev + amount).toFixed(2)))
         })
 
         payoutByUser.forEach((amount, userId) => {
@@ -324,11 +389,22 @@ export default class LHC_CD extends LOTTERY_BASE {
           }
         })
 
-        // 信用盤以賠率派彩、不從獎池扣款，獎池僅作展示用：
-        // 當期投注額結算後滾入累積滾存，Header 的「總獎金 / 預估頭獎」才會持續累積
-        const issuePool = Number(this.issueJackpotMap[safeIssue] ?? 0)
-        this.carryJackpot = Number((Number(this.carryJackpot ?? 0) + issuePool).toFixed(2))
+        // 未發放的部分（含未觸發時的整池）滾存至下期
+        this.carryJackpot = Number(jackpot.remain.toFixed(2))
         this.issueJackpotMap[safeIssue] = 0
+        if (jackpot.triggered) {
+          this.lastJackpotHit = {
+            issue: safeIssue,
+            specialCode: String(specialCode),
+            pool: jackpot.pool,
+            payout: jackpot.payout,
+            winners: new Set(jackpot.shares.map((share) => share.userId)).size,
+            orders: jackpot.shares.length,
+            createdAt: Date.now()
+          }
+          // 爆池後重抽展示用池底
+          this._handle.jackpotBase()
+        }
       },
       ensureUserRecord: (user: UserStoreLike) => {
         if (!user.record) {
@@ -387,7 +463,8 @@ export default class LHC_CD extends LOTTERY_BASE {
           winStatus: 'pending',
           winAmount: 0,
           // 下注時即記錄該注賠率，供下注紀錄顯示（未支援的玩法為 0）
-          odds: creditTemaOddsOf(String(row.bet_code?.[0] ?? ''))
+          odds: creditTemaOddsOf(String(row.bet_code?.[0] ?? '')),
+          jackpotAmount: 0
         })
         if (record.betHistory.length > 5000) {
           record.betHistory = record.betHistory.slice(-4000)
@@ -474,7 +551,14 @@ export default class LHC_CD extends LOTTERY_BASE {
           currentIssueJackpot,
           carryJackpot,
           jackpotBase: this.jackpotBase,
-          jackpotBaseSetAt: this.jackpotBaseSetAt
+          jackpotBaseSetAt: this.jackpotBaseSetAt,
+          // 可發放累積池（當期抽水 + 累積滾存，不含展示用池底）與發放參數
+          distributable: Number((currentIssueJackpot + carryJackpot).toFixed(2)),
+          rakeRatio: CREDIT_JACKPOT.rakeRatio,
+          hitNumber: CREDIT_JACKPOT.hitNumber,
+          payoutRatio: CREDIT_JACKPOT.payoutRatio,
+          minPool: CREDIT_JACKPOT.minPool,
+          lastHit: this.lastJackpotHit
         }
       }
     })
@@ -504,7 +588,8 @@ export default class LHC_CD extends LOTTERY_BASE {
     const issue = this.recordOpenCode[this.currentIndex]?.issue ?? this._get.latestIssue()
     const groups = Array.isArray(payload?.groups) ? payload.groups : []
     const rows = this.handle.buildOrderRows({ issue, userId, amount, groups })
-    this.handle.addIssueJackpot(issue, amount)
+    // 獎池改為「抽水入池」：只把投注額的固定比例撥入獎池（賠率派彩由莊家支付）
+    this.handle.addIssueJackpot(issue, Number((amount * CREDIT_JACKPOT.rakeRatio).toFixed(2)))
     this.handle.pushBalanceChange(userId, {
       issue,
       type: 'bet',

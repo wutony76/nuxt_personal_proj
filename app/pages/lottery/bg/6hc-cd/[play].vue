@@ -162,8 +162,8 @@ onBeforeUnmount(() => {
     <div class="bg-fx" aria-hidden="true">
       <span v-for="i in 8" :key="i" class="orb" :style="`--i: ${i}`" />
     </div>
-    <LotteryBgBaseTop @open-user-dialog="click.openUserDialog()"
-      @open-opencode-dialog="click.openOpenCodeDialog()" @open-rule-dialog="click.openRuleDialog()" />
+    <LotteryBgBaseTop @open-user-dialog="click.openUserDialog()" @open-opencode-dialog="click.openOpenCodeDialog()"
+      @open-rule-dialog="click.openRuleDialog()" />
 
     <main class="main">
       <!-- DRAW HEADER -->
@@ -247,8 +247,8 @@ onBeforeUnmount(() => {
 
     <DialogUser :visible="state.userDialogVisible" :data="use6hc.userRecord" @close="click.closeUserDialog()"
       @claim="click.claimOneIssue()" />
-    <DialogOpenCode :visible="state.openCodeDialogVisible" :data="use6hc.openCodeHistory"
-      :bet-issues="betIssues" @close="click.closeOpenCodeDialog()" />
+    <DialogOpenCode :visible="state.openCodeDialogVisible" :data="use6hc.openCodeHistory" :bet-issues="betIssues"
+      @close="click.closeOpenCodeDialog()" />
     <DialogRule :visible="state.ruleDialogVisible" @close="click.closeRuleDialog()" />
   </div>
 </template>
@@ -516,7 +516,7 @@ onBeforeUnmount(() => {
     display: flex;
     min-height: 0;
     height: 500px;
-    margin-top: 0.75rem;
+    // margin-top: 0.75rem;
     gap: 0.75rem;
     animation: cd-sec-in 0.55s ease both;
     animation-delay: 0.38s;

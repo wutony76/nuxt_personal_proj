@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { CREDIT_TEMA_ODDS, CREDIT_TIE_SPECIAL_NUMBER } from '#shared/config/6hc-cd'
+import { CREDIT_JACKPOT, CREDIT_TEMA_ODDS, CREDIT_TIE_SPECIAL_NUMBER } from '#shared/config/6hc-cd'
 import { actions } from '~/utils/common'
 import { use6hcCredit } from '~/composables/use6hcCredit'
 
@@ -77,6 +77,17 @@ const PRIZE_ROWS = [
 const totalPool = computed(() => mxLivePool.value)
 const currentIssuePool = computed(() => Number(mxJackpot.currentIssueJackpot ?? 0))
 const carryPool = computed(() => Number(mxJackpot.carryJackpot ?? 0))
+// 可發放累積池（當期抽水 + 累積滾存，不含展示用池底）
+const distributablePool = computed(() => Number(mxJackpot.distributable ?? 0))
+const estimatedPayout = computed(() => Number((distributablePool.value * CREDIT_JACKPOT.payoutRatio).toFixed(2)))
+const lastHit = computed(() => mxJackpot.lastHit)
+// 爆池分配權重（依注項類別）
+const JACKPOT_WEIGHTS = [
+  { name: `特碼單號 ${CREDIT_JACKPOT.hitNumber}`, result: '中獎', weight: CREDIT_JACKPOT.weights.number },
+  { name: '綠波', result: `中獎（${CREDIT_JACKPOT.hitNumber} 屬綠波）`, weight: CREDIT_JACKPOT.weights.color },
+  { name: '特碼兩面（8 項）', result: `和局（開 ${CREDIT_JACKPOT.hitNumber} 必和局）`, weight: CREDIT_JACKPOT.weights.side },
+  { name: '其他單號 / 紅波 / 藍波', result: '未中', weight: 0 },
+]
 
 // --- HANDLE ---
 const _handlers = {
@@ -223,27 +234,69 @@ const click = {
 
         <!-- 獎池滾存 -->
         <div id="cd-section-jackpot" class="rule-section">
-          <h4 class="rule-title">獎池與滾存機制</h4>
+          <h4 class="rule-title">獎池、滾存與爆池發放</h4>
           <ul class="rule-list">
-            <li>信用玩法按<strong>賠率派彩</strong>，中獎金額<strong>不從獎池扣款</strong>，獎池僅作展示。</li>
-            <li><strong>當期獎池</strong> = 當期所有玩家投注金額合計。</li>
-            <li>該期結算後，當期獎池<strong>全數滾入累積滾存</strong>，因此滾存會持續累積。</li>
-            <li>頁首「總獎金 / 預估頭獎」= 池底 ＋ 當期獎池 ＋ 累積滾存 推算而得。</li>
+            <li>賠率派彩由莊家支付，<strong>不從獎池扣款</strong>；獎池改由每筆投注<strong>抽水
+                {{ (CREDIT_JACKPOT.rakeRatio * 100).toFixed(0) }}%</strong> 累積。</li>
+            <li><strong>爆池期</strong>：特別號開出 <strong>{{ CREDIT_JACKPOT.hitNumber }}</strong> 時發放，
+              發放金額 = 可發放累積池 × <strong>{{ (CREDIT_JACKPOT.payoutRatio * 100).toFixed(0) }}%</strong>，其餘滾存至下期。</li>
+            <li>可發放累積池 = <strong>當期抽水 ＋ 累積滾存</strong>（不含頁首展示用的池底金額）。</li>
+            <li>累積池未達 <strong>{{ actions.money(CREDIT_JACKPOT.minPool) }}</strong> 或該期無人有份時<strong>不發放</strong>，整池滾存至下期。</li>
+            <li>爆池期由該期<strong>有份的注單依「注金 × 權重」比例分配</strong>，兩面與色波同樣參與（見下表）。</li>
+            <li>加碼金額與賠率派彩合併計入該期<strong>可領獎金</strong>，於「下注紀錄」一併領取。</li>
           </ul>
+
+          <div class="rule-table-wrap">
+            <table class="rule-table prize-table">
+              <colgroup>
+                <col style="width: 34%" />
+                <col style="width: 40%" />
+                <col style="width: 26%" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>注項類別</th>
+                  <th>爆池期（特別號 {{ CREDIT_JACKPOT.hitNumber }}）結果</th>
+                  <th>分配權重</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in JACKPOT_WEIGHTS" :key="row.name">
+                  <td class="tier-name">{{ row.name }}</td>
+                  <td class="tier-match">{{ row.result }}</td>
+                  <td class="tier-odds">{{ row.weight > 0 ? `× ${row.weight}` : '無份' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           <div class="pool-rows">
             <div class="pool-row">
-              <span class="pool-label">當期獎池</span>
+              <span class="pool-label">當期抽水</span>
               <span class="pool-value pool-value-current">{{ actions.money(currentIssuePool) }} F幣</span>
             </div>
             <div class="pool-row">
               <span class="pool-label">累積滾存</span>
               <span class="pool-value pool-value-base">{{ actions.money(carryPool) }} F幣</span>
             </div>
+            <div class="pool-row">
+              <span class="pool-label">可發放累積池</span>
+              <span class="pool-value">{{ actions.money(distributablePool) }} F幣</span>
+            </div>
             <div class="pool-row pool-row-total">
-              <span class="pool-label">總獎金</span>
-              <span class="pool-value">{{ actions.money(totalPool) }} F幣</span>
+              <span class="pool-label">爆池時預估發放</span>
+              <span class="pool-value">{{ actions.money(estimatedPayout) }} F幣</span>
             </div>
           </div>
+          <p class="rule-note">
+            上次爆池：
+            <template v-if="lastHit">
+              <strong>第{{ lastHit.issue }}期</strong>，發放 <strong>{{ actions.money(lastHit.payout) }}</strong>，
+              {{ lastHit.winners }} 人 / {{ lastHit.orders }} 注分配（該期累積池 {{ actions.money(lastHit.pool) }}）
+            </template>
+            <template v-else>尚未爆池</template>
+            ｜頁首「總獎金」= 池底（展示） ＋ 可發放累積池 = {{ actions.money(totalPool) }} F幣
+          </p>
         </div>
 
         <!-- 特別說明 -->

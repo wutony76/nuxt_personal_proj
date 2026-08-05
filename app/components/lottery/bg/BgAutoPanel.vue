@@ -1,6 +1,6 @@
 <template>
   <Transition name="bg-panel">
-    <div v-if="active" class="bg-auto-panel-warp">
+    <div v-if="active" class="bg-auto-panel-warp" :class="lotteryType ? `is-${lotteryType}` : ''">
       <div class="bg-auto-panel-inner">
         <OfAuto v-if="lotteryType === '6hc-of'" />
         <CdAuto v-else-if="lotteryType === '6hc-cd'" />
@@ -39,6 +39,11 @@ const CdChat = defineAsyncComponent(() => import('~/components/lottery/bg/6hc/cd
   padding: 1rem 0;
   animation: sec-in 0.55s ease both;
   animation-delay: 0.48s;
+
+  /* 6hc-cd：頁面內容已自帶下方留白，這裡不再加上邊距 */
+  &.is-6hc-cd {
+    margin-top: unset;
+  }
 }
 
 .bg-auto-panel-inner {
