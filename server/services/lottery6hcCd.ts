@@ -5,8 +5,8 @@ import { MEMORY } from './base'
 import {
   buildCreditJackpotShares,
   CREDIT_JACKPOT,
-  creditTemaOddsOf,
-  judgeCreditTemaBet,
+  creditOddsOf,
+  judgeCreditBet,
   shengxiaoAll,
   type CreditBetKind,
   type CreditBetResult
@@ -283,6 +283,7 @@ export default class LHC_CD extends LOTTERY_BASE {
           orderId: string
           coin: number
           betCode: string[]
+          playKey?: string
         }>
 
         const payoutByUser = new Map<string, number>()
@@ -297,7 +298,9 @@ export default class LHC_CD extends LOTTERY_BASE {
         issueOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
           const betCode = Array.isArray(row.betCode) ? String(row.betCode[0] ?? '') : ''
-          const judged = judgeCreditTemaBet(betCode, specialCode, coin)
+          const playKey = String(row.playKey ?? '')
+          // 依玩法分派判定：特碼看特別號、正碼看 6 顆正碼與七球總和
+          const judged = judgeCreditBet({ playKey, betCode, openCode: codes, coin })
           // 無法辨識的注項（尚未支援的玩法）視為和局退還本金，避免吞掉玩家注金
           const result: CreditBetResult = judged?.result ?? 'tie'
           const payout = judged?.payout ?? coin
@@ -317,7 +320,8 @@ export default class LHC_CD extends LOTTERY_BASE {
                 betCode: Array.isArray(current.betCode) ? current.betCode : [],
                 openCode: [...codes],
                 matchCount: result === 'win' ? 1 : 0,
-                specialMatch: result === 'win' && judged?.kind === 'number',
+                // 命中特別號僅特碼單號成立；正碼單號命中的是 6 顆正碼
+                specialMatch: result === 'win' && judged?.kind === 'number' && playKey !== 'zhengma',
                 winStatus: result,
                 winAmount: payout,
                 odds,
@@ -463,7 +467,7 @@ export default class LHC_CD extends LOTTERY_BASE {
           winStatus: 'pending',
           winAmount: 0,
           // 下注時即記錄該注賠率，供下注紀錄顯示（未支援的玩法為 0）
-          odds: creditTemaOddsOf(String(row.bet_code?.[0] ?? '')),
+          odds: creditOddsOf(row.play_key, String(row.bet_code?.[0] ?? '')),
           jackpotAmount: 0
         })
         if (record.betHistory.length > 5000) {
@@ -579,6 +583,16 @@ export default class LHC_CD extends LOTTERY_BASE {
   }
 
   playBets(payload: PlayBetsPayload, user: UserStoreLike) {
+    // 期別狀態閘門：只有「開盤中」可受理投注。
+    // 前端投注鈕雖已依狀態 disable，但直接呼叫 /api/lottery/bet 可繞過，
+    // 因此在扣款與建單之前先於伺端擋掉（封盤後、開獎中、已開獎都拒絕）。
+    this.handle.refreshCurrent(new Date())
+    if (this.currentStatus !== STATUS_TIME.OPEN) {
+      const _msg = `目前為「${this.currentStatus}」，不受理投注`
+      // 同時給 message：h3 未來會 sanitize statusMessage，前端兩者皆可取
+      throw createError({ statusCode: 400, statusMessage: _msg, message: _msg })
+    }
+
     const amount = Number(payload?.amount ?? 0)
     const userId = String(user?.userId ?? '')
     const beforeCoin = Number(user?.coin ?? 0)
@@ -607,7 +621,8 @@ export default class LHC_CD extends LOTTERY_BASE {
         coin: row.coin,
         orderId: row.order_id,
         tabId: row.select_tab_id,
-        betCode: row.bet_code
+        betCode: row.bet_code,
+        playKey: row.play_key // 結算時分派各玩法判定用
       })
       this.handle.appendBetHistory(row)
     })

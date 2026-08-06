@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { CREDIT_JACKPOT, CREDIT_TEMA_ODDS, CREDIT_TIE_SPECIAL_NUMBER } from '#shared/config/6hc-cd'
+import {
+  CREDIT_JACKPOT,
+  CREDIT_TEMA_ODDS,
+  CREDIT_TIE_SPECIAL_NUMBER,
+  CREDIT_ZHENGMA_NORMAL_COUNT,
+  CREDIT_ZHENGMA_ODDS,
+  CREDIT_ZHENGMA_SUM_LINE
+} from '#shared/config/6hc-cd'
 import { actions } from '~/utils/common'
 import { use6hcCredit } from '~/composables/use6hcCredit'
 
@@ -65,12 +72,34 @@ const PLAY_TYPES = [
   },
 ]
 
+// 正碼玩法（判定看 6 顆正碼與七球總和，與特碼的「只看特別號」不同）
+const ZHENGMA_PLAY_TYPES = [
+  {
+    key: 'zhengma-number',
+    name: '正碼單號',
+    odds: CREDIT_ZHENGMA_ODDS.number,
+    rule: `所選號碼命中 ${CREDIT_ZHENGMA_NORMAL_COUNT} 顆正碼之一`,
+    desc: `從 01 — 49 選號，開出的前 ${CREDIT_ZHENGMA_NORMAL_COUNT} 顆正碼中出現所選號碼即中獎，特別號不算。`,
+    example: '例：選 07，正碼開 07 → 中獎；只有特別號開 07 → 未中',
+  },
+  {
+    key: 'zhengma-side',
+    name: '總和兩面',
+    odds: CREDIT_ZHENGMA_ODDS.side,
+    rule: '總和大／總和小、總和單／總和雙',
+    desc: `以 7 顆號碼（6 正碼＋特別號）相加的總和判定：≥ ${CREDIT_ZHENGMA_SUM_LINE} 為大、≤ ${CREDIT_ZHENGMA_SUM_LINE - 1} 為小；單雙看總和奇偶。`,
+    example: '例：開 02,03,08,23,29,35＋30 → 總和 130 → 總和小、總和雙皆中',
+  },
+]
+
 const PRIZE_ROWS = [
   { name: '特碼單號', condition: '號碼 = 特別號', odds: CREDIT_TEMA_ODDS.number, hint: '49 選 1，理論值 49' },
   { name: '特碼兩面', condition: '大小／單雙／合單雙／尾大小', odds: CREDIT_TEMA_ODDS.side, hint: `開 ${CREDIT_TIE_SPECIAL_NUMBER} 號為和局，退還本金` },
   { name: '紅波', condition: '特別號屬紅波（17 個號）', odds: CREDIT_TEMA_ODDS.colorRed, hint: '理論值 2.88' },
   { name: '藍波', condition: '特別號屬藍波（16 個號）', odds: CREDIT_TEMA_ODDS.colorBlue, hint: '理論值 3.06' },
   { name: '綠波', condition: '特別號屬綠波（16 個號，含 49）', odds: CREDIT_TEMA_ODDS.colorGreen, hint: '理論值 3.06' },
+  { name: '正碼單號', condition: `號碼命中 ${CREDIT_ZHENGMA_NORMAL_COUNT} 顆正碼之一`, odds: CREDIT_ZHENGMA_ODDS.number, hint: `49 選 ${CREDIT_ZHENGMA_NORMAL_COUNT}，理論值 8.17` },
+  { name: '總和兩面', condition: `七球總和 大／小（界 ${CREDIT_ZHENGMA_SUM_LINE}）、單／雙`, odds: CREDIT_ZHENGMA_ODDS.side, hint: '不設和局' },
 ]
 
 // --- COMPUTED ---
@@ -130,7 +159,10 @@ const click = {
           <ul class="rule-list">
             <li>從 <strong>01 — 49</strong> 共 49 顆號碼中，每期隨機攪出 <strong>7 顆</strong>（6 正碼＋1 特別號）。</li>
             <li>每日共 <strong>205 期</strong>，每 <strong>7 分鐘</strong> 開獎一次。</li>
-            <li>信用玩法為 <strong>每注獨立、按賠率派彩</strong>，一律以第 7 顆 <strong>特別號</strong> 結算。</li>
+            <li>信用玩法為 <strong>每注獨立、按賠率派彩</strong>；結算依玩法而定 —
+              <strong>特碼</strong>看第 7 顆特別號，<strong>正碼</strong>看前
+              {{ CREDIT_ZHENGMA_NORMAL_COUNT }} 顆正碼與七球總和。
+            </li>
             <li>與官方玩法的差異：官方是「一注 6 顆號碼、依命中數分層領獎池」，信用玩法是「一注一個注項、中獎即按賠率派彩」。</li>
           </ul>
         </div>
@@ -166,9 +198,27 @@ const click = {
         <!-- 投注玩法 -->
         <div id="cd-section-play" class="rule-section">
           <h4 class="rule-title">投注玩法</h4>
-          <p class="rule-note">目前開放「特碼」玩法，分為 <strong>特碼A / 特碼B</strong> 兩個分頁（注項相同，注單會記錄所屬分頁）。</p>
+          <p class="rule-note">
+            目前開放「<strong>特碼</strong>」與「<strong>正碼</strong>」兩種玩法，各自分為
+            <strong>A / B</strong> 兩個分頁（同玩法的分頁注項相同，注單會記錄所屬分頁）。
+          </p>
+
+          <p class="rule-sub-title">特碼 — 以第 7 顆特別號結算</p>
           <div class="play-cards">
             <div v-for="play in PLAY_TYPES" :key="play.key" class="play-card">
+              <div class="play-card-head">
+                <span class="play-card-name">{{ play.name }}</span>
+                <span class="play-card-odds">賠率 {{ play.odds }}</span>
+              </div>
+              <p class="play-card-rule">{{ play.rule }}</p>
+              <p class="play-card-desc">{{ play.desc }}</p>
+              <p class="play-card-example">{{ play.example }}</p>
+            </div>
+          </div>
+
+          <p class="rule-sub-title">正碼 — 以 {{ CREDIT_ZHENGMA_NORMAL_COUNT }} 顆正碼與七球總和結算</p>
+          <div class="play-cards">
+            <div v-for="play in ZHENGMA_PLAY_TYPES" :key="play.key" class="play-card">
               <div class="play-card-head">
                 <span class="play-card-name">{{ play.name }}</span>
                 <span class="play-card-odds">賠率 {{ play.odds }}</span>
@@ -307,7 +357,10 @@ const click = {
             <li>開出 <strong>{{ CREDIT_TIE_SPECIAL_NUMBER }}</strong> 號時，特碼兩面（大小／單雙／合單雙／尾大小）<strong>全部視為和局</strong>，退還本金。
             </li>
             <li><strong>色波不設和局</strong>：{{ CREDIT_TIE_SPECIAL_NUMBER }} 號屬綠波，投注綠波仍算中獎。</li>
-            <li>每注<strong>獨立結算</strong>，僅以特別號判定，與 6 顆正碼無關。</li>
+            <li>每注<strong>獨立結算</strong>：特碼僅看特別號、與 6 顆正碼無關；正碼僅看
+              {{ CREDIT_ZHENGMA_NORMAL_COUNT }} 顆正碼、與特別號無關（總和則含特別號）。</li>
+            <li><strong>正碼不設和局</strong>：開出 {{ CREDIT_TIE_SPECIAL_NUMBER }} 號時，正碼單號命中照賠，
+              總和兩面亦以總和大小單雙照常判定。</li>
             <li>封盤後送出的投注<strong>不予受理</strong>，請在開盤期間內完成下注。</li>
             <li>賠率可依營運需求調整，結算<strong>以下注時記錄在注單上的賠率為準</strong>（可於下注紀錄查閱）。</li>
             <li>尚未開放的玩法（生肖、五行、連碼等）若經由其他管道下注，結算時一律<strong>退還本金</strong>。</li>
@@ -438,6 +491,24 @@ const click = {
 
       strong {
         color: var(--color-red-main);
+      }
+    }
+
+    /* 同一章節內的玩法小標（特碼 / 正碼） */
+    .rule-sub-title {
+      margin: 12px 0 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-red-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      &::before {
+        content: '';
+        width: 4px;
+        height: 12px;
+        background: var(--color-gold);
       }
     }
 

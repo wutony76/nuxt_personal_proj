@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, watch, type Component } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
 import { use6hcCredit } from '~/composables/use6hcCredit'
 import { actions } from '~/utils/common'
 
 import TemaPlay from '~/components/lottery/bg/6hc/cd/Tema.vue'
+import ZhengmaPlay from '~/components/lottery/bg/6hc/cd/Zhengma.vue'
 
 import { useBgAutoActive } from '~/composables/useBgAutoActive'
 import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
@@ -41,8 +42,10 @@ const state = reactive({
 })
 let floatTimer: ReturnType<typeof setTimeout> | null = null
 
-const playMap = {
-  TEMA: TemaPlay
+// key 對應 use6hc.state.select（= config 的玩法 key，小寫）
+const playMap: Record<string, Component> = {
+  tema: TemaPlay,
+  zhengma: ZhengmaPlay,
 }
 
 
@@ -59,10 +62,8 @@ const userInfo = computed(() => ({
   analysis: String(use6hc.wallet.analysis ?? '-'),
   userId: user.value?.id || 'xxxxx',
 }))
-const currentPlay = computed(() => {
-  const _key = (use6hc.state.select) as keyof typeof playMap
-  return playMap[_key] ?? TemaPlay
-})
+// 尚未實作看板的玩法（連碼 / 七碼…）先退回特碼看板，避免整片空白
+const currentPlay = computed(() => playMap[String(use6hc.state.select)] ?? TemaPlay)
 const selectedCount = computed(() => use6hc.state.selectedCodes.length)
 // 有下注的期數：開獎歷史用來淡化未下注的期數
 const betIssues = computed(() => use6hc.userRecord.betHistory.map((item) => item.issue))

@@ -14,7 +14,8 @@ import {
 import { handle as utHandle } from '~/utils/common'
 import { Lottery6hcCreditService } from '~/services/lottery6hcCreditService'
 
-import C_TEMA from '#shared/config/cd/c_tema'
+// 玩法看板設定（特碼 / 正碼…），新增玩法只需在 shared/config/cd/index.js 註冊
+import C_PLAYS from '#shared/config/cd/index'
 
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -58,9 +59,9 @@ interface CreditPlayDefinition {
 // ── Module-level singletons (shared across components) ─────────────────────
 
 const state = reactive({
-  select: C_TEMA[0].key as string,
-  selectTabId: C_TEMA[0].list[0].tabId as number,
-  selectTabName: C_TEMA[0].list[0].tabName as string,
+  select: String(C_PLAYS[0]?.key ?? ''),
+  selectTabId: Number(C_PLAYS[0]?.list?.[0]?.tabId ?? 0),
+  selectTabName: String(C_PLAYS[0]?.list?.[0]?.tabName ?? ''),
   selectedTypeName: '' as string,
 
   activePlay: null as CreditPlayDefinition | null,
@@ -160,12 +161,10 @@ const livePool = computed(() => {
   const real = Number((jackpot.currentIssueJackpot + jackpot.carryJackpot).toFixed(2))
   return Number((jackpot.base + real).toFixed(2))
 })
-// 依目前 select(玩法) + selectTabId(分頁) 取出對應 config 的 tabGroup 群組
+// 依目前 select(玩法) 取出該玩法的分頁清單（每個分頁含 tabGroup 注項群組）
 const groupList = computed(() => {
-  const play = C_TEMA.find((item) => item.key === state.select)
+  const play = C_PLAYS.find((item) => item.key === state.select)
   return play?.list ?? []
-  // const tab = play?.list.find((item) => item.tabId === state.selectTabId)
-  // return tab?.tabGroup ?? []
 })
 
 const isOpening = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPENING)
@@ -244,11 +243,11 @@ function _resolvePlayName(playKey?: string): string {
   return def?.name ?? playKey
 }
 
-// 依 select_tab_id 從 config 取分頁名（如 2000 → 特碼A），取不到則回空字串
+// 依 select_tab_id 從 config 取分頁名（如 2000 → 特碼A、3000 → 正碼A），取不到則回空字串
 function _resolveTabName(tabId?: number): string {
   const id = Number(tabId)
   if (!Number.isFinite(id) || id <= 0) return ''
-  for (const play of C_TEMA) {
+  for (const play of C_PLAYS) {
     const tab = play.list?.find((item) => Number(item.tabId) === id)
     if (tab?.tabName) return String(tab.tabName)
   }
@@ -383,6 +382,7 @@ function _shuffleBetItems(list: SelectItem[]): SelectItem[] {
 function _getBetErrorMessage(error: unknown): string {
   const err = error as any
   if (err?.data?.statusMessage) return String(err.data.statusMessage)
+  if (err?.data?.message) return String(err.data.message)
   if (error instanceof Error) return error.message
   return '下注失敗，請稍後重試'
 }
@@ -826,9 +826,23 @@ export const use6hcCredit = () => {
       return matched.length
     },
     // ── Play ────────────────────────────────────────────────────
+    // 切換玩法時把分頁（BarTabs）指回該玩法第一個分頁，並清掉上一個玩法殘留的選取
+    // 沒有這步的話 selectTabId 會停在舊玩法的 tabId（如 2000），
+    // 新玩法的 layout 找不到對應分頁 → 注項面板整片空白
+    syncPlayTabs: (playKey: string) => {
+      const play = C_PLAYS.find((item) => item.key === playKey)
+      const firstTab = play?.list?.[0]
+      if (firstTab) {
+        state.selectTabId = Number(firstTab.tabId)
+        state.selectTabName = String(firstTab.tabName)
+      }
+      state.selectedCodes = []
+      select.items = []
+      select.pool = []
+    },
     fetchTypeByName: async (typeName: string) => {
       if (state.fetchStatus === 'loading' || !state.activePlay) return
-      if (!state.activePlay.playTypeNames.includes(typeName) || state.selectedTypeName === typeName) return
+      if (!state.activePlay.playTypeNames?.includes(typeName) || state.selectedTypeName === typeName) return
       state.fetchStatus = 'loading'
       state.errorMessage = ''
       try {
@@ -850,8 +864,9 @@ export const use6hcCredit = () => {
         if (!nextPlay) throw new Error('找不到指定玩法')
         state.select = playKey
         state.activePlay = nextPlay
-        state.selectedTypeName = nextPlay.playTypeNames[0] || ''
-        state.selectedCodes = []
+        _actions.syncPlayTabs(playKey)
+        // CREDIT_PLAY_DEFINITIONS 的項目僅有 key / name，playTypeNames 可能不存在
+        state.selectedTypeName = nextPlay.playTypeNames?.[0] || ''
         state.fetchStatus = 'success'
       } catch (error) {
         state.fetchStatus = 'error'
@@ -865,8 +880,8 @@ export const use6hcCredit = () => {
         const initialPlay = _handlers.resolvePlayDefinition(state.select)
         if (!initialPlay) throw new Error('初始化玩法失敗')
         state.activePlay = initialPlay
-        state.selectedTypeName = initialPlay.playTypeNames[0] || ''
-        state.selectedCodes = []
+        _actions.syncPlayTabs(state.select)
+        state.selectedTypeName = initialPlay.playTypeNames?.[0] || ''
         state.fetchStatus = 'success'
       } catch (error) {
         state.fetchStatus = 'error'

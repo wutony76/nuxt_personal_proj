@@ -15,6 +15,6 @@ const emit = defineEmits(['toggle'])
     :options="props.options"
     :selected-codes="props.selectedCodes"
     :selected-type="props.selectedType"
-    play-label="七码"
+    play-label="七碼"
     @toggle="emit('toggle', $event)" />
 </template>

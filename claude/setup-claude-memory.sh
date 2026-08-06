@@ -253,6 +253,27 @@ metadata:
 **How to apply:** 偵測到觸發時機，立刻用 Read 工具讀取相關檔案，確認內容後再回應或實作。
 EOF
 
+cat > "$MEMORY_DIR/project_jackpot_weight_zhengma.md" << 'EOF'
+---
+name: project-jackpot-weight-zhengma
+description: 6hc-cd 爆池分配權重未針對正碼調整（正碼單號沿用特碼 number 權重 3），總測試前若仍未調整要主動提醒
+metadata:
+  node_type: memory
+  type: project
+---
+
+**待決事項（2026-08-06 記錄，尚未處理）**：6hc-cd 信用盤的爆池分配權重 `CREDIT_JACKPOT.weights`（`shared/config/6hc-cd.ts`）目前只有 `{ number: 3, color: 2, side: 1 }` 一組，依注項類別 `kind` 分配，沒有依玩法（play_key）區分。
+
+2026-08-06 新增「正碼」玩法時，正碼單號判定回傳的 `kind` 沿用 `'number'`、總和兩面沿用 `'side'`，因此：
+
+- 特碼單號命中率 1/49，正碼單號命中率 6/49，兩者卻共用權重 3 → 爆池分配對正碼注偏有利
+- 總和兩面與特碼兩面共用權重 1
+
+**Why:** 這是營運參數（涉及賠付成本），不該由實作端自行決定；當時保留現狀並向使用者說明，使用者要求記錄下來。
+
+**How to apply:** 執行 6hc-cd 總測試（或使用者提到「總測試 / 全部測試」）時，先確認 `CREDIT_JACKPOT.weights` 是否已針對正碼調整（例如拆成 per-play 權重表，或替正碼另立 kind）。若仍是單一組權重且未調整，主動提醒使用者這件待決事項。相關實作見 `judgeCreditZhengmaBet` / `buildCreditJackpotShares`，說明頁在 cd `DialogRule.vue` 的「獎池滾存」章節。
+EOF
+
 # ── 9. MEMORY.md 索引 ─────────────────────────────────────────
 cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 # Memory Index
@@ -266,6 +287,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [OpenSpec Skills 清單](reference_openspec_skills.md) — naming-logic-enforcer / propose / apply / archive / explore 使用時機
 - [OpenSpec 自動讀取](feedback_openspec_autoread.md) — 使用者新增/提及 openspec 內容時，主動讀取最新 artifacts 再作業
 - [記憶衝突檢查](feedback_memory_conflict_check.md) — 每次新增記憶後掃描衝突，有衝突列選項給使用者決定
+- [待決：爆池分配權重未區分玩法](project_jackpot_weight_zhengma.md) — 6hc-cd 正碼單號沿用特碼 number 權重 3，總測試前若仍未調整要主動提醒
 EOF
 
 # ── Agents ───────────────────────────────────────────────────

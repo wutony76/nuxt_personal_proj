@@ -7,6 +7,8 @@ type OrderRow = {
   orderId: string
   betCode: string[]
   tabId?: number
+  /** 玩法 key（tema / zhengma…），結算時用來分派各玩法的中獎判定 */
+  playKey?: string
 }
 
 type AddInput = Partial<OrderRow> & { issue: string; userId: string; coin: number }
@@ -39,7 +41,8 @@ export default class OrdersClass {
         coin,
         orderId: String(data.orderId ?? ''),
         betCode: Array.isArray(data.betCode) ? data.betCode : [],
-        tabId: Number.isFinite(tabId) && tabId > 0 ? tabId : 0
+        tabId: Number.isFinite(tabId) && tabId > 0 ? tabId : 0,
+        playKey: String(data.playKey ?? '')
       }
 
       if (this.orders[issue]) this.orders[issue].push(payload)

@@ -509,6 +509,16 @@ export default class LHC_OF extends LOTTERY_BASE {
   playBets(payload: any, _user: any) {
     console.log('class playBets.payload', _user)
 
+    // 期別狀態閘門：只有「開盤中」可受理投注。
+    // 前端投注鈕雖已依狀態 disable，但直接呼叫 /api/lottery/bet 可繞過，
+    // 因此在扣款與建單之前先於伺端擋掉（封盤後、開獎中、已開獎都拒絕）。
+    this.handle.refreshCurrent(new Date())
+    if (this.currentStatus !== STATUS_TIME.OPEN) {
+      const _msg = `目前為「${this.currentStatus}」，不受理投注`
+      // 同時給 message：h3 未來會 sanitize statusMessage，前端兩者皆可取
+      throw createError({ statusCode: 400, statusMessage: _msg, message: _msg })
+    }
+
     const amount = Number(payload.amount)
     const userId = String(_user.userId ?? '')
     const beforeCoin = Number(_user.coin ?? 0)

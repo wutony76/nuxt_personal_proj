@@ -5,9 +5,9 @@ export type SxType = (typeof SX)[number]
 
 /** 六合彩色波對應號碼 */
 export const LHC_COLORS = {
-  red: ['01', '02', '07', '08', '12', '13', '18', '19', '23', '24', '29', '30', '34', '35', '40', '45', '46', '红波'],
-  blue: ['03', '04', '09', '10', '14', '15', '20', '25', '26', '31', '36', '37', '41', '42', '47', '48', '蓝波'],
-  green: ['05', '06', '11', '16', '17', '21', '22', '27', '28', '32', '33', '38', '39', '43', '44', '49', '绿波'],
+  red: ['01', '02', '07', '08', '12', '13', '18', '19', '23', '24', '29', '30', '34', '35', '40', '45', '46', '紅波'],
+  blue: ['03', '04', '09', '10', '14', '15', '20', '25', '26', '31', '36', '37', '41', '42', '47', '48', '藍波'],
+  green: ['05', '06', '11', '16', '17', '21', '22', '27', '28', '32', '33', '38', '39', '43', '44', '49', '綠波'],
 } as const satisfies Record<string, readonly string[]>
 
 export type LhcColorKey = keyof typeof LHC_COLORS
@@ -168,10 +168,10 @@ export const __CREDIT_PLAY_DEFINITIONS: CreditPlayDefinition[] = [
   },
   {
     key: 'qima',
-    name: '七码',
+    name: '七碼',
     source: 'config_qima.js',
     description: '七碼範圍玩法，偏向擴大覆蓋型態。',
-    playTypeNames: ['七码'],
+    playTypeNames: ['七碼'],
     groupNames: ['單雙', '大小'],
     playTypeOptions: {
       七碼: makeSimpleOptions('qima-7', ['單1', '單2', '單3', '單4', '雙1', '雙2', '雙3', '雙4', '大1', '大2', '大3', '大4', '小1', '小2', '小3', '小4']),
@@ -418,6 +418,117 @@ export function judgeCreditTemaBet(
   }
 
   return null
+}
+
+// ── 正碼玩法（6hc-cd）賠率與中獎判定 ──────────────────────────────
+// 與特碼的差異：特碼只看特別號（openCode[6]），正碼看 6 顆正碼（openCode[0..5]）；
+// 兩面由「特別號大小單雙」換成「七顆球總和大小單雙」，且總和不會等於和局號，故不設和局。
+
+/** 正碼賠率（信用盤通用值，含本金；可依營運需求調整） */
+export const CREDIT_ZHENGMA_ODDS = {
+  /** 正碼單號：命中 6 顆正碼之一（理論值 49 / 6 ≈ 8.17） */
+  number: 8,
+  /** 總和兩面：總和大／小、總和單／雙（理論值 2） */
+  side: 1.98,
+} as const
+
+/** 總和大小分界：七顆球總和 ≥ 175 為大、≤ 174 為小 */
+export const CREDIT_ZHENGMA_SUM_LINE = 175
+
+/** 正碼可命中的球數（6 顆正碼，不含特別號） */
+export const CREDIT_ZHENGMA_NORMAL_COUNT = 6
+
+/** 總和兩面判定表（key 為注項名稱，值為「七顆球總和是否符合」） */
+const CREDIT_ZHENGMA_SIDE_JUDGES: Record<string, (sum: number) => boolean> = {
+  總和大: (sum) => sum >= CREDIT_ZHENGMA_SUM_LINE,
+  總和小: (sum) => sum < CREDIT_ZHENGMA_SUM_LINE,
+  總和單: (sum) => sum % 2 === 1,
+  總和雙: (sum) => sum % 2 === 0,
+}
+
+/** 七顆球總和（6 正碼 + 特別號） */
+const _openCodeSum = (openCode: Array<string | number>): number =>
+  (Array.isArray(openCode) ? openCode : [])
+    .map((code) => Number(code))
+    .filter((num) => Number.isFinite(num) && num > 0)
+    .reduce((sum, num) => sum + num, 0)
+
+/** 6 顆正碼（補零字串），不含特別號 */
+const _normalCodes = (openCode: Array<string | number>): string[] =>
+  (Array.isArray(openCode) ? openCode : [])
+    .slice(0, CREDIT_ZHENGMA_NORMAL_COUNT)
+    .map((code) => String(Number(code)).padStart(2, '0'))
+
+/**
+ * 取正碼注項賠率（不需開獎結果，供下注時記錄與畫面顯示）
+ * @param betCode 注項（號碼或總和兩面文字）
+ * @returns 賠率（含本金）；無法辨識回 0
+ */
+export function creditZhengmaOddsOf(betCode: string | number): number {
+  const code = String(betCode ?? '').trim()
+  if (!code) return 0
+  if (/^\d+$/.test(code)) return CREDIT_ZHENGMA_ODDS.number
+  if (CREDIT_ZHENGMA_SIDE_JUDGES[code]) return CREDIT_ZHENGMA_ODDS.side
+  return 0
+}
+
+/**
+ * 正碼玩法中獎判定（以 6 顆正碼與七球總和結算）
+ * @param betCode 注項（號碼如 "04"，或總和兩面文字如 "總和大"）
+ * @param openCode 該期完整開獎號（7 顆：6 正碼 + 特別號）
+ * @param coin 該注注金
+ * @returns 判定結果；無法辨識的注項回 null（呼叫端自行決定處理方式）
+ */
+export function judgeCreditZhengmaBet(
+  betCode: string | number,
+  openCode: Array<string | number>,
+  coin: number
+): CreditJudgeResult | null {
+  const codes = Array.isArray(openCode) ? openCode : []
+  if (codes.length === 0) return null
+  const code = String(betCode ?? '').trim()
+  if (!code) return null
+
+  // 正碼單號：命中 6 顆正碼之一即中（不看特別號）
+  if (/^\d+$/.test(code)) {
+    const padded = String(Number(code)).padStart(2, '0')
+    const result: CreditBetResult = _normalCodes(codes).includes(padded) ? 'win' : 'lose'
+    return _payout('number', result, CREDIT_ZHENGMA_ODDS.number, coin)
+  }
+
+  // 總和兩面：七顆球總和判定（不設和局）
+  const judge = CREDIT_ZHENGMA_SIDE_JUDGES[code]
+  if (judge) {
+    const sum = _openCodeSum(codes)
+    if (!(sum > 0)) return null
+    const result: CreditBetResult = judge(sum) ? 'win' : 'lose'
+    return _payout('side', result, CREDIT_ZHENGMA_ODDS.side, coin)
+  }
+
+  return null
+}
+
+// ── 玩法分派（依 play_key 取賠率／判定，供伺端結算與下注紀錄共用） ─────
+
+/** 依玩法取注項賠率；未支援的玩法回 0 */
+export function creditOddsOf(playKey: string | undefined, betCode: string | number): number {
+  return String(playKey ?? '') === 'zhengma'
+    ? creditZhengmaOddsOf(betCode)
+    : creditTemaOddsOf(betCode)
+}
+
+/** 依玩法判定單注結果；未支援的玩法回 null（呼叫端視為和局退還本金） */
+export function judgeCreditBet(input: {
+  playKey?: string
+  betCode: string | number
+  openCode: Array<string | number>
+  coin: number
+}): CreditJudgeResult | null {
+  const codes = Array.isArray(input?.openCode) ? input.openCode : []
+  if (String(input?.playKey ?? '') === 'zhengma') {
+    return judgeCreditZhengmaBet(input.betCode, codes, input.coin)
+  }
+  return judgeCreditTemaBet(input.betCode, codes[6] ?? '', input.coin)
 }
 
 // ── 獎池（抽水入池 + 爆池發放） ───────────────────────────────────
