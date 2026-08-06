@@ -290,7 +290,7 @@ onBeforeUnmount(() => {
     position: relative;
     z-index: 1;
     width: min(1360px, 97%);
-    margin: 0.8rem auto 1.8rem;
+    margin: 0.8rem auto 1.1rem;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;

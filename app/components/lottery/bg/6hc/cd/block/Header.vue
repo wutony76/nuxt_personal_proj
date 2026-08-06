@@ -217,17 +217,17 @@ const openingBalls = computed(() => {
           <span class="val val-big">{{ totalJackpot }}</span>
         </div>
         <div class="row">
-          <span class="label">預估爆池</span>
+          <span class="label">預估獎金</span>
           <span class="val val-big">{{ estimatedJackpot }}</span>
         </div>
         <div class="row">
-          <span class="label">爆池機率</span>
+          <span class="label">中獎機率</span>
           <span class="accent">{{ winRate }}（特別號 {{ CREDIT_JACKPOT.hitNumber }}）</span>
         </div>
-        <div class="row">
+        <!-- <div class="row">
           <span class="label">上次爆池</span>
           <span class="accent">{{ lastHitText }}</span>
-        </div>
+        </div> -->
       </div>
     </div>
 

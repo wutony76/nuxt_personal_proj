@@ -241,7 +241,8 @@ const click = {
             <li><strong>爆池期</strong>：特別號開出 <strong>{{ CREDIT_JACKPOT.hitNumber }}</strong> 時發放，
               發放金額 = 可發放累積池 × <strong>{{ (CREDIT_JACKPOT.payoutRatio * 100).toFixed(0) }}%</strong>，其餘滾存至下期。</li>
             <li>可發放累積池 = <strong>當期抽水 ＋ 累積滾存</strong>（不含頁首展示用的池底金額）。</li>
-            <li>累積池未達 <strong>{{ actions.money(CREDIT_JACKPOT.minPool) }}</strong> 或該期無人有份時<strong>不發放</strong>，整池滾存至下期。</li>
+            <li>累積池未達 <strong>{{ actions.money(CREDIT_JACKPOT.minPool) }}</strong> 或該期無人有份時<strong>不發放</strong>，整池滾存至下期。
+            </li>
             <li>爆池期由該期<strong>有份的注單依「注金 × 權重」比例分配</strong>，兩面與色波同樣參與（見下表）。</li>
             <li>加碼金額與賠率派彩合併計入該期<strong>可領獎金</strong>，於「下注紀錄」一併領取。</li>
           </ul>
@@ -284,17 +285,17 @@ const click = {
               <span class="pool-value">{{ actions.money(distributablePool) }} F幣</span>
             </div>
             <div class="pool-row pool-row-total">
-              <span class="pool-label">爆池時預估發放</span>
+              <span class="pool-label">預估獎金</span>
               <span class="pool-value">{{ actions.money(estimatedPayout) }} F幣</span>
             </div>
           </div>
           <p class="rule-note">
-            上次爆池：
+            上次獎金：
             <template v-if="lastHit">
               <strong>第{{ lastHit.issue }}期</strong>，發放 <strong>{{ actions.money(lastHit.payout) }}</strong>，
               {{ lastHit.winners }} 人 / {{ lastHit.orders }} 注分配（該期累積池 {{ actions.money(lastHit.pool) }}）
             </template>
-            <template v-else>尚未爆池</template>
+            <template v-else>尚未發放</template>
             ｜頁首「總獎金」= 池底（展示） ＋ 可發放累積池 = {{ actions.money(totalPool) }} F幣
           </p>
         </div>
@@ -303,7 +304,8 @@ const click = {
         <div id="cd-section-note" class="rule-section rule-section-last">
           <h4 class="rule-title">特別說明</h4>
           <ul class="rule-list">
-            <li>開出 <strong>{{ CREDIT_TIE_SPECIAL_NUMBER }}</strong> 號時，特碼兩面（大小／單雙／合單雙／尾大小）<strong>全部視為和局</strong>，退還本金。</li>
+            <li>開出 <strong>{{ CREDIT_TIE_SPECIAL_NUMBER }}</strong> 號時，特碼兩面（大小／單雙／合單雙／尾大小）<strong>全部視為和局</strong>，退還本金。
+            </li>
             <li><strong>色波不設和局</strong>：{{ CREDIT_TIE_SPECIAL_NUMBER }} 號屬綠波，投注綠波仍算中獎。</li>
             <li>每注<strong>獨立結算</strong>，僅以特別號判定，與 6 顆正碼無關。</li>
             <li>封盤後送出的投注<strong>不予受理</strong>，請在開盤期間內完成下注。</li>

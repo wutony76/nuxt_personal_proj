@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive } from 'vue'
+import { computed, onMounted, reactive } from 'vue'
 import { GET_CONT } from '../config/constants'
 import { useRouter } from 'vue-router'
 import type { LobbyItem } from '../types/lottery'
@@ -15,11 +15,14 @@ useHead({
   ],
 })
 
-const CHINESE_NUMS = ['壹', '貳', '參', '肆', '伍', '陸', '柒', '捌', '玖', '拾']
-
 const GAME_META: Record<string, { en: string; ribbon: string; desc: string }> = {
   '6HC': { en: 'LHC', ribbon: 'BG · 49 取 7', desc: '凡局開時不問名，\n自有規章定分明。\n一念無私循序轉，\n萬機皆在信中行。' },
 }
+
+const MODE_META = [
+  { suffix: 'OF', theme: 'of', mark: '官', label: '官 方', tag: 'OFFICIAL · MODE', note: '獎池分層 · 正碼命中派彩' },
+  { suffix: 'CD', theme: 'cd', mark: '信', label: '信 用', tag: 'CREDIT · MODE', note: '每注獨立 · 賠率即時派彩' },
+]
 
 const router = useRouter()
 
@@ -35,7 +38,25 @@ const state = reactive({
 
 const _handlers = {
   enterDelay: (base: number, idx: number, step = 0.12) => `${base + idx * step}s`,
+  buildCards: (list: LobbyItem[]) =>
+    list.flatMap((item, gameIdx) =>
+      MODE_META.map(mode => ({
+        routeKey: `${item.key}-${mode.suffix}`,
+        theme: mode.theme,
+        mark: mode.mark,
+        label: mode.label,
+        tag: mode.tag,
+        note: mode.note,
+        name: item.name,
+        en: GAME_META[item.key]?.en || item.key,
+        ribbon: GAME_META[item.key]?.ribbon || '',
+        desc: GAME_META[item.key]?.desc || '',
+        serial: `L · ${String(gameIdx + 1).padStart(2, '0')} / ${item.key}-${mode.suffix}`,
+      }))
+    ),
 }
+
+const cards = computed(() => _handlers.buildCards(state.list))
 
 const init = () => {
   state.list = GET_CONT.lotteryAll()
@@ -119,31 +140,28 @@ onMounted(() => {
           <div class="mono games-band__sub">官 方 · 信 用 · 兩 式 同 局</div>
         </div>
         <div class="mono games-band__rt">
-          即時派彩 ≤ 0.4s<br>
-          ONLINE · {{ state.list.length * 2 }} MODES
+          快速開獎 · 即時派彩<br>
+          ONLINE · {{ cards.length }} MODES
         </div>
       </div>
 
       <div class="games-grid">
-        <div v-for="(item, idx) in state.list" :key="item.key" class="gc"
-          :style="`--enter-delay: ${_handlers.enterDelay(1.05, idx, 0.14)}`">
-          <div class="brush gc__big-num">{{ CHINESE_NUMS[idx] || '' }}</div>
-          <div class="mono gc__meta">L · {{ String(idx + 1).padStart(2, '0') }} / {{ item.key }}</div>
-          <h3 class="brush gc__name">{{ item.name }}</h3>
-          <div class="bebas gc__en">{{ GAME_META[item.key]?.en || item.key }}</div>
-          <span class="mono gc__ribbon">{{ GAME_META[item.key]?.ribbon || '' }}</span>
-          <p class="gc__desc">{{ GAME_META[item.key]?.desc || '' }}</p>
-          <div class="gc__modes">
-            <button class="gc__mode gc__mode--of" type="button" @click="click.start(`${item.key}-OF`)">
-              <span class="brush gc__mode-label">官 方</span>
-              <span class="mono gc__mode-tag">OFFICIAL · MODE</span>
-            </button>
-            <button class="gc__mode gc__mode--cd" type="button" @click="click.start(`${item.key}-CD`)">
-              <span class="brush gc__mode-label">信 用</span>
-              <span class="mono gc__mode-tag">CREDIT · MODE</span>
-            </button>
+        <button v-for="(card, idx) in cards" :key="card.routeKey" type="button" class="gc" :class="`gc--${card.theme}`"
+          :style="`--enter-delay: ${_handlers.enterDelay(1.05, idx, 0.14)}`" @click="click.start(card.routeKey)">
+          <div class="brush gc__big-num">{{ card.mark }}</div>
+          <div class="mono gc__meta">{{ card.serial }}</div>
+          <h3 class="brush gc__name">{{ card.name }}</h3>
+          <div class="bebas gc__en">{{ card.en }}</div>
+          <div v-if="card.ribbon" class="gc__tags">
+            <span class="mono gc__ribbon">{{ card.ribbon }}</span>
           </div>
-        </div>
+          <p class="gc__desc">{{ card.desc }}</p>
+          <div class="mono gc__note">{{ card.note }}</div>
+          <span class="gc__enter">
+            <span class="brush gc__enter-label">{{ card.label }}</span>
+            <span class="mono gc__enter-tag">{{ card.tag }}</span>
+          </span>
+        </button>
       </div>
     </section>
 
@@ -756,25 +774,44 @@ onMounted(() => {
   max-width: var(--base-width);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 560px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .gc {
+  --gc-accent: var(--red-deep);
+
   background: var(--ivory);
-  border: 1.5px solid var(--red-deep);
+  border: 1.5px solid var(--gc-accent);
   position: relative;
   padding: 40px 24px 24px;
   overflow: hidden;
   min-height: 340px;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
   animation: fadeSlideUp 0.6s ease-out var(--enter-delay, 1.05s) both;
   transition: transform 0.35s ease, box-shadow 0.35s ease;
 
   &:hover {
     transform: translateY(-5px);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, .18), 0 0 0 1.5px var(--red-bright);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .18), 0 0 0 1.5px var(--gc-accent);
+
+    .gc__big-num {
+      transform: scale(1.06) rotate(-3deg);
+    }
   }
 
   &::before {
@@ -791,6 +828,30 @@ onMounted(() => {
         var(--gold) 26px 28px);
   }
 
+  &--of {
+    --gc-accent: var(--red-deep);
+  }
+
+  &--cd {
+    --gc-accent: var(--red-deep);
+
+    background:
+      radial-gradient(ellipse 320px 220px at 88% 8%, rgba(185, 28, 28, 0.12) 0%, transparent 70%),
+      var(--ivory);
+
+    &::before {
+      background: repeating-linear-gradient(90deg,
+          var(--red-deep) 0 12px,
+          var(--red-bright) 12px 14px,
+          var(--red-deep) 14px 26px,
+          var(--red-bright) 26px 28px);
+    }
+
+    .gc__big-num {
+      color: var(--paper-3);
+    }
+  }
+
   &__big-num {
     position: absolute;
     top: 8px;
@@ -801,6 +862,8 @@ onMounted(() => {
     z-index: 0;
     pointer-events: none;
     user-select: none;
+    transform-origin: 80% 20%;
+    transition: transform 0.35s ease;
   }
 
   &__meta {
@@ -832,16 +895,23 @@ onMounted(() => {
     z-index: 1;
   }
 
+  &__tags {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    margin-top: 14px;
+    position: relative;
+    z-index: 1;
+  }
+
   &__ribbon {
-    display: inline-block;
-    padding: 3px 10px;
+    flex: 1;
+    padding: 4px 10px;
     background: var(--red);
     color: var(--paper);
     font-size: 10px;
     letter-spacing: 0.2em;
-    margin-top: 14px;
-    position: relative;
-    z-index: 1;
+    text-align: left;
   }
 
   &__desc {
@@ -856,77 +926,98 @@ onMounted(() => {
     white-space: pre-line;
   }
 
-  &__modes {
-    margin-top: 20px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+  &__note {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--color-red-desc);
+    margin-top: 10px;
     position: relative;
     z-index: 1;
   }
 
-  &__mode {
+  &__enter {
+    --gc-shine: rgba(255, 255, 255, .28);
+
+    margin-top: 18px;
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 14px 10px;
-    border: 1.5px solid;
-    cursor: pointer;
-    transition: all 0.22s;
-    background: transparent;
+    border: 1.5px solid var(--gc-accent);
+    transition: background 0.22s, color 0.22s;
     position: relative;
+    overflow: hidden;
+    z-index: 1;
 
-    &--of {
-      border-color: var(--red-deep);
-      color: var(--red-deep);
-
-      &:hover {
-        background: var(--red-deep);
-        color: var(--paper);
-
-        .gc__mode-tag {
-          color: var(--paper-3);
-        }
-      }
-    }
-
-    &--cd {
-      border-color: var(--gold-deep);
-      color: var(--red-ink);
-      background: var(--gold);
-      overflow: hidden;
-
-      &::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -80%;
-        width: 50%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .4), transparent);
-        animation: cdShimmer 3.2s ease-in-out 2.5s infinite;
-      }
-
-      &:hover {
-        background: var(--gold-bright);
-      }
-
-      .gc__mode-tag {
-        color: #8a4a3a;
-      }
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -80%;
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, var(--gc-shine), transparent);
+      animation: cdShimmer 3.2s ease-in-out 2.5s infinite;
+      pointer-events: none;
     }
   }
 
-  &__mode-label {
+  &__enter-label {
     font-size: 22px;
     letter-spacing: 0.12em;
     line-height: 1;
+    position: relative;
+    z-index: 1;
   }
 
-  &__mode-tag {
+  &__enter-tag {
     font-size: 9px;
     letter-spacing: 0.2em;
     margin-top: 4px;
+    position: relative;
+    z-index: 1;
+  }
+
+  &--of {
+    .gc__enter {
+      color: var(--red-deep);
+      background: transparent;
+
+      /* 米白底上白色漸層看不出來，改成純色白光帶掃過 */
+      &::after {
+        width: 20%;
+        background: rgba(255, 255, 255, 0.9);
+      }
+    }
+
+    &:hover .gc__enter {
+      background: var(--red-deep);
+      color: var(--paper);
+
+      &::after {
+        background: rgba(255, 255, 255, .22);
+      }
+
+      .gc__enter-tag {
+        color: var(--paper-3);
+      }
+    }
+  }
+
+  &--cd {
+    .gc__enter {
+      border-color: var(--gold-deep);
+      color: var(--red-ink);
+      background: var(--gold);
+    }
+
+    .gc__enter-tag {
+      color: #8a4a3a;
+    }
+
+    &:hover .gc__enter {
+      background: var(--gold-bright);
+    }
   }
 }
 
