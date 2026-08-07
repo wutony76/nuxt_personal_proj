@@ -73,9 +73,9 @@ const _handlers = {
       .filter((item) => item.odds > 0)
     if (pairs.length === 0) return ''
     const distinct = Array.from(new Set(pairs.map((item) => item.odds)))
-    if (distinct.length === 1) return `賠 ${distinct[0]}`
-    if (pairs.length > 4) return `賠 ${Math.min(...distinct)} — ${Math.max(...distinct)}`
-    return `賠 ${pairs.map((item) => `${item.label}${item.odds}`).join(' / ')}`
+    if (distinct.length === 1) return `賠率[ ${distinct[0]} ]`
+    if (pairs.length > 4) return `賠率 ${Math.min(...distinct)} — ${Math.max(...distinct)}`
+    return `賠率[ ${pairs.map((item) => `${item.label}${item.odds}`).join(' | ')} ]`
   },
   // 直向（column-major）排成 rows × columns 的表格矩陣
   toMatrix: (list: PlayItem[] = [], columns: number) => {
@@ -295,9 +295,7 @@ watch(() => mxState.amount, (val) => {
         margin-left: 10px;
         font-size: 11px;
         font-weight: 700;
-        // color: var(--color-gold);
-        // color: #73080e;
-        color: var(--color-red-bets);
+        color: var(--color-red-desc);
         font-variant-numeric: tabular-nums;
       }
     }
