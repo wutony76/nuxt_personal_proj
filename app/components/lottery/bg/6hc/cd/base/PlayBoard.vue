@@ -457,5 +457,19 @@ watch(() => mxState.amount, (val) => {
       }
     }
   }
+
+  /* 七碼：注項名稱有 5 個字（單0雙7），膠囊與號碼欄需比其他玩法再寬一些才不會換行 */
+  &.qima .play-group .play-table.pill-table {
+
+    .th-code,
+    .td-code {
+      width: 92px;
+    }
+
+    .option.is-pill {
+      min-width: 78px;
+      padding: 0 8px;
+    }
+  }
 }
 </style>

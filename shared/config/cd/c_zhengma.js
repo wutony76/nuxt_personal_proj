@@ -19,6 +19,8 @@ export default [
         tabGroup: [
           {
             groupName: '正碼',
+            // 爆池分配權重（理論 8.17）
+            weight: 2,
             // 正碼單號（命中 6 顆正碼之一）：賠率對齊 shared/config/6hc-cd.ts 的 CREDIT_ZHENGMA_ODDS.number
             groupList: [
               { playId: '3000-001', name: '01', odds: 8 },
@@ -74,6 +76,8 @@ export default [
           },
           {
             groupName: '兩面',
+            // 爆池分配權重（理論 2）
+            weight: 1,
             // 總和兩面（總和大／小／單／雙）：賠率對齊 CREDIT_ZHENGMA_ODDS.side
             groupList: [
               { playId: '3000-101', name: '總和大', odds: 1.98 },
@@ -107,6 +111,8 @@ export default [
         tabGroup: [
           {
             groupName: '正碼',
+            // 爆池分配權重（理論 8.17）
+            weight: 2,
             groupList: [
               { playId: '3001-001', name: '01', odds: 7.5 },
               { playId: '3001-002', name: '02', odds: 7.5 },
@@ -161,6 +167,8 @@ export default [
           },
           {
             groupName: '兩面',
+            // 爆池分配權重（理論 2）
+            weight: 1,
             groupList: [
               { playId: '3001-101', name: '總和大', odds: 1.92 },
               { playId: '3001-102', name: '總和小', odds: 1.92 },

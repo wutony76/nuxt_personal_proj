@@ -23,6 +23,8 @@ export default [
         tabGroup: [
           {
             groupName: '正一特',
+            // 爆池分配權重（理論 49）
+            weight: 3,
             // 單號：指定名次開出該號（理論值 49）
             groupList: [
               { playId: '4000-001', name: '01', odds: 48 },
@@ -79,6 +81,8 @@ export default [
 
           {
             groupName: '兩面',
+            // 爆池分配權重（理論 2）
+            weight: 1,
             // 兩面：大小／單雙／合單雙／尾大小；開 49 號為和局，扣掉後大小各 24 個號（理論值 2）
             groupList: [
               { playId: '4000-101', name: '大', odds: 1.98 },
@@ -93,6 +97,8 @@ export default [
           },
           {
             groupName: '色波',
+            // 爆池分配權重（理論 2.88 ~ 3.06）
+            weight: 2,
             // 色波：紅 17 個號（理論值 2.88）、藍／綠各 16 個號（理論值 3.06），不設和局
             groupList: [
               { playId: '4000-201', name: '紅波', odds: 2.7 },
@@ -120,6 +126,8 @@ export default [
         tabGroup: [
           {
             groupName: '正二特',
+            // 爆池分配權重（理論 49）
+            weight: 3,
             // 賠率與正一特相同：換名次不改變命中機率，僅結算取的球位不同
             groupList: [
               { playId: '4001-001', name: '01', odds: 48 },
@@ -176,6 +184,8 @@ export default [
 
           {
             groupName: '兩面',
+            // 爆池分配權重（理論 2）
+            weight: 1,
             groupList: [
               { playId: '4001-101', name: '大', odds: 1.98 },
               { playId: '4001-102', name: '小', odds: 1.98 },
@@ -189,6 +199,8 @@ export default [
           },
           {
             groupName: '色波',
+            // 爆池分配權重（理論 2.88 ~ 3.06）
+            weight: 2,
             groupList: [
               { playId: '4001-201', name: '紅波', odds: 2.7 },
               { playId: '4001-202', name: '藍波', odds: 2.9 },
@@ -215,6 +227,8 @@ export default [
         tabGroup: [
           {
             groupName: '正三特',
+            // 爆池分配權重（理論 49）
+            weight: 3,
             // 賠率與正一特相同：換名次不改變命中機率，僅結算取的球位不同
             groupList: [
               { playId: '4002-001', name: '01', odds: 48 },
@@ -271,6 +285,8 @@ export default [
 
           {
             groupName: '兩面',
+            // 爆池分配權重（理論 2）
+            weight: 1,
             groupList: [
               { playId: '4002-101', name: '大', odds: 1.98 },
               { playId: '4002-102', name: '小', odds: 1.98 },
@@ -284,6 +300,8 @@ export default [
           },
           {
             groupName: '色波',
+            // 爆池分配權重（理論 2.88 ~ 3.06）
+            weight: 2,
             groupList: [
               { playId: '4002-201', name: '紅波', odds: 2.7 },
               { playId: '4002-202', name: '藍波', odds: 2.9 },
@@ -310,6 +328,8 @@ export default [
         tabGroup: [
           {
             groupName: '正四特',
+            // 爆池分配權重（理論 49）
+            weight: 3,
             // 賠率與正一特相同：換名次不改變命中機率，僅結算取的球位不同
             groupList: [
               { playId: '4003-001', name: '01', odds: 48 },
@@ -366,6 +386,8 @@ export default [
 
           {
             groupName: '兩面',
+            // 爆池分配權重（理論 2）
+            weight: 1,
             groupList: [
               { playId: '4003-101', name: '大', odds: 1.98 },
               { playId: '4003-102', name: '小', odds: 1.98 },
@@ -379,6 +401,8 @@ export default [
           },
           {
             groupName: '色波',
+            // 爆池分配權重（理論 2.88 ~ 3.06）
+            weight: 2,
             groupList: [
               { playId: '4003-201', name: '紅波', odds: 2.7 },
               { playId: '4003-202', name: '藍波', odds: 2.9 },
@@ -405,6 +429,8 @@ export default [
         tabGroup: [
           {
             groupName: '正五特',
+            // 爆池分配權重（理論 49）
+            weight: 3,
             // 賠率與正一特相同：換名次不改變命中機率，僅結算取的球位不同
             groupList: [
               { playId: '4004-001', name: '01', odds: 48 },
@@ -461,6 +487,8 @@ export default [
 
           {
             groupName: '兩面',
+            // 爆池分配權重（理論 2）
+            weight: 1,
             groupList: [
               { playId: '4004-101', name: '大', odds: 1.98 },
               { playId: '4004-102', name: '小', odds: 1.98 },
@@ -474,6 +502,8 @@ export default [
           },
           {
             groupName: '色波',
+            // 爆池分配權重（理論 2.88 ~ 3.06）
+            weight: 2,
             groupList: [
               { playId: '4004-201', name: '紅波', odds: 2.7 },
               { playId: '4004-202', name: '藍波', odds: 2.9 },
@@ -500,6 +530,8 @@ export default [
         tabGroup: [
           {
             groupName: '正六特',
+            // 爆池分配權重（理論 49）
+            weight: 3,
             // 賠率與正一特相同：換名次不改變命中機率，僅結算取的球位不同
             groupList: [
               { playId: '4005-001', name: '01', odds: 48 },
@@ -556,6 +588,8 @@ export default [
 
           {
             groupName: '兩面',
+            // 爆池分配權重（理論 2）
+            weight: 1,
             groupList: [
               { playId: '4005-101', name: '大', odds: 1.98 },
               { playId: '4005-102', name: '小', odds: 1.98 },
@@ -569,6 +603,8 @@ export default [
           },
           {
             groupName: '色波',
+            // 爆池分配權重（理論 2.88 ~ 3.06）
+            weight: 2,
             groupList: [
               { playId: '4005-201', name: '紅波', odds: 2.7 },
               { playId: '4005-202', name: '藍波', odds: 2.9 },

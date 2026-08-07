@@ -1,5 +1,5 @@
 import C_PLAYS from '#shared/config/cd/plays'
-import { creditOddsOf } from '#shared/config/6hc-cd'
+import { creditOddsOf, CREDIT_JACKPOT, type CreditBetKind } from '#shared/config/6hc-cd'
 
 /**
  * 信用盤看板設定（c_tema / c_zhengma）的讀取層
@@ -20,8 +20,8 @@ export const CREDIT_QUOTA_FALLBACK: CreditQuota = {
   issue: { max: 0 },
 }
 
-type ConfigOption = { playId?: string | number; name?: string | number; odds?: number }
-type ConfigGroup = { groupName?: string; groupList?: ConfigOption[] }
+type ConfigOption = { playId?: string | number; name?: string | number; odds?: number; weight?: number }
+type ConfigGroup = { groupName?: string; groupList?: ConfigOption[]; weight?: number }
 type ConfigTab = {
   tabId?: number
   tabName?: string
@@ -66,6 +66,32 @@ export function creditQuotaOf(playKey?: string, tabId?: number | string): Credit
 }
 
 /**
+ * 在分頁設定中找出注項所在的群組與該注項本身
+ * @param betCode 注項名稱（"07" / "總和大"）或 playId（"3001-101"）
+ */
+function _findTabItem(
+  playKey?: string,
+  tabId?: number | string,
+  betCode?: string | number
+): { group: ConfigGroup; item: ConfigOption } | null {
+  const code = String(betCode ?? '').trim()
+  if (!code) return null
+  const groups = findCreditTab(playKey, tabId)?.tabGroup
+  for (const group of Array.isArray(groups) ? groups : []) {
+    const list = Array.isArray(group?.groupList) ? group.groupList : []
+    const item = list.find((option) => {
+      if (String(option?.playId ?? '') === code) return true
+      const name = String(option?.name ?? '')
+      // 號碼可能未補零（"7" vs "07"），數字型注項改比數值
+      if (/^\d+$/.test(name) && /^\d+$/.test(code)) return Number(name) === Number(code)
+      return name === code
+    })
+    if (item) return { group, item }
+  }
+  return null
+}
+
+/**
  * 取單一注項賠率：以 config 分頁設定的 odds 為主（A/B 盤可不同），
  * 取不到才退回 shared/config/6hc-cd 的玩法賠率常數。
  * @param betCode 注項名稱（"07" / "總和大"）或 playId（"3001-101"）
@@ -73,19 +99,35 @@ export function creditQuotaOf(playKey?: string, tabId?: number | string): Credit
 export function creditTabOddsOf(playKey?: string, tabId?: number | string, betCode?: string | number): number {
   const code = String(betCode ?? '').trim()
   if (!code) return 0
-  const tab = findCreditTab(playKey, tabId)
-  const groups = Array.isArray(tab?.tabGroup) ? tab.tabGroup : []
-  for (const group of groups) {
-    const list = Array.isArray(group?.groupList) ? group.groupList : []
-    const hit = list.find((item) => {
-      if (String(item?.playId ?? '') === code) return true
-      const name = String(item?.name ?? '')
-      // 號碼可能未補零（"7" vs "07"），數字型注項改比數值
-      if (/^\d+$/.test(name) && /^\d+$/.test(code)) return Number(name) === Number(code)
-      return name === code
-    })
-    const odds = Number(hit?.odds)
-    if (Number.isFinite(odds) && odds > 0) return odds
-  }
+  const odds = Number(_findTabItem(playKey, tabId, code)?.item?.odds)
+  if (Number.isFinite(odds) && odds > 0) return odds
   return creditOddsOf(playKey, code)
+}
+
+/** 只有「設定檔真的寫了一個 ≥ 0 的數字」才算有設定；未寫 / 寫錯型別回 null 交給下一層 */
+const _explicitWeight = (value: unknown): number | null => {
+  if (value == null) return null
+  const num = Number(value)
+  return Number.isFinite(num) && num >= 0 ? num : null
+}
+
+/**
+ * 取單一注項的爆池分配權重
+ * 順序：注項 weight（七碼逐項覆寫）→ 群組 weight → 全域 CREDIT_JACKPOT.weights[kind]
+ * 設定值 0 視為「該注項不參與分配」，與「沒設定」不同 —— 沒設定才會往下一層退。
+ * @param betCode 注項名稱或 playId
+ * @param kind 判定結果的注項類別，僅在設定查不到時作為退回依據
+ */
+export function creditJackpotWeightOf(
+  playKey?: string,
+  tabId?: number | string,
+  betCode?: string | number,
+  kind?: CreditBetKind | null
+): number {
+  const found = _findTabItem(playKey, tabId, betCode)
+  const itemWeight = _explicitWeight(found?.item?.weight)
+  if (itemWeight !== null) return itemWeight
+  const groupWeight = _explicitWeight(found?.group?.weight)
+  if (groupWeight !== null) return groupWeight
+  return kind ? Number(CREDIT_JACKPOT.weights[kind] ?? 0) : 0
 }

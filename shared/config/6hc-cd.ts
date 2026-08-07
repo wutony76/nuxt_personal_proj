@@ -508,13 +508,217 @@ export function judgeCreditZhengmaBet(
   return null
 }
 
+// ── 正碼特玩法（6hc-cd）賠率與中獎判定 ────────────────────────────
+// 正碼特（正一特～正六特）只看「指定名次那一顆正碼」，號碼分布為 1~49 均勻，
+// 機率結構與特碼（49 選 1）完全相同，故賠率直接沿用 CREDIT_TEMA_ODDS。
+// 與特碼的差別只有兩點：
+//   1. 判定的球不同 —— 正碼特看 openCode[名次]，特碼看 openCode[6]（特別號）
+//   2. 兩面注項名稱較短（大／小／單／雙，不加「特」字），故另備一份判定表
+
+/** 正碼特賠率（與特碼同機率結構，直接對齊避免兩處數值走鐘） */
+export const CREDIT_ZHENGMATE_ODDS = CREDIT_TEMA_ODDS
+
+/** 正碼特分頁 tabId 基準：4000 = 正一特 … 4005 = 正六特（對應 openCode[0..5]） */
+export const CREDIT_ZHENGMATE_TAB_BASE = 4000
+
+/** 正碼特兩面判定表（key 為注項名稱，值為「該名次正碼是否符合」） */
+const CREDIT_ZHENGMATE_SIDE_JUDGES: Record<string, (num: number) => boolean> = {
+  大: (num) => num >= 25,
+  小: (num) => num <= 24,
+  單: (num) => num % 2 === 1,
+  雙: (num) => num % 2 === 0,
+  合單: (num) => _digitSum(num) % 2 === 1,
+  合雙: (num) => _digitSum(num) % 2 === 0,
+  尾大: (num) => num % 10 >= 5,
+  尾小: (num) => num % 10 <= 4,
+}
+
+/**
+ * 依分頁 tabId 取正碼特名次索引
+ * @returns 0 = 正一特 … 5 = 正六特；不在 4000～4005 範圍回 -1
+ */
+export function creditZhengmatePositionOf(tabId?: number | string): number {
+  const id = Number(tabId)
+  if (!Number.isFinite(id)) return -1
+  const index = id - CREDIT_ZHENGMATE_TAB_BASE
+  return index >= 0 && index < CREDIT_ZHENGMA_NORMAL_COUNT ? index : -1
+}
+
+/**
+ * 取正碼特注項賠率（不需開獎結果，供下注時記錄與畫面顯示）
+ * @param betCode 注項（號碼、兩面文字如 "大"，或色波文字如 "紅波"）
+ * @returns 賠率（含本金）；無法辨識回 0
+ */
+export function creditZhengmateOddsOf(betCode: string | number): number {
+  const code = String(betCode ?? '').trim()
+  if (!code) return 0
+  if (/^\d+$/.test(code)) return CREDIT_ZHENGMATE_ODDS.number
+  if (CREDIT_COLOR_JUDGES[code]) return CREDIT_COLOR_JUDGES[code]!.odds
+  if (CREDIT_ZHENGMATE_SIDE_JUDGES[code]) return CREDIT_ZHENGMATE_ODDS.side
+  return 0
+}
+
+/**
+ * 正碼特玩法中獎判定（以「指定名次那一顆正碼」結算）
+ * @param betCode 注項（號碼如 "04"，或兩面／色波文字如 "大"、"紅波"）
+ * @param openCode 該期完整開獎號（7 顆：6 正碼 + 特別號）
+ * @param coin 該注注金
+ * @param tabId 該注所屬分頁（4000 = 正一特 … 4005 = 正六特），決定看哪一顆正碼
+ * @returns 判定結果；無法辨識的注項或分頁回 null（呼叫端自行決定處理方式）
+ */
+export function judgeCreditZhengmateBet(
+  betCode: string | number,
+  openCode: Array<string | number>,
+  coin: number,
+  tabId?: number | string
+): CreditJudgeResult | null {
+  const position = creditZhengmatePositionOf(tabId)
+  if (position < 0) return null
+  const codes = Array.isArray(openCode) ? openCode : []
+  const target = Number(codes[position])
+  if (!Number.isFinite(target) || target <= 0) return null
+  const code = String(betCode ?? '').trim()
+  if (!code) return null
+
+  // 單號：該名次正碼與所選號碼相同即中
+  if (/^\d+$/.test(code)) {
+    const result: CreditBetResult = Number(code) === target ? 'win' : 'lose'
+    return _payout('number', result, CREDIT_ZHENGMATE_ODDS.number, coin)
+  }
+
+  // 色波（49 為綠波，不設和局）
+  const color = CREDIT_COLOR_JUDGES[code]
+  if (color) {
+    const padded = String(target).padStart(2, '0')
+    const result: CreditBetResult = color.codes.includes(padded) ? 'win' : 'lose'
+    return _payout('color', result, color.odds, coin)
+  }
+
+  // 兩面（該名次正碼開 49 為和局，退還本金；與特碼同規則）
+  const judge = CREDIT_ZHENGMATE_SIDE_JUDGES[code]
+  if (judge) {
+    if (target === CREDIT_TIE_SPECIAL_NUMBER) return _payout('side', 'tie', CREDIT_ZHENGMATE_ODDS.side, coin)
+    const result: CreditBetResult = judge(target) ? 'win' : 'lose'
+    return _payout('side', result, CREDIT_ZHENGMATE_ODDS.side, coin)
+  }
+
+  return null
+}
+
+// ── 七碼玩法（6hc-cd）賠率與中獎判定 ──────────────────────────────
+// 七碼看整期七顆球（6 正碼 + 特別號）裡「單／雙」或「大／小」各佔幾顆，
+// 機率為超幾何分布（49 選 7；單 25 個號、雙 24 個號；大 25 個號、小 24 個號）。
+// 與特碼／正碼完全無關 —— 不看任何單一顆球，只看整組的組成比例，且不設和局。
+
+/** 七碼參與判定的球數（6 正碼 + 特別號） */
+export const CREDIT_QIMA_BALL_COUNT = 7
+
+/**
+ * 七碼賠率表（含本金），與 shared/config/cd/c_qima.js 的 odds 對齊。
+ * 取理論值 ×0.97（RTP 約 96.5%～97.3%）；大小組與單雙組分布相同故共用同一組數值。
+ */
+export const CREDIT_QIMA_ODDS: Record<string, number> = {
+  '單0雙7': 240,
+  '單1雙6': 24.7,
+  '單2雙5': 6.5,
+  '單3雙4': 3.4,
+  '單4雙3': 3.25,
+  '單5雙2': 5.7,
+  '單6雙1': 19.6,
+  '單7雙0': 173,
+  '大0小7': 240,
+  '大1小6': 24.7,
+  '大2小5': 6.5,
+  '大3小4': 3.4,
+  '大4小3': 3.25,
+  '大5小2': 5.7,
+  '大6小1': 19.6,
+  '大7小0': 173,
+}
+
+/** 七碼各面向的計數條件（統計七顆球中符合的顆數） */
+const CREDIT_QIMA_COUNTERS: Record<string, (num: number) => boolean> = {
+  單: (num) => num % 2 === 1,
+  雙: (num) => num % 2 === 0,
+  大: (num) => num >= 25,
+  小: (num) => num <= 24,
+}
+
+/** 注項名稱格式：面向 + 顆數 + 面向 + 顆數（如 "單3雙4"、"大0小7"） */
+const CREDIT_QIMA_NAME_PATTERN = /^(單|雙|大|小)(\d)(單|雙|大|小)(\d)$/
+
+/** 七顆球（去除無效值後）；不足 7 顆回空陣列，避免用半組開獎號誤判 */
+const _qimaBalls = (openCode: Array<string | number>): number[] => {
+  const nums = (Array.isArray(openCode) ? openCode : [])
+    .slice(0, CREDIT_QIMA_BALL_COUNT)
+    .map((code) => Number(code))
+    .filter((num) => Number.isFinite(num) && num > 0)
+  return nums.length === CREDIT_QIMA_BALL_COUNT ? nums : []
+}
+
+/**
+ * 取七碼注項賠率（不需開獎結果，供下注時記錄與畫面顯示）
+ * @param betCode 注項（如 "單3雙4"）
+ * @returns 賠率（含本金）；無法辨識回 0
+ */
+export function creditQimaOddsOf(betCode: string | number): number {
+  const code = String(betCode ?? '').trim()
+  if (!code) return 0
+  return Number(CREDIT_QIMA_ODDS[code] ?? 0)
+}
+
+/**
+ * 七碼玩法中獎判定（以七顆球的單雙／大小組成顆數結算，不設和局）
+ * @param betCode 注項（如 "單3雙4"、"大0小7"）
+ * @param openCode 該期完整開獎號（7 顆：6 正碼 + 特別號）
+ * @param coin 該注注金
+ * @returns 判定結果；無法辨識的注項或開獎號不足 7 顆回 null
+ */
+export function judgeCreditQimaBet(
+  betCode: string | number,
+  openCode: Array<string | number>,
+  coin: number
+): CreditJudgeResult | null {
+  const code = String(betCode ?? '').trim()
+  const matched = CREDIT_QIMA_NAME_PATTERN.exec(code)
+  if (!matched) return null
+  const odds = creditQimaOddsOf(code)
+  if (!(odds > 0)) return null
+  const balls = _qimaBalls(openCode)
+  if (balls.length === 0) return null
+
+  const [, firstLabel, firstCount, secondLabel, secondCount] = matched
+  const firstJudge = CREDIT_QIMA_COUNTERS[String(firstLabel)]
+  const secondJudge = CREDIT_QIMA_COUNTERS[String(secondLabel)]
+  if (!firstJudge || !secondJudge) return null
+
+  const firstHit = balls.filter(firstJudge).length
+  const secondHit = balls.filter(secondJudge).length
+  const hit = firstHit === Number(firstCount) && secondHit === Number(secondCount)
+  // 七碼是「整組組成」的兩面型注項，獎池分類歸在 side
+  return _payout('side', hit ? 'win' : 'lose', odds, coin)
+}
+
 // ── 玩法分派（依 play_key 取賠率／判定，供伺端結算與下注紀錄共用） ─────
 
 /** 依玩法取注項賠率；未支援的玩法回 0 */
 export function creditOddsOf(playKey: string | undefined, betCode: string | number): number {
-  return String(playKey ?? '') === 'zhengma'
-    ? creditZhengmaOddsOf(betCode)
-    : creditTemaOddsOf(betCode)
+  switch (String(playKey ?? '')) {
+    case 'zhengma': return creditZhengmaOddsOf(betCode)
+    case 'zhengmate': return creditZhengmateOddsOf(betCode)
+    case 'qima': return creditQimaOddsOf(betCode)
+    // 未帶 play_key 的舊注單一律以特碼解讀（原有行為）
+    default: return creditTemaOddsOf(betCode)
+  }
+}
+
+/**
+ * 該玩法的「單號」注項是否以特別號判定
+ * 供注單 specialMatch 標記使用：正碼／正碼特命中的是正碼，七碼沒有單號注項。
+ */
+export function creditNumberBetHitsSpecial(playKey?: string): boolean {
+  const key = String(playKey ?? '')
+  return key !== 'zhengma' && key !== 'zhengmate' && key !== 'qima'
 }
 
 /** 依玩法判定單注結果；未支援的玩法回 null（呼叫端視為和局退還本金） */
@@ -523,12 +727,16 @@ export function judgeCreditBet(input: {
   betCode: string | number
   openCode: Array<string | number>
   coin: number
+  /** 該注所屬分頁：正碼特需要靠它決定看哪一顆正碼，其餘玩法可省略 */
+  tabId?: number | string
 }): CreditJudgeResult | null {
   const codes = Array.isArray(input?.openCode) ? input.openCode : []
-  if (String(input?.playKey ?? '') === 'zhengma') {
-    return judgeCreditZhengmaBet(input.betCode, codes, input.coin)
+  switch (String(input?.playKey ?? '')) {
+    case 'zhengma': return judgeCreditZhengmaBet(input.betCode, codes, input.coin)
+    case 'zhengmate': return judgeCreditZhengmateBet(input.betCode, codes, input.coin, input.tabId)
+    case 'qima': return judgeCreditQimaBet(input.betCode, codes, input.coin)
+    default: return judgeCreditTemaBet(input.betCode, codes[6] ?? '', input.coin)
   }
-  return judgeCreditTemaBet(input.betCode, codes[6] ?? '', input.coin)
 }
 
 // ── 獎池（抽水入池 + 爆池發放） ───────────────────────────────────
@@ -543,7 +751,19 @@ export const CREDIT_JACKPOT = {
   payoutRatio: 0.5,
   /** 累積池低於此金額不發放（避免發出零星小額）；以 rakeRatio 1% 換算 ≈ 需累積 10 萬投注額 */
   minPool: 1000,
-  /** 分配權重（依「注金 × 權重」比例分配）：單號命中最難，和局的兩面權重最低 */
+  /**
+   * 分配權重的退回值（依「注金 × 權重」比例分配）
+   *
+   * ⚠️ 正式取值來源是各玩法看板設定（c_tema / c_zhengma / c_zhengmate / c_qima）的
+   * `tabGroup[].weight`（可由 `groupList[].weight` 逐項覆寫），由
+   * `creditJackpotWeightOf()` 解析後帶進 buildCreditJackpotShares；
+   * 這裡只在「注單查不到對應設定」（例如舊注單、已下架玩法）時作為保底。
+   *
+   * 設定檔的分級依「理論賠率（1 / 命中機率）」：
+   *   ≥ 20 → 3（極難，如特碼／正碼特單號 49）
+   *   2.5 ~ 20 → 2（中，如色波 2.88、正碼單號 8.17）
+   *   < 2.5 → 1（易，如兩面 2）
+   */
   weights: { number: 3, color: 2, side: 1 },
 } as const
 
@@ -576,6 +796,12 @@ type CreditJackpotRow = {
   coin: number
   kind: CreditBetKind | null
   result: CreditBetResult
+  /**
+   * 該注的爆池分配權重（由呼叫端以 creditJackpotWeightOf 從看板設定解析）。
+   * 未帶或 ≤ 0 時退回 CREDIT_JACKPOT.weights[kind]。
+   * 本檔不直接讀設定檔 —— shared/config/cd/helpers 已 import 本檔，反向 import 會形成循環。
+   */
+  weight?: number
 }
 
 /**
@@ -608,7 +834,12 @@ export function buildCreditJackpotShares(
       const coin = Number(row?.coin ?? 0)
       const kind = row?.kind
       if (!kind || row?.result === 'lose' || !(coin > 0)) return null
-      const weight = Number(CREDIT_JACKPOT.weights[kind] ?? 0)
+      // 權重以注單帶進來的設定值為主（各玩法 / 各群組不同）；
+      // 明確給 0 代表「該注項不參與分配」，只有完全沒帶（舊注單）才退回全域預設
+      const configWeight = row?.weight == null ? Number.NaN : Number(row.weight)
+      const weight = Number.isFinite(configWeight) && configWeight >= 0
+        ? configWeight
+        : Number(CREDIT_JACKPOT.weights[kind] ?? 0)
       if (!(weight > 0)) return null
       return { row, coin, kind, weight, weighted: coin * weight }
     })

@@ -19,6 +19,8 @@ export default [
         tabGroup: [
           {
             groupName: '特碼',
+            // 爆池分配權重（理論 49）
+            weight: 3,
             // 特碼單號（49 選 1）：賠率統一對齊 shared/config/6hc-cd.ts 的 CREDIT_TEMA_ODDS.number
             groupList: [
               { playId: '2000-001', name: '01', odds: 48 },
@@ -74,6 +76,8 @@ export default [
           },
           {
             groupName: '兩面',
+            // 爆池分配權重（理論 2）
+            weight: 1,
             // 兩面（大小／單雙／合單雙／尾大小）：賠率對齊 CREDIT_TEMA_ODDS.side
             groupList: [
               { playId: '2000-101', name: '特大', odds: 1.98 },
@@ -88,6 +92,8 @@ export default [
           },
           {
             groupName: '色波',
+            // 爆池分配權重（理論 2.88 ~ 3.06）
+            weight: 2,
             // 色波：賠率分別對齊 CREDIT_TEMA_ODDS.colorRed / colorBlue / colorGreen
             groupList: [
               { playId: '2000-201', name: '紅波', odds: 2.7 },
@@ -120,6 +126,8 @@ export default [
         tabGroup: [
           {
             groupName: '特碼',
+            // 爆池分配權重（理論 49）
+            weight: 3,
             groupList: [
               { playId: '2001-001', name: '01', odds: 45 },
               { playId: '2001-002', name: '02', odds: 45 },
@@ -174,6 +182,8 @@ export default [
           },
           {
             groupName: '兩面',
+            // 爆池分配權重（理論 2）
+            weight: 1,
             groupList: [
               { playId: '2001-101', name: '特大', odds: 1.92 },
               { playId: '2001-102', name: '特小', odds: 1.92 },
@@ -187,6 +197,8 @@ export default [
           },
           {
             groupName: '色波',
+            // 爆池分配權重（理論 2.88 ~ 3.06）
+            weight: 2,
             groupList: [
               { playId: '2001-201', name: '紅波', odds: 2.6 },
               { playId: '2001-202', name: '藍波', odds: 2.8 },

@@ -5,13 +5,14 @@ import { MEMORY } from './base'
 import {
   buildCreditJackpotShares,
   CREDIT_JACKPOT,
+  creditNumberBetHitsSpecial,
   judgeCreditBet,
   shengxiaoAll,
   type CreditBetKind,
   type CreditBetResult
 } from '#shared/config/6hc-cd'
 // 賠率與限額一律讀分頁設定（c_tema / c_zhengma 的 odds、settings.quota）
-import { creditQuotaOf, creditTabOddsOf, findCreditTab } from '#shared/config/cd/helpers'
+import { creditJackpotWeightOf, creditQuotaOf, creditTabOddsOf, findCreditTab } from '#shared/config/cd/helpers'
 
 type OpenCodeHistoryItem = {
   issue: string
@@ -343,6 +344,8 @@ export default class LHC_CD extends LOTTERY_BASE {
           coin: number
           betCode: string[]
           playKey?: string
+          /** 分頁 id：正碼特（4000～4005）靠它決定結算看哪一顆正碼 */
+          tabId?: number
           odds?: number
         }>
 
@@ -354,13 +357,16 @@ export default class LHC_CD extends LOTTERY_BASE {
           coin: number
           kind: CreditBetKind | null
           result: CreditBetResult
+          weight: number
         }> = []
         issueOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
           const betCode = Array.isArray(row.betCode) ? String(row.betCode[0] ?? '') : ''
           const playKey = String(row.playKey ?? '')
-          // 依玩法分派判定：特碼看特別號、正碼看 6 顆正碼與七球總和
-          const judged = judgeCreditBet({ playKey, betCode, openCode: codes, coin })
+          const tabId = Number(row.tabId ?? 0)
+          // 依玩法分派判定：特碼看特別號、正碼看 6 顆正碼與七球總和、
+          // 正碼特看該分頁對應名次的那一顆正碼、七碼看七顆球的單雙／大小組成
+          const judged = judgeCreditBet({ playKey, betCode, openCode: codes, coin, tabId })
           // 無法辨識的注項（尚未支援的玩法）視為和局退還本金，避免吞掉玩家注金
           const result: CreditBetResult = judged?.result ?? 'tie'
           // 賠率以「下注時鎖定在注單上的值」為準（A/B 盤賠率不同），
@@ -385,8 +391,8 @@ export default class LHC_CD extends LOTTERY_BASE {
                 betCode: Array.isArray(current.betCode) ? current.betCode : [],
                 openCode: [...codes],
                 matchCount: result === 'win' ? 1 : 0,
-                // 命中特別號僅特碼單號成立；正碼單號命中的是 6 顆正碼
-                specialMatch: result === 'win' && judged?.kind === 'number' && playKey !== 'zhengma',
+                // 命中特別號僅特碼單號成立；正碼／正碼特單號命中的是正碼，七碼沒有單號注項
+                specialMatch: result === 'win' && judged?.kind === 'number' && creditNumberBetHitsSpecial(playKey),
                 winStatus: result,
                 winAmount: payout,
                 odds,
@@ -405,7 +411,9 @@ export default class LHC_CD extends LOTTERY_BASE {
             userId: String(row.userId),
             coin,
             kind: judged?.kind ?? null,
-            result
+            result,
+            // 爆池分配權重讀該注項所屬群組的設定（七碼逐項覆寫），查不到才由全域預設保底
+            weight: creditJackpotWeightOf(playKey, tabId, betCode, judged?.kind ?? null)
           })
         })
 

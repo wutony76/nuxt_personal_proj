@@ -2,11 +2,14 @@
 import { computed, ref } from 'vue'
 import {
   CREDIT_JACKPOT,
+  CREDIT_QIMA_BALL_COUNT,
+  CREDIT_QIMA_ODDS,
   CREDIT_TEMA_ODDS,
   CREDIT_TIE_SPECIAL_NUMBER,
   CREDIT_ZHENGMA_NORMAL_COUNT,
   CREDIT_ZHENGMA_ODDS,
-  CREDIT_ZHENGMA_SUM_LINE
+  CREDIT_ZHENGMA_SUM_LINE,
+  CREDIT_ZHENGMATE_ODDS
 } from '#shared/config/6hc-cd'
 import C_PLAYS from '#shared/config/cd/plays'
 import { creditQuotaOf } from '#shared/config/cd/helpers'
@@ -94,6 +97,72 @@ const ZHENGMA_PLAY_TYPES = [
   },
 ]
 
+// 正碼特玩法（只看「指定名次那一顆正碼」，機率結構與特碼相同故賠率一致）
+const ZHENGMATE_PLAY_TYPES = [
+  {
+    key: 'zhengmate-number',
+    name: '正碼特單號',
+    odds: CREDIT_ZHENGMATE_ODDS.number,
+    rule: '所選號碼 = 該名次的正碼',
+    desc: '在「正一特 — 正六特」分頁擇一，開出的該名次正碼與所選號碼相同即中獎，其他名次不算。',
+    example: '例：在正三特選 07，第 3 顆正碼開 07 → 中獎；第 1 顆開 07 → 未中',
+  },
+  {
+    key: 'zhengmate-side',
+    name: '正碼特兩面',
+    odds: CREDIT_ZHENGMATE_ODDS.side,
+    rule: '大／小、單／雙、合單／合雙、尾大／尾小',
+    desc: `判定方式與特碼兩面相同，但看的是該名次的正碼：大 ≥ 25、小 ≤ 24；合數為十位＋個位；尾大 ≥ 5、尾小 ≤ 4。`,
+    example: '例：正二特開 31 → 大、單、合雙（3+1=4）、尾小 皆中',
+  },
+  {
+    key: 'zhengmate-color',
+    name: '正碼特色波',
+    odds: `${CREDIT_ZHENGMATE_ODDS.colorRed} / ${CREDIT_ZHENGMATE_ODDS.colorBlue} / ${CREDIT_ZHENGMATE_ODDS.colorGreen}`,
+    rule: '紅波 / 藍波 / 綠波',
+    desc: '依該名次正碼所屬色波判定（紅波 17 個號、藍波與綠波各 16 個號）。',
+    example: '例：正五特開 31 屬藍波 → 投注正五特藍波中獎',
+  },
+]
+
+// 七碼玩法（看整期七顆球的組成比例，與任何單一顆球無關）
+const QIMA_PLAY_TYPES = [
+  {
+    key: 'qima-oddeven',
+    name: '七碼單雙',
+    odds: `${Math.min(...Object.values(CREDIT_QIMA_ODDS))} — ${Math.max(...Object.values(CREDIT_QIMA_ODDS))}`,
+    rule: '單0雙7 — 單7雙0（共 8 種組合）',
+    desc: `統計 ${CREDIT_QIMA_BALL_COUNT} 顆球（${CREDIT_ZHENGMA_NORMAL_COUNT} 正碼＋特別號）中單號與雙號各幾顆，與所選組合完全相同才中獎。`,
+    example: '例：開 03,08,15,22,29,36＋41 → 單 4 顆、雙 3 顆 → 投注「單4雙3」中獎',
+  },
+  {
+    key: 'qima-bigsmall',
+    name: '七碼大小',
+    odds: `${Math.min(...Object.values(CREDIT_QIMA_ODDS))} — ${Math.max(...Object.values(CREDIT_QIMA_ODDS))}`,
+    rule: '大0小7 — 大7小0（共 8 種組合）',
+    desc: `統計 ${CREDIT_QIMA_BALL_COUNT} 顆球中大號（≥ 25）與小號（≤ 24）各幾顆，與所選組合完全相同才中獎。`,
+    example: '例：開 03,08,15,22,29,36＋41 → 大 3 顆、小 4 顆 → 投注「大3小4」中獎',
+  },
+]
+
+// 七碼各組合的命中機率（超幾何分布：49 選 7，單／大各 25 個號、雙／小各 24 個號）
+// 兩組分布相同，故共用同一份機率與賠率
+const QIMA_ODDS_ROWS = [
+  { count: 0, rate: '0.4029%' },
+  { count: 1, rate: '3.9172%' },
+  { count: 2, rate: '14.8441%' },
+  { count: 3, rate: '28.4513%' },
+  { count: 4, rate: '29.8061%' },
+  { count: 5, rate: '17.0708%' },
+  { count: 6, rate: '4.9480%' },
+  { count: 7, rate: '0.5596%' },
+].map((item) => ({
+  ...item,
+  oddEven: `單${item.count}雙${CREDIT_QIMA_BALL_COUNT - item.count}`,
+  bigSmall: `大${item.count}小${CREDIT_QIMA_BALL_COUNT - item.count}`,
+  odds: Number(CREDIT_QIMA_ODDS[`單${item.count}雙${CREDIT_QIMA_BALL_COUNT - item.count}`] ?? 0),
+}))
+
 const PRIZE_ROWS = [
   { name: '特碼單號', condition: '號碼 = 特別號', odds: CREDIT_TEMA_ODDS.number, hint: '49 選 1，理論值 49' },
   { name: '特碼兩面', condition: '大小／單雙／合單雙／尾大小', odds: CREDIT_TEMA_ODDS.side, hint: `開 ${CREDIT_TIE_SPECIAL_NUMBER} 號為和局，退還本金` },
@@ -102,6 +171,11 @@ const PRIZE_ROWS = [
   { name: '綠波', condition: '特別號屬綠波（16 個號，含 49）', odds: CREDIT_TEMA_ODDS.colorGreen, hint: '理論值 3.06' },
   { name: '正碼單號', condition: `號碼命中 ${CREDIT_ZHENGMA_NORMAL_COUNT} 顆正碼之一`, odds: CREDIT_ZHENGMA_ODDS.number, hint: `49 選 ${CREDIT_ZHENGMA_NORMAL_COUNT}，理論值 8.17` },
   { name: '總和兩面', condition: `七球總和 大／小（界 ${CREDIT_ZHENGMA_SUM_LINE}）、單／雙`, odds: CREDIT_ZHENGMA_ODDS.side, hint: '不設和局' },
+  { name: '正碼特單號', condition: '號碼 = 該名次的正碼', odds: CREDIT_ZHENGMATE_ODDS.number, hint: '49 選 1，理論值 49' },
+  { name: '正碼特兩面', condition: '該名次正碼 大小／單雙／合單雙／尾大小', odds: CREDIT_ZHENGMATE_ODDS.side, hint: `該顆開 ${CREDIT_TIE_SPECIAL_NUMBER} 為和局，退還本金` },
+  { name: '正碼特紅波', condition: '該名次正碼屬紅波（17 個號）', odds: CREDIT_ZHENGMATE_ODDS.colorRed, hint: '理論值 2.88' },
+  { name: '正碼特藍波', condition: '該名次正碼屬藍波（16 個號）', odds: CREDIT_ZHENGMATE_ODDS.colorBlue, hint: '理論值 3.06' },
+  { name: '正碼特綠波', condition: `該名次正碼屬綠波（16 個號，含 ${CREDIT_TIE_SPECIAL_NUMBER}）`, odds: CREDIT_ZHENGMATE_ODDS.colorGreen, hint: '理論值 3.06' },
 ]
 
 // 各分頁的賠率與限額：直接讀 c_tema / c_zhengma 設定，config 調整後說明頁自動跟上
@@ -131,13 +205,34 @@ const carryPool = computed(() => Number(mxJackpot.carryJackpot ?? 0))
 const distributablePool = computed(() => Number(mxJackpot.distributable ?? 0))
 const estimatedPayout = computed(() => Number((distributablePool.value * CREDIT_JACKPOT.payoutRatio).toFixed(2)))
 const lastHit = computed(() => mxJackpot.lastHit)
-// 爆池分配權重（依注項類別）
-const JACKPOT_WEIGHTS = [
-  { name: `特碼單號 ${CREDIT_JACKPOT.hitNumber}`, result: '中獎', weight: CREDIT_JACKPOT.weights.number },
-  { name: '綠波', result: `中獎（${CREDIT_JACKPOT.hitNumber} 屬綠波）`, weight: CREDIT_JACKPOT.weights.color },
-  { name: '特碼兩面（8 項）', result: `和局（開 ${CREDIT_JACKPOT.hitNumber} 必和局）`, weight: CREDIT_JACKPOT.weights.side },
-  { name: '其他單號 / 紅波 / 藍波', result: '未中', weight: 0 },
-]
+// 爆池分配權重：直接讀各玩法看板設定的 tabGroup[].weight（七碼由 groupList[].weight 逐項覆寫），
+// 與伺端 creditJackpotWeightOf 同一份來源，config 調整後說明頁自動跟上。
+// 同一玩法內權重相同的群組併成一列，名稱超過兩個以「首 — 末」表示（正一特 — 正六特）。
+const JACKPOT_WEIGHT_ROWS = (C_PLAYS as Array<{ name?: string; list?: Array<Record<string, any>> }>)
+  .flatMap((play) => {
+    const byWeight = new Map<string, Set<string>>()
+    ;(play.list ?? []).forEach((tab) => (tab.tabGroup ?? []).forEach((group: any) => {
+      const itemWeights = [...new Set(
+        (group?.groupList ?? []).map((item: any) => Number(item?.weight)).filter((w: number) => w > 0)
+      )] as number[]
+      const label = itemWeights.length > 0
+        ? (itemWeights.length === 1
+          ? String(itemWeights[0])
+          : `${Math.min(...itemWeights)} — ${Math.max(...itemWeights)}`)
+        : String(Number(group?.weight ?? 0) || '—')
+      const names = byWeight.get(label) ?? new Set<string>()
+      names.add(String(group?.groupName ?? ''))
+      byWeight.set(label, names)
+    }))
+    return [...byWeight.entries()].map(([weight, nameSet]) => {
+      const names = [...nameSet]
+      return {
+        playName: String(play.name ?? ''),
+        groupName: names.length > 2 ? `${names[0]} — ${names[names.length - 1]}` : names.join('、'),
+        weight,
+      }
+    })
+  })
 
 // --- HANDLE ---
 const _handlers = {
@@ -182,7 +277,9 @@ const click = {
             <li>每日共 <strong>205 期</strong>，每 <strong>7 分鐘</strong> 開獎一次。</li>
             <li>信用玩法為 <strong>每注獨立、按賠率派彩</strong>；結算依玩法而定 —
               <strong>特碼</strong>看第 7 顆特別號，<strong>正碼</strong>看前
-              {{ CREDIT_ZHENGMA_NORMAL_COUNT }} 顆正碼與七球總和。
+              {{ CREDIT_ZHENGMA_NORMAL_COUNT }} 顆正碼與七球總和，
+              <strong>正碼特</strong>看指定名次的那一顆正碼，
+              <strong>七碼</strong>看 {{ CREDIT_QIMA_BALL_COUNT }} 顆球的單雙／大小組成顆數。
             </li>
             <li>與官方玩法的差異：官方是「一注 6 顆號碼、依命中數分層領獎池」，信用玩法是「一注一個注項、中獎即按賠率派彩」。</li>
           </ul>
@@ -220,8 +317,10 @@ const click = {
         <div id="cd-section-play" class="rule-section">
           <h4 class="rule-title">投注玩法</h4>
           <p class="rule-note">
-            目前開放「<strong>特碼</strong>」與「<strong>正碼</strong>」兩種玩法，各自分為
-            <strong>A / B</strong> 兩個分頁（同玩法的分頁注項相同，注單會記錄所屬分頁）。
+            目前開放「<strong>特碼</strong>」「<strong>正碼</strong>」「<strong>正碼特</strong>」「<strong>七碼</strong>」四種玩法。
+            特碼與正碼各分為 <strong>A / B</strong> 兩個分頁（注項相同、賠率與限額不同）；
+            正碼特分為 <strong>正一特 — 正六特</strong> 六個分頁（對應 6 顆正碼的名次）；七碼只有一個分頁。
+            注單一律記錄所屬分頁，結算時依分頁判定。
           </p>
 
           <p class="rule-sub-title">特碼 — 以第 7 顆特別號結算</p>
@@ -249,6 +348,66 @@ const click = {
               <p class="play-card-example">{{ play.example }}</p>
             </div>
           </div>
+
+          <p class="rule-sub-title">正碼特 — 以「指定名次那一顆正碼」結算</p>
+          <div class="play-cards">
+            <div v-for="play in ZHENGMATE_PLAY_TYPES" :key="play.key" class="play-card">
+              <div class="play-card-head">
+                <span class="play-card-name">{{ play.name }}</span>
+                <span class="play-card-odds">賠率 {{ play.odds }}</span>
+              </div>
+              <p class="play-card-rule">{{ play.rule }}</p>
+              <p class="play-card-desc">{{ play.desc }}</p>
+              <p class="play-card-example">{{ play.example }}</p>
+            </div>
+          </div>
+
+          <p class="rule-sub-title">七碼 — 以 {{ CREDIT_QIMA_BALL_COUNT }} 顆球的組成顆數結算</p>
+          <div class="play-cards">
+            <div v-for="play in QIMA_PLAY_TYPES" :key="play.key" class="play-card">
+              <div class="play-card-head">
+                <span class="play-card-name">{{ play.name }}</span>
+                <span class="play-card-odds">賠率 {{ play.odds }}</span>
+              </div>
+              <p class="play-card-rule">{{ play.rule }}</p>
+              <p class="play-card-desc">{{ play.desc }}</p>
+              <p class="play-card-example">{{ play.example }}</p>
+            </div>
+          </div>
+          <div class="rule-table-wrap">
+            <table class="rule-table prize-table">
+              <colgroup>
+                <col style="width: 22%" />
+                <col style="width: 22%" />
+                <col style="width: 18%" />
+                <col style="width: 14%" />
+                <col style="width: 24%" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>單雙組合</th>
+                  <th>大小組合</th>
+                  <th>命中機率</th>
+                  <th>賠率</th>
+                  <th>{{ SAMPLE_COIN }} 元派彩</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in QIMA_ODDS_ROWS" :key="row.oddEven">
+                  <td class="tier-name">{{ row.oddEven }}</td>
+                  <td class="tier-name">{{ row.bigSmall }}</td>
+                  <td class="tier-match">{{ row.rate }}</td>
+                  <td class="tier-odds">{{ row.odds }}</td>
+                  <td class="tier-est">{{ actions.money(_handlers.payoutOf(row.odds)) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="rule-note">
+            單／大各 25 個號、雙／小各 24 個號，兩組分布相同故共用同一份賠率；
+            兩端刻意不對稱（<strong>單7雙0</strong> 比 <strong>單0雙7</strong> 容易開出，賠率較低）。
+          </p>
+
           <p class="rule-sub-title">各分頁賠率與投注限額</p>
           <div class="rule-table-wrap">
             <table class="rule-table">
@@ -343,29 +502,32 @@ const click = {
             <li>可發放累積池 = <strong>當期抽水 ＋ 累積滾存</strong>（不含頁首展示用的池底金額）。</li>
             <li>累積池未達 <strong>{{ actions.money(CREDIT_JACKPOT.minPool) }}</strong> 或該期無人有份時<strong>不發放</strong>，整池滾存至下期。
             </li>
-            <li>爆池期由該期<strong>有份的注單依「注金 × 權重」比例分配</strong>，兩面與色波同樣參與（見下表）。</li>
+            <li>爆池期由該期<strong>有份的注單依「注金 × 權重」比例分配</strong>；
+              <strong>有份 = 該期非未中的注單</strong>（中獎或和局皆可），未中則無份。</li>
+            <li>權重<strong>依玩法與注項群組而定</strong>，愈難命中權重愈高（依理論賠率分級：≥ 20 為 3、2.5 ~ 20 為 2、&lt; 2.5 為 1）。
+              七碼同一群組內難易差距大（單4雙3 近 30%、單0雙7 僅 0.4%），故逐項給權重。</li>
             <li>加碼金額與賠率派彩合併計入該期<strong>可領獎金</strong>，於「下注紀錄」一併領取。</li>
           </ul>
 
           <div class="rule-table-wrap">
             <table class="rule-table prize-table">
               <colgroup>
-                <col style="width: 34%" />
-                <col style="width: 40%" />
+                <col style="width: 26%" />
+                <col style="width: 48%" />
                 <col style="width: 26%" />
               </colgroup>
               <thead>
                 <tr>
-                  <th>注項類別</th>
-                  <th>爆池期（特別號 {{ CREDIT_JACKPOT.hitNumber }}）結果</th>
+                  <th>玩法</th>
+                  <th>注項群組</th>
                   <th>分配權重</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in JACKPOT_WEIGHTS" :key="row.name">
-                  <td class="tier-name">{{ row.name }}</td>
-                  <td class="tier-match">{{ row.result }}</td>
-                  <td class="tier-odds">{{ row.weight > 0 ? `× ${row.weight}` : '無份' }}</td>
+                <tr v-for="row in JACKPOT_WEIGHT_ROWS" :key="`${row.playName}-${row.groupName}`">
+                  <td class="tier-name">{{ row.playName }}</td>
+                  <td class="tier-match">{{ row.groupName }}</td>
+                  <td class="tier-odds">× {{ row.weight }}</td>
                 </tr>
               </tbody>
             </table>
@@ -404,16 +566,20 @@ const click = {
         <div id="cd-section-note" class="rule-section rule-section-last">
           <h4 class="rule-title">特別說明</h4>
           <ul class="rule-list">
-            <li>開出 <strong>{{ CREDIT_TIE_SPECIAL_NUMBER }}</strong> 號時，特碼兩面（大小／單雙／合單雙／尾大小）<strong>全部視為和局</strong>，退還本金。
+            <li>特別號開出 <strong>{{ CREDIT_TIE_SPECIAL_NUMBER }}</strong> 號時，特碼兩面（大小／單雙／合單雙／尾大小）<strong>全部視為和局</strong>，退還本金；
+              正碼特兩面同規則，但看的是<strong>該名次的正碼</strong>是否為 {{ CREDIT_TIE_SPECIAL_NUMBER }}。
             </li>
-            <li><strong>色波不設和局</strong>：{{ CREDIT_TIE_SPECIAL_NUMBER }} 號屬綠波，投注綠波仍算中獎。</li>
+            <li><strong>色波不設和局</strong>：{{ CREDIT_TIE_SPECIAL_NUMBER }} 號屬綠波，投注綠波仍算中獎（特碼與正碼特皆同）。</li>
             <li>每注<strong>獨立結算</strong>：特碼僅看特別號、與 6 顆正碼無關；正碼僅看
-              {{ CREDIT_ZHENGMA_NORMAL_COUNT }} 顆正碼、與特別號無關（總和則含特別號）。</li>
-            <li><strong>正碼不設和局</strong>：開出 {{ CREDIT_TIE_SPECIAL_NUMBER }} 號時，正碼單號命中照賠，
-              總和兩面亦以總和大小單雙照常判定。</li>
+              {{ CREDIT_ZHENGMA_NORMAL_COUNT }} 顆正碼、與特別號無關（總和則含特別號）；
+              正碼特<strong>只看所選分頁對應名次的那一顆</strong>，開在其他名次不算中獎。</li>
+            <li><strong>正碼與七碼不設和局</strong>：開出 {{ CREDIT_TIE_SPECIAL_NUMBER }} 號時，正碼單號命中照賠、總和兩面照常判定；
+              七碼一律以 {{ CREDIT_QIMA_BALL_COUNT }} 顆球的組成顆數判定，組合需<strong>完全相同</strong>才算中獎。</li>
             <li>封盤後送出的投注<strong>不予受理</strong>，請在開盤期間內完成下注。</li>
             <li>賠率可依營運需求調整，結算<strong>以下注時記錄在注單上的賠率為準</strong>（可於下注紀錄查閱）。</li>
             <li>尚未開放的玩法（生肖、五行、連碼等）若經由其他管道下注，結算時一律<strong>退還本金</strong>。</li>
+            <li>爆池分配權重<strong>依玩法設定</strong>（見「獎池滾存」章節的權重表），
+              下注時不鎖定，結算時以當下設定為準。</li>
             <li>開獎結果以系統公布為準，如對結果有疑問請聯繫客服。</li>
           </ul>
         </div>

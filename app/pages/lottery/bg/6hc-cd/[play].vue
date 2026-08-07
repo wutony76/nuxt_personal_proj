@@ -7,6 +7,8 @@ import { actions } from '~/utils/common'
 
 import TemaPlay from '~/components/lottery/bg/6hc/cd/Tema.vue'
 import ZhengmaPlay from '~/components/lottery/bg/6hc/cd/Zhengma.vue'
+import ZhengmatePlay from '~/components/lottery/bg/6hc/cd/Zhengmate.vue'
+import QimaPlay from '~/components/lottery/bg/6hc/cd/Qima.vue'
 
 import { useBgAutoActive } from '~/composables/useBgAutoActive'
 import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
@@ -46,6 +48,8 @@ let floatTimer: ReturnType<typeof setTimeout> | null = null
 const playMap: Record<string, Component> = {
   tema: TemaPlay,
   zhengma: ZhengmaPlay,
+  zhengmate: ZhengmatePlay,
+  qima: QimaPlay,
 }
 
 
