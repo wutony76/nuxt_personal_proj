@@ -195,7 +195,7 @@ watch(() => mxState.amount, (val) => {
     <div v-for="group in tableGroups" :key="`board-${group.groupName}`" class="play-group">
       <div class="group-title">
         {{ group.groupName }}
-        <span v-if="group.oddsSummary" class="group-odds">· {{ group.oddsSummary }}</span>
+        <span v-if="group.oddsSummary" class="group-odds"> .{{ group.oddsSummary }}</span>
       </div>
       <table class="play-table" :class="{ 'pill-table': group.isPill }">
         <thead>
@@ -266,7 +266,7 @@ watch(() => mxState.amount, (val) => {
       color: var(--color-red-main);
       font-variant-numeric: tabular-nums;
 
-      & + .quota-item::before {
+      &+.quota-item::before {
         content: '·';
         margin-right: 8px;
         color: var(--color-red-desc);
@@ -292,10 +292,12 @@ watch(() => mxState.amount, (val) => {
 
       /* 群組賠率（整組同值顯示一個，色波等不同值則拆開） */
       .group-odds {
-        margin-left: 4px;
-        font-size: 13px;
+        margin-left: 10px;
+        font-size: 11px;
         font-weight: 700;
-        color: var(--color-gold);
+        // color: var(--color-gold);
+        // color: #73080e;
+        color: var(--color-red-bets);
         font-variant-numeric: tabular-nums;
       }
     }
