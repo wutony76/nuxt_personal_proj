@@ -2,6 +2,9 @@ import C_TEMA from '#shared/config/cd/c_tema'
 import C_ZHENGMA from '#shared/config/cd/c_zhengma'
 import C_ZHENGMATE from '#shared/config/cd/c_zhengmate'
 import C_QIMA from '#shared/config/cd/c_qima'
+import C_LIANMA from '#shared/config/cd/c_lianma'
+import C_WUXING from '#shared/config/cd/c_wuxing'
+import C_BANBO from '#shared/config/cd/c_banbo'
 
 /**
  * 信用盤（6hc-cd）玩法看板設定
@@ -12,5 +15,14 @@ import C_QIMA from '#shared/config/cd/c_qima'
  *
  * 注意：此檔為 .ts（會被打包）且一律使用 #shared 別名 —
  * shared/ 下若改用 .js 聚合檔並由伺端匯入，Nitro 會走 Node 原生解析而找不到模組。
+ * 同理，需要 import 才能產生號碼的設定檔（c_wuxing / c_banbo）本身也必須是 .ts。
  */
-export default [...C_TEMA, ...C_ZHENGMA, ...C_ZHENGMATE, ...C_QIMA]
+export default [
+  ...C_TEMA,
+  ...C_ZHENGMA,
+  ...C_ZHENGMATE,
+  ...C_LIANMA,
+  ...C_QIMA,
+  ...C_WUXING,
+  ...C_BANBO,
+]

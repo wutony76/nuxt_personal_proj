@@ -9,10 +9,20 @@ import {
   judgeCreditBet,
   shengxiaoAll,
   type CreditBetKind,
-  type CreditBetResult
+  type CreditBetResult,
+  type CreditLianmaTier
 } from '#shared/config/6hc-cd'
 // 賠率與限額一律讀分頁設定（c_tema / c_zhengma 的 odds、settings.quota）
-import { creditJackpotWeightOf, creditQuotaOf, creditTabOddsOf, findCreditTab } from '#shared/config/cd/helpers'
+import {
+  creditComboCount,
+  creditComboOf,
+  creditJackpotWeightOf,
+  creditQuotaOf,
+  creditRtpOf,
+  creditTabOddsOf,
+  creditTiersOf,
+  findCreditTab
+} from '#shared/config/cd/helpers'
 
 type OpenCodeHistoryItem = {
   issue: string
@@ -36,6 +46,11 @@ type BetOrderRow = {
   play_type_name: string
   /** 下注時的賠率（含本金）：取自該分頁 config 的 odds，結算即以此值派彩 */
   odds: number
+  /**
+   * 連碼專用：下注時鎖住的命中檔次表（中三 / 中二…）
+   * 連碼一注有多種中法、賠率開獎後才確定，單一 odds 不夠用
+   */
+  tiers?: CreditLianmaTier[]
 }
 
 type Group = {
@@ -49,6 +64,8 @@ type Group = {
     label?: string | number
     amount?: number | string
     coin?: number | string
+    /** 連碼：該注的號碼組（如 ['03','15','22']），其餘玩法不帶 */
+    codes?: Array<number | string>
   }>
 }
 
@@ -83,6 +100,8 @@ type UserBetHistory = {
   winAmount: number
   /** 該注賠率（含本金），未結算為 0 */
   odds: number
+  /** 命中檔次名稱（連碼：中三／中二…），其餘玩法為空字串 */
+  tierName?: string
   /** 爆池加碼金額（非爆池期或無份為 0） */
   jackpotAmount: number
 }
@@ -119,6 +138,41 @@ function _resolveTabId(play?: { playId?: number | string; selectTabId?: number |
     if (Number.isFinite(id) && id > 0) return id
   }
   return 0
+}
+
+/**
+ * 取期別的年份（期號格式 YYYYMMDDnnn，見 LOTTERY_BASE.createIssue）
+ * 五行的號碼歸屬逐年輪轉，賠率與判定都必須用「該期的年份」而非「現在」——
+ * 跨年後結算舊期若用今年的表，會把號碼算到別的五行去。
+ */
+function _issueYear(issue: string): number {
+  const year = Number(String(issue ?? '').slice(0, 4))
+  return Number.isFinite(year) && year > 1900 ? year : new Date().getFullYear()
+}
+
+type PlayInput = NonNullable<Group['playList']>[number]
+
+/**
+ * 取一注的號碼組
+ * 連碼一注帶多個號（play.codes），需驗證數量與 combo.pick 相符、號碼在 01~49 且不重複；
+ * 其餘玩法沿用 normalizeBetCode 的單一注碼。
+ *
+ * 複式展開由前端做（選 N 個號 → C(N, pick) 注），伺端不信任「注數」這個數字 ——
+ * 每一注都在這裡獨立驗證號碼組是否合法，扣款與限額也一律以實際收到的注數計算。
+ * @returns 合法的號碼組；無效回 null（呼叫端整筆拒絕）
+ */
+function _resolveBetCodes(playKey: string, tabId: number, play: PlayInput): string[] | null {
+  const combo = creditComboOf(playKey, tabId)
+  if (!combo) {
+    const code = LOTTERY_BASE.normalizeBetCode(play)
+    return code ? [code] : null
+  }
+  const raw = Array.isArray(play?.codes) ? play.codes : []
+  const nums = raw.map((code) => Number(code)).filter((num) => Number.isInteger(num) && num >= 1 && num <= 49)
+  if (nums.length !== combo.pick) return null
+  if (new Set(nums).size !== nums.length) return null
+  // 同一注內號碼排序，讓相同組合的注單長得一樣（方便比對與去重）
+  return nums.sort((a, b) => a - b).map((num) => String(num).padStart(2, '0'))
 }
 
 type JackpotHit = {
@@ -222,26 +276,32 @@ export default class LHC_CD extends LOTTERY_BASE {
           const playTypeName = String(group?.playTypeName || '')
           const playKey = String(group?.playKey || '')
           const playList = Array.isArray(group?.playList) ? group.playList : []
-          playList.forEach((play) => {
+          const total = playList.length
+          playList.forEach((play, index) => {
             const orderId = this.handle.createOrderId(input.issue)
-            const betCode = LOTTERY_BASE.normalizeBetCode(play)
-            if (!betCode) return
+            const tabId = _resolveTabId(play, group)
+            const betCodes = _resolveBetCodes(playKey, tabId, play)
+            if (!betCodes) return
             // 每注各自金額（fallback 到整體 amount）
             const playCoin = Number(play?.amount ?? play?.coin ?? input.amount)
-            const tabId = _resolveTabId(play, group)
+            // 連碼：賠率在命中檔次上，整份 tiers 快照到注單，結算再依命中檔次取值
+            const tiers = creditTiersOf(playKey, tabId)
             rows.push({
               issue: input.issue,
               user_id: input.userId,
               select_tab_id: tabId,
               bet_time: Date.now(),
               coin: Number.isFinite(playCoin) && playCoin > 0 ? playCoin : input.amount,
-              order_id: `${orderId}(1/1)`,
+              // 複式一次送多注，序號標示第幾注 / 共幾注
+              order_id: `${orderId}(${index + 1}/${total})`,
               status: 'success',
-              bet_code: [betCode],
+              bet_code: betCodes,
               play_key: playKey,
               play_type_name: playTypeName,
               // 以該分頁設定的賠率鎖定在注單上（A/B 盤賠率不同，結算以此為準）
-              odds: creditTabOddsOf(playKey, tabId, betCode)
+              // 五行的賠率取決於該期年份的號碼表，故一併帶入期別年份
+              odds: creditTabOddsOf(playKey, tabId, betCodes[0], _issueYear(input.issue)),
+              ...(tiers.length > 0 ? { tiers } : {})
             })
           })
         })
@@ -268,17 +328,25 @@ export default class LHC_CD extends LOTTERY_BASE {
         // 本次送單各分頁的累計投注額（記住 playKey，同一次送單可能含多個玩法）
         const newByTab = new Map<number, { playKey: string; coin: number }>()
         const groups = Array.isArray(input.groups) ? input.groups : []
+        // 連碼複式一次送多注，另計每個分頁的注數以驗證是否超出 combo 上限
+        const betCountByTab = new Map<number, number>()
         groups.forEach((group) => {
           const playKey = String(group?.playKey || '')
           const playList = Array.isArray(group?.playList) ? group.playList : []
           playList.forEach((play) => {
-            const betCode = LOTTERY_BASE.normalizeBetCode(play)
-            if (!betCode) return
             const tabId = _resolveTabId(play, group)
-            const rawCoin = Number(play?.amount ?? play?.coin ?? input.amount)
-            const coin = Number.isFinite(rawCoin) && rawCoin > 0 ? rawCoin : Number(input.amount)
             const quota = creditQuotaOf(playKey, tabId)
             const tabName = findCreditTab(playKey, tabId)?.tabName ?? String(tabId)
+            const combo = creditComboOf(playKey, tabId)
+            // 號碼組合法性（連碼：號碼數需等於 pick、01~49、不重複）
+            const betCodes = _resolveBetCodes(playKey, tabId, play)
+            if (!betCodes) {
+              if (!combo) return // 非連碼且注碼為空 → 沿用原行為（略過該注）
+              this.handle.rejectBet(`${tabName} 每注需選 ${combo.pick} 個不重複的號碼（01–49）`)
+            }
+            const betCode = betCodes.join('、')
+            const rawCoin = Number(play?.amount ?? play?.coin ?? input.amount)
+            const coin = Number.isFinite(rawCoin) && rawCoin > 0 ? rawCoin : Number(input.amount)
 
             if (coin < quota.item.min) {
               this.handle.rejectBet(`${tabName}「${betCode}」單注最低 ${_money(quota.item.min)}，本次 ${_money(coin)}`)
@@ -288,7 +356,23 @@ export default class LHC_CD extends LOTTERY_BASE {
             }
             const prev = newByTab.get(tabId)
             newByTab.set(tabId, { playKey: prev?.playKey || playKey, coin: Number(prev?.coin ?? 0) + coin })
+            betCountByTab.set(tabId, Number(betCountByTab.get(tabId) ?? 0) + 1)
           })
+        })
+
+        // 連碼注數上限：以「選滿 maxPick 個號」能組出的注數為準
+        // 前端負責展開組合，這裡擋掉超量送單（例如手動組出 500 注）
+        betCountByTab.forEach((count, tabId) => {
+          const playKey = newByTab.get(tabId)?.playKey ?? ''
+          const combo = creditComboOf(playKey, tabId)
+          if (!combo) return
+          const maxBets = creditComboCount(combo.maxPick, combo.pick)
+          if (count > maxBets) {
+            const tabName = findCreditTab(playKey, tabId)?.tabName ?? String(tabId)
+            this.handle.rejectBet(
+              `${tabName} 單次最多 ${maxBets} 注（選 ${combo.maxPick} 個號），本次 ${count} 注`
+            )
+          }
         })
 
         // 單期投注額：同一玩家、同一期、同一分頁的既有注單 + 本次送單（max = 0 視為不限）
@@ -347,6 +431,8 @@ export default class LHC_CD extends LOTTERY_BASE {
           /** 分頁 id：正碼特（4000～4005）靠它決定結算看哪一顆正碼 */
           tabId?: number
           odds?: number
+          /** 連碼：下注時鎖住的命中檔次表 */
+          tiers?: CreditLianmaTier[]
         }>
 
         const payoutByUser = new Map<string, number>()
@@ -361,12 +447,20 @@ export default class LHC_CD extends LOTTERY_BASE {
         }> = []
         issueOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
-          const betCode = Array.isArray(row.betCode) ? String(row.betCode[0] ?? '') : ''
+          const betCodes = Array.isArray(row.betCode) ? row.betCode.map((code) => String(code)) : []
+          const betCode = String(betCodes[0] ?? '')
           const playKey = String(row.playKey ?? '')
           const tabId = Number(row.tabId ?? 0)
           // 依玩法分派判定：特碼看特別號、正碼看 6 顆正碼與七球總和、
-          // 正碼特看該分頁對應名次的那一顆正碼、七碼看七顆球的單雙／大小組成
-          const judged = judgeCreditBet({ playKey, betCode, openCode: codes, coin, tabId })
+          // 正碼特看該分頁對應名次的那一顆正碼、七碼看七顆球的單雙／大小組成、
+          // 連碼看整組號碼命中幾個正碼／是否含特別號（賠率取注單上的 tiers 快照）、
+          // 五行看特別號屬該期年份表的哪一行（號碼表逐年輪轉，故帶期別年份而非今年）
+          const judged = judgeCreditBet({
+            playKey, betCode, betCodes, openCode: codes, coin, tabId,
+            tiers: row.tiers,
+            year: _issueYear(safeIssue),
+            rtp: creditRtpOf(playKey, tabId),
+          })
           // 無法辨識的注項（尚未支援的玩法）視為和局退還本金，避免吞掉玩家注金
           const result: CreditBetResult = judged?.result ?? 'tie'
           // 賠率以「下注時鎖定在注單上的值」為準（A/B 盤賠率不同），
@@ -396,6 +490,7 @@ export default class LHC_CD extends LOTTERY_BASE {
                 winStatus: result,
                 winAmount: payout,
                 odds,
+                tierName: String(judged?.tierName ?? ''),
                 jackpotAmount: 0 // 爆池加碼於下方獎池分配時寫入
               }
             }
@@ -412,8 +507,9 @@ export default class LHC_CD extends LOTTERY_BASE {
             coin,
             kind: judged?.kind ?? null,
             result,
-            // 爆池分配權重讀該注項所屬群組的設定（七碼逐項覆寫），查不到才由全域預設保底
-            weight: creditJackpotWeightOf(playKey, tabId, betCode, judged?.kind ?? null)
+            // 爆池分配權重讀該注項所屬群組的設定（七碼逐項覆寫、連碼掛在命中檔次上），
+            // 查不到才由全域預設保底
+            weight: creditJackpotWeightOf(playKey, tabId, betCode, judged?.kind ?? null, judged?.tier ?? null)
           })
         })
 
@@ -700,7 +796,8 @@ export default class LHC_CD extends LOTTERY_BASE {
         tabId: row.select_tab_id,
         betCode: row.bet_code,
         playKey: row.play_key, // 結算時分派各玩法判定用
-        odds: row.odds // 下注時鎖定的賠率，結算派彩以此為準
+        odds: row.odds, // 下注時鎖定的賠率，結算派彩以此為準
+        tiers: row.tiers // 連碼：下注時鎖定的命中檔次表
       })
       this.handle.appendBetHistory(row)
     })

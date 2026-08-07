@@ -1,9 +1,18 @@
 <script setup lang="ts">
 import { cloneDeep } from 'lodash-es'
 import { LHC_COLORS } from '#shared/config/6hc-cd'
+import { creditTabOddsOf } from '#shared/config/cd/helpers'
 import { use6hcCredit } from '~/composables/use6hcCredit'
 
-type PlayItem = { playId: string | number; name: string; odds?: number; coin?: string | number; select?: boolean }
+type PlayItem = {
+  playId: string | number
+  name: string
+  odds?: number
+  coin?: string | number
+  select?: boolean
+  /** 該注項涵蓋的號碼（半波 / 五行），有值時會顯示在注項下方 */
+  nums?: string[]
+}
 
 /**
  * 玩法注項看板（特碼 / 正碼共用）
@@ -84,6 +93,14 @@ const _handlers = {
       Array.from({ length: columns }, (_, colIndex) => list[rowIndex + colIndex * rows] ?? null)
     )
   },
+  // 橫向（row-major）矩陣：半波 / 五行的注項是成對的（紅大紅小、金木），
+  // 用直向排會把紅大跟綠單放在同一列，必須依 config 順序橫向填
+  toRowMatrix: (list: PlayItem[] = [], columns: number) => {
+    const rows = Math.ceil(list.length / columns)
+    return Array.from({ length: rows }, (_, rowIndex) =>
+      Array.from({ length: columns }, (_, colIndex) => list[rowIndex * columns + colIndex] ?? null)
+    )
+  },
   // 同步「當前注項」清單（改由 composable 依注項池統一計算，隨機選號 / 清空共用同一份邏輯）
   selectItems: () => {
     mxActions.syncSelectItems()
@@ -148,6 +165,10 @@ const layout = computed(() => {
     group.groupList.forEach((item: PlayItem) => {
       item.select = false
       item.coin = 0
+      // 五行的賠率不寫在 config（號碼數逐年變動，由號碼數推算），在此補上供群組標題顯示
+      if (!(Number(item.odds) > 0)) {
+        item.odds = creditTabOddsOf(mxState.select, mxState.selectTabId, item.name)
+      }
       _pool.push(item)
     })
   })
@@ -161,13 +182,19 @@ const layout = computed(() => {
 const tableGroups = computed(() =>
   (layout.value?.tabGroup ?? []).map((group) => {
     const columns = _handlers.columnsOf(group.groupName)
+    const hasNums = (group.groupList as PlayItem[]).some((item) => (item?.nums?.length ?? 0) > 0)
     return {
       groupName: group.groupName,
       columns,
       oddsSummary: _handlers.oddsSummaryOf(group.groupList),
       // 號碼為文字（非數字）→ 膠囊型玩法（兩面 / 色波）
       isPill: !_handlers.isNumber(String(group.groupList[0]?.name ?? '0')),
-      rows: _handlers.toMatrix(group.groupList, columns),
+      // 注項帶號碼清單（半波 / 五行）→ 改用「項目｜金額｜號碼」清單式排版，一列並排 columns 組
+      hasNums,
+      // hasNums：橫向排列（紅大、紅小依序左右並排），其餘玩法維持直向排的號碼球盤
+      rows: hasNums
+        ? _handlers.toRowMatrix(group.groupList, columns)
+        : _handlers.toMatrix(group.groupList, columns),
     }
   })
 )
@@ -197,7 +224,59 @@ watch(() => mxState.amount, (val) => {
         {{ group.groupName }}
         <span v-if="group.oddsSummary" class="group-odds"> .{{ group.oddsSummary }}</span>
       </div>
-      <table class="play-table" :class="{ 'pill-table': group.isPill }">
+      <!-- 半波 / 五行：清單式排版（項目｜金額｜號碼），一列並排 group.columns 組 -->
+      <table v-if="group.hasNums" class="play-table nums-list-table">
+        <thead>
+          <tr>
+            <template v-for="col in group.columns" :key="`head-${group.groupName}-${col}`">
+              <th class="th-name">項目</th>
+              <th class="th-amount">金額</th>
+              <th class="th-nums">號碼</th>
+            </template>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(row, rowIndex) in group.rows" :key="`row-${group.groupName}-${rowIndex}`">
+            <template v-for="(item, colIndex) in row" :key="`cell-${group.groupName}-${rowIndex}-${colIndex}`">
+              <td class="td-name" :class="{
+                active: item && _handlers.isSelected(item),
+                hover: item && _handlers.isHovered(item),
+                clickable: !!item,
+              }" @click="item && click.toggle(item)" @mouseenter="item && click.hoverEnter(item)"
+                @mouseleave="click.hoverLeave()">
+                <button v-if="item" type="button" class="option is-pill" :class="[
+                  _handlers.colorOf(item.name) ? `c-${_handlers.colorOf(item.name)}` : '',
+                  { active: _handlers.isSelected(item) },
+                ]">
+                  {{ item.name }}
+                </button>
+              </td>
+              <td class="td-amount" :class="{
+                active: item && _handlers.isSelected(item),
+                hover: item && _handlers.isHovered(item),
+                clickable: !!item,
+              }" @click="item && click.toggle(item)" @mouseenter="item && click.hoverEnter(item)"
+                @mouseleave="click.hoverLeave()">
+                <input v-if="item" type="number" :min="minCoin" :max="maxCoin" :value="_handlers.coinOf(item)"
+                  @click.stop @input="click.onCoinInput(item, $event)" />
+              </td>
+              <td class="td-nums" :class="{
+                active: item && _handlers.isSelected(item),
+                hover: item && _handlers.isHovered(item),
+                clickable: !!item,
+              }" @click="item && click.toggle(item)" @mouseenter="item && click.hoverEnter(item)"
+                @mouseleave="click.hoverLeave()">
+                <span v-if="item?.nums?.length" class="nums-balls">
+                  <em v-for="num in item.nums" :key="`${item.playId}-${num}`" class="num-ball"
+                    :class="_handlers.colorOf(num) ? `c-${_handlers.colorOf(num)}` : ''">{{ num }}</em>
+                </span>
+              </td>
+            </template>
+          </tr>
+        </tbody>
+      </table>
+
+      <table v-else class="play-table" :class="{ 'pill-table': group.isPill }">
         <thead>
           <tr>
             <template v-for="col in group.columns" :key="`head-${group.groupName}-${col}`">
@@ -337,6 +416,27 @@ watch(() => mxState.amount, (val) => {
         }
       }
 
+      /* 帶號碼清單的玩法（半波 / 五行）：清單式排版，項目／金額窄、號碼欄吃剩餘寬度 */
+      &.nums-list-table {
+        .th-name,
+        .td-name {
+          width: 64px;
+        }
+
+        .td-name {
+          padding: 6px 4px;
+        }
+
+        .th-amount,
+        .td-amount {
+          width: 84px;
+        }
+
+        .td-nums {
+          padding: 6px 8px;
+        }
+      }
+
       .td-code {
         padding: 6px 4px;
       }
@@ -369,17 +469,23 @@ watch(() => mxState.amount, (val) => {
 
       /* 整格可點擊 / hover / 選中（事件與樣式都在 td 這層） */
       .td-code.clickable,
-      .td-amount.clickable {
+      .td-name.clickable,
+      .td-amount.clickable,
+      .td-nums.clickable {
         cursor: pointer;
       }
 
       .td-code.hover,
-      .td-amount.hover {
+      .td-name.hover,
+      .td-amount.hover,
+      .td-nums.hover {
         background: #fbe3e6;
       }
 
       .td-code.active,
-      .td-amount.active {
+      .td-name.active,
+      .td-amount.active,
+      .td-nums.active {
         background: var(--color-yellow-text);
       }
 
@@ -387,6 +493,48 @@ watch(() => mxState.amount, (val) => {
         border-color: var(--color-red-main);
         color: var(--color-red-main);
         font-weight: 700;
+      }
+    }
+
+    /* 注項涵蓋的號碼（半波 / 五行）：獨立「號碼」欄，轉成與號碼球一致的圓形樣式 */
+    .nums-balls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px;
+      pointer-events: none;
+
+      .num-ball {
+        box-sizing: border-box;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 0.15rem solid var(--6hcOf-ball-yellow);
+        background: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 600;
+        color: #000;
+        font-variant-numeric: tabular-nums;
+
+        &.c-red {
+          border-color: var(--6hcOf-ball-red);
+        }
+
+        &.c-blue {
+          border-color: var(--6hcOf-ball-blue);
+        }
+
+        &.c-green {
+          border-color: var(--6hcOf-ball-green);
+        }
+
+        &.c-yellow {
+          border-color: var(--6hcOf-ball-yellow);
+        }
       }
     }
 

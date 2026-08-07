@@ -4,8 +4,8 @@ import { actions } from '~/utils/common'
 import { LHC_COLORS } from '#shared/config/6hc-cd'
 import { use6hcCredit } from '~/composables/use6hcCredit'
 
-type BetItem = { playId?: string | number; name: string | number; coin?: string | number }
-const { state: mxState, select: mxSelect } = use6hcCredit()
+type BetItem = { playId?: string | number; name: string | number; coin?: string | number; codes?: string[] }
+const { state: mxState, select: mxSelect, currentCombo: mxCombo } = use6hcCredit()
 const items = computed<BetItem[]>(() => (mxSelect.items ?? []) as BetItem[])
 const totalCoin = computed(() => {
   if (mxState.select === 'tema') return items.value.length
@@ -73,7 +73,14 @@ const click = {
         <tbody>
           <tr v-for="(item, idx) in items" :key="item.playId ?? idx">
             <td class="col-bet">
-              <span class="option" :class="[
+              <!-- 連碼：一注帶多個號碼，逐顆畫成號碼球 -->
+              <template v-if="item.codes?.length">
+                <span v-for="code in item.codes" :key="`${item.playId}-${code}`"
+                  class="option is-ball" :class="`c-${_handlers.colorOf(code)}`">
+                  {{ code }}
+                </span>
+              </template>
+              <span v-else class="option" :class="[
                 _handlers.isNumber(item.name) ? 'is-ball' : 'is-pill',
                 _handlers.colorOf(item.name) ? `c-${_handlers.colorOf(item.name)}` : '',
               ]">
@@ -81,9 +88,9 @@ const click = {
               </span>
             </td>
             <td class="col-coin">
-              <input type="number" min="0" class="coin-input" :value="item.coin ?? 0" @click.stop
-                @input="click.onCoinInput(item, $event)" />
-            </td>
+              <!-- 連碼每注同額（由下方投注金額統一帶），逐注改金額會在下次重算時被覆蓋，故唯讀 -->
+              <input type="number" min="0" class="coin-input" :value="item.coin ?? 0" :readonly="!!mxCombo"
+                @click.stop @input="click.onCoinInput(item, $event)" /></td>
           </tr>
           <tr v-if="!items.length" class="tr-no-records">
             <td colspan="2" class="no-records">尚未選擇注項</td>

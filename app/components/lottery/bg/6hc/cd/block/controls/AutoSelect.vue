@@ -4,7 +4,7 @@ import { use6hcCredit } from '~/composables/use6hcCredit'
 
 // 隨機選號快捷注數
 const QUICK_COUNTS = [1, 3, 5, 10, 20]
-const { state: mxState, select: mxSelect, actions: mxActions } = use6hcCredit()
+const { state: mxState, select: mxSelect, actions: mxActions, currentCombo: mxCombo } = use6hcCredit()
 
 const state = reactive({
   count: 5 as number,
@@ -12,22 +12,30 @@ const state = reactive({
 
 // --- COMPUTED ---
 // 可隨機的注項數（號碼球優先，無號碼球才計入全部注項，與 composable randomPool 一致）
+// 連碼的 count 單位是「號碼數」而非注數，上限為該分頁的複式上限 maxPick
 const poolSize = computed(() => {
+  if (mxCombo.value) return mxCombo.value.maxPick
   const balls = mxSelect.pool.filter((item) => /^\d+$/.test(String(item.name)))
   return balls.length > 0 ? balls.length : mxSelect.pool.length
 })
-const selectedCount = computed(() => mxSelect.items.length)
-const quickCounts = computed(() => QUICK_COUNTS.filter((n) => n <= poolSize.value))
+const countUnit = computed(() => (mxCombo.value ? '個號' : '注'))
+const minCount = computed(() => mxCombo.value?.minPick ?? 1)
+// 連碼顯示已選號碼數（注數由組合展開決定，另在看板摘要呈現）
+const selectedCount = computed(() =>
+  mxCombo.value ? mxSelect.pool.filter((item) => item.select).length : mxSelect.items.length
+)
+const quickCounts = computed(() => QUICK_COUNTS.filter((n) => n >= minCount.value && n <= poolSize.value))
 const canRandom = computed(() => poolSize.value > 0 && mxState.submitStatus !== 'loading')
 const canClear = computed(() => selectedCount.value > 0 && mxState.submitStatus !== 'loading')
 
 // --- HANDLE ---
 const _handlers = {
-  // 注數限制在 [1, poolSize]
+  // 注數（連碼為號碼數）限制在 [minCount, poolSize]
   normalizeCount: (val: string | number) => {
     const num = Math.trunc(Number(val) || 0)
-    const max = Math.max(1, poolSize.value)
-    return Math.min(max, Math.max(1, num || 1))
+    const min = Math.max(1, minCount.value)
+    const max = Math.max(min, poolSize.value)
+    return Math.min(max, Math.max(min, num || min))
   },
 }
 
@@ -63,9 +71,9 @@ const click = {
         :class="{ active: state.count === n }" @click="click.setCount(n)">
         {{ n }}
       </button>
-      <input type="number" class="count-input" min="1" :max="Math.max(1, poolSize)" :value="state.count"
+      <input type="number" class="count-input" :min="minCount" :max="Math.max(minCount, poolSize)" :value="state.count"
         aria-label="隨機注數" @input="click.onCountInput" />
-      <span class="count-unit">注</span>
+      <span class="count-unit">{{ countUnit }}</span>
     </div>
 
     <button type="button" class="act-btn is-random" :disabled="!canRandom" @click="click.random">
@@ -76,7 +84,7 @@ const click = {
     </button>
 
     <span class="auto-select-hint">
-      已選 <strong>{{ selectedCount }}</strong> / {{ poolSize }} 注 · 每注 <strong>{{ mxState.amount }}</strong>
+      已選 <strong>{{ selectedCount }}</strong> / {{ poolSize }} {{ countUnit }} · 每注 <strong>{{ mxState.amount }}</strong>
     </span>
   </section>
 </template>

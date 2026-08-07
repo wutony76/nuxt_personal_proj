@@ -16,8 +16,8 @@ import { Lottery6hcCreditService } from '~/services/lottery6hcCreditService'
 
 // 玩法看板設定（特碼 / 正碼…），新增玩法只需在 shared/config/cd/index.js 註冊
 import C_PLAYS from '#shared/config/cd/plays'
-// 賠率與限額讀取層（分頁 settings.quota / 注項 odds）
-import { creditQuotaOf } from '#shared/config/cd/helpers'
+// 賠率與限額讀取層（分頁 settings.quota / 注項 odds / 連碼選號規格）
+import { creditComboCount, creditComboOf, creditQuotaOf, creditTiersOf } from '#shared/config/cd/helpers'
 
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -42,6 +42,8 @@ export type SelectItem = {
   name: string | number
   coin?: string | number
   select?: boolean
+  /** 連碼：該注的號碼組（如 ['03','15','22']）；其餘玩法不帶，一注只有一個注項 */
+  codes?: string[]
 }
 interface PlayOption {
   id: string
@@ -172,11 +174,66 @@ const groupList = computed(() => {
 // 當前玩法 + 分頁的限額（單注上下限 / 單期上限），前端 clamp 與提示皆讀這份
 const currentQuota = computed(() => creditQuotaOf(state.select, state.selectTabId))
 
+// 當前分頁的連碼選號規格（非連碼分頁為 null，看板據此決定用哪一套選取語意）
+const currentCombo = computed(() => creditComboOf(state.select, state.selectTabId))
+// 當前分頁的命中檔次表（連碼專用，看板顯示賠率用）
+const currentTiers = computed(() => creditTiersOf(state.select, state.selectTabId))
+// 連碼複式可組出的最大注數（選滿 maxPick 個號）
+const comboMaxBets = computed(() =>
+  currentCombo.value ? creditComboCount(currentCombo.value.maxPick, currentCombo.value.pick) : 0
+)
+
+/** 從已選號碼取出 k 個號的所有組合（字典序，供複式展開） */
+function _combinations(codes: string[], pick: number): string[][] {
+  const result: string[][] = []
+  const walk = (start: number, picked: string[]) => {
+    if (picked.length === pick) { result.push([...picked]); return }
+    for (let i = start; i < codes.length; i++) {
+      picked.push(codes[i] as string)
+      walk(i + 1, picked)
+      picked.pop()
+    }
+  }
+  if (pick > 0 && codes.length >= pick) walk(0, [])
+  return result
+}
+
+/**
+ * 依 pool 的 select 狀態重算「當前注項」
+ * 一般玩法：一個被選取的注項 = 一注
+ * 連碼：被選取的是「號碼」，要展開成 C(已選, pick) 個組合，每個組合才是一注
+ *      （伺端會逐注重新驗證號碼組是否合法，前端展開只影響顯示與送單內容）
+ */
+function _syncSelectItems() {
+  const picked = select.pool.filter((item) => Boolean(item.select))
+  const combo = currentCombo.value
+  if (!combo) {
+    select.items = picked
+    return
+  }
+  const codes = picked
+    .map((item) => String(Number(item.name)).padStart(2, '0'))
+    .sort((a, b) => Number(a) - Number(b))
+  const coin = Math.min(currentQuota.value.item.max, Math.max(currentQuota.value.item.min, Number(state.amount) || 0))
+  select.items = _combinations(codes, combo.pick).map((group) => ({
+    playId: `${state.selectTabId}-${group.join('-')}`,
+    name: group.join('、'),
+    codes: group,
+    coin,
+    select: true,
+  }))
+}
+
 // 切換分頁 / 玩法時把下注金額夾回新分頁的限額（A 盤 10 元帶進 B 盤最低 100 會被伺端拒單）
 watch(() => [state.select, state.selectTabId], () => {
   const quota = currentQuota.value
   const amount = Math.trunc(Number(state.amount) || 0)
   state.amount = Math.min(quota.item.max, Math.max(quota.item.min, amount))
+})
+
+// 連碼的每注金額由 state.amount 統一帶（不像其他玩法可逐項輸入），金額變動要重算注項
+watch(() => state.amount, () => {
+  if (currentCombo.value) _syncSelectItems()
 })
 
 const isOpening = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPENING)
@@ -621,6 +678,8 @@ const fetch = {
               label: String(item.name),
               num: Number.isFinite(num) && num > 0 ? num : undefined,
               amount: Number(item.coin), // 每注各自金額
+              // 連碼：一注帶多個號碼，伺端逐注驗證號碼組是否合法
+              ...(Array.isArray(item.codes) && item.codes.length > 0 ? { codes: item.codes } : {}),
             }
           }),
         },
@@ -788,17 +847,21 @@ export const use6hcCredit = () => {
     registerSelectPool: (items: SelectItem[]) => {
       select.pool = Array.isArray(items) ? items : []
     },
-    // 依 pool 的 select 狀態同步「當前注項」清單
+    // 依 pool 的 select 狀態同步「當前注項」清單（連碼會展開成組合，見 _syncSelectItems）
     syncSelectItems: () => {
-      select.items = select.pool.filter((item) => Boolean(item.select))
+      _syncSelectItems()
     },
     // 隨機選號：從當前分頁的號碼球（純數字注項）隨機取 count 注，套用當前金額
     // 兩面 / 色波等文字注項（特大特小、紅波…）互斥語意不適合亂數帶入，僅在無號碼球時才退回全部注項
+    // 連碼：count 的單位是「號碼數」而非注數，且需夾在 minPick ~ maxPick 之間
     randomSelect: (count: number) => {
       if (state.submitStatus === 'loading') return 0
       const pool = _handlers.randomPool()
       if (pool.length === 0) return 0
-      const size = Math.max(1, Math.min(Math.trunc(Number(count) || 0) || 1, pool.length))
+      const combo = currentCombo.value
+      const size = combo
+        ? Math.min(combo.maxPick, Math.max(combo.minPick, Math.trunc(Number(count) || 0) || combo.minPick))
+        : Math.max(1, Math.min(Math.trunc(Number(count) || 0) || 1, pool.length))
       const picked = _handlers.shuffle(pool).slice(0, size)
       const pickedIds = new Set(picked.map((item) => String(item.playId)))
       // 先清掉當前分頁既有選取，再套用隨機結果（避免同分頁重複累加）
@@ -830,8 +893,14 @@ export const use6hcCredit = () => {
           .filter((num) => Number.isFinite(num) && num > 0)
       )
       if (wanted.size === 0) return 0
-      const matched = select.pool.filter((item) => wanted.has(Number(item.name)))
+      let matched = select.pool.filter((item) => wanted.has(Number(item.name)))
       if (matched.length === 0) return 0
+      // 連碼：推薦號碼可能多於 maxPick（號碼推薦固定給 6 碼），超出就截到上限
+      const combo = currentCombo.value
+      if (combo) {
+        if (matched.length < combo.minPick) return 0
+        matched = matched.slice(0, combo.maxPick)
+      }
       const matchedIds = new Set(matched.map((item) => String(item.playId)))
       select.pool.forEach((item) => {
         item.select = matchedIds.has(String(item.playId))
@@ -946,6 +1015,9 @@ export const use6hcCredit = () => {
 
     groupList,
     currentQuota,
+    currentCombo,
+    currentTiers,
+    comboMaxBets,
 
     //
     time,

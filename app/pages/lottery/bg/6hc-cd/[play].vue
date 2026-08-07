@@ -8,7 +8,10 @@ import { actions } from '~/utils/common'
 import TemaPlay from '~/components/lottery/bg/6hc/cd/Tema.vue'
 import ZhengmaPlay from '~/components/lottery/bg/6hc/cd/Zhengma.vue'
 import ZhengmatePlay from '~/components/lottery/bg/6hc/cd/Zhengmate.vue'
+import LianmaPlay from '~/components/lottery/bg/6hc/cd/Lianma.vue'
 import QimaPlay from '~/components/lottery/bg/6hc/cd/Qima.vue'
+import WuxingPlay from '~/components/lottery/bg/6hc/cd/Wuxing.vue'
+import BanboPlay from '~/components/lottery/bg/6hc/cd/Banbo.vue'
 
 import { useBgAutoActive } from '~/composables/useBgAutoActive'
 import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
@@ -49,7 +52,10 @@ const playMap: Record<string, Component> = {
   tema: TemaPlay,
   zhengma: ZhengmaPlay,
   zhengmate: ZhengmatePlay,
+  lianma: LianmaPlay,
   qima: QimaPlay,
+  wuxing: WuxingPlay,
+  banbo: BanboPlay,
 }
 
 

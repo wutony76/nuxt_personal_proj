@@ -1,5 +1,12 @@
 import C_PLAYS from '#shared/config/cd/plays'
-import { creditOddsOf, CREDIT_JACKPOT, type CreditBetKind } from '#shared/config/6hc-cd'
+import {
+  creditOddsOf,
+  creditWuxingOddsOf,
+  CREDIT_JACKPOT,
+  CREDIT_WUXING_RTP_FALLBACK,
+  type CreditBetKind,
+  type CreditLianmaTier
+} from '#shared/config/6hc-cd'
 
 /**
  * 信用盤看板設定（c_tema / c_zhengma）的讀取層
@@ -20,13 +27,43 @@ export const CREDIT_QUOTA_FALLBACK: CreditQuota = {
   issue: { max: 0 },
 }
 
-type ConfigOption = { playId?: string | number; name?: string | number; odds?: number; weight?: number }
+/**
+ * 連碼的選號規格：一注固定 pick 個號，玩家可選 minPick ~ maxPick 個號
+ * 組成複式（C(已選, pick) 注）。只有連碼分頁會有這塊。
+ */
+export type CreditCombo = {
+  /** 一注幾個號 */
+  pick: number
+  /** 至少要選幾個號才能組單 */
+  minPick: number
+  /** 最多可選幾個號（複式上限） */
+  maxPick: number
+}
+
+type ConfigOption = {
+  playId?: string | number
+  name?: string | number
+  odds?: number
+  weight?: number
+  /**
+   * 該注項涵蓋的號碼（僅供看板／說明頁顯示，判定不讀這裡）
+   * 半波由 banboNumsOf() 產生、五行由 wuxingNumsOf() 依當年產生，皆非寫死
+   */
+  nums?: string[]
+}
 type ConfigGroup = { groupName?: string; groupList?: ConfigOption[]; weight?: number }
 type ConfigTab = {
   tabId?: number
   tabName?: string
-  settings?: { quota?: Partial<CreditQuota> }
+  settings?: {
+    quota?: Partial<CreditQuota>
+    combo?: Partial<CreditCombo>
+    /** 五行：賠率由號碼數推算，config 只設回報率 */
+    payout?: { rtp?: number }
+  }
   tabGroup?: ConfigGroup[]
+  /** 連碼：命中檔次與賠率（取代 tabGroup 的逐項 odds） */
+  tiers?: CreditLianmaTier[]
 }
 type ConfigPlay = { key?: string; name?: string; list?: ConfigTab[] }
 
@@ -96,12 +133,71 @@ function _findTabItem(
  * 取不到才退回 shared/config/6hc-cd 的玩法賠率常數。
  * @param betCode 注項名稱（"07" / "總和大"）或 playId（"3001-101"）
  */
-export function creditTabOddsOf(playKey?: string, tabId?: number | string, betCode?: string | number): number {
+export function creditTabOddsOf(
+  playKey?: string,
+  tabId?: number | string,
+  betCode?: string | number,
+  year?: number
+): number {
   const code = String(betCode ?? '').trim()
   if (!code) return 0
+  // 五行的號碼歸屬逐年輪轉，賠率不在 config 而是由該年的號碼數推算
+  if (String(playKey ?? '') === 'wuxing') {
+    return creditWuxingOddsOf(code, Number(year) || new Date().getFullYear(), creditRtpOf(playKey, tabId))
+  }
   const odds = Number(_findTabItem(playKey, tabId, code)?.item?.odds)
   if (Number.isFinite(odds) && odds > 0) return odds
-  return creditOddsOf(playKey, code)
+  return creditOddsOf(playKey, code, year)
+}
+
+/** 取分頁設定的回報率（五行用；未設定回 CREDIT_WUXING_RTP_FALLBACK） */
+export function creditRtpOf(playKey?: string, tabId?: number | string): number {
+  const rtp = Number(findCreditTab(playKey, tabId)?.settings?.payout?.rtp)
+  return Number.isFinite(rtp) && rtp > 0 ? rtp : CREDIT_WUXING_RTP_FALLBACK
+}
+
+/**
+ * 取分頁的連碼選號規格；非連碼分頁（沒有 combo 設定）回 null
+ * 前端看板據此限制可選號碼數，伺端據此驗證每注的號碼數
+ */
+export function creditComboOf(playKey?: string, tabId?: number | string): CreditCombo | null {
+  const combo = findCreditTab(playKey, tabId)?.settings?.combo
+  const pick = Number(combo?.pick)
+  if (!Number.isFinite(pick) || pick <= 0) return null
+  const minPick = _num(combo?.minPick, pick)
+  const maxPick = _num(combo?.maxPick, pick)
+  return {
+    pick,
+    // 至少要能組出一注，且上限不得小於下限（設定寫反時以 pick 為底線）
+    minPick: Math.max(pick, minPick),
+    maxPick: Math.max(Math.max(pick, minPick), maxPick),
+  }
+}
+
+/**
+ * 取分頁的命中檔次表（連碼專用）；順序即判定優先序（高賠率在前）
+ * 下注時整份快照到注單上，結算即以注單上的值派彩
+ */
+export function creditTiersOf(playKey?: string, tabId?: number | string): CreditLianmaTier[] {
+  const tiers = findCreditTab(playKey, tabId)?.tiers
+  return (Array.isArray(tiers) ? tiers : [])
+    .filter((tier) => String(tier?.key ?? '') && Number(tier?.odds) > 0)
+    .map((tier) => ({
+      key: String(tier.key),
+      name: String(tier.name ?? ''),
+      odds: Number(tier.odds),
+      weight: Number(tier.weight ?? 0),
+    }))
+}
+
+/** 組合數 C(n, k)，供複式注數計算（前端預覽與伺端驗證共用） */
+export function creditComboCount(n: number, k: number): number {
+  const total = Math.trunc(Number(n) || 0)
+  const pick = Math.trunc(Number(k) || 0)
+  if (pick < 0 || pick > total) return 0
+  let result = 1
+  for (let i = 1; i <= pick; i++) result = (result * (total - pick + i)) / i
+  return Math.round(result)
 }
 
 /** 只有「設定檔真的寫了一個 ≥ 0 的數字」才算有設定；未寫 / 寫錯型別回 null 交給下一層 */
@@ -113,17 +209,25 @@ const _explicitWeight = (value: unknown): number | null => {
 
 /**
  * 取單一注項的爆池分配權重
- * 順序：注項 weight（七碼逐項覆寫）→ 群組 weight → 全域 CREDIT_JACKPOT.weights[kind]
+ * 順序：命中檔次 weight（連碼）→ 注項 weight（七碼逐項覆寫）→ 群組 weight
+ *      → 全域 CREDIT_JACKPOT.weights[kind]
  * 設定值 0 視為「該注項不參與分配」，與「沒設定」不同 —— 沒設定才會往下一層退。
  * @param betCode 注項名稱或 playId
  * @param kind 判定結果的注項類別，僅在設定查不到時作為退回依據
+ * @param tierKey 命中的檔次 key（連碼專用，權重掛在檔次上而非號碼上）
  */
 export function creditJackpotWeightOf(
   playKey?: string,
   tabId?: number | string,
   betCode?: string | number,
-  kind?: CreditBetKind | null
+  kind?: CreditBetKind | null,
+  tierKey?: string | null
 ): number {
+  if (tierKey) {
+    const tier = findCreditTab(playKey, tabId)?.tiers?.find((item) => String(item?.key ?? '') === tierKey)
+    const tierWeight = _explicitWeight(tier?.weight)
+    if (tierWeight !== null) return tierWeight
+  }
   const found = _findTabItem(playKey, tabId, betCode)
   const itemWeight = _explicitWeight(found?.item?.weight)
   if (itemWeight !== null) return itemWeight

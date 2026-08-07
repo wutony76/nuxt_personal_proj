@@ -12,16 +12,139 @@ export const LHC_COLORS = {
 
 export type LhcColorKey = keyof typeof LHC_COLORS
 
-/** 五行對應號碼（金木水火土） */
-export const WUXING = {
-  j: ['01', '06', '11', '16', '21', '26', '31', '36', '41', '46'],
-  m: ['02', '07', '12', '17', '22', '27', '32', '37', '42', '47'],
-  s: ['03', '08', '13', '18', '23', '28', '33', '38', '43', '48'],
-  h: ['04', '09', '14', '19', '24', '29', '34', '39', '44', '49'],
-  t: ['05', '10', '15', '20', '25', '30', '35', '40', '45'],
-} as const satisfies Record<string, readonly string[]>
+/**
+ * 取某色波的純號碼清單
+ * LHC_COLORS 陣列尾端帶有 '紅波' / '藍波' / '綠波' 這類文字標籤（供注項名比對用），
+ * 要拿號碼時一定要濾掉，否則會把標籤當成號碼算進去。
+ */
+export function lhcColorNumbers(color: LhcColorKey): string[] {
+  return (LHC_COLORS[color] ?? []).filter((code) => /^\d+$/.test(code))
+}
 
-export type WuxingKey = keyof typeof WUXING
+/** 半波注項名首字 → 色波鍵值 */
+const BANBO_COLORS: Record<string, LhcColorKey> = { 紅: 'red', 藍: 'blue', 綠: 'green' }
+
+/** 半波注項名次字 → 篩選條件 */
+const BANBO_CONDITIONS: Record<string, (num: number) => boolean> = {
+  大: (num) => num >= 25,
+  小: (num) => num <= 24,
+  單: (num) => num % 2 === 1,
+  雙: (num) => num % 2 === 0,
+}
+
+/**
+ * 取半波注項涵蓋的號碼（色波 ∩ 大小／單雙）
+ *
+ * 色波的號碼分布是固定的（紅 17 / 藍 16 / 綠 16），不像五行逐年輪轉，
+ * 所以這裡不需要年份參數；但仍以函式產生而非在 config 寫死，
+ * 確保 c_banbo 的號碼永遠與 LHC_COLORS 同步，不會兩邊各改一半。
+ *
+ * @param betCode 注項名（紅大 / 綠單 / 藍雙…）
+ * @returns 該注項的號碼（補零字串）；無法辨識回空陣列
+ */
+export function banboNumsOf(betCode: string): string[] {
+  const code = String(betCode ?? '').trim()
+  const color = BANBO_COLORS[code[0] ?? '']
+  const condition = BANBO_CONDITIONS[code[1] ?? '']
+  if (!color || !condition) return []
+  return lhcColorNumbers(color).filter((num) => condition(Number(num)))
+}
+
+// ── 五行（金木水火土）──────────────────────────────────────────
+// ⚠️ 五行對應號碼「逐年輪轉」，與生肖同性質（見 shengxiaoAll），不是固定表。
+// 舊版這裡寫死成 n % 5 分組（金 = 01,06,11…），那既不是六合彩的五行、也不隨年變動。
+//
+// 規則：號碼兩兩一組（01,02）（03,04）…（47,48），49 自成一組，共 25 組；
+// 第 1 組對應「當年干支所屬的納音組」，其後依六十甲子納音順序往下推，該組的納音五行即為五行。
+//
+// ⚠️ 這裡是以「號碼對 → 納音組」對應，不是「號碼 → 干支」逐一對應。
+//    後者在干支序為奇數的年份會讓配對錯位成（01）（02,03）（04,05）…，
+//    與實際五行表永遠 (01,02)(03,04) 成對的形式不符。
+//
+// ⚠️ 各五行的號碼數會隨年份在 8 ~ 12 之間變動（2026 丙午年：水 12 個、火 8 個），
+//    所以賠率不能寫死在 config —— 必須由「該年該五行的號碼數」推算，見 creditWuxingOddsOf。
+
+export type WuxingKey = 'j' | 'm' | 's' | 'h' | 't'
+
+/** 五行鍵值 → 中文名（config 注項與注單存的是中文名） */
+export const WUXING_NAMES: Record<WuxingKey, string> = { j: '金', m: '木', s: '水', h: '火', t: '土' }
+
+/** 中文名 → 鍵值 */
+export const WUXING_KEYS: Record<string, WuxingKey> = { 金: 'j', 木: 'm', 水: 's', 火: 'h', 土: 't' }
+
+const TIANGAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'] as const
+const DIZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'] as const
+
+/**
+ * 六十甲子納音五行（30 組，每組 2 個干支）
+ * index = 干支序 / 2，例如干支序 0~1（甲子乙丑）= 海中金 → 金
+ */
+const NAYIN_ELEMENTS: readonly WuxingKey[] = [
+  'j', 'h', 'm', 't', 'j', 'h', 's', 't', 'j', 'm', // 海中金 爐中火 大林木 路旁土 劍鋒金 山頭火 澗下水 城頭土 白蠟金 楊柳木
+  's', 't', 'h', 'm', 's', 'j', 'h', 'm', 't', 'j', // 泉中水 屋上土 霹靂火 松柏木 長流水 沙中金 山下火 平地木 壁上土 金箔金
+  'h', 's', 't', 'j', 'm', 's', 't', 'h', 'm', 's', // 覆燈火 天河水 大驛土 釵釧金 桑柘木 大溪水 沙中土 天上火 石榴木 大海水
+]
+
+/** 西元年 → 六十甲子序（1984 年為甲子 = 0） */
+export function ganzhiIndexOfYear(year: number): number {
+  const num = Math.trunc(Number(year))
+  if (!Number.isFinite(num)) return 0
+  return ((num - 1984) % 60 + 60) % 60
+}
+
+/** 該年的干支字串（如 2026 → 丙午） */
+export function ganzhiOfYear(year: number): string {
+  const index = ganzhiIndexOfYear(year)
+  return `${TIANGAN[index % 10]}${DIZHI[index % 12]}`
+}
+
+/**
+ * 依年份推算五行對應號碼
+ * @param year 西元年（以「開獎期別的年份」為準，跨年結算舊期時不可用今年的表）
+ * @returns 以五行鍵值為 key 的號碼表（補零字串）
+ */
+export function wuxingAll(year: number): Record<WuxingKey, string[]> {
+  // 當年干支所屬的納音組（六十甲子兩個干支共用一個納音）
+  const startPair = Math.floor(ganzhiIndexOfYear(year) / 2)
+  const table: Record<WuxingKey, string[]> = { j: [], m: [], s: [], h: [], t: [] }
+  for (let num = 1; num <= 49; num++) {
+    // 號碼對序：01,02 → 0，03,04 → 1 …，47,48 → 23，49 → 24（自成一組）
+    const pair = Math.floor((num - 1) / 2)
+    const element = NAYIN_ELEMENTS[(startPair + pair) % NAYIN_ELEMENTS.length] as WuxingKey
+    table[element].push(String(num).padStart(2, '0'))
+  }
+  return table
+}
+
+/**
+ * 依年份建立「號碼 → 五行中文名」對照表
+ * 伺端每期結算會呼叫，建議以年份為 key 快取（見 lottery6hcCd 的 wuxingByNumber）
+ */
+export function wuxingNameByNumber(year: number): Record<string, string> {
+  const map: Record<string, string> = {}
+  const table = wuxingAll(year)
+  ;(Object.keys(table) as WuxingKey[]).forEach((key) => {
+    table[key].forEach((code) => { map[code] = WUXING_NAMES[key] })
+  })
+  return map
+}
+
+/**
+ * 取某個五行在指定年份的號碼清單
+ * @param betCode 五行中文名（金 / 木 / 水 / 火 / 土）或鍵值（j / m / s / h / t）
+ * @param year 西元年（看板顯示可用今年；結算舊期務必帶該期年份）
+ */
+export function wuxingNumsOf(betCode: string, year: number): string[] {
+  const code = String(betCode ?? '').trim()
+  const key = (WUXING_KEYS[code] ?? code) as WuxingKey
+  return wuxingAll(year)[key] ?? []
+}
+
+/**
+ * 當年的五行對照表
+ * @deprecated 只保留給舊引用；五行逐年輪轉，請改用 wuxingAll(該期年份)
+ */
+export const WUXING: Record<WuxingKey, string[]> = wuxingAll(new Date().getFullYear())
 
 /** 尾數列表（0尾 ~ 9尾） */
 export const WS = ['0尾', '1尾', '2尾', '3尾', '4尾', '5尾', '6尾', '7尾', '8尾', '9尾'] as const
@@ -290,12 +413,15 @@ export const __CREDIT_PLAY_DEFINITIONS: CreditPlayDefinition[] = [
     },
   },
 ]
+/** 玩法頁上方的玩法分頁；順序需與 shared/config/cd/plays.ts 一致 */
 export const CREDIT_PLAY_DEFINITIONS: TypePlayItem[] = [
   { key: 'tema', name: '特碼' },
   { key: 'zhengma', name: '正碼' },
   { key: 'zhengmate', name: '正碼特' },
   { key: 'lianma', name: '連碼' },
   { key: 'qima', name: '七碼' },
+  { key: 'wuxing', name: '五行' },
+  { key: 'banbo', name: '半波' },
 ]
 
 // ── 信用盤（6hc-cd）賠率與中獎判定 ────────────────────────────────
@@ -328,6 +454,12 @@ export type CreditJudgeResult = {
   odds: number
   /** 派彩金額：中獎 = 注金 × 賠率、和局 = 退還注金、未中 = 0 */
   payout: number
+  /** 命中檔次 key（僅多檔玩法如連碼會有，未中為空） */
+  tier?: string
+  /** 命中檔次名稱（供注單／紀錄顯示，如「中三」） */
+  tierName?: string
+  /** 命中檔次的爆池分配權重（僅多檔玩法會有） */
+  weight?: number
 }
 
 /** 合數（十位 + 個位） */
@@ -699,14 +831,210 @@ export function judgeCreditQimaBet(
   return _payout('side', hit ? 'win' : 'lose', odds, coin)
 }
 
+// ── 五行玩法（6hc-cd）賠率與中獎判定 ──────────────────────────────
+// 以特別號（openCode[6]）所屬五行結算，性質與色波相同。
+// 差別在於：色波的號碼分布固定（紅 17 / 藍 16 / 綠 16），賠率可以寫死；
+// 五行逐年輪轉，各組號碼數在 8 ~ 12 之間變動 —— 同一個賠率在不同年份的抽水率會差到兩成，
+// 所以賠率改由「該年該五行的號碼數」推算：
+//
+//     odds = rtp × 49 / 該五行號碼數
+//
+// rtp 由分頁設定提供（c_wuxing.js 的 settings.payout.rtp），config 不放 odds。
+// 下注時算出的賠率一樣會鎖進注單，結算即以注單上的值派彩，跨年也不受影響。
+
+/** 分頁未設定 payout.rtp 時的預設回報率 */
+export const CREDIT_WUXING_RTP_FALLBACK = 0.97
+
+/**
+ * 取五行注項賠率（含本金）
+ * @param betCode 五行中文名（金 / 木 / 水 / 火 / 土）
+ * @param year 該期年份（五行表逐年輪轉，一定要帶對）
+ * @param rtp 分頁設定的回報率
+ * @returns 賠率；無法辨識回 0
+ */
+export function creditWuxingOddsOf(
+  betCode: string | number,
+  year: number,
+  rtp: number = CREDIT_WUXING_RTP_FALLBACK
+): number {
+  const key = WUXING_KEYS[String(betCode ?? '').trim()]
+  if (!key) return 0
+  const count = wuxingAll(year)[key].length
+  if (!(count > 0)) return 0
+  const safeRtp = Number(rtp) > 0 ? Number(rtp) : CREDIT_WUXING_RTP_FALLBACK
+  return Number((safeRtp * 49 / count).toFixed(2))
+}
+
+/**
+ * 五行玩法中獎判定（以特別號所屬五行結算，不設和局）
+ * @param betCode 五行中文名（金 / 木 / 水 / 火 / 土）
+ * @param openCode 該期完整開獎號（7 顆：6 正碼 + 特別號）
+ * @param coin 該注注金
+ * @param year 該期年份
+ * @param rtp 分頁設定的回報率
+ */
+export function judgeCreditWuxingBet(
+  betCode: string | number,
+  openCode: Array<string | number>,
+  coin: number,
+  year: number,
+  rtp: number = CREDIT_WUXING_RTP_FALLBACK
+): CreditJudgeResult | null {
+  const key = WUXING_KEYS[String(betCode ?? '').trim()]
+  if (!key) return null
+  const special = Number((Array.isArray(openCode) ? openCode : [])[6])
+  if (!Number.isFinite(special) || special <= 0) return null
+  const odds = creditWuxingOddsOf(betCode, year, rtp)
+  if (!(odds > 0)) return null
+  const hit = wuxingAll(year)[key].includes(String(special).padStart(2, '0'))
+  // 與色波同類（一組號碼對特別號），爆池分配沿用 color 權重
+  return _payout('color', hit ? 'win' : 'lose', odds, coin)
+}
+
+// ── 半波玩法（6hc-cd）賠率與中獎判定 ──────────────────────────────
+// 以特別號結算，性質同色波：注項 = 色波 ∩ 大小／單雙 的號碼集合（見 banboNumsOf）。
+// 各注項號碼數不同（7 ~ 10 個），所以賠率逐項不同，不能整組共用一個值。
+// 色波分布固定，不像五行逐年輪轉，故不需要年份參數。
+// 不設和局：49 屬綠波且為單、為大，已落在既有注項內。
+
+/**
+ * 取半波注項賠率（含本金）
+ * 以理論值（49 / 該注項號碼數）×0.97 推算，與 c_banbo.ts 的 odds 同一組數字；
+ * 正式取值仍以分頁 config 的 odds 為主，這裡是取不到時的退回值。
+ */
+export function creditBanboOddsOf(betCode: string | number): number {
+  const nums = banboNumsOf(String(betCode ?? ''))
+  if (nums.length === 0) return 0
+  return Number((0.97 * 49 / nums.length).toFixed(2))
+}
+
+/**
+ * 半波玩法中獎判定（特別號落在該注項的號碼集合內即中）
+ * @param betCode 注項名（紅大 / 綠單 / 藍雙…）
+ * @param openCode 該期完整開獎號（7 顆：6 正碼 + 特別號）
+ * @param coin 該注注金
+ */
+export function judgeCreditBanboBet(
+  betCode: string | number,
+  openCode: Array<string | number>,
+  coin: number
+): CreditJudgeResult | null {
+  const nums = banboNumsOf(String(betCode ?? ''))
+  if (nums.length === 0) return null
+  const special = Number((Array.isArray(openCode) ? openCode : [])[6])
+  if (!Number.isFinite(special) || special <= 0) return null
+  const odds = creditBanboOddsOf(betCode)
+  if (!(odds > 0)) return null
+  const hit = nums.includes(String(special).padStart(2, '0'))
+  // 與色波同類（一組號碼對特別號），爆池分配沿用 color 權重
+  return _payout('color', hit ? 'win' : 'lose', odds, coin)
+}
+
+// ── 連碼玩法（6hc-cd）判定 ────────────────────────────────────────
+// 連碼與前四個玩法最大的差異：一注帶「一組號碼」而非單一注項，
+// 而且同一注有多種中法（三中二可能中三或中二），賠率在開獎後才確定。
+// 因此賠率不由本檔常數提供，而是下注時把分頁的 tiers 快照鎖在注單上，
+// 結算時依命中檔次取值 —— 本檔只負責「命中了哪一檔」。
+
+/** 一組注碼對開獎號的命中統計 */
+export type CreditLianmaHit = {
+  /** 命中的正碼數（openCode[0..5]） */
+  normal: number
+  /** 是否命中特別號（0 / 1） */
+  special: number
+  /** 該注的號碼數 */
+  total: number
+}
+
+/**
+ * 連碼各檔次的成立條件（key 對應 c_lianma.js 的 tiers[].key）
+ * 每個分頁的注碼數由 settings.combo.pick 固定，故條件只需看命中組成：
+ *   all3 / hit3  3 個號全中正碼
+ *   all2 / hit2  命中 2 個正碼（二全中／二中特為 2 選 2、三中二為 3 選 2）
+ *   hitT / chain 1 個正碼 + 特別號
+ */
+const CREDIT_LIANMA_TIER_RULES: Record<string, (hit: CreditLianmaHit) => boolean> = {
+  all3: (hit) => hit.normal === 3,
+  hit3: (hit) => hit.normal === 3,
+  all2: (hit) => hit.normal === 2,
+  hit2: (hit) => hit.normal === 2,
+  hitT: (hit) => hit.normal === 1 && hit.special === 1,
+  chain: (hit) => hit.normal === 1 && hit.special === 1,
+}
+
+/** 該分頁的 tiers 快照（下注時鎖在注單上，結算以此派彩） */
+export type CreditLianmaTier = { key?: string; name?: string; odds?: number; weight?: number }
+
+/** 統計一組注碼命中幾個正碼、是否含特別號 */
+export function creditLianmaHitOf(
+  betCodes: Array<string | number>,
+  openCode: Array<string | number>
+): CreditLianmaHit | null {
+  const codes = (Array.isArray(betCodes) ? betCodes : [])
+    .map((code) => Number(code))
+    .filter((num) => Number.isFinite(num) && num > 0)
+  // 同一注內號碼不得重複（重複會讓命中數灌水）
+  if (codes.length === 0 || new Set(codes).size !== codes.length) return null
+  const opened = Array.isArray(openCode) ? openCode : []
+  const normals = new Set(
+    opened.slice(0, CREDIT_ZHENGMA_NORMAL_COUNT).map((code) => Number(code)).filter((num) => num > 0)
+  )
+  const special = Number(opened[6])
+  if (normals.size !== CREDIT_ZHENGMA_NORMAL_COUNT || !(special > 0)) return null
+  return {
+    normal: codes.filter((num) => normals.has(num)).length,
+    special: codes.includes(special) ? 1 : 0,
+    total: codes.length,
+  }
+}
+
+/**
+ * 連碼玩法中獎判定（依分頁 tiers 由高到低比對，第一個成立的檔次即為結果）
+ * @param betCodes 該注的號碼組（如 ['03','15','22']）
+ * @param openCode 該期完整開獎號（7 顆：6 正碼 + 特別號）
+ * @param coin 該注注金
+ * @param tiers 下注時鎖在注單上的檔次表（順序即優先序，高賠率在前）
+ * @returns 判定結果；注碼或開獎號無效、或 tiers 缺漏時回 null
+ */
+export function judgeCreditLianmaBet(
+  betCodes: Array<string | number>,
+  openCode: Array<string | number>,
+  coin: number,
+  tiers: CreditLianmaTier[]
+): CreditJudgeResult | null {
+  const list = (Array.isArray(tiers) ? tiers : []).filter((tier) => Number(tier?.odds) > 0)
+  if (list.length === 0) return null
+  const hit = creditLianmaHitOf(betCodes, openCode)
+  if (!hit) return null
+
+  for (const tier of list) {
+    const rule = CREDIT_LIANMA_TIER_RULES[String(tier.key ?? '')]
+    if (!rule || !rule(hit)) continue
+    const result = _payout('number', 'win', Number(tier.odds), coin)
+    return { ...result, tier: String(tier.key), tierName: String(tier.name ?? ''), weight: Number(tier.weight ?? 0) }
+  }
+  // 沒有任何檔次成立 = 未中（連碼不設和局）；賠率取最低檔僅供紀錄顯示
+  const lowest = list.reduce((min, tier) => (Number(tier.odds) < Number(min.odds) ? tier : min), list[0]!)
+  return _payout('number', 'lose', Number(lowest.odds), coin)
+}
+
 // ── 玩法分派（依 play_key 取賠率／判定，供伺端結算與下注紀錄共用） ─────
 
-/** 依玩法取注項賠率；未支援的玩法回 0 */
-export function creditOddsOf(playKey: string | undefined, betCode: string | number): number {
+/**
+ * 依玩法取注項賠率；未支援的玩法回 0
+ * @param year 五行專用（號碼表逐年輪轉）；不給時以「今年」計算，
+ *             結算舊期一定要帶該期年份，否則跨年後賠率會算錯
+ */
+export function creditOddsOf(playKey: string | undefined, betCode: string | number, year?: number): number {
   switch (String(playKey ?? '')) {
     case 'zhengma': return creditZhengmaOddsOf(betCode)
     case 'zhengmate': return creditZhengmateOddsOf(betCode)
     case 'qima': return creditQimaOddsOf(betCode)
+    case 'wuxing': return creditWuxingOddsOf(betCode, Number(year) || new Date().getFullYear())
+    case 'banbo': return creditBanboOddsOf(betCode)
+    // 連碼的賠率在分頁 tiers（開獎後才知道命中哪一檔），單一號碼沒有賠率。
+    // 一定要有這個 case —— 少了它會落到 default 被當成特碼，號碼注項會拿到 48。
+    case 'lianma': return 0
     // 未帶 play_key 的舊注單一律以特碼解讀（原有行為）
     default: return creditTemaOddsOf(betCode)
   }
@@ -718,7 +1046,8 @@ export function creditOddsOf(playKey: string | undefined, betCode: string | numb
  */
 export function creditNumberBetHitsSpecial(playKey?: string): boolean {
   const key = String(playKey ?? '')
-  return key !== 'zhengma' && key !== 'zhengmate' && key !== 'qima'
+  // 五行雖然看特別號，但注項是一組號碼（同色波），不算「單號命中」
+  return key !== 'zhengma' && key !== 'zhengmate' && key !== 'qima' && key !== 'lianma' && key !== 'wuxing'
 }
 
 /** 依玩法判定單注結果；未支援的玩法回 null（呼叫端視為和局退還本金） */
@@ -729,12 +1058,32 @@ export function judgeCreditBet(input: {
   coin: number
   /** 該注所屬分頁：正碼特需要靠它決定看哪一顆正碼，其餘玩法可省略 */
   tabId?: number | string
+  /** 該注的完整號碼組（連碼一注帶多個號，其餘玩法只有一個、與 betCode 同值） */
+  betCodes?: Array<string | number>
+  /** 下注時鎖在注單上的檔次表（僅連碼使用） */
+  tiers?: CreditLianmaTier[]
+  /** 該期年份（僅五行使用：號碼表逐年輪轉，結算舊期須帶該期年份而非今年） */
+  year?: number
+  /** 分頁設定的回報率（僅五行使用） */
+  rtp?: number
 }): CreditJudgeResult | null {
   const codes = Array.isArray(input?.openCode) ? input.openCode : []
   switch (String(input?.playKey ?? '')) {
     case 'zhengma': return judgeCreditZhengmaBet(input.betCode, codes, input.coin)
     case 'zhengmate': return judgeCreditZhengmateBet(input.betCode, codes, input.coin, input.tabId)
     case 'qima': return judgeCreditQimaBet(input.betCode, codes, input.coin)
+    case 'wuxing': return judgeCreditWuxingBet(
+      input.betCode, codes, input.coin,
+      Number(input.year) || new Date().getFullYear(),
+      input.rtp
+    )
+    case 'banbo': return judgeCreditBanboBet(input.betCode, codes, input.coin)
+    case 'lianma': return judgeCreditLianmaBet(
+      Array.isArray(input.betCodes) && input.betCodes.length > 0 ? input.betCodes : [input.betCode],
+      codes,
+      input.coin,
+      Array.isArray(input.tiers) ? input.tiers : []
+    )
     default: return judgeCreditTemaBet(input.betCode, codes[6] ?? '', input.coin)
   }
 }

@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import {
+  banboNumsOf,
+  creditWuxingOddsOf,
+  ganzhiOfYear,
+  wuxingNumsOf,
   CREDIT_JACKPOT,
   CREDIT_QIMA_BALL_COUNT,
   CREDIT_QIMA_ODDS,
@@ -12,7 +16,14 @@ import {
   CREDIT_ZHENGMATE_ODDS
 } from '#shared/config/6hc-cd'
 import C_PLAYS from '#shared/config/cd/plays'
-import { creditQuotaOf } from '#shared/config/cd/helpers'
+import {
+  creditComboCount,
+  creditComboOf,
+  creditQuotaOf,
+  creditRtpOf,
+  creditTabOddsOf,
+  creditTiersOf
+} from '#shared/config/cd/helpers'
 import { actions } from '~/utils/common'
 import { use6hcCredit } from '~/composables/use6hcCredit'
 
@@ -163,6 +174,67 @@ const QIMA_ODDS_ROWS = [
   odds: Number(CREDIT_QIMA_ODDS[`單${item.count}雙${CREDIT_QIMA_BALL_COUNT - item.count}`] ?? 0),
 }))
 
+// 連碼玩法：一注帶多個號碼、依命中組成分檔派彩，賠率與選號規格直接讀 c_lianma 設定
+const LIANMA_TABS = (C_PLAYS as Array<{ key?: string; list?: Array<Record<string, any>> }>)
+  .find((play) => play.key === 'lianma')?.list ?? []
+const LIANMA_RULES: Record<string, { rule: string; desc: string; example: string }> = {
+  三全中: {
+    rule: '3 個號全中正碼',
+    desc: '選 3 個號，全部命中 6 顆正碼才算中獎；含特別號不算。',
+    example: '例：正碼開 03 08 15 22 29 36 → 選 03、15、22 中獎',
+  },
+  三中二: {
+    rule: '命中 3 個為中三、命中 2 個為中二',
+    desc: '選 3 個號，依命中的正碼數分兩檔派彩。剩下那個號碼是特別號時，本盤併入中二計算。',
+    example: '例：選 03、15、07 命中 2 個正碼 → 中二；選 03、15、22 → 中三',
+  },
+  二全中: {
+    rule: '2 個號全中正碼',
+    desc: '選 2 個號，兩個都要是正碼；1 個正碼 + 特別號不算中。',
+    example: '例：選 03、15 皆為正碼 → 中獎；選 03、特別號 → 未中',
+  },
+  二中特: {
+    rule: '2 個正碼為中二、1 正碼 + 特別號為中特',
+    desc: '選 2 個號，兩種中法各有賠率；中特較稀有（0.51% vs 1.28%），賠率較高。',
+    example: '例：選 03、15 → 中二；選 03、特別號 → 中特',
+  },
+  特串: {
+    rule: '1 個正碼 + 1 個特別號',
+    desc: '選 2 個號，必須剛好一個是正碼、一個是特別號；兩個都是正碼不算中。',
+    example: '例：特別號開 41，選 03、41 → 中獎；選 03、15 → 未中',
+  },
+}
+const LIANMA_PLAY_TYPES = LIANMA_TABS.map((tab) => {
+  const name = String(tab.tabName ?? '')
+  const combo = creditComboOf('lianma', tab.tabId)
+  const tiers = creditTiersOf('lianma', tab.tabId)
+  const rule = LIANMA_RULES[name]
+  return {
+    key: `lianma-${tab.tabId}`,
+    name,
+    odds: tiers.map((tier) => `${tier.name} ${tier.odds}`).join(' / '),
+    rule: rule?.rule ?? '',
+    desc: `${rule?.desc ?? ''}一注 ${combo?.pick ?? 0} 個號，最多可選 ${combo?.maxPick ?? 0} 個組複式（${creditComboCount(combo?.maxPick ?? 0, combo?.pick ?? 0)} 注）。`,
+    example: rule?.example ?? '',
+  }
+})
+
+// 五行：號碼與賠率都逐年輪轉（納音），直接讀當年的表，跨年自動跟上
+const WUXING_YEAR = new Date().getFullYear()
+const WUXING_ROWS = ['金', '木', '水', '火', '土'].map((name) => {
+  const nums = wuxingNumsOf(name, WUXING_YEAR)
+  return { name, nums, count: nums.length, odds: creditWuxingOddsOf(name, WUXING_YEAR, creditRtpOf('wuxing', 7000)) }
+})
+
+// 半波：色波 ∩ 大小／單雙，號碼由 banboNumsOf 算出（色波分布固定，不隨年變）
+const BANBO_ROWS = ['紅', '綠', '藍'].flatMap((color) =>
+  ['大', '小', '單', '雙'].map((side) => {
+    const name = `${color}${side}`
+    const nums = banboNumsOf(name)
+    return { name, color, nums, count: nums.length, odds: creditTabOddsOf('banbo', 8000, name) }
+  })
+)
+
 const PRIZE_ROWS = [
   { name: '特碼單號', condition: '號碼 = 特別號', odds: CREDIT_TEMA_ODDS.number, hint: '49 選 1，理論值 49' },
   { name: '特碼兩面', condition: '大小／單雙／合單雙／尾大小', odds: CREDIT_TEMA_ODDS.side, hint: `開 ${CREDIT_TIE_SPECIAL_NUMBER} 號為和局，退還本金` },
@@ -176,17 +248,34 @@ const PRIZE_ROWS = [
   { name: '正碼特紅波', condition: '該名次正碼屬紅波（17 個號）', odds: CREDIT_ZHENGMATE_ODDS.colorRed, hint: '理論值 2.88' },
   { name: '正碼特藍波', condition: '該名次正碼屬藍波（16 個號）', odds: CREDIT_ZHENGMATE_ODDS.colorBlue, hint: '理論值 3.06' },
   { name: '正碼特綠波', condition: `該名次正碼屬綠波（16 個號，含 ${CREDIT_TIE_SPECIAL_NUMBER}）`, odds: CREDIT_ZHENGMATE_ODDS.colorGreen, hint: '理論值 3.06' },
+  // 連碼各檔次：條件與賠率都讀 c_lianma 的 tiers，config 調整後自動跟上
+  ...LIANMA_TABS.flatMap((tab) => {
+    const tabName = String(tab.tabName ?? '')
+    const hints: Record<string, string> = {
+      all3: '理論值 921.20', hit3: '理論值 921.20', hit2: '', all2: '理論值 78.40',
+      hitT: '理論值 196.00', chain: '理論值 196.00',
+    }
+    return creditTiersOf('lianma', tab.tabId).map((tier) => ({
+      name: `${tabName}${tier.name === tabName ? '' : ` · ${tier.name}`}`,
+      condition: LIANMA_RULES[tabName]?.rule ?? '',
+      odds: Number(tier.odds),
+      hint: hints[String(tier.key)] || (tabName === '三中二' ? '理論值 28.56' : '理論值 78.40'),
+    }))
+  }),
 ]
 
 // 各分頁的賠率與限額：直接讀 c_tema / c_zhengma 設定，config 調整後說明頁自動跟上
 const TAB_ROWS = (C_PLAYS as Array<{ name?: string; key?: string; list?: Array<Record<string, any>> }>)
   .flatMap((play) => (play.list ?? []).map((tab) => {
     const quota = creditQuotaOf(play.key, tab.tabId)
-    // 各群組取第一個注項的賠率當代表（同群組賠率相同）
-    const odds = (tab.tabGroup ?? []).map((group: any) => ({
-      groupName: String(group?.groupName ?? ''),
-      odds: Number(group?.groupList?.[0]?.odds ?? 0),
-    })).filter((item: { odds: number }) => item.odds > 0)
+    // 連碼的賠率在命中檔次上（號碼池不帶 odds），其餘玩法取各群組第一個注項的賠率當代表
+    const odds = (tab.tiers?.length
+      ? tab.tiers.map((tier: any) => ({ groupName: String(tier?.name ?? ''), odds: Number(tier?.odds ?? 0) }))
+      : (tab.tabGroup ?? []).map((group: any) => ({
+        groupName: String(group?.groupName ?? ''),
+        odds: Number(group?.groupList?.[0]?.odds ?? 0),
+      }))
+    ).filter((item: { odds: number }) => item.odds > 0)
     return {
       playName: String(play.name ?? play.key ?? ''),
       tabName: String(tab.tabName ?? ''),
@@ -212,8 +301,10 @@ const JACKPOT_WEIGHT_ROWS = (C_PLAYS as Array<{ name?: string; list?: Array<Reco
   .flatMap((play) => {
     const byWeight = new Map<string, Set<string>>()
     ;(play.list ?? []).forEach((tab) => (tab.tabGroup ?? []).forEach((group: any) => {
+      // 連碼的權重掛在命中檔次上；其餘玩法看注項（七碼逐項覆寫）再看群組
       const itemWeights = [...new Set(
-        (group?.groupList ?? []).map((item: any) => Number(item?.weight)).filter((w: number) => w > 0)
+        (tab.tiers?.length ? tab.tiers : (group?.groupList ?? []))
+          .map((item: any) => Number(item?.weight)).filter((w: number) => w > 0)
       )] as number[]
       const label = itemWeights.length > 0
         ? (itemWeights.length === 1
@@ -279,7 +370,9 @@ const click = {
               <strong>特碼</strong>看第 7 顆特別號，<strong>正碼</strong>看前
               {{ CREDIT_ZHENGMA_NORMAL_COUNT }} 顆正碼與七球總和，
               <strong>正碼特</strong>看指定名次的那一顆正碼，
-              <strong>七碼</strong>看 {{ CREDIT_QIMA_BALL_COUNT }} 顆球的單雙／大小組成顆數。
+              <strong>連碼</strong>看自選號碼組命中幾個正碼／是否含特別號，
+              <strong>七碼</strong>看 {{ CREDIT_QIMA_BALL_COUNT }} 顆球的單雙／大小組成顆數，
+              <strong>五行</strong>與<strong>半波</strong>看特別號落在哪一組號碼。
             </li>
             <li>與官方玩法的差異：官方是「一注 6 顆號碼、依命中數分層領獎池」，信用玩法是「一注一個注項、中獎即按賠率派彩」。</li>
           </ul>
@@ -317,9 +410,10 @@ const click = {
         <div id="cd-section-play" class="rule-section">
           <h4 class="rule-title">投注玩法</h4>
           <p class="rule-note">
-            目前開放「<strong>特碼</strong>」「<strong>正碼</strong>」「<strong>正碼特</strong>」「<strong>七碼</strong>」四種玩法。
+            目前開放「<strong>特碼</strong>」「<strong>正碼</strong>」「<strong>正碼特</strong>」「<strong>連碼</strong>」「<strong>七碼</strong>」「<strong>五行</strong>」「<strong>半波</strong>」七種玩法。
             特碼與正碼各分為 <strong>A / B</strong> 兩個分頁（注項相同、賠率與限額不同）；
-            正碼特分為 <strong>正一特 — 正六特</strong> 六個分頁（對應 6 顆正碼的名次）；七碼只有一個分頁。
+            正碼特分為 <strong>正一特 — 正六特</strong> 六個分頁（對應 6 顆正碼的名次）；
+            連碼分為 <strong>三全中 / 三中二 / 二全中 / 二中特 / 特串</strong> 五個分頁；七碼只有一個分頁。
             注單一律記錄所屬分頁，結算時依分頁判定。
           </p>
 
@@ -361,6 +455,25 @@ const click = {
               <p class="play-card-example">{{ play.example }}</p>
             </div>
           </div>
+
+          <p class="rule-sub-title">連碼 — 自選一組號碼，依命中組成分檔結算</p>
+          <div class="play-cards">
+            <div v-for="play in LIANMA_PLAY_TYPES" :key="play.key" class="play-card">
+              <div class="play-card-head">
+                <span class="play-card-name">{{ play.name }}</span>
+                <span class="play-card-odds">賠率 {{ play.odds }}</span>
+              </div>
+              <p class="play-card-rule">{{ play.rule }}</p>
+              <p class="play-card-desc">{{ play.desc }}</p>
+              <p class="play-card-example">{{ play.example }}</p>
+            </div>
+          </div>
+          <ul class="rule-list rule-list-tight">
+            <li><strong>複式</strong>：選超過一注所需的號碼數會自動展開成多注 —— 例如三全中選 5 個號 =
+              C(5,3) = <strong>10 注</strong>，每注獨立結算、獨立扣款，總額 = 注數 × 單注金額。</li>
+            <li>連碼的賠率<strong>開獎後才確定</strong>（三中二可能中三或中二），
+              下注時會把整份檔次表鎖在注單上，結算依命中檔次派彩。</li>
+          </ul>
 
           <p class="rule-sub-title">七碼 — 以 {{ CREDIT_QIMA_BALL_COUNT }} 顆球的組成顆數結算</p>
           <div class="play-cards">
@@ -407,6 +520,78 @@ const click = {
             單／大各 25 個號、雙／小各 24 個號，兩組分布相同故共用同一份賠率；
             兩端刻意不對稱（<strong>單7雙0</strong> 比 <strong>單0雙7</strong> 容易開出，賠率較低）。
           </p>
+
+          <p class="rule-sub-title">五行 — 以特別號所屬五行結算（{{ WUXING_YEAR }} {{ ganzhiOfYear(WUXING_YEAR) }}年）</p>
+          <div class="rule-table-wrap">
+            <table class="rule-table prize-table">
+              <colgroup>
+                <col style="width: 10%" />
+                <col style="width: 10%" />
+                <col style="width: 12%" />
+                <col style="width: 68%" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>五行</th>
+                  <th>號碼數</th>
+                  <th>賠率</th>
+                  <th>號碼</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in WUXING_ROWS" :key="`wx-${row.name}`">
+                  <td class="tier-name">{{ row.name }}</td>
+                  <td class="tier-match">{{ row.count }}</td>
+                  <td class="tier-odds">{{ row.odds }}</td>
+                  <td class="tier-nums">
+                    <em v-for="num in row.nums" :key="`wx-${row.name}-${num}`">{{ num }}</em>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ul class="rule-list rule-list-tight">
+            <li><strong>號碼逐年輪轉</strong>：五行依六十甲子納音對應號碼，每兩年換一次表
+              （{{ WUXING_YEAR }} 年為 {{ ganzhiOfYear(WUXING_YEAR) }}年）。上表為當年適用，結算舊期一律以該期年份的表判定。</li>
+            <li>因此各五行的號碼數會變動（8 — 12 個），<strong>賠率也跟著號碼數走</strong>
+              （回報率固定 {{ (creditRtpOf('wuxing', 7000) * 100).toFixed(0) }}%），不是固定值。下注時的賠率會鎖在注單上。</li>
+          </ul>
+
+          <p class="rule-sub-title">半波 — 色波與大小／單雙的交集，以特別號結算</p>
+          <div class="rule-table-wrap">
+            <table class="rule-table prize-table">
+              <colgroup>
+                <col style="width: 10%" />
+                <col style="width: 10%" />
+                <col style="width: 12%" />
+                <col style="width: 68%" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>注項</th>
+                  <th>號碼數</th>
+                  <th>賠率</th>
+                  <th>號碼</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in BANBO_ROWS" :key="`bb-${row.name}`">
+                  <td class="tier-name">{{ row.name }}</td>
+                  <td class="tier-match">{{ row.count }}</td>
+                  <td class="tier-odds">{{ row.odds }}</td>
+                  <td class="tier-nums">
+                    <em v-for="num in row.nums" :key="`bb-${row.name}-${num}`">{{ num }}</em>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ul class="rule-list rule-list-tight">
+            <li>色波的號碼分布固定（紅 17／藍 16／綠 16），<strong>不隨年份變動</strong>，與五行不同。</li>
+            <li>各注項號碼數不同（7 — 10 個），所以<strong>賠率逐項不同</strong>；每期恰好會有
+              <strong>2 個半波注項中獎</strong>（該色的大小一個、單雙一個）。</li>
+            <li><strong>不設和局</strong>：{{ CREDIT_TIE_SPECIAL_NUMBER }} 號屬綠波且為單、為大，已落在既有注項內。</li>
+          </ul>
 
           <p class="rule-sub-title">各分頁賠率與投注限額</p>
           <div class="rule-table-wrap">
@@ -573,8 +758,10 @@ const click = {
             <li>每注<strong>獨立結算</strong>：特碼僅看特別號、與 6 顆正碼無關；正碼僅看
               {{ CREDIT_ZHENGMA_NORMAL_COUNT }} 顆正碼、與特別號無關（總和則含特別號）；
               正碼特<strong>只看所選分頁對應名次的那一顆</strong>，開在其他名次不算中獎。</li>
-            <li><strong>正碼與七碼不設和局</strong>：開出 {{ CREDIT_TIE_SPECIAL_NUMBER }} 號時，正碼單號命中照賠、總和兩面照常判定；
+            <li><strong>正碼、連碼與七碼不設和局</strong>：開出 {{ CREDIT_TIE_SPECIAL_NUMBER }} 號時，正碼單號命中照賠、總和兩面照常判定；
               七碼一律以 {{ CREDIT_QIMA_BALL_COUNT }} 顆球的組成顆數判定，組合需<strong>完全相同</strong>才算中獎。</li>
+            <li><strong>連碼一注多號</strong>：同一注內號碼不得重複，號碼數需與該分頁規格相符（三選 3 個、二選 2 個）；
+              複式送單時<strong>每注獨立扣款、獨立結算</strong>，不會因為其中一注中獎而影響其他注。</li>
             <li>封盤後送出的投注<strong>不予受理</strong>，請在開盤期間內完成下注。</li>
             <li>賠率可依營運需求調整，結算<strong>以下注時記錄在注單上的賠率為準</strong>（可於下注紀錄查閱）。</li>
             <li>尚未開放的玩法（生肖、五行、連碼等）若經由其他管道下注，結算時一律<strong>退還本金</strong>。</li>
@@ -922,6 +1109,27 @@ const click = {
       .tier-hint {
         font-size: 11px;
         color: #6b7280;
+      }
+
+      /* 五行 / 半波：注項涵蓋的號碼 */
+      .tier-nums {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        text-align: left;
+
+        em {
+          min-width: 22px;
+          border: 1px solid #f3b7bf;
+          border-radius: 3px;
+          background: #fff;
+          padding: 0 3px;
+          font-size: 11px;
+          font-style: normal;
+          font-weight: 600;
+          color: var(--color-red-desc);
+          font-variant-numeric: tabular-nums;
+        }
       }
     }
 
