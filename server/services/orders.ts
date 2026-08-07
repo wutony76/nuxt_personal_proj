@@ -9,6 +9,8 @@ type OrderRow = {
   tabId?: number
   /** 玩法 key（tema / zhengma…），結算時用來分派各玩法的中獎判定 */
   playKey?: string
+  /** 下注時鎖定的賠率（含本金），結算派彩以此為準（A/B 盤賠率不同） */
+  odds?: number
 }
 
 type AddInput = Partial<OrderRow> & { issue: string; userId: string; coin: number }
@@ -42,7 +44,8 @@ export default class OrdersClass {
         orderId: String(data.orderId ?? ''),
         betCode: Array.isArray(data.betCode) ? data.betCode : [],
         tabId: Number.isFinite(tabId) && tabId > 0 ? tabId : 0,
-        playKey: String(data.playKey ?? '')
+        playKey: String(data.playKey ?? ''),
+        odds: Number(data.odds ?? 0)
       }
 
       if (this.orders[issue]) this.orders[issue].push(payload)
@@ -66,6 +69,13 @@ export default class OrdersClass {
       currentIssue: (_issue: string) => {
         return this.orders[_issue]
       },
+    },
+    /** 同一玩家、同一期、同一分頁的累計投注額（單期限額驗證用） */
+    issueTabCoin: (_issue: string, userId: string, tabId: number) => {
+      const id = Number(tabId)
+      return (this.orders[_issue] ?? [])
+        .filter((order) => order.userId === userId && Number(order.tabId) === id)
+        .reduce((acc, order) => acc + Number(order.coin ?? 0), 0)
     },
     members: {
       user: (userId: string) => {

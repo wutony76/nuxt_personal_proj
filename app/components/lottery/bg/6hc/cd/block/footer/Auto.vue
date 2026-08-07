@@ -20,7 +20,7 @@
       </div>
       <div class="auto-coin">
         <span class="coin-label">每注金額</span>
-        <input type="number" min="1" max="99999" class="coin-input" :value="state.betAmount"
+        <input type="number" :min="minAmount" :max="maxAmount" class="coin-input" :value="state.betAmount"
           @input="_handlers.onAmountInput" @blur="_handlers.onAmountInput" />
         <span class="auto-unit">元</span>
       </div>
@@ -44,11 +44,13 @@ import { STATUS_TIME } from '~/config/constants'
 import { actions } from '~/utils/common'
 import { use6hcCredit } from '~/composables/use6hcCredit'
 
-const MAX_AMOUNT = 99999
 const MAX_COUNT = 49 // 一個分頁最多 49 個號碼球
 
 const credit = use6hcCredit()
-const { state: mxState, current: mxCurrent, select: mxSelect, wallet: mxWallet, fetch: mxFetch } = credit
+const { state: mxState, current: mxCurrent, select: mxSelect, wallet: mxWallet, fetch: mxFetch, currentQuota: mxQuota } = credit
+// 每注金額限額（依當前分頁 settings.quota）
+const minAmount = computed(() => mxQuota.value.item.min)
+const maxAmount = computed(() => mxQuota.value.item.max)
 
 const state = reactive({
   enabled: false,
@@ -81,7 +83,8 @@ const _handlers = {
     state.statusText = text
     state.statusType = type
   },
-  normalizeAmount: (val: string | number) => Math.min(MAX_AMOUNT, Math.max(1, Math.trunc(Number(val) || 1))),
+  normalizeAmount: (val: string | number) =>
+    Math.min(maxAmount.value, Math.max(minAmount.value, Math.trunc(Number(val) || minAmount.value))),
   normalizeCount: (val: string | number) => Math.min(maxCount.value, Math.max(1, Math.trunc(Number(val) || 1))),
   onAmountInput: (event: Event) => {
     const target = event.target as HTMLInputElement
@@ -149,6 +152,10 @@ const click = {
 }
 
 watch([isOpen, () => mxCurrent.runtime?.issueCurrent], () => { _actions.tryBet() })
+// 切換玩法 / 分頁時，每注金額改夾在新分頁的單注限額內（否則自動投注會整期被伺端拒單）
+watch([minAmount, maxAmount], () => {
+  state.betAmount = _handlers.normalizeAmount(state.betAmount)
+}, { immediate: true })
 </script>
 
 <style scoped lang="scss">

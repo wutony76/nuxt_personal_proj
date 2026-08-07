@@ -15,7 +15,9 @@ import { handle as utHandle } from '~/utils/common'
 import { Lottery6hcCreditService } from '~/services/lottery6hcCreditService'
 
 // 玩法看板設定（特碼 / 正碼…），新增玩法只需在 shared/config/cd/index.js 註冊
-import C_PLAYS from '#shared/config/cd/index'
+import C_PLAYS from '#shared/config/cd/plays'
+// 賠率與限額讀取層（分頁 settings.quota / 注項 odds）
+import { creditQuotaOf } from '#shared/config/cd/helpers'
 
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -165,6 +167,16 @@ const livePool = computed(() => {
 const groupList = computed(() => {
   const play = C_PLAYS.find((item) => item.key === state.select)
   return play?.list ?? []
+})
+
+// 當前玩法 + 分頁的限額（單注上下限 / 單期上限），前端 clamp 與提示皆讀這份
+const currentQuota = computed(() => creditQuotaOf(state.select, state.selectTabId))
+
+// 切換分頁 / 玩法時把下注金額夾回新分頁的限額（A 盤 10 元帶進 B 盤最低 100 會被伺端拒單）
+watch(() => [state.select, state.selectTabId], () => {
+  const quota = currentQuota.value
+  const amount = Math.trunc(Number(state.amount) || 0)
+  state.amount = Math.min(quota.item.max, Math.max(quota.item.min, amount))
 })
 
 const isOpening = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPENING)
@@ -737,7 +749,11 @@ export const use6hcCredit = () => {
     setAmount: (amount: number) => {
       const normalized = Number(amount)
       if (!Number.isFinite(normalized) || normalized <= 0) return
-      state.amount = normalized
+      state.amount = _handlers.clampCoin(normalized)
+    },
+    // 依當前分頁限額夾值（下注金額欄 / 快捷加值 / 自動投注共用）
+    clampAmountToQuota: () => {
+      state.amount = _handlers.clampCoin(state.amount)
     },
     // ── Code selection ──────────────────────────────────────────
     appendCustomCode: () => {
@@ -891,6 +907,12 @@ export const use6hcCredit = () => {
   }
 
   const _handlers = {
+    // 依當前分頁的單注限額夾值（min ≤ coin ≤ max）
+    clampCoin: (coin: number | string) => {
+      const quota = currentQuota.value
+      const num = Math.trunc(Number(coin) || 0)
+      return Math.min(quota.item.max, Math.max(quota.item.min, num))
+    },
     // 隨機選號 / 自動投注共用同一組 pool 與洗牌邏輯（module-level）
     randomPool: (): SelectItem[] => _randomBetPool(),
     shuffle: (list: SelectItem[]): SelectItem[] => _shuffleBetItems(list),
@@ -923,6 +945,7 @@ export const use6hcCredit = () => {
     fetch,
 
     groupList,
+    currentQuota,
 
     //
     time,

@@ -6,10 +6,12 @@ import { use6hcCredit } from '~/composables/use6hcCredit'
 
 // const QUICK_AMOUNTS = [5, 20, 100, 500, 900]
 const QUICK_AMOUNTS = [1, 5, 20, 50, 100, 300]
-const MAX_COIN = 99999
 const { $dialog } = useNuxtApp()
 const credit = use6hcCredit()
-const { state: mxState, current, select: mxSelect, fetch: mxFetch } = credit
+const { state: mxState, current, select: mxSelect, fetch: mxFetch, currentQuota: mxQuota } = credit
+// 單注限額（依當前分頁 settings.quota，與伺端驗證同一份設定）
+const minCoin = computed(() => mxQuota.value.item.min)
+const maxCoin = computed(() => mxQuota.value.item.max)
 
 const isOpen = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPEN)
 // const totalBet = computed(() => mxState.selectedCodes.length * Number(mxState.amount || 0))
@@ -20,7 +22,9 @@ const canSubmit = computed(() => isOpen.value && hasBet.value && !submitting.val
 const submitLabel = computed(() => (isOpen.value ? '投注' : '尚未開盤'))
 
 const _handlers = {
-  normalizeAmount: (val: string | number) => Math.min(MAX_COIN, Math.max(1, Math.trunc(Number(val) || 1))),
+  normalizeAmount: (val: string | number) =>
+    Math.min(maxCoin.value, Math.max(minCoin.value, Math.trunc(Number(val) || minCoin.value))),
+  money: (value: number) => Number(value).toLocaleString('zh-TW'),
 }
 
 const click = {
@@ -64,7 +68,7 @@ const click = {
       <div class="amount-row">
         <label class="amount-field">
           <span class="amount-label">投注金額(注)</span>
-          <input type="number" min="1" :max="MAX_COIN" class="amount-input" :value="mxState.amount"
+          <input type="number" :min="minCoin" :max="maxCoin" class="amount-input" :value="mxState.amount"
             @input="click.onAmountInput" />
         </label>
         <span class="total" :class="{ 'has-bet': totalBet > 0 }">

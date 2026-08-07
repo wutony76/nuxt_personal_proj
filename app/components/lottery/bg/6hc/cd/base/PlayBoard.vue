@@ -3,7 +3,7 @@ import { cloneDeep } from 'lodash-es'
 import { LHC_COLORS } from '#shared/config/6hc-cd'
 import { use6hcCredit } from '~/composables/use6hcCredit'
 
-type PlayItem = { playId: string | number; name: string; coin?: string | number; select?: boolean }
+type PlayItem = { playId: string | number; name: string; odds?: number; coin?: string | number; select?: boolean }
 
 /**
  * 玩法注項看板（特碼 / 正碼共用）
@@ -18,9 +18,16 @@ const props = defineProps<{
 }>()
 
 const DEFAULT_COLUMNS = 5
-const MIN_COIN = 0
-const MAX_COIN = 99999
-const { state: mxState, groupList: mxGroupList, select: mxSelect, actions: mxActions } = use6hcCredit()
+const {
+  state: mxState,
+  groupList: mxGroupList,
+  select: mxSelect,
+  actions: mxActions,
+  currentQuota: mxQuota
+} = use6hcCredit()
+// 單注限額（依當前分頁 settings.quota）
+const minCoin = computed(() => mxQuota.value.item.min)
+const maxCoin = computed(() => mxQuota.value.item.max)
 const hoverKey = ref<string | null>(null)
 
 
@@ -47,12 +54,28 @@ const _handlers = {
   isHovered: (item: PlayItem) => hoverKey.value === String(item.playId),
   // 該號碼顯示的金額：取自身輸入值（item.coin）
   coinOf: (item: PlayItem) => item.coin ?? 0,
-  // 僅保留數字，並限制在 [MIN_COIN, MAX_COIN] 範圍內
+  // 僅保留數字，並夾在該分頁的單注限額內（清空視為取消該注，不套用 min）
   normalizeCoin: (raw: string) => {
     const digits = raw.replace(/\D/g, '')
     if (!digits) return ''
-    const num = Math.min(MAX_COIN, Math.max(MIN_COIN, Math.trunc(Number(digits))))
+    const num = Math.min(maxCoin.value, Math.max(minCoin.value, Math.trunc(Number(digits))))
     return String(num)
+  },
+  // 千分位（限額提示用）
+  money: (value: number) => Number(value).toLocaleString('zh-TW'),
+  // 群組賠率摘要：
+  // 整組同賠率 → 單一值（特碼 · 賠 48）
+  // 賠率不同且注項數少 → 逐項列出（色波 · 賠 紅2.7 / 藍2.9 / 綠2.9）
+  // 賠率不同但注項多 → 區間，避免標題過長
+  oddsSummaryOf: (list: PlayItem[] = []) => {
+    const pairs = list
+      .map((item) => ({ label: String(item?.name ?? '').charAt(0), odds: Number(item?.odds ?? 0) }))
+      .filter((item) => item.odds > 0)
+    if (pairs.length === 0) return ''
+    const distinct = Array.from(new Set(pairs.map((item) => item.odds)))
+    if (distinct.length === 1) return `賠 ${distinct[0]}`
+    if (pairs.length > 4) return `賠 ${Math.min(...distinct)} — ${Math.max(...distinct)}`
+    return `賠 ${pairs.map((item) => `${item.label}${item.odds}`).join(' / ')}`
   },
   // 直向（column-major）排成 rows × columns 的表格矩陣
   toMatrix: (list: PlayItem[] = [], columns: number) => {
@@ -79,7 +102,7 @@ const click = {
     }
 
     mxState.selectedCodes = [...mxState.selectedCodes, key]
-    item.coin = mxState.amount
+    item.coin = Math.min(maxCoin.value, Math.max(minCoin.value, Number(mxState.amount) || 0))
     item.select = true
 
     // --- select items ---
@@ -141,6 +164,7 @@ const tableGroups = computed(() =>
     return {
       groupName: group.groupName,
       columns,
+      oddsSummary: _handlers.oddsSummaryOf(group.groupList),
       // 號碼為文字（非數字）→ 膠囊型玩法（兩面 / 色波）
       isPill: !_handlers.isNumber(String(group.groupList[0]?.name ?? '0')),
       rows: _handlers.toMatrix(group.groupList, columns),
@@ -150,16 +174,29 @@ const tableGroups = computed(() =>
 
 // --- WATCH ---
 watch(() => mxState.amount, (val) => {
+  const coin = Math.min(maxCoin.value, Math.max(minCoin.value, Number(val) || 0))
   mxSelect.items.forEach(item => {
-    item.coin = val
+    item.coin = coin
   })
 })
 </script>
 
 <template>
   <div class="main-play-base" :class="props.boardClass">
+    <!-- 該分頁限額（伺端以同一份 settings.quota 驗證） -->
+    <div class="quota-bar">
+      <span class="quota-item">單注 {{ _handlers.money(minCoin) }} — {{ _handlers.money(maxCoin) }}</span>
+      <span v-if="mxQuota.issue.max > 0" class="quota-item">
+        單期上限 {{ _handlers.money(mxQuota.issue.max) }}
+      </span>
+      <span class="quota-note">※ 賠率標於各群組標題，派彩以下注時的賠率為準</span>
+    </div>
+
     <div v-for="group in tableGroups" :key="`board-${group.groupName}`" class="play-group">
-      <div class="group-title">{{ group.groupName }}</div>
+      <div class="group-title">
+        {{ group.groupName }}
+        <span v-if="group.oddsSummary" class="group-odds">· {{ group.oddsSummary }}</span>
+      </div>
       <table class="play-table" :class="{ 'pill-table': group.isPill }">
         <thead>
           <tr>
@@ -192,7 +229,7 @@ watch(() => mxState.amount, (val) => {
                 clickable: !!item,
               }" @click="item && click.toggle(item)" @mouseenter="item && click.hoverEnter(item)"
                 @mouseleave="click.hoverLeave()">
-                <input v-if="item" type="number" :min="MIN_COIN" :max="MAX_COIN" :value="_handlers.coinOf(item)"
+                <input v-if="item" type="number" :min="minCoin" :max="maxCoin" :value="_handlers.coinOf(item)"
                   @click.stop @input="click.onCoinInput(item, $event)" />
               </td>
             </template>
@@ -212,6 +249,36 @@ watch(() => mxState.amount, (val) => {
   padding: 0 0.75rem 0.75rem;
   /* 表格內縮，與 .right 卡片外框保留間距 */
 
+  /* 分頁限額提示列 */
+  .quota-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid #fee2e2;
+    border-radius: 0.25rem;
+    background: #fff5f6;
+    font-size: 12px;
+
+    .quota-item {
+      font-weight: 700;
+      color: var(--color-red-main);
+      font-variant-numeric: tabular-nums;
+
+      & + .quota-item::before {
+        content: '·';
+        margin-right: 8px;
+        color: var(--color-red-desc);
+      }
+    }
+
+    .quota-note {
+      margin-left: auto;
+      color: var(--color-red-desc);
+    }
+  }
+
   .play-group {
     display: flex;
     flex-direction: column;
@@ -222,6 +289,15 @@ watch(() => mxState.amount, (val) => {
       font-weight: 700;
       color: var(--color-red-main);
       padding: 0.5rem 0;
+
+      /* 群組賠率（整組同值顯示一個，色波等不同值則拆開） */
+      .group-odds {
+        margin-left: 4px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--color-gold);
+        font-variant-numeric: tabular-nums;
+      }
     }
 
     .play-table {

@@ -274,6 +274,28 @@ metadata:
 **How to apply:** 執行 6hc-cd 總測試（或使用者提到「總測試 / 全部測試」）時，先確認 `CREDIT_JACKPOT.weights` 是否已針對正碼調整（例如拆成 per-play 權重表，或替正碼另立 kind）。若仍是單一組權重且未調整，主動提醒使用者這件待決事項。相關實作見 `judgeCreditZhengmaBet` / `buildCreditJackpotShares`，說明頁在 cd `DialogRule.vue` 的「獎池滾存」章節。
 EOF
 
+cat > "$MEMORY_DIR/project_quota_p2_pending.md" << 'EOF'
+---
+name: project-quota-p2-pending
+description: 6hc-cd 投注限額只做到「分頁層級」，跨分頁單期總上限與玩家層級限額（P2）使用者決定暫不處理
+metadata:
+  node_type: memory
+  type: project
+---
+
+**待決事項（2026-08-06 記錄，使用者明確表示目前不處理）**：6hc-cd 信用盤的投注限額目前只到「分頁層級」，由 `c_tema.js` / `c_zhengma.js` 各分頁的 `settings.quota` 提供，經 `shared/config/cd/helpers.ts` 的 `creditQuotaOf()` 讀取，伺端在 `server/services/lottery6hcCd.ts` 的 `handle.validateBetQuota()` 驗證（擋在扣款與建單之前）。
+
+**已實作**：單注上下限 `item.min` / `item.max`；單期上限 `issue.max`，以「同一玩家＋同一期＋**同一分頁**」累計（`orders.get.issueTabCoin()`），`max: 0` 視為不限。
+
+**尚未實作（P2）**：
+- 跨分頁的單期總投注上限（例如同一期在 特碼A＋特碼B＋正碼A… 的合計上限）
+- 玩家層級限額（依帳號個別設定），需要在 user 資料結構（`server/services/storage.ts` / `users.ts`）新增欄位，並可能需要後台設定介面
+
+**Why:** 使用者評估後決定先停在分頁層級，P2 涉及資料結構變更與營運設定，暫不投入。
+
+**How to apply:** 不要主動實作 P2；若使用者提到「限額不夠用」「跨分頁上限」「單一玩家限額」再提出這份紀錄。實作時注意限額設定與賠率同源（都在各分頁 config），新增層級應延伸 `creditQuotaOf()` 的 fallback 鏈而不是另開一套解析。
+EOF
+
 # ── 9. MEMORY.md 索引 ─────────────────────────────────────────
 cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 # Memory Index
@@ -288,6 +310,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [OpenSpec 自動讀取](feedback_openspec_autoread.md) — 使用者新增/提及 openspec 內容時，主動讀取最新 artifacts 再作業
 - [記憶衝突檢查](feedback_memory_conflict_check.md) — 每次新增記憶後掃描衝突，有衝突列選項給使用者決定
 - [待決：爆池分配權重未區分玩法](project_jackpot_weight_zhengma.md) — 6hc-cd 正碼單號沿用特碼 number 權重 3，總測試前若仍未調整要主動提醒
+- [暫不處理：限額 P2](project_quota_p2_pending.md) — 6hc-cd 限額只到分頁層級，跨分頁單期總上限與玩家層級限額使用者決定不做
 EOF
 
 # ── Agents ───────────────────────────────────────────────────

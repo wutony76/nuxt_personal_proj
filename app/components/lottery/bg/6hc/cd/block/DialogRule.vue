@@ -8,6 +8,8 @@ import {
   CREDIT_ZHENGMA_ODDS,
   CREDIT_ZHENGMA_SUM_LINE
 } from '#shared/config/6hc-cd'
+import C_PLAYS from '#shared/config/cd/plays'
+import { creditQuotaOf } from '#shared/config/cd/helpers'
 import { actions } from '~/utils/common'
 import { use6hcCredit } from '~/composables/use6hcCredit'
 
@@ -101,6 +103,25 @@ const PRIZE_ROWS = [
   { name: '正碼單號', condition: `號碼命中 ${CREDIT_ZHENGMA_NORMAL_COUNT} 顆正碼之一`, odds: CREDIT_ZHENGMA_ODDS.number, hint: `49 選 ${CREDIT_ZHENGMA_NORMAL_COUNT}，理論值 8.17` },
   { name: '總和兩面', condition: `七球總和 大／小（界 ${CREDIT_ZHENGMA_SUM_LINE}）、單／雙`, odds: CREDIT_ZHENGMA_ODDS.side, hint: '不設和局' },
 ]
+
+// 各分頁的賠率與限額：直接讀 c_tema / c_zhengma 設定，config 調整後說明頁自動跟上
+const TAB_ROWS = (C_PLAYS as Array<{ name?: string; key?: string; list?: Array<Record<string, any>> }>)
+  .flatMap((play) => (play.list ?? []).map((tab) => {
+    const quota = creditQuotaOf(play.key, tab.tabId)
+    // 各群組取第一個注項的賠率當代表（同群組賠率相同）
+    const odds = (tab.tabGroup ?? []).map((group: any) => ({
+      groupName: String(group?.groupName ?? ''),
+      odds: Number(group?.groupList?.[0]?.odds ?? 0),
+    })).filter((item: { odds: number }) => item.odds > 0)
+    return {
+      playName: String(play.name ?? play.key ?? ''),
+      tabName: String(tab.tabName ?? ''),
+      itemMin: quota.item.min,
+      itemMax: quota.item.max,
+      issueMax: quota.issue.max,
+      odds,
+    }
+  }))
 
 // --- COMPUTED ---
 const totalPool = computed(() => mxLivePool.value)
@@ -228,7 +249,36 @@ const click = {
               <p class="play-card-example">{{ play.example }}</p>
             </div>
           </div>
+          <p class="rule-sub-title">各分頁賠率與投注限額</p>
+          <div class="rule-table-wrap">
+            <table class="rule-table">
+              <thead>
+                <tr>
+                  <th>玩法 / 分頁</th>
+                  <th>賠率</th>
+                  <th>單注金額</th>
+                  <th>單期上限</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in TAB_ROWS" :key="`${row.playName}-${row.tabName}`">
+                  <td class="tier-name">{{ row.playName }} · {{ row.tabName }}</td>
+                  <td class="tier-odds">
+                    <span v-for="item in row.odds" :key="item.groupName" class="odds-chip">
+                      {{ item.groupName }} {{ item.odds }}
+                    </span>
+                  </td>
+                  <td class="tier-est">{{ actions.money(row.itemMin) }} — {{ actions.money(row.itemMax) }}</td>
+                  <td class="tier-hint">{{ row.issueMax > 0 ? actions.money(row.issueMax) : '不限' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           <ul class="rule-list rule-list-tight">
+            <li>同玩法的 <strong>A / B 分頁注項相同但賠率與限額不同</strong>（B 盤為大額投注，額度較高、賠率較低），
+              下注時的賠率會鎖定在注單上。</li>
+            <li><strong>單注金額</strong>需在該分頁區間內，<strong>單期上限</strong>以「同一期、同一分頁」累計計算，超限整筆不受理。</li>
             <li>每注可<strong>獨立設定金額</strong>，總扣款 = 各注金額加總，<strong>下注即扣款</strong>。</li>
             <li><strong>隨機選號</strong>：可指定注數由系統機選號碼球，或一鍵清空。</li>
             <li><strong>號碼推薦</strong>：依「攪出次數 / 相隔期數」落差推薦 6 碼，可一鍵加入注項。</li>
@@ -492,6 +542,17 @@ const click = {
       strong {
         color: var(--color-red-main);
       }
+    }
+
+    .odds-chip {
+      display: inline-block;
+      margin: 0 4px 2px 0;
+      padding: 1px 6px;
+      border: 1px solid var(--color-gold);
+      border-radius: 4px;
+      font-size: 11px;
+      color: var(--color-red-main);
+      font-variant-numeric: tabular-nums;
     }
 
     /* 同一章節內的玩法小標（特碼 / 正碼） */

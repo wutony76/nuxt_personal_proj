@@ -5,12 +5,13 @@ import { MEMORY } from './base'
 import {
   buildCreditJackpotShares,
   CREDIT_JACKPOT,
-  creditOddsOf,
   judgeCreditBet,
   shengxiaoAll,
   type CreditBetKind,
   type CreditBetResult
 } from '#shared/config/6hc-cd'
+// 賠率與限額一律讀分頁設定（c_tema / c_zhengma 的 odds、settings.quota）
+import { creditQuotaOf, creditTabOddsOf, findCreditTab } from '#shared/config/cd/helpers'
 
 type OpenCodeHistoryItem = {
   issue: string
@@ -32,6 +33,8 @@ type BetOrderRow = {
   bet_code: string[]
   play_key: string
   play_type_name: string
+  /** 下注時的賠率（含本金）：取自該分頁 config 的 odds，結算即以此值派彩 */
+  odds: number
 }
 
 type Group = {
@@ -146,6 +149,8 @@ export default class LHC_CD extends LOTTERY_BASE {
     animalByNumber: () => Record<string, string>
     openCodePlay: (openCode: string[]) => Array<Record<string, unknown>>
     buildOrderRows: (input: { issue: string; userId: string; amount: number; groups: Group[] }) => BetOrderRow[]
+    validateBetQuota: (input: { issue: string; userId: string; amount: number; groups: Group[] }) => void
+    rejectBet: (message: string) => never
     addIssueJackpot: (issue: string, amount: number) => void
     settleClosedIssueIfNeeded: () => void
     settleIssuePrize: (issue: string, openCode: string[]) => void
@@ -222,17 +227,20 @@ export default class LHC_CD extends LOTTERY_BASE {
             if (!betCode) return
             // 每注各自金額（fallback 到整體 amount）
             const playCoin = Number(play?.amount ?? play?.coin ?? input.amount)
+            const tabId = _resolveTabId(play, group)
             rows.push({
               issue: input.issue,
               user_id: input.userId,
-              select_tab_id: _resolveTabId(play, group),
+              select_tab_id: tabId,
               bet_time: Date.now(),
               coin: Number.isFinite(playCoin) && playCoin > 0 ? playCoin : input.amount,
               order_id: `${orderId}(1/1)`,
               status: 'success',
               bet_code: [betCode],
               play_key: playKey,
-              play_type_name: playTypeName
+              play_type_name: playTypeName,
+              // 以該分頁設定的賠率鎖定在注單上（A/B 盤賠率不同，結算以此為準）
+              odds: creditTabOddsOf(playKey, tabId, betCode)
             })
           })
         })
@@ -248,8 +256,59 @@ export default class LHC_CD extends LOTTERY_BASE {
           status: 'success',
           bet_code: [],
           play_key: '',
-          play_type_name: ''
+          play_type_name: '',
+          odds: 0
         }]
+      },
+      // 限額驗證（讀 c_tema / c_zhengma 各分頁的 settings.quota）
+      // 任一注違規就整筆拒絕，且必須在扣款／建單之前呼叫
+      validateBetQuota: (input: { issue: string; userId: string; amount: number; groups: Group[] }) => {
+        const _money = (value: number) => Number(value).toLocaleString('zh-TW')
+        // 本次送單各分頁的累計投注額（記住 playKey，同一次送單可能含多個玩法）
+        const newByTab = new Map<number, { playKey: string; coin: number }>()
+        const groups = Array.isArray(input.groups) ? input.groups : []
+        groups.forEach((group) => {
+          const playKey = String(group?.playKey || '')
+          const playList = Array.isArray(group?.playList) ? group.playList : []
+          playList.forEach((play) => {
+            const betCode = LOTTERY_BASE.normalizeBetCode(play)
+            if (!betCode) return
+            const tabId = _resolveTabId(play, group)
+            const rawCoin = Number(play?.amount ?? play?.coin ?? input.amount)
+            const coin = Number.isFinite(rawCoin) && rawCoin > 0 ? rawCoin : Number(input.amount)
+            const quota = creditQuotaOf(playKey, tabId)
+            const tabName = findCreditTab(playKey, tabId)?.tabName ?? String(tabId)
+
+            if (coin < quota.item.min) {
+              this.handle.rejectBet(`${tabName}「${betCode}」單注最低 ${_money(quota.item.min)}，本次 ${_money(coin)}`)
+            }
+            if (coin > quota.item.max) {
+              this.handle.rejectBet(`${tabName}「${betCode}」單注上限 ${_money(quota.item.max)}，本次 ${_money(coin)}`)
+            }
+            const prev = newByTab.get(tabId)
+            newByTab.set(tabId, { playKey: prev?.playKey || playKey, coin: Number(prev?.coin ?? 0) + coin })
+          })
+        })
+
+        // 單期投注額：同一玩家、同一期、同一分頁的既有注單 + 本次送單（max = 0 視為不限）
+        const orders = this._get.orders() as unknown as {
+          get: { issueTabCoin: (issue: string, userId: string, tabId: number) => number }
+        }
+        newByTab.forEach(({ playKey, coin: newCoin }, tabId) => {
+          const quota = creditQuotaOf(playKey, tabId)
+          if (!(quota.issue.max > 0)) return
+          const used = Number(orders?.get?.issueTabCoin?.(input.issue, input.userId, tabId) ?? 0)
+          if (used + newCoin > quota.issue.max) {
+            const tabName = findCreditTab(playKey, tabId)?.tabName ?? String(tabId)
+            this.handle.rejectBet(
+              `${tabName} 單期投注上限 ${_money(quota.issue.max)}，本期已投注 ${_money(used)}、本次 ${_money(newCoin)}`
+            )
+          }
+        })
+      },
+      // 統一的拒單方式（statusMessage 與 message 都帶，前端兩者皆可取）
+      rejectBet: (message: string) => {
+        throw createError({ statusCode: 400, statusMessage: message, message })
       },
       addIssueJackpot: (issue: string, amount: number) => {
         const safeIssue = String(issue ?? '')
@@ -284,6 +343,7 @@ export default class LHC_CD extends LOTTERY_BASE {
           coin: number
           betCode: string[]
           playKey?: string
+          odds?: number
         }>
 
         const payoutByUser = new Map<string, number>()
@@ -303,8 +363,13 @@ export default class LHC_CD extends LOTTERY_BASE {
           const judged = judgeCreditBet({ playKey, betCode, openCode: codes, coin })
           // 無法辨識的注項（尚未支援的玩法）視為和局退還本金，避免吞掉玩家注金
           const result: CreditBetResult = judged?.result ?? 'tie'
-          const payout = judged?.payout ?? coin
-          const odds = judged?.odds ?? 0
+          // 賠率以「下注時鎖定在注單上的值」為準（A/B 盤賠率不同），
+          // 注單沒帶（舊資料）才退回判定函式回傳的玩法預設賠率
+          const lockedOdds = Number(row.odds ?? 0)
+          const odds = lockedOdds > 0 ? lockedOdds : Number(judged?.odds ?? 0)
+          const payout = result === 'win'
+            ? Number((coin * odds).toFixed(2))
+            : result === 'tie' ? coin : 0
 
           const user = this._get.user(row.userId)
           const record = this.handle.ensureUserRecord(user)
@@ -466,8 +531,8 @@ export default class LHC_CD extends LOTTERY_BASE {
           specialMatch: false,
           winStatus: 'pending',
           winAmount: 0,
-          // 下注時即記錄該注賠率，供下注紀錄顯示（未支援的玩法為 0）
-          odds: creditOddsOf(row.play_key, String(row.bet_code?.[0] ?? '')),
+          // 下注時即鎖定該注賠率（取自分頁 config），供下注紀錄顯示與結算派彩
+          odds: Number(row.odds ?? 0),
           jackpotAmount: 0
         })
         if (record.betHistory.length > 5000) {
@@ -595,12 +660,16 @@ export default class LHC_CD extends LOTTERY_BASE {
 
     const amount = Number(payload?.amount ?? 0)
     const userId = String(user?.userId ?? '')
+    const issue = this.recordOpenCode[this.currentIndex]?.issue ?? this._get.latestIssue()
+    const groups = Array.isArray(payload?.groups) ? payload.groups : []
+
+    // 限額閘門：單注上下限 / 單期投注上限（依分頁 settings.quota），同樣擋在扣款前
+    this.handle.validateBetQuota({ issue, userId, amount, groups })
+
     const beforeCoin = Number(user?.coin ?? 0)
     user.coin = beforeCoin - amount
     const afterCoin = Number(user?.coin ?? 0)
 
-    const issue = this.recordOpenCode[this.currentIndex]?.issue ?? this._get.latestIssue()
-    const groups = Array.isArray(payload?.groups) ? payload.groups : []
     const rows = this.handle.buildOrderRows({ issue, userId, amount, groups })
     // 獎池改為「抽水入池」：只把投注額的固定比例撥入獎池（賠率派彩由莊家支付）
     this.handle.addIssueJackpot(issue, Number((amount * CREDIT_JACKPOT.rakeRatio).toFixed(2)))
@@ -622,7 +691,8 @@ export default class LHC_CD extends LOTTERY_BASE {
         orderId: row.order_id,
         tabId: row.select_tab_id,
         betCode: row.bet_code,
-        playKey: row.play_key // 結算時分派各玩法判定用
+        playKey: row.play_key, // 結算時分派各玩法判定用
+        odds: row.odds // 下注時鎖定的賠率，結算派彩以此為準
       })
       this.handle.appendBetHistory(row)
     })
