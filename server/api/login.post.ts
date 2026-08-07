@@ -1,5 +1,5 @@
 import { sessionController, verifyUser } from '../services/auth'
-import { STATUS_ERR_CODE } from '~/config/constants.js'
+import { throwErrCode } from '../utils/error'
 
 type LoginPayload = {
   email?: string
@@ -13,19 +13,12 @@ export default defineEventHandler(async (event) => {
   const password = payload.password?.trim() ?? ''
 
   if (!email || password.length < 6) {
-    throw createError({
-      statusCode: -1,
-      statusMessage: '請輸入有效 Email 與至少 6 碼密碼。'
-    })
+    const message = '請輸入有效 Email 與至少 6 碼密碼。'
+    throw createError({ statusCode: 400, statusMessage: message, message })
   }
 
   const user = verifyUser(email, password)
-  if (!user) {
-    throw createError({
-      statusCode: STATUS_ERR_CODE[40002].code,
-      statusMessage: STATUS_ERR_CODE[40002].message,
-    })
-  }
+  if (!user) throwErrCode(40002)
 
   sessionController.save(event, user)
   return { user }

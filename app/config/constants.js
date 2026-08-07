@@ -37,11 +37,20 @@ export const STATUS_TIME = {
   OPENED: '已開獎',
 }
 
+/**
+ * 業務錯誤碼表
+ *
+ * `code` 是業務碼（回應 body 的 data.code），`httpStatus` 才是實際送出的 HTTP status。
+ * ⚠️ 兩者不可混用：40001 這類業務碼不是合法 HTTP status，h3 會把它退成 500，
+ * 而 500 又在 ofetch 預設的 retryStatusCodes 內 —— GET 請求會被自動重打一次
+ * （例如未登入開 /login，/api/me 會連丟兩個 500）。
+ * 伺端一律用 server/utils/error.ts 的 throwErrCode() 丟出，前端以 err.data?.data?.code 判讀。
+ */
 export const STATUS_ERR_CODE = {
-  40001: { code: 40001 ,message: '登入已過期', },
-  40002: { code: 40002 ,message: '帳號或密碼錯誤', },
+  40001: { code: 40001, httpStatus: 401, message: '登入已過期', },
+  40002: { code: 40002, httpStatus: 400, message: '帳號或密碼錯誤', },
 
-  50001: { code: 50001 ,message: '餘額不足', },
+  50001: { code: 50001, httpStatus: 400, message: '餘額不足', },
 }
 
 // CONTROLS ARG

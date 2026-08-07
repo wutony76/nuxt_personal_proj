@@ -1,6 +1,6 @@
 import { Storage } from '../../services/storage'
 import { sessionController } from '../../services/auth'
-import { STATUS_ERR_CODE } from '~/config/constants.js'
+import { throwErrCode } from '../../utils/error'
 
 type BetPayload = {
   lottery?: any
@@ -25,15 +25,12 @@ export default defineEventHandler(async (event) => {
   console.log('TTT2.API bet.post.payload', payload)
   console.log('TTT2.API bet.post.user', _user, payload.lottery)
 
-  if (!_login || !_user) {
-    throw createError({
-      statusCode: STATUS_ERR_CODE[40001].code,
-      statusMessage: STATUS_ERR_CODE[40001].message,
-    })
-  }
+  if (!_login || !_user) throwErrCode(40001)
   const amount = Number(payload.amount)
-  if (!Number.isFinite(amount) || amount <= 0) throw createError({ statusCode: -1, statusMessage: '下注金額格式錯誤' })
-  if (amount > _user.coin) throw createError({ statusCode: 400, statusMessage: '餘額不足' })
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw createError({ statusCode: 400, statusMessage: '下注金額格式錯誤', message: '下注金額格式錯誤' })
+  }
+  if (amount > _user.coin) throwErrCode(50001)
 
   const getLottery = payload.lottery
   if (!getLottery?.key) throw createError({ statusCode: 400, statusMessage: '彩種參數錯誤' })

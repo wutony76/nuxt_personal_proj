@@ -1,7 +1,7 @@
 import type { H3Event } from 'h3'
 import { Storage, verifyPasswordHash } from './storage'
 import type { AuthUser } from '../types/storage'
-import { STATUS_ERR_CODE } from '~/config/constants.js'
+import { throwErrCode } from '../utils/error'
 
 const SESSION_COOKIE_NAME = 'portfolio_auth_token'
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7
@@ -37,12 +37,8 @@ export const verifyUser = (email: string, password: string): AuthUser | null => 
 export const sessionController = {
   require: (event: H3Event): AuthUser => {
     const user = sessionController.get(event)
-    if (!user) {
-      throw createError({
-        statusCode: STATUS_ERR_CODE[40001].code,
-        statusMessage: STATUS_ERR_CODE[40001].message,
-      })
-    }
+    // 未登入回 401；若送業務碼 40001 會被 h3 退成 500，GET 還會被 ofetch 自動重試
+    if (!user) throwErrCode(40001)
     return user
   },
   save: (event: H3Event, user: AuthUser) => {

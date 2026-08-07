@@ -54,9 +54,14 @@ const _actions = {
         $dialog.alert(result.message)
       })
       .catch((error: unknown) => {
-        const errorData = (error as { data?: { statusCode?: number; statusMessage?: string } })?.data
-        const message = errorData?.statusMessage || '下注失敗，請稍後再試。'
-        const isLoginExpired = errorData?.statusCode === STATUS_ERR_CODE[40001].code
+        // 伺端錯誤 body：{ statusCode（HTTP status）, statusMessage, message, data: { code（業務碼） } }
+        const errorData = (error as {
+          data?: { statusCode?: number; statusMessage?: string; message?: string; data?: { code?: number } }
+        })?.data
+        const message = errorData?.statusMessage || errorData?.message || '下注失敗，請稍後再試。'
+        // 業務碼優先，退回 HTTP 401（舊注單／其他來源的未授權回應也導到登入頁）
+        const isLoginExpired = errorData?.data?.code === STATUS_ERR_CODE[40001].code
+          || errorData?.statusCode === STATUS_ERR_CODE[40001].httpStatus
 
         if (isLoginExpired) {
           $dialog.alert(message, {
