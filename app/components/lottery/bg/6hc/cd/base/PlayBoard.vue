@@ -429,7 +429,7 @@ watch(() => mxState.amount, (val) => {
 
         .th-amount,
         .td-amount {
-          width: 84px;
+          width: 120px;
         }
 
         .td-nums {
