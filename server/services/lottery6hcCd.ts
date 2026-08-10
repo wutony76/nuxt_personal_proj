@@ -158,10 +158,15 @@ type PlayInput = NonNullable<Group['playList']>[number]
 const ANIMAL_COMBO_PLAYS = new Set(['hexiao', 'lianxiao'])
 const ANIMAL_SET = new Set<string>(SX as readonly string[])
 
+/** 尾數組合玩法（連尾）：codes 語意是尾數（"0尾" ~ "9尾"），驗證與排序方式同合肖／連肖，只是換一組固定值域 */
+const TAIL_COMBO_PLAYS = new Set(['lianwei'])
+const TAIL_SET = new Set<string>(Array.from({ length: 10 }, (_, i) => `${i}尾`))
+
 /**
  * 取一注的號碼組
  * 連碼一注帶多個號（play.codes），需驗證數量與 combo.pick 相符、號碼在 01~49 且不重複；
  * 合肖 / 連肖一注帶多個生肖，需驗證數量與 combo.pick 相符、生肖須為有效值且不重複；
+ * 連尾一注帶多個尾數，需驗證數量與 combo.pick 相符、尾數須為 0~9 尾且不重複；
  * 其餘玩法沿用 normalizeBetCode 的單一注碼。
  *
  * 複式展開由前端做（選 N 個 → C(N, pick) 注），伺端不信任「注數」這個數字 ——
@@ -181,6 +186,13 @@ function _resolveBetCodes(playKey: string, tabId: number, play: PlayInput): stri
     if (new Set(animals).size !== animals.length) return null
     // 依生肖固定順序排列，讓相同組合的注單長得一樣（方便比對與去重）
     return (SX as readonly string[]).filter((animal) => animals.includes(animal))
+  }
+  if (TAIL_COMBO_PLAYS.has(playKey)) {
+    const tails = raw.map((code) => String(code).trim()).filter((name) => TAIL_SET.has(name))
+    if (tails.length !== combo.pick) return null
+    if (new Set(tails).size !== tails.length) return null
+    // 依尾數（0 ~ 9）固定順序排列，讓相同組合的注單長得一樣（方便比對與去重）
+    return tails.sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
   }
   const nums = raw.map((code) => Number(code)).filter((num) => Number.isInteger(num) && num >= 1 && num <= 49)
   if (nums.length !== combo.pick) return null
@@ -357,7 +369,11 @@ export default class LHC_CD extends LOTTERY_BASE {
             const betCodes = _resolveBetCodes(playKey, tabId, play)
             if (!betCodes) {
               if (!combo) return // 非連碼且注碼為空 → 沿用原行為（略過該注）
-              const unit = ANIMAL_COMBO_PLAYS.has(playKey) ? '個不重複的生肖' : '個不重複的號碼（01–49）'
+              const unit = ANIMAL_COMBO_PLAYS.has(playKey)
+                ? '個不重複的生肖'
+                : TAIL_COMBO_PLAYS.has(playKey)
+                  ? '個不重複的尾數'
+                  : '個不重複的號碼（01–49）'
               this.handle.rejectBet(`${tabName} 每注需選 ${combo.pick} ${unit}`)
             }
             const betCode = betCodes.join('、')

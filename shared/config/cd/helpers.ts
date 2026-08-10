@@ -1,8 +1,10 @@
 import C_PLAYS from '#shared/config/cd/plays'
 import {
   creditHexiaoOddsOf,
+  creditLianweiOddsOf,
   creditLianxiaoOddsOf,
   creditOddsOf,
+  creditWeishuOddsOf,
   creditWuxingOddsOf,
   creditYixiaoOddsOf,
   CREDIT_JACKPOT,
@@ -166,6 +168,15 @@ export function creditTabOddsOf(
     return String(playKey) === 'hexiao'
       ? creditHexiaoOddsOf(animals, safeYear, mode, rtp)
       : creditLianxiaoOddsOf(animals, safeYear, mode, rtp)
+  }
+  // 尾數：號碼分布固定不隨年份變動，公式同一肖但不需要年份參數
+  if (String(playKey ?? '') === 'weishu') {
+    return creditWeishuOddsOf(code, creditMatchModeOf(playKey, tabId), creditRtpOf(playKey, tabId))
+  }
+  // 連尾：注項是玩家自選的一組尾數，賠率隨組合變動，不能只看單一 betCode（同合肖／連肖）
+  if (String(playKey ?? '') === 'lianwei') {
+    const tails = (Array.isArray(betCodes) && betCodes.length > 0 ? betCodes : [betCode]).map((a) => String(a).trim())
+    return creditLianweiOddsOf(tails, creditMatchModeOf(playKey, tabId), creditRtpOf(playKey, tabId))
   }
   const odds = Number(_findTabItem(playKey, tabId, code)?.item?.odds)
   if (Number.isFinite(odds) && odds > 0) return odds

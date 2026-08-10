@@ -368,6 +368,108 @@ export function creditLianxiaoOddsOf(
   return Number((safeRtp / rate).toFixed(2))
 }
 
+// ── 尾數玩法（6hc-cd）賠率 ────────────────────────────────────────
+// 以特別號的尾數（個位數 0 ~ 9）結算，性質同一肖／特肖（一組固定號碼對特別號）。
+//
+// ⚠️ 與生肖／五行的差別：尾數分布是固定的（0尾 4 個號、其餘 9 個尾各 5 個號），
+//    不隨年份輪轉，所以不需要年份參數，見 weishuAll。
+//
+// 分為「尾數中」（特別號尾數屬該尾即中）與「尾數不中」（不屬才中）兩個分頁，
+// 兩者共用同一份號碼但中獎方向相反，機率相加恰為 100%（嚴格互補，同一肖中／不中）。
+//
+// 賠率公式：中 = rtp × 49 / 該尾號碼數；不中 = rtp × 49 / (49 - 該尾號碼數)
+// 不設和局：49 屬 9 尾，已落在既有注項內。
+
+/** 分頁未設定 payout.rtp 時的預設回報率 */
+export const CREDIT_WEISHU_RTP_FALLBACK = 0.97
+
+/**
+ * 取尾數注項賠率（含本金）
+ * @param betCode 尾數（0尾 / 1尾 / … / 9尾）
+ * @param mode hit = 尾數中、miss = 尾數不中
+ * @param rtp 分頁設定的回報率
+ */
+export function creditWeishuOddsOf(
+  betCode: string | number,
+  mode: CreditMatchMode = 'hit',
+  rtp: number = CREDIT_WEISHU_RTP_FALLBACK
+): number {
+  const nums = weishuAll[String(betCode ?? '').trim()] ?? []
+  if (nums.length === 0) return 0
+  // 中：特別號尾數落在所選尾的號碼裡；不中：落在其餘號碼裡（兩者互補）
+  const winCount = mode === 'miss' ? 49 - nums.length : nums.length
+  if (!(winCount > 0)) return 0
+  const safeRtp = Number(rtp) > 0 ? Number(rtp) : CREDIT_WEISHU_RTP_FALLBACK
+  return Number((safeRtp * 49 / winCount).toFixed(2))
+}
+
+// ── 連尾玩法（6hc-cd）賠率 ────────────────────────────────────────
+// 選 n 個尾數，看它們在當期 7 顆球（6 正碼 + 特別號）中的出現情況 —— 與連肖同類，
+// 差別只在號碼分組依據（尾數固定分布，不隨年份變動，故公式不需要年份參數）：
+//   連中   n 個尾數全部出現才中
+//   連不中 n 個尾數一個都沒出現才中
+//
+// ⚠️ 「連不中」不是「連中」的反面（同連肖），中間夾著「部分出現」，兩者機率相加 < 100%。
+//
+// ⚠️ 結構與 c_lianxiao 同類：注項是玩家組出來的（C(10,n) 種組合），不可列舉，
+//    所以 tabGroup 只是「尾數選取池」，實際一注由 settings.combo.pick 個尾數組成。
+//
+// ⚠️ 賠率不能寫死在分頁上 —— 尾數號碼數不均（0尾 4 個、其餘 5 個），
+//    選到 0尾 與否會讓機率跟著變，故改設 rtp，由
+//    creditLianweiOddsOf(所選尾數, match, rtp) 逐注推算後鎖進注單。
+//
+// 機率（容斥，公式同 creditLianxiaoHitRate，只是號碼數改讀 weishuAll）：
+//   連中   P = Σ_{S⊆所選} (-1)^|S| × C(49 - Σk_S, 7) / C(49, 7)
+//   連不中 P = C(49 - Σk_全部, 7) / C(49, 7)
+// 兩者皆不設和局。
+
+/**
+ * 一組尾數「全部出現」在 7 顆球中的機率（容斥原理）
+ * @param tails 尾數清單（0尾 ~ 9尾，不重複）
+ * @returns 命中機率；尾數無效或重複回 0
+ */
+export function creditLianweiHitRate(tails: string[]): number {
+  const list = Array.from(new Set((Array.isArray(tails) ? tails : []).map((t) => String(t).trim())))
+  if (list.length === 0 || list.length !== (tails?.length ?? 0)) return 0
+  const sizes = list.map((tail) => (weishuAll[tail] ?? []).length)
+  if (sizes.some((size) => size <= 0)) return 0
+  const total = _combination(49, LHC_DRAW_COUNT)
+  let sum = 0
+  // 走訪所有子集：子集內的尾數視為「完全沒開出」
+  for (let mask = 0; mask < (1 << sizes.length); mask++) {
+    let excluded = 0
+    let bits = 0
+    for (let i = 0; i < sizes.length; i++) {
+      if (mask & (1 << i)) { excluded += sizes[i] as number; bits++ }
+    }
+    sum += (bits % 2 === 1 ? -1 : 1) * _combination(49 - excluded, LHC_DRAW_COUNT)
+  }
+  return sum / total
+}
+
+/**
+ * 取連尾注項賠率（含本金）
+ * @param tails 該注所選的尾數
+ * @param mode hit = 全部出現才中、miss = 全部都不出現才中
+ * @param rtp 分頁設定的回報率
+ */
+export function creditLianweiOddsOf(
+  tails: string[],
+  mode: CreditMatchMode = 'hit',
+  rtp: number = CREDIT_WEISHU_RTP_FALLBACK
+): number {
+  const hitRate = creditLianweiHitRate(tails)
+  if (!(hitRate > 0) || hitRate >= 1) return 0
+  // 連不中的中獎機率不是 1 - P(全部出現)，而是「一個都沒出現」
+  const rate = mode === 'miss'
+    ? _combination(49 - tails.reduce((sum, t) => sum + (weishuAll[String(t).trim()] ?? []).length, 0), LHC_DRAW_COUNT)
+      / _combination(49, LHC_DRAW_COUNT)
+    : hitRate
+  if (!(rate > 0)) return 0
+  const safeRtp = Number(rtp) > 0 ? Number(rtp) : CREDIT_WEISHU_RTP_FALLBACK
+  return Number((safeRtp / rate).toFixed(2))
+}
+
 // ── CREDIT_PLAY_DEFINITIONS helpers ─────────────────────────────────────────
 
 type NumberOption = { id: string; label: string; num: number }
@@ -594,6 +696,8 @@ export const CREDIT_PLAY_DEFINITIONS: TypePlayItem[] = [
   { key: 'texiao', name: '特肖' },
   { key: 'hexiao', name: '合肖' },
   { key: 'lianxiao', name: '連肖' },
+  { key: 'weishu', name: '尾數' },
+  { key: 'lianwei', name: '連尾' },
 ]
 
 // ── 信用盤（6hc-cd）賠率與中獎判定 ────────────────────────────────
@@ -1212,6 +1316,75 @@ export function judgeCreditLianxiaoBet(
   return _payout('number', hit ? 'win' : 'lose', odds, coin)
 }
 
+// ── 尾數玩法（6hc-cd）中獎判定 ────────────────────────────────────
+// 以特別號所屬尾數結算，性質同五行／半波／一肖（一組固定號碼對特別號）。
+// 兩個分頁共用同一份號碼但中獎方向相反：
+//   尾數中   特別號的尾數「屬」該尾 → 中（中獎面 4 ~ 5 個號）
+//   尾數不中 特別號的尾數「不屬」該尾 → 中（中獎面 44 ~ 45 個號）
+// 尾數分布固定，不像生肖逐年輪轉，故不需要年份參數。
+
+/**
+ * 尾數玩法中獎判定（不設和局；49 屬 9 尾，已落在既有注項內）
+ * @param betCode 尾數（0尾 / 1尾 / … / 9尾）
+ * @param openCode 該期完整開獎號（7 顆：6 正碼 + 特別號）
+ * @param coin 該注注金
+ * @param mode hit = 尾數中、miss = 尾數不中
+ * @param rtp 分頁設定的回報率
+ */
+export function judgeCreditWeishuBet(
+  betCode: string | number,
+  openCode: Array<string | number>,
+  coin: number,
+  mode: CreditMatchMode = 'hit',
+  rtp: number = CREDIT_WEISHU_RTP_FALLBACK
+): CreditJudgeResult | null {
+  const tail = String(betCode ?? '').trim()
+  const nums = weishuAll[tail] ?? []
+  if (nums.length === 0) return null
+  const special = Number((Array.isArray(openCode) ? openCode : [])[6])
+  if (!Number.isFinite(special) || special <= 0) return null
+  const odds = creditWeishuOddsOf(tail, mode, rtp)
+  if (!(odds > 0)) return null
+  const belongs = nums.includes(String(special).padStart(2, '0'))
+  // 尾數不中把命中方向反過來
+  const hit = mode === 'miss' ? !belongs : belongs
+  // 與五行／半波／一肖同類（一組號碼對特別號），爆池分配沿用 color 權重
+  return _payout('color', hit ? 'win' : 'lose', odds, coin)
+}
+
+// ── 連尾玩法（6hc-cd）中獎判定 ────────────────────────────────────
+// 看整期 7 顆球：所選尾數是「且」的關係，全部出現才中（hit＝連中）、
+// 全部都沒出現才中（miss＝連不中），不設和局。中間夾著「部分出現」，兩者機率相加 < 100%。
+/**
+ * 連尾玩法中獎判定
+ * @param tails 該注所選的尾數（不重複，數量須等於分頁 combo.pick）
+ * @param openCode 該期完整開獎號（7 顆：6 正碼 + 特別號）
+ * @param coin 該注注金
+ * @param mode hit = 連中（全部出現）、miss = 連不中（全部都不出現）
+ * @param rtp 分頁設定的回報率
+ */
+export function judgeCreditLianweiBet(
+  tails: string[],
+  openCode: Array<string | number>,
+  coin: number,
+  mode: CreditMatchMode = 'hit',
+  rtp: number = CREDIT_WEISHU_RTP_FALLBACK
+): CreditJudgeResult | null {
+  const list = Array.from(new Set((Array.isArray(tails) ? tails : []).map((t) => String(t).trim()).filter(Boolean)))
+  if (list.length === 0 || list.length !== (tails?.length ?? 0)) return null
+  const opened = (Array.isArray(openCode) ? openCode : [])
+    .map((code) => Number(code))
+    .filter((num) => Number.isFinite(num) && num > 0)
+  if (opened.length === 0) return null
+  const odds = creditLianweiOddsOf(list, mode, rtp)
+  if (!(odds > 0)) return null
+  const openedCodes = new Set(opened.map((num) => String(num).padStart(2, '0')))
+  const appears = (tail: string) => (weishuAll[tail] ?? []).some((num) => openedCodes.has(num))
+  const hit = mode === 'miss' ? list.every((tail) => !appears(tail)) : list.every((tail) => appears(tail))
+  // 連碼同類（一注帶一組號碼，非單一號碼對特別號），爆池分配沿用 number 權重
+  return _payout('number', hit ? 'win' : 'lose', odds, coin)
+}
+
 // ── 連碼玩法（6hc-cd）判定 ────────────────────────────────────────
 // 連碼與前四個玩法最大的差異：一注帶「一組號碼」而非單一注項，
 // 而且同一注有多種中法（三中二可能中三或中二），賠率在開獎後才確定。
@@ -1322,6 +1495,12 @@ export function creditOddsOf(playKey: string | undefined, betCode: string | numb
     // 正式取值走 helpers 的 creditTabOddsOf（會帶入完整 betCodes）
     case 'hexiao':
     case 'lianxiao': return 0
+    // 尾數中／不中方向由分頁設定決定，這裡取不到分頁，一律以「中」計算；
+    // 正式取值走 helpers 的 creditTabOddsOf（會帶入 match 與 rtp）
+    case 'weishu': return creditWeishuOddsOf(betCode)
+    // 連尾的賠率取決於「所選的那幾個尾數」（一組），單一號碼算不出來，
+    // 正式取值走 helpers 的 creditTabOddsOf（會帶入完整 betCodes）
+    case 'lianwei': return 0
     // 連碼的賠率在分頁 tiers（開獎後才知道命中哪一檔），單一號碼沒有賠率。
     // 一定要有這個 case —— 少了它會落到 default 被當成特碼，號碼注項會拿到 48。
     case 'lianma': return 0
@@ -1336,9 +1515,9 @@ export function creditOddsOf(playKey: string | undefined, betCode: string | numb
  */
 export function creditNumberBetHitsSpecial(playKey?: string): boolean {
   const key = String(playKey ?? '')
-  // 五行 / 半波 / 一肖 / 特肖 / 合肖雖然看特別號，但注項是一組號碼（同色波），不算「單號命中」；
-  // 連肖看整期 7 顆球，也不是單一號碼命中特別號
-  return !['zhengma', 'zhengmate', 'qima', 'lianma', 'wuxing', 'banbo', 'yixiao', 'texiao', 'hexiao', 'lianxiao'].includes(key)
+  // 五行 / 半波 / 一肖 / 特肖 / 合肖 / 尾數雖然看特別號，但注項是一組號碼（同色波），不算「單號命中」；
+  // 連肖 / 連尾看整期 7 顆球，也不是單一號碼命中特別號
+  return !['zhengma', 'zhengmate', 'qima', 'lianma', 'wuxing', 'banbo', 'yixiao', 'texiao', 'hexiao', 'lianxiao', 'weishu', 'lianwei'].includes(key)
 }
 
 /** 依玩法判定單注結果；未支援的玩法回 null（呼叫端視為和局退還本金） */
@@ -1355,9 +1534,9 @@ export function judgeCreditBet(input: {
   tiers?: CreditLianmaTier[]
   /** 該期年份（五行 / 一肖 / 特肖 / 合肖 / 連肖使用：號碼表逐年輪轉，結算舊期須帶該期年份而非今年） */
   year?: number
-  /** 分頁設定的回報率（五行 / 一肖 / 特肖 / 合肖 / 連肖使用） */
+  /** 分頁設定的回報率（五行 / 一肖 / 特肖 / 合肖 / 連肖 / 尾數 / 連尾使用） */
   rtp?: number
-  /** 命中方向（一肖 / 特肖 / 合肖 / 連肖使用：xx不中要把判定反過來） */
+  /** 命中方向（一肖 / 特肖 / 合肖 / 連肖 / 尾數 / 連尾使用：xx不中要把判定反過來） */
   match?: CreditMatchMode
 }): CreditJudgeResult | null {
   const codes = Array.isArray(input?.openCode) ? input.openCode : []
@@ -1389,6 +1568,17 @@ export function judgeCreditBet(input: {
       (Array.isArray(input.betCodes) && input.betCodes.length > 0 ? input.betCodes : [input.betCode]).map(String),
       codes, input.coin,
       Number(input.year) || new Date().getFullYear(),
+      input.match,
+      input.rtp
+    )
+    case 'weishu': return judgeCreditWeishuBet(
+      input.betCode, codes, input.coin,
+      input.match,
+      input.rtp
+    )
+    case 'lianwei': return judgeCreditLianweiBet(
+      (Array.isArray(input.betCodes) && input.betCodes.length > 0 ? input.betCodes : [input.betCode]).map(String),
+      codes, input.coin,
       input.match,
       input.rtp
     )
