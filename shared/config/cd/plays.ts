@@ -5,6 +5,7 @@ import C_QIMA from '#shared/config/cd/c_qima'
 import C_LIANMA from '#shared/config/cd/c_lianma'
 import C_WUXING from '#shared/config/cd/c_wuxing'
 import C_BANBO from '#shared/config/cd/c_banbo'
+import C_YIXIAO from '#shared/config/cd/c_yixiao'
 
 /**
  * 信用盤（6hc-cd）玩法看板設定
@@ -25,4 +26,5 @@ export default [
   ...C_QIMA,
   ...C_WUXING,
   ...C_BANBO,
+  ...C_YIXIAO,
 ]

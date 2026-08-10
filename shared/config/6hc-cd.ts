@@ -200,6 +200,67 @@ export function shengxiaoAll(animal: string): Record<string, string[]> {
   return ret
 }
 
+/**
+ * 西元年 → 當年生肖（2020 為鼠年）
+ * server/services/base.ts 的 MEMORY.animal 也走這支，避免兩處各自算年份
+ */
+export function shengxiaoOfYear(year: number): SxType {
+  const num = Math.trunc(Number(year))
+  const index = Number.isFinite(num) ? ((num - 2020) % 12 + 12) % 12 : 0
+  return SX[index] as SxType
+}
+
+/**
+ * 取某生肖在指定年份的號碼清單
+ *
+ * ⚠️ 與五行同樣逐年輪轉：01 對應當年生肖、往回推，49 也歸當年生肖，
+ *    因此「當年生肖有 5 個號、其餘 11 個各 4 個」，且是哪一個有 5 個每年都不同。
+ *    號碼與賠率都不可寫死，結算舊期一律用該期年份的表。
+ * @param animal 生肖中文名（鼠 / 牛 / …）
+ * @param year 西元年
+ * @returns 補零且由小到大的號碼；無效生肖回空陣列
+ */
+export function shengxiaoNumsOf(animal: string, year: number): string[] {
+  const table = shengxiaoAll(shengxiaoOfYear(year))
+  const nums = table[String(animal ?? '').trim()] ?? []
+  return nums
+    .map((num) => String(Number(num)).padStart(2, '0'))
+    .sort((a, b) => Number(a) - Number(b))
+}
+
+// ── 一肖玩法（6hc-cd）賠率 ────────────────────────────────────────
+// 一肖中：特別號屬該生肖即中（中獎面 4 ~ 5 個號）
+// 一肖不中：特別號不屬該生肖即中（中獎面 44 ~ 45 個號）
+// 兩者都以「中獎面的號碼數」推算賠率，config 只設 rtp。
+
+/** 注項的命中方向：hit = 開出即中、miss = 沒開出才中 */
+export type CreditMatchMode = 'hit' | 'miss'
+
+/** 分頁未設定 payout.rtp 時的預設回報率 */
+export const CREDIT_YIXIAO_RTP_FALLBACK = 0.97
+
+/**
+ * 取一肖注項賠率（含本金）
+ * @param animal 生肖中文名
+ * @param year 該期年份（生肖表逐年輪轉，一定要帶對）
+ * @param mode hit = 一肖中、miss = 一肖不中
+ * @param rtp 分頁設定的回報率
+ */
+export function creditYixiaoOddsOf(
+  animal: string,
+  year: number,
+  mode: CreditMatchMode = 'hit',
+  rtp: number = CREDIT_YIXIAO_RTP_FALLBACK
+): number {
+  const count = shengxiaoNumsOf(animal, year).length
+  if (!(count > 0)) return 0
+  // 一肖不中的中獎面是「該生肖以外的所有號碼」
+  const winCount = mode === 'miss' ? 49 - count : count
+  if (!(winCount > 0)) return 0
+  const safeRtp = Number(rtp) > 0 ? Number(rtp) : CREDIT_YIXIAO_RTP_FALLBACK
+  return Number((safeRtp * 49 / winCount).toFixed(2))
+}
+
 // ── CREDIT_PLAY_DEFINITIONS helpers ─────────────────────────────────────────
 
 type NumberOption = { id: string; label: string; num: number }
@@ -422,6 +483,7 @@ export const CREDIT_PLAY_DEFINITIONS: TypePlayItem[] = [
   { key: 'qima', name: '七碼' },
   { key: 'wuxing', name: '五行' },
   { key: 'banbo', name: '半波' },
+  { key: 'yixiao', name: '一肖' },
 ]
 
 // ── 信用盤（6hc-cd）賠率與中獎判定 ────────────────────────────────
@@ -930,6 +992,44 @@ export function judgeCreditBanboBet(
   return _payout('color', hit ? 'win' : 'lose', odds, coin)
 }
 
+// ── 一肖玩法（6hc-cd）中獎判定 ────────────────────────────────────
+// 以特別號所屬生肖結算，性質同五行／半波（一組號碼對特別號）。
+// 兩個分頁共用同一份號碼但中獎方向相反：
+//   一肖中   特別號「屬」該生肖 → 中（中獎面 4 ~ 5 個號）
+//   一肖不中 特別號「不屬」該生肖 → 中（中獎面 44 ~ 45 個號）
+// 號碼與賠率都逐年輪轉，故一定要帶該期年份，不可用「今年」結算舊期。
+
+/**
+ * 一肖玩法中獎判定（不設和局；49 已歸屬當年生肖）
+ * @param betCode 生肖中文名（鼠 / 牛 / …）
+ * @param openCode 該期完整開獎號（7 顆：6 正碼 + 特別號）
+ * @param coin 該注注金
+ * @param year 該期年份
+ * @param mode hit = 一肖中、miss = 一肖不中
+ * @param rtp 分頁設定的回報率
+ */
+export function judgeCreditYixiaoBet(
+  betCode: string | number,
+  openCode: Array<string | number>,
+  coin: number,
+  year: number,
+  mode: CreditMatchMode = 'hit',
+  rtp: number = CREDIT_YIXIAO_RTP_FALLBACK
+): CreditJudgeResult | null {
+  const animal = String(betCode ?? '').trim()
+  const nums = shengxiaoNumsOf(animal, year)
+  if (nums.length === 0) return null
+  const special = Number((Array.isArray(openCode) ? openCode : [])[6])
+  if (!Number.isFinite(special) || special <= 0) return null
+  const odds = creditYixiaoOddsOf(animal, year, mode, rtp)
+  if (!(odds > 0)) return null
+  const belongs = nums.includes(String(special).padStart(2, '0'))
+  // 一肖不中把命中方向反過來
+  const hit = mode === 'miss' ? !belongs : belongs
+  // 與五行／半波同類（一組號碼對特別號），爆池分配沿用 color 權重
+  return _payout('color', hit ? 'win' : 'lose', odds, coin)
+}
+
 // ── 連碼玩法（6hc-cd）判定 ────────────────────────────────────────
 // 連碼與前四個玩法最大的差異：一注帶「一組號碼」而非單一注項，
 // 而且同一注有多種中法（三中二可能中三或中二），賠率在開獎後才確定。
@@ -1032,6 +1132,9 @@ export function creditOddsOf(playKey: string | undefined, betCode: string | numb
     case 'qima': return creditQimaOddsOf(betCode)
     case 'wuxing': return creditWuxingOddsOf(betCode, Number(year) || new Date().getFullYear())
     case 'banbo': return creditBanboOddsOf(betCode)
+    // 一肖的中／不中方向由分頁設定決定，這裡取不到分頁，一律以「中」計算；
+    // 正式取值走 helpers 的 creditTabOddsOf（會帶入 match 與 rtp）
+    case 'yixiao': return creditYixiaoOddsOf(String(betCode), Number(year) || new Date().getFullYear())
     // 連碼的賠率在分頁 tiers（開獎後才知道命中哪一檔），單一號碼沒有賠率。
     // 一定要有這個 case —— 少了它會落到 default 被當成特碼，號碼注項會拿到 48。
     case 'lianma': return 0
@@ -1046,8 +1149,8 @@ export function creditOddsOf(playKey: string | undefined, betCode: string | numb
  */
 export function creditNumberBetHitsSpecial(playKey?: string): boolean {
   const key = String(playKey ?? '')
-  // 五行雖然看特別號，但注項是一組號碼（同色波），不算「單號命中」
-  return key !== 'zhengma' && key !== 'zhengmate' && key !== 'qima' && key !== 'lianma' && key !== 'wuxing'
+  // 五行 / 半波 / 一肖雖然看特別號，但注項是一組號碼（同色波），不算「單號命中」
+  return !['zhengma', 'zhengmate', 'qima', 'lianma', 'wuxing', 'banbo', 'yixiao'].includes(key)
 }
 
 /** 依玩法判定單注結果；未支援的玩法回 null（呼叫端視為和局退還本金） */
@@ -1064,8 +1167,10 @@ export function judgeCreditBet(input: {
   tiers?: CreditLianmaTier[]
   /** 該期年份（僅五行使用：號碼表逐年輪轉，結算舊期須帶該期年份而非今年） */
   year?: number
-  /** 分頁設定的回報率（僅五行使用） */
+  /** 分頁設定的回報率（五行 / 一肖使用） */
   rtp?: number
+  /** 命中方向（僅一肖使用：一肖不中要把判定反過來） */
+  match?: CreditMatchMode
 }): CreditJudgeResult | null {
   const codes = Array.isArray(input?.openCode) ? input.openCode : []
   switch (String(input?.playKey ?? '')) {
@@ -1078,6 +1183,12 @@ export function judgeCreditBet(input: {
       input.rtp
     )
     case 'banbo': return judgeCreditBanboBet(input.betCode, codes, input.coin)
+    case 'yixiao': return judgeCreditYixiaoBet(
+      input.betCode, codes, input.coin,
+      Number(input.year) || new Date().getFullYear(),
+      input.match,
+      input.rtp
+    )
     case 'lianma': return judgeCreditLianmaBet(
       Array.isArray(input.betCodes) && input.betCodes.length > 0 ? input.betCodes : [input.betCode],
       codes,

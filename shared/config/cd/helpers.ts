@@ -2,10 +2,12 @@ import C_PLAYS from '#shared/config/cd/plays'
 import {
   creditOddsOf,
   creditWuxingOddsOf,
+  creditYixiaoOddsOf,
   CREDIT_JACKPOT,
   CREDIT_WUXING_RTP_FALLBACK,
   type CreditBetKind,
-  type CreditLianmaTier
+  type CreditLianmaTier,
+  type CreditMatchMode
 } from '#shared/config/6hc-cd'
 
 /**
@@ -58,8 +60,10 @@ type ConfigTab = {
   settings?: {
     quota?: Partial<CreditQuota>
     combo?: Partial<CreditCombo>
-    /** 五行：賠率由號碼數推算，config 只設回報率 */
+    /** 五行 / 一肖：賠率由號碼數推算，config 只設回報率 */
     payout?: { rtp?: number }
+    /** 一肖：命中方向（hit = 開出即中、miss = 沒開出才中） */
+    match?: CreditMatchMode
   }
   tabGroup?: ConfigGroup[]
   /** 連碼：命中檔次與賠率（取代 tabGroup 的逐項 odds） */
@@ -141,16 +145,28 @@ export function creditTabOddsOf(
 ): number {
   const code = String(betCode ?? '').trim()
   if (!code) return 0
-  // 五行的號碼歸屬逐年輪轉，賠率不在 config 而是由該年的號碼數推算
+  // 五行 / 一肖的號碼歸屬逐年輪轉，賠率不在 config 而是由該年的號碼數推算
+  const safeYear = Number(year) || new Date().getFullYear()
   if (String(playKey ?? '') === 'wuxing') {
-    return creditWuxingOddsOf(code, Number(year) || new Date().getFullYear(), creditRtpOf(playKey, tabId))
+    return creditWuxingOddsOf(code, safeYear, creditRtpOf(playKey, tabId))
+  }
+  if (String(playKey ?? '') === 'yixiao') {
+    return creditYixiaoOddsOf(code, safeYear, creditMatchModeOf(playKey, tabId), creditRtpOf(playKey, tabId))
   }
   const odds = Number(_findTabItem(playKey, tabId, code)?.item?.odds)
   if (Number.isFinite(odds) && odds > 0) return odds
   return creditOddsOf(playKey, code, year)
 }
 
-/** 取分頁設定的回報率（五行用；未設定回 CREDIT_WUXING_RTP_FALLBACK） */
+/**
+ * 取分頁的命中方向（一肖用）
+ * hit = 開出即中（一肖中）、miss = 沒開出才中（一肖不中）；未設定一律當 hit
+ */
+export function creditMatchModeOf(playKey?: string, tabId?: number | string): CreditMatchMode {
+  return findCreditTab(playKey, tabId)?.settings?.match === 'miss' ? 'miss' : 'hit'
+}
+
+/** 取分頁設定的回報率（五行 / 一肖用；未設定回 CREDIT_WUXING_RTP_FALLBACK） */
 export function creditRtpOf(playKey?: string, tabId?: number | string): number {
   const rtp = Number(findCreditTab(playKey, tabId)?.settings?.payout?.rtp)
   return Number.isFinite(rtp) && rtp > 0 ? rtp : CREDIT_WUXING_RTP_FALLBACK

@@ -12,6 +12,7 @@ import LianmaPlay from '~/components/lottery/bg/6hc/cd/Lianma.vue'
 import QimaPlay from '~/components/lottery/bg/6hc/cd/Qima.vue'
 import WuxingPlay from '~/components/lottery/bg/6hc/cd/Wuxing.vue'
 import BanboPlay from '~/components/lottery/bg/6hc/cd/Banbo.vue'
+import YixiaoPlay from '~/components/lottery/bg/6hc/cd/Yixiao.vue'
 
 import { useBgAutoActive } from '~/composables/useBgAutoActive'
 import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
@@ -56,6 +57,7 @@ const playMap: Record<string, Component> = {
   qima: QimaPlay,
   wuxing: WuxingPlay,
   banbo: BanboPlay,
+  yixiao: YixiaoPlay,
 }
 
 

@@ -1,10 +1,10 @@
 
-import { SX } from '#shared/config/6hc-cd'
+import { shengxiaoOfYear } from '#shared/config/6hc-cd'
 
 export const _handle = {
+  // 年份 → 生肖的算法統一放在 shared（一肖玩法的號碼表也走同一支），避免兩處各算各的
   currentShengxiao(): string {
-    const year = MEMORY.now.getFullYear()
-    return SX[((year - 2020) % 12 + 12) % 12] as string
+    return shengxiaoOfYear(MEMORY.now.getFullYear())
   },
 }
 export class MEMORY {

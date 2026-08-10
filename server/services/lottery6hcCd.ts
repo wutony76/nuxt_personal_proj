@@ -17,6 +17,7 @@ import {
   creditComboCount,
   creditComboOf,
   creditJackpotWeightOf,
+  creditMatchModeOf,
   creditQuotaOf,
   creditRtpOf,
   creditTabOddsOf,
@@ -460,6 +461,8 @@ export default class LHC_CD extends LOTTERY_BASE {
             tiers: row.tiers,
             year: _issueYear(safeIssue),
             rtp: creditRtpOf(playKey, tabId),
+            // 一肖不中的判定方向與一肖中相反，方向記在分頁設定上
+            match: creditMatchModeOf(playKey, tabId),
           })
           // 無法辨識的注項（尚未支援的玩法）視為和局退還本金，避免吞掉玩家注金
           const result: CreditBetResult = judged?.result ?? 'tie'

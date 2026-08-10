@@ -115,7 +115,7 @@ export default [
         settings: {
           quota: {
             item: { // 單注投注額
-              min: 300, // 單注投注額最低 100 元
+              min: 300, // 單注投注額最低 300 元
               max: 100000,
             },
             issue: { // 單期投注額

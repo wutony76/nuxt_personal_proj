@@ -75,16 +75,26 @@ const _handlers = {
   // 群組賠率摘要：
   // 整組同賠率 → 單一值（特碼 · 賠 48）
   // 賠率不同且注項數少 → 逐項列出（色波 · 賠 紅2.7 / 藍2.9 / 綠2.9）
-  // 賠率不同但注項多 → 區間，避免標題過長
-  oddsSummaryOf: (list: PlayItem[] = []) => {
+  // 賠率不同但注項多 → 區間，避免標題過長；此時 isRange = true，
+  //   標題會變成可 hover，浮出 detail 逐項賠率（五行 / 半波 / 一肖 / 七碼）
+  oddsInfoOf: (list: PlayItem[] = []) => {
     const pairs = list
-      .map((item) => ({ label: String(item?.name ?? '').charAt(0), odds: Number(item?.odds ?? 0) }))
+      .map((item) => ({ name: String(item?.name ?? ''), odds: Number(item?.odds ?? 0) }))
       .filter((item) => item.odds > 0)
-    if (pairs.length === 0) return ''
+    if (pairs.length === 0) return { summary: '', detail: [], isRange: false }
     const distinct = Array.from(new Set(pairs.map((item) => item.odds)))
-    if (distinct.length === 1) return `賠率[ ${distinct[0]} ]`
-    if (pairs.length > 4) return `賠率 ${Math.min(...distinct)} — ${Math.max(...distinct)}`
-    return `賠率[ ${pairs.map((item) => `${item.label}${item.odds}`).join(' | ')} ]`
+    if (distinct.length === 1) {
+      return { summary: `賠率[ ${distinct[0]} ]`, detail: pairs, isRange: false }
+    }
+    if (pairs.length > 4) {
+      return {
+        summary: `賠率 ${Math.min(...distinct)} — ${Math.max(...distinct)}`,
+        detail: pairs,
+        isRange: true,
+      }
+    }
+    const inline = pairs.map((item) => `${item.name.charAt(0)}${item.odds}`).join(' | ')
+    return { summary: `賠率[ ${inline} ]`, detail: pairs, isRange: false }
   },
   // 直向（column-major）排成 rows × columns 的表格矩陣
   toMatrix: (list: PlayItem[] = [], columns: number) => {
@@ -183,10 +193,14 @@ const tableGroups = computed(() =>
   (layout.value?.tabGroup ?? []).map((group) => {
     const columns = _handlers.columnsOf(group.groupName)
     const hasNums = (group.groupList as PlayItem[]).some((item) => (item?.nums?.length ?? 0) > 0)
+    const oddsInfo = _handlers.oddsInfoOf(group.groupList)
     return {
       groupName: group.groupName,
       columns,
-      oddsSummary: _handlers.oddsSummaryOf(group.groupList),
+      oddsSummary: oddsInfo.summary,
+      // 標題只放區間時（注項多、賠率不一），逐項賠率改用 hover 浮層呈現
+      oddsDetail: oddsInfo.detail,
+      hasOddsDetail: oddsInfo.isRange,
       // 號碼為文字（非數字）→ 膠囊型玩法（兩面 / 色波）
       isPill: !_handlers.isNumber(String(group.groupList[0]?.name ?? '0')),
       // 注項帶號碼清單（半波 / 五行）→ 改用「項目｜金額｜號碼」清單式排版，一列並排 columns 組
@@ -222,7 +236,16 @@ watch(() => mxState.amount, (val) => {
     <div v-for="group in tableGroups" :key="`board-${group.groupName}`" class="play-group">
       <div class="group-title">
         {{ group.groupName }}
-        <span v-if="group.oddsSummary" class="group-odds"> .{{ group.oddsSummary }}</span>
+        <span v-if="group.oddsSummary" class="group-odds" :class="{ 'has-detail': group.hasOddsDetail }"
+          :tabindex="group.hasOddsDetail ? 0 : undefined">
+          .{{ group.oddsSummary }}
+          <!-- 標題只顯示區間時，hover / focus 浮出逐項賠率 -->
+          <span v-if="group.hasOddsDetail" class="odds-tip" role="tooltip">
+            <em v-for="row in group.oddsDetail" :key="`tip-${group.groupName}-${row.name}`">
+              <i>{{ row.name }}</i><b>{{ row.odds }}</b>
+            </em>
+          </span>
+        </span>
       </div>
       <!-- 半波 / 五行：清單式排版（項目｜金額｜號碼），一列並排 group.columns 組 -->
       <table v-if="group.hasNums" class="play-table nums-list-table">
@@ -376,6 +399,86 @@ watch(() => mxState.amount, (val) => {
         font-weight: 700;
         color: var(--color-red-desc);
         font-variant-numeric: tabular-nums;
+
+        /* 只顯示區間的群組（五行 / 半波 / 一肖 / 七碼）：hover 浮出逐項賠率 */
+        &.has-detail {
+          position: relative;
+          display: inline-block;
+          border-bottom: 1px dashed var(--color-red-desc);
+          cursor: help;
+          outline: none;
+
+          &:hover,
+          &:focus-visible {
+            color: var(--color-red-main);
+            border-bottom-color: var(--color-red-main);
+          }
+
+          &:hover .odds-tip,
+          &:focus-visible .odds-tip {
+            opacity: 1;
+            visibility: visible;
+            transform: translate(-50%, 0);
+          }
+        }
+
+        .odds-tip {
+          position: absolute;
+          top: calc(100% + 9px);
+          left: 50%;
+          transform: translate(-50%, -4px);
+          z-index: 30;
+          display: grid;
+          grid-template-columns: repeat(2, auto);
+          gap: 3px 16px;
+          border: 1px solid var(--color-red-700);
+          border-radius: 6px;
+          background: #fff;
+          padding: 8px 12px;
+          box-shadow: 0 6px 18px rgba(127, 29, 29, 0.22);
+          white-space: nowrap;
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          /* 純提示用，不攔滑鼠，避免蓋住下方注項 */
+          transition: opacity 0.15s ease, transform 0.15s ease;
+
+          /* 指向標題的小三角 */
+          &::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            transform: translateX(-50%) rotate(45deg);
+            border-top: 1px solid var(--color-red-700);
+            border-left: 1px solid var(--color-red-700);
+            background: #fff;
+          }
+
+          em {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-style: normal;
+
+            i {
+              font-style: normal;
+              font-size: 12px;
+              font-weight: 600;
+              color: var(--color-red-desc);
+            }
+
+            b {
+              font-size: 12px;
+              font-weight: 800;
+              color: #b45309;
+              font-variant-numeric: tabular-nums;
+            }
+          }
+        }
       }
     }
 

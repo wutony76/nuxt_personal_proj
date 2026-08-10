@@ -4,7 +4,10 @@ import {
   banboNumsOf,
   creditWuxingOddsOf,
   ganzhiOfYear,
+  shengxiaoNumsOf,
+  shengxiaoOfYear,
   wuxingNumsOf,
+  SX,
   CREDIT_JACKPOT,
   CREDIT_QIMA_BALL_COUNT,
   CREDIT_QIMA_ODDS,
@@ -235,6 +238,20 @@ const BANBO_ROWS = ['紅', '綠', '藍'].flatMap((color) =>
   })
 )
 
+// 一肖：號碼與賠率都逐年輪轉（當年生肖多 49 這一個號），兩個分頁共用號碼但中獎方向相反
+const YIXIAO_YEAR = new Date().getFullYear()
+const YIXIAO_ANIMAL = shengxiaoOfYear(YIXIAO_YEAR)
+const YIXIAO_ROWS = (SX as readonly string[]).map((name) => {
+  const nums = shengxiaoNumsOf(name, YIXIAO_YEAR)
+  return {
+    name,
+    nums,
+    count: nums.length,
+    hitOdds: creditTabOddsOf('yixiao', 10000, name, YIXIAO_YEAR),
+    missOdds: creditTabOddsOf('yixiao', 10001, name, YIXIAO_YEAR),
+  }
+})
+
 const PRIZE_ROWS = [
   { name: '特碼單號', condition: '號碼 = 特別號', odds: CREDIT_TEMA_ODDS.number, hint: '49 選 1，理論值 49' },
   { name: '特碼兩面', condition: '大小／單雙／合單雙／尾大小', odds: CREDIT_TEMA_ODDS.side, hint: `開 ${CREDIT_TIE_SPECIAL_NUMBER} 號為和局，退還本金` },
@@ -372,7 +389,7 @@ const click = {
               <strong>正碼特</strong>看指定名次的那一顆正碼，
               <strong>連碼</strong>看自選號碼組命中幾個正碼／是否含特別號，
               <strong>七碼</strong>看 {{ CREDIT_QIMA_BALL_COUNT }} 顆球的單雙／大小組成顆數，
-              <strong>五行</strong>與<strong>半波</strong>看特別號落在哪一組號碼。
+              <strong>五行</strong>、<strong>半波</strong>與<strong>一肖</strong>看特別號落在哪一組號碼。
             </li>
             <li>與官方玩法的差異：官方是「一注 6 顆號碼、依命中數分層領獎池」，信用玩法是「一注一個注項、中獎即按賠率派彩」。</li>
           </ul>
@@ -410,7 +427,7 @@ const click = {
         <div id="cd-section-play" class="rule-section">
           <h4 class="rule-title">投注玩法</h4>
           <p class="rule-note">
-            目前開放「<strong>特碼</strong>」「<strong>正碼</strong>」「<strong>正碼特</strong>」「<strong>連碼</strong>」「<strong>七碼</strong>」「<strong>五行</strong>」「<strong>半波</strong>」七種玩法。
+            目前開放「<strong>特碼</strong>」「<strong>正碼</strong>」「<strong>正碼特</strong>」「<strong>連碼</strong>」「<strong>七碼</strong>」「<strong>五行</strong>」「<strong>半波</strong>」「<strong>一肖</strong>」八種玩法。
             特碼與正碼各分為 <strong>A / B</strong> 兩個分頁（注項相同、賠率與限額不同）；
             正碼特分為 <strong>正一特 — 正六特</strong> 六個分頁（對應 6 顆正碼的名次）；
             連碼分為 <strong>三全中 / 三中二 / 二全中 / 二中特 / 特串</strong> 五個分頁；七碼只有一個分頁。
@@ -591,6 +608,48 @@ const click = {
             <li>各注項號碼數不同（7 — 10 個），所以<strong>賠率逐項不同</strong>；每期恰好會有
               <strong>2 個半波注項中獎</strong>（該色的大小一個、單雙一個）。</li>
             <li><strong>不設和局</strong>：{{ CREDIT_TIE_SPECIAL_NUMBER }} 號屬綠波且為單、為大，已落在既有注項內。</li>
+          </ul>
+
+          <p class="rule-sub-title">一肖 — 以特別號所屬生肖結算（{{ YIXIAO_YEAR }} {{ YIXIAO_ANIMAL }}年）</p>
+          <div class="rule-table-wrap">
+            <table class="rule-table prize-table">
+              <colgroup>
+                <col style="width: 8%" />
+                <col style="width: 9%" />
+                <col style="width: 12%" />
+                <col style="width: 13%" />
+                <col style="width: 58%" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>生肖</th>
+                  <th>號碼數</th>
+                  <th>一肖中</th>
+                  <th>一肖不中</th>
+                  <th>號碼</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in YIXIAO_ROWS" :key="`yx-${row.name}`">
+                  <td class="tier-name">{{ row.name }}</td>
+                  <td class="tier-match">{{ row.count }}</td>
+                  <td class="tier-odds">{{ row.hitOdds }}</td>
+                  <td class="tier-odds">{{ row.missOdds }}</td>
+                  <td class="tier-nums">
+                    <em v-for="num in row.nums" :key="`yx-${row.name}-${num}`">{{ num }}</em>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ul class="rule-list rule-list-tight">
+            <li><strong>一肖中</strong>：特別號屬所選生肖即中獎。<strong>一肖不中</strong>：特別號<strong>不屬</strong>所選生肖才中獎
+              —— 兩者共用同一份號碼，但中獎方向相反。</li>
+            <li><strong>號碼逐年輪轉</strong>：01 給當年生肖再往回推，<strong>49 也歸當年生肖</strong>，
+              因此當年生肖（{{ YIXIAO_ANIMAL }}）有 5 個號、其餘 11 個各 4 個。結算舊期一律以該期年份的表判定。</li>
+            <li>號碼數變動 → <strong>賠率也跟著變</strong>（回報率固定 {{ (creditRtpOf('yixiao', 10000) * 100).toFixed(0) }}%）：
+              一肖中 4 個號賠 11.88、5 個號賠 9.51；一肖不中則是 1.06 / 1.08。下注時的賠率會鎖在注單上。</li>
+            <li><strong>不設和局</strong>：{{ CREDIT_TIE_SPECIAL_NUMBER }} 號已歸屬當年生肖，落在既有注項內。</li>
           </ul>
 
           <p class="rule-sub-title">各分頁賠率與投注限額</p>
