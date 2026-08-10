@@ -4,6 +4,7 @@ import {
   creditLianweiOddsOf,
   creditLianxiaoOddsOf,
   creditOddsOf,
+  creditTexiaoOddsOf,
   creditWeishuOddsOf,
   creditWuxingOddsOf,
   creditYixiaoOddsOf,
@@ -156,8 +157,13 @@ export function creditTabOddsOf(
   if (String(playKey ?? '') === 'wuxing') {
     return creditWuxingOddsOf(code, safeYear, creditRtpOf(playKey, tabId))
   }
-  // 特肖與一肖的賠率公式相同（rtp × 49 / 該生肖號碼數），差別只在判定看哪些球
-  if (['yixiao', 'texiao'].includes(String(playKey ?? ''))) {
+  // ⚠️ 特肖與一肖的公式「不同」，不可共用分支：
+  //    特肖只看特別號（rtp × 49 / 該生肖號碼數 → 11.88 / 9.51）
+  //    一肖看 7 顆球（連肖 n = 1 的容斥機率 → 2.06 / 1.75），差 5 倍以上
+  if (String(playKey ?? '') === 'texiao') {
+    return creditTexiaoOddsOf(code, safeYear, creditMatchModeOf(playKey, tabId), creditRtpOf(playKey, tabId))
+  }
+  if (String(playKey ?? '') === 'yixiao') {
     return creditYixiaoOddsOf(code, safeYear, creditMatchModeOf(playKey, tabId), creditRtpOf(playKey, tabId))
   }
   // 合肖 / 連肖：注項是玩家自選的一組生肖，賠率隨組合變動，不能只看單一 betCode

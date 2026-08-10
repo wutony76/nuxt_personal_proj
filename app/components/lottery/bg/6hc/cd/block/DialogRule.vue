@@ -746,7 +746,7 @@ const click = {
             <li><strong>不設和局</strong>：{{ CREDIT_TIE_SPECIAL_NUMBER }} 號屬綠波且為單、為大，已落在既有注項內。</li>
           </ul>
 
-          <p class="rule-sub-title">一肖 — 以特別號所屬生肖結算（{{ YIXIAO_YEAR }} {{ YIXIAO_ANIMAL }}年）</p>
+          <p class="rule-sub-title">一肖 — 該生肖在 7 顆球中出現過即中（{{ YIXIAO_YEAR }} {{ YIXIAO_ANIMAL }}年）</p>
           <div class="rule-table-wrap">
             <table class="rule-table prize-table">
               <colgroup>
@@ -779,16 +779,18 @@ const click = {
             </table>
           </div>
           <ul class="rule-list rule-list-tight">
-            <li><strong>一肖中</strong>：特別號屬所選生肖即中獎。<strong>一肖不中</strong>：特別號<strong>不屬</strong>所選生肖才中獎
-              —— 兩者共用同一份號碼，但中獎方向相反。</li>
+            <li><strong>一肖中</strong>：所選生肖在當期 <strong>7 顆球（6 正碼＋特別號）</strong>中出現過即中獎。
+              <strong>一肖不中</strong>：7 顆球<strong>都沒有</strong>出現該生肖才中獎 —— 兩者共用同一份號碼，但中獎方向相反。</li>
+            <li>⚠️ 與<strong>特肖</strong>不同：特肖只看<strong>特別號一顆球</strong>（賠率 11.88 / 9.51），
+              一肖看 7 顆球、中獎機率高得多，賠率只有 <strong>2.06 / 1.75</strong>，兩者差 5 倍以上。</li>
             <li><strong>號碼逐年輪轉</strong>：01 給當年生肖再往回推，<strong>49 也歸當年生肖</strong>，
               因此當年生肖（{{ YIXIAO_ANIMAL }}）有 5 個號、其餘 11 個各 4 個。結算舊期一律以該期年份的表判定。</li>
             <li>號碼數變動 → <strong>賠率也跟著變</strong>（回報率固定 {{ (creditRtpOf('yixiao', 10000) * 100).toFixed(0) }}%）：
-              一肖中 4 個號賠 11.88、5 個號賠 9.51；一肖不中則是 1.06 / 1.08。下注時的賠率會鎖在注單上。</li>
+              一肖中 4 個號賠 2.06、5 個號賠 1.75；一肖不中則是 1.84 / 2.17。下注時的賠率會鎖在注單上。</li>
             <li><strong>不設和局</strong>：{{ CREDIT_TIE_SPECIAL_NUMBER }} 號已歸屬當年生肖，落在既有注項內。</li>
           </ul>
 
-          <p class="rule-sub-title">特肖 — 只看特別號所屬生肖結算（與一肖中同賠率公式）</p>
+          <p class="rule-sub-title">特肖 — 只看特別號所屬生肖結算（{{ TEXIAO_YEAR }} 年）</p>
           <div class="rule-table-wrap">
             <table class="rule-table prize-table">
               <colgroup>
