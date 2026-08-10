@@ -18,6 +18,7 @@ import { Lottery6hcCreditService } from '~/services/lottery6hcCreditService'
 import C_PLAYS from '#shared/config/cd/plays'
 // 賠率與限額讀取層（分頁 settings.quota / 注項 odds / 連碼選號規格）
 import { creditComboCount, creditComboOf, creditQuotaOf, creditTiersOf } from '#shared/config/cd/helpers'
+import { creditRecommendOf, type CreditRecommend } from '#shared/config/cd/recommend'
 
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -196,6 +197,30 @@ function _combinations(codes: string[], pick: number): string[][] {
   }
   if (pick > 0 && codes.length >= pick) walk(0, [])
   return result
+}
+
+/**
+ * 注項名稱正規化（比對推薦結果與號碼球用）
+ * 號碼一律補零成兩位（config 是 '01'，畫面可能給 1），其餘名稱只去空白
+ */
+function _normalizeBetName(name: string | number): string {
+  const text = String(name ?? '').trim()
+  return /^\d+$/.test(text) ? text.padStart(2, '0') : text
+}
+
+/**
+ * 把對沖排序換算成當前分頁的推薦注項（純查詢，不動任何選取狀態）
+ * 畫面用它顯示「這個玩法推薦什麼」，selectByRecommend 用它決定要選哪些注項
+ */
+function _recommendOf(ranked: Array<string | number>): CreditRecommend | null {
+  const issue = String(current.runtime?.issueCurrent ?? '')
+  return creditRecommendOf({
+    playKey: String(state.select),
+    tabId: Number(state.selectTabId),
+    ranked: Array.isArray(ranked) ? ranked : [],
+    // 生肖／五行的號碼表逐年輪轉，推薦必須用該期年份（與結算同一套判定）
+    year: Number(issue.slice(0, 4)) || new Date().getFullYear()
+  })
 }
 
 /**
@@ -886,24 +911,27 @@ export const use6hcCredit = () => {
       state.selectedCodes = []
       _actions.syncSelectItems()
     },
-    // 依號碼套用選取（號碼推薦「加入注項」用）：以注項名稱比對號碼球，套用當前金額
-    // 與 randomSelect 相同語意 — 取代當前分頁既有選取；回傳實際套用注數（0 表示此分頁無對應號碼）
-    selectByNumbers: (numbers: Array<string | number>) => {
-      if (state.submitStatus === 'loading') return 0
-      const wanted = new Set(
-        (Array.isArray(numbers) ? numbers : [])
-          .map((num) => Number(num))
-          .filter((num) => Number.isFinite(num) && num > 0)
-      )
-      if (wanted.size === 0) return 0
-      let matched = select.pool.filter((item) => wanted.has(Number(item.name)))
-      if (matched.length === 0) return 0
-      // 連碼：推薦號碼可能多於 maxPick（號碼推薦固定給 6 碼），超出就截到上限
-      const combo = currentCombo.value
-      if (combo) {
-        if (matched.length < combo.minPick) return 0
-        matched = matched.slice(0, combo.maxPick)
-      }
+    /**
+     * 套用號碼推薦（「加入注項」用）
+     *
+     * 舊版只拿推薦號碼比對數字注項名稱，所以只有特碼／正碼／正碼特／連碼有用 ——
+     * 五行、半波、一肖、尾數、七碼、一肖量… 注項名稱不是數字的玩法一律推不出來。
+     * 改由 creditRecommendOf 把「對沖排序」換算成當前分頁該選哪些注項，全玩法通用。
+     *
+     * 與 randomSelect 相同語意 —— 取代當前分頁既有選取、套用當前金額。
+     * @param ranked 對沖值由高到低排序的號碼（全部 49 個）
+     * @returns null 表示此分頁推不出注項；否則回推薦內容與實際加入的注數
+     */
+    selectByRecommend: (ranked: Array<string | number>) => {
+      if (state.submitStatus === 'loading') return null
+      const recommend = _recommendOf(ranked)
+      if (!recommend) return null
+      // 組合型玩法回 codes（一注的號碼／生肖／尾數），其餘回 names（各自獨立一注）
+      const wanted = recommend.codes.length > 0 ? recommend.codes : recommend.names
+      if (wanted.length === 0) return null
+      const wantedNames = new Set(wanted.map(_normalizeBetName))
+      const matched = select.pool.filter((item) => wantedNames.has(_normalizeBetName(item.name)))
+      if (matched.length === 0) return null
       const matchedIds = new Set(matched.map((item) => String(item.playId)))
       select.pool.forEach((item) => {
         item.select = matchedIds.has(String(item.playId))
@@ -911,7 +939,8 @@ export const use6hcCredit = () => {
       })
       state.selectedCodes = Array.from(matchedIds)
       _actions.syncSelectItems()
-      return matched.length
+      // 組合型玩法選 pick 個號碼只成一注，注數要看展開後的 select.items
+      return { ...recommend, applied: select.items.length }
     },
     // ── Play ────────────────────────────────────────────────────
     // 切換玩法時把分頁（BarTabs）指回該玩法第一個分頁，並清掉上一個玩法殘留的選取
@@ -927,6 +956,12 @@ export const use6hcCredit = () => {
       state.selectedCodes = []
       select.items = []
       select.pool = []
+      // ⚠️ 這裡清掉 pool 後一定要 bump resetToken 通知玩法頁重新登記。
+      // 玩法頁的 layout 是 computed、pool 在其中以副作用登記；
+      // 若切進來的玩法第一個分頁剛好等於 selectTabId 現值（首次載入預設玩法「特碼」就是這樣），
+      // layout 的相依沒變 → 不會重算 → pool 永遠是空的，
+      // 隨機選號 / 清空 / 號碼推薦全都會失效，直到使用者手動點過分頁。
+      select.resetToken += 1
     },
     fetchTypeByName: async (typeName: string) => {
       if (state.fetchStatus === 'loading' || !state.activePlay) return
@@ -1017,6 +1052,8 @@ export const use6hcCredit = () => {
     fetch,
 
     groupList,
+    // 依對沖排序算出當前分頁的推薦注項（純查詢，供號碼推薦面板顯示）
+    recommendOf: _recommendOf,
     currentQuota,
     currentCombo,
     currentTiers,
