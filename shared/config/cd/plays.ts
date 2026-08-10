@@ -11,6 +11,11 @@ import C_HEXIAO from '#shared/config/cd/c_hexiao'
 import C_LIANXIAO from '#shared/config/cd/c_lianxiao'
 import C_WEISHU from '#shared/config/cd/c_weishu'
 import C_LIANWEI from '#shared/config/cd/c_lianwei'
+import C_ZIXUANBUZHONG from '#shared/config/cd/c_zixuanbuzhong'
+import C_DUOXUANZHONGYI from '#shared/config/cd/c_duoxuanzhongyi'
+import C_ZHENGTERENZHONG from '#shared/config/cd/c_zhengterenzhong'
+import C_IXIAOLIAN from '#shared/config/cd/c_ixiaolian'
+import C_WEISHULIAN from '#shared/config/cd/c_weishulian'
 
 /**
  * 信用盤（6hc-cd）玩法看板設定
@@ -39,4 +44,9 @@ export default [
   ...C_LIANXIAO,
   ...C_WEISHU,
   ...C_LIANWEI,
+  ...C_ZIXUANBUZHONG,
+  ...C_DUOXUANZHONGYI,
+  ...C_ZHENGTERENZHONG,
+  ...C_IXIAOLIAN,
+  ...C_WEISHULIAN,
 ]

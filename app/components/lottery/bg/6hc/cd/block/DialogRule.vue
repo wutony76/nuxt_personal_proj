@@ -28,6 +28,7 @@ import {
   creditComboCount,
   creditComboOf,
   creditMatchModeOf,
+  creditMaxOddsOf,
   creditQuotaOf,
   creditRtpOf,
   creditTabOddsOf,
@@ -382,6 +383,56 @@ const LIANWEI_PLAY_TYPES = LIANWEI_TABS.map((tab) => {
   }
 })
 
+// 全不中／中一／特平中：一注是「自選一組號碼」，賠率是分頁唯一檔次（tiers 只有一檔），
+// 差別只在中獎方向（miss / hit）與選幾個號 —— 三者共用同一份說明資料產生器
+const _comboPlaySectionOf = (playKey: string, ruleOf: (pick: number, mode: CreditMatchMode) => string) => {
+  const tabs = (C_PLAYS as Array<{ key?: string; list?: Array<Record<string, any>> }>)
+    .find((play) => play.key === playKey)?.list ?? []
+  return tabs.map((tab) => {
+    const combo = creditComboOf(playKey, tab.tabId)
+    const mode = creditMatchModeOf(playKey, tab.tabId)
+    const pick = combo?.pick ?? 0
+    const maxPick = combo?.maxPick ?? 0
+    const tier = creditTiersOf(playKey, tab.tabId)[0]
+    return {
+      key: `${playKey}-${tab.tabId}`,
+      name: String(tab.tabName ?? ''),
+      odds: Number(tier?.odds ?? 0).toFixed(2),
+      rule: ruleOf(pick, mode),
+      desc: `選 ${pick} 個號碼，最多可選 ${maxPick} 個組複式（${creditComboCount(maxPick, pick)} 注）。`,
+    }
+  })
+}
+
+const ZIXUANBUZHONG_PLAY_TYPES = _comboPlaySectionOf(
+  'zixuanbuzhong',
+  (pick) => `所選 ${pick} 個號碼一個都沒出現在 7 顆球中才中`
+)
+const DUOXUANZHONGYI_PLAY_TYPES = _comboPlaySectionOf(
+  'duoxuanzhongyi',
+  (pick) => `所選 ${pick} 個號碼至少一個出現在 7 顆球中即中`
+)
+const ZHENGTERENZHONG_PLAY_TYPES = _comboPlaySectionOf(
+  'zhengterenzhong',
+  (pick) => `所選 ${pick} 個號碼至少一個出現在 7 顆球中即中`
+)
+
+// 一肖量／尾數量：押「7 顆球一共涵蓋幾個生肖／幾個尾數」，賠率寫在 config 的注項上
+const _countPlayRowsOf = (playKey: string, tabId: number) =>
+  ((C_PLAYS as Array<{ key?: string; list?: Array<Record<string, any>> }>)
+    .find((play) => play.key === playKey)?.list ?? [])
+    .filter((tab) => tab.tabId === tabId)
+    .flatMap((tab) => (tab.tabGroup ?? []).flatMap((group: Record<string, any>) => group.groupList ?? []))
+    .map((item: Record<string, any>) => ({
+      name: String(item.name ?? ''),
+      odds: creditTabOddsOf(playKey, tabId, String(item.name ?? '')),
+    }))
+
+const IXIAOLIAN_ROWS = _countPlayRowsOf('ixiaolian', 19000)
+const WEISHULIAN_ROWS = _countPlayRowsOf('weishulian', 20000)
+const IXIAOLIAN_MAX_ODDS = creditMaxOddsOf('ixiaolian', 19000)
+const WEISHULIAN_MAX_ODDS = creditMaxOddsOf('weishulian', 20000)
+
 const PRIZE_ROWS = [
   { name: '特碼單號', condition: '號碼 = 特別號', odds: CREDIT_TEMA_ODDS.number, hint: '49 選 1，理論值 49' },
   { name: '特碼兩面', condition: '大小／單雙／合單雙／尾大小', odds: CREDIT_TEMA_ODDS.side, hint: `開 ${CREDIT_TIE_SPECIAL_NUMBER} 號為和局，退還本金` },
@@ -522,7 +573,9 @@ const click = {
               <strong>五行</strong>、<strong>半波</strong>、<strong>一肖</strong>、<strong>特肖</strong>與<strong>尾數</strong>看特別號落在哪一組號碼，
               <strong>合肖</strong>看特別號所屬生肖是否屬於自選的那組生肖，
               <strong>連肖</strong>看自選生肖是否全部出現在 7 顆球中，
-              <strong>連尾</strong>看自選尾數是否全部出現在 7 顆球中。
+              <strong>連尾</strong>看自選尾數是否全部出現在 7 顆球中，
+              <strong>全不中</strong>、<strong>中一</strong>與<strong>特平中</strong>看自選號碼組有沒有任何一個出現在 7 顆球中，
+              <strong>一肖量</strong>、<strong>尾數量</strong>看 7 顆球一共涵蓋幾個生肖／幾個尾數。
             </li>
             <li>與官方玩法的差異：官方是「一注 6 顆號碼、依命中數分層領獎池」，信用玩法是「一注一個注項、中獎即按賠率派彩」。</li>
           </ul>
@@ -560,13 +613,15 @@ const click = {
         <div id="cd-section-play" class="rule-section">
           <h4 class="rule-title">投注玩法</h4>
           <p class="rule-note">
-            目前開放「<strong>特碼</strong>」「<strong>正碼</strong>」「<strong>正碼特</strong>」「<strong>連碼</strong>」「<strong>七碼</strong>」「<strong>五行</strong>」「<strong>半波</strong>」「<strong>一肖</strong>」「<strong>特肖</strong>」「<strong>合肖</strong>」「<strong>連肖</strong>」「<strong>尾數</strong>」「<strong>連尾</strong>」十三種玩法。
+            目前開放「<strong>特碼</strong>」「<strong>正碼</strong>」「<strong>正碼特</strong>」「<strong>連碼</strong>」「<strong>七碼</strong>」「<strong>五行</strong>」「<strong>半波</strong>」「<strong>一肖</strong>」「<strong>特肖</strong>」「<strong>合肖</strong>」「<strong>連肖</strong>」「<strong>尾數</strong>」「<strong>連尾</strong>」「<strong>全不中</strong>」「<strong>中一</strong>」「<strong>特平中</strong>」「<strong>一肖量</strong>」「<strong>尾數量</strong>」十八種玩法。
             特碼與正碼各分為 <strong>A / B</strong> 兩個分頁（注項相同、賠率與限額不同）；
             正碼特分為 <strong>正一特 — 正六特</strong> 六個分頁（對應 6 顆正碼的名次）；
             連碼分為 <strong>三全中 / 三中二 / 二全中 / 二中特 / 特串</strong> 五個分頁；
             合肖與連肖各分為 <strong>二肖 — 六肖</strong> 的中／不中多個分頁；
             連尾分為 <strong>二尾 — 四尾</strong> 的連中／連不中多個分頁；
-            尾數分為 <strong>尾數中 / 尾數不中</strong> 兩個分頁；七碼與特肖只有一個分頁。
+            全不中分為 <strong>五不中 — 十不中</strong>、中一分為 <strong>五選中一 — 十選中一</strong> 六個分頁；
+            特平中分為 <strong>一粒任中 — 五粒任中</strong> 五個分頁；
+            尾數分為 <strong>尾數中 / 尾數不中</strong> 兩個分頁；七碼、特肖、一肖量與尾數量只有一個分頁。
             注單一律記錄所屬分頁，結算時依分頁判定。
           </p>
 
@@ -920,6 +975,129 @@ const click = {
               中間還夾著「部分出現」，兩者機率相加 <strong>&lt; 100%</strong>。</li>
             <li>賠率不固定：<strong>選到 0 尾與否會讓賠率差約兩成</strong>（0 尾只有 4 個號，其餘各 5 個），
               上表「賠率」為實際區間，下注時的賠率會依當下選取即時算出並鎖在注單上。</li>
+          </ul>
+
+          <p class="rule-sub-title">全不中 — 自選 n 個號碼，全部沒開出才中</p>
+          <div class="play-cards">
+            <div v-for="play in ZIXUANBUZHONG_PLAY_TYPES" :key="play.key" class="play-card">
+              <div class="play-card-head">
+                <span class="play-card-name">{{ play.name }}</span>
+                <span class="play-card-odds">賠率 {{ play.odds }}</span>
+              </div>
+              <p class="play-card-rule">{{ play.rule }}</p>
+              <p class="play-card-desc">{{ play.desc }}</p>
+            </div>
+          </div>
+          <ul class="rule-list rule-list-tight">
+            <li>看整期 <strong>7 顆球</strong>（6 正碼＋特別號），只要所選號碼<strong>有任何一個開出</strong>就不中獎 ——
+              <strong>正碼與特別號一律計入</strong>，不分名次。</li>
+            <li>選的號碼越多越難中，因此<strong>賠率隨選號數遞增</strong>（五不中 {{ ZIXUANBUZHONG_PLAY_TYPES[0]?.odds }}
+              → 十不中 {{ ZIXUANBUZHONG_PLAY_TYPES[ZIXUANBUZHONG_PLAY_TYPES.length - 1]?.odds }}）。</li>
+            <li>各分頁可多選 <strong>2 個號碼組複式</strong>（例如五不中選 7 個號 = {{ creditComboCount(7, 5) }} 注），
+              每注獨立判定、獨立派彩。</li>
+          </ul>
+
+          <p class="rule-sub-title">中一 — 自選 n 個號碼，至少開出一個即中</p>
+          <div class="play-cards">
+            <div v-for="play in DUOXUANZHONGYI_PLAY_TYPES" :key="play.key" class="play-card">
+              <div class="play-card-head">
+                <span class="play-card-name">{{ play.name }}</span>
+                <span class="play-card-odds">賠率 {{ play.odds }}</span>
+              </div>
+              <p class="play-card-rule">{{ play.rule }}</p>
+              <p class="play-card-desc">{{ play.desc }}</p>
+            </div>
+          </div>
+          <ul class="rule-list rule-list-tight">
+            <li><strong>與全不中嚴格互補</strong>：同一組號碼在「全不中」與「中一」之間必然<strong>一中一不中</strong>，
+              中間沒有其他情形（不像連中／連不中還夾著「部分出現」）。</li>
+            <li>選的號碼越多越容易中，因此<strong>賠率隨選號數遞減</strong>（五選中一 {{ DUOXUANZHONGYI_PLAY_TYPES[0]?.odds }}
+              → 十選中一 {{ DUOXUANZHONGYI_PLAY_TYPES[DUOXUANZHONGYI_PLAY_TYPES.length - 1]?.odds }}）。</li>
+            <li><strong>開出兩個以上也只算中一注</strong>：判定只看「有沒有」，不看命中幾個，派彩不疊加。</li>
+          </ul>
+
+          <p class="rule-sub-title">特平中 — 自選 n 粒號碼，任中一粒即中</p>
+          <div class="play-cards">
+            <div v-for="play in ZHENGTERENZHONG_PLAY_TYPES" :key="play.key" class="play-card">
+              <div class="play-card-head">
+                <span class="play-card-name">{{ play.name }}</span>
+                <span class="play-card-odds">賠率 {{ play.odds }}</span>
+              </div>
+              <p class="play-card-rule">{{ play.rule }}</p>
+              <p class="play-card-desc">{{ play.desc }}</p>
+            </div>
+          </div>
+          <ul class="rule-list rule-list-tight">
+            <li><strong>特平不分正碼與特別號</strong>：所選號碼落在 7 顆球的任何一顆都算中，判定方式與「中一」相同。</li>
+            <li>差別在<strong>粒數從 1 起算</strong>：<strong>一粒任中</strong>就是最單純的「這個號碼會不會開出」
+              （賠率 {{ ZHENGTERENZHONG_PLAY_TYPES[0]?.odds }}，理論值 7 / 49 → 7.00）。</li>
+            <li><strong>五粒任中與「中一」的五選中一規則相同</strong>，兩者賠率與限額可各自設定，
+              下注時的賠率一律鎖在注單上，互不影響。</li>
+          </ul>
+
+          <p class="rule-sub-title">一肖量 — 押 7 顆球一共涵蓋幾個生肖</p>
+          <div class="rule-table-wrap">
+            <table class="rule-table">
+              <thead>
+                <tr>
+                  <th>注項</th>
+                  <th>賠率</th>
+                  <th>說明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in IXIAOLIAN_ROWS" :key="`ixl-${row.name}`">
+                  <td class="tier-name">{{ row.name }}</td>
+                  <td class="tier-odds">{{ row.odds.toFixed(2) }}</td>
+                  <td class="tier-hint">
+                    7 顆球的生肖去重後恰好 <strong>{{ row.name.replace('肖', '') }}</strong> 個
+                    <em v-if="IXIAOLIAN_MAX_ODDS > 0 && row.odds >= IXIAOLIAN_MAX_ODDS" class="tier-cap">已封頂</em>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ul class="rule-list rule-list-tight">
+            <li>把 7 顆球各自對應的生肖<strong>去除重複</strong>後數個數：例如開出
+              <strong>03 08 15 22 29 36 + 41</strong>（{{ ganzhiOfYear(LIANXIAO_YEAR) }}年為
+              03 龍、15 龍、29 虎、41 虎重複）＝ <strong>5 肖</strong>，則「5肖」中獎。</li>
+            <li><strong>每期必定恰好一個注項中獎</strong>（7 顆球最少 2 肖、最多 7 肖），六個注項互斥且窮盡。</li>
+            <li>生肖對應的號碼<strong>逐年輪轉</strong>（當年生肖多一個號、含 49），因此同一組開獎在不同年份可能算出不同肖數，
+              結算一律<strong>以該期所屬年份</strong>計算。</li>
+            <li v-if="IXIAOLIAN_MAX_ODDS > 0"><strong>賠率封頂 {{ IXIAOLIAN_MAX_ODDS }}</strong>：
+              「2肖」的公平賠率高達五位數（機率極低），封頂後該注項的實際回報率低於其他注項，請留意。</li>
+          </ul>
+
+          <p class="rule-sub-title">尾數量 — 押 7 顆球一共涵蓋幾個尾數</p>
+          <div class="rule-table-wrap">
+            <table class="rule-table">
+              <thead>
+                <tr>
+                  <th>注項</th>
+                  <th>賠率</th>
+                  <th>說明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in WEISHULIAN_ROWS" :key="`wsl-${row.name}`">
+                  <td class="tier-name">{{ row.name }}</td>
+                  <td class="tier-odds">{{ row.odds.toFixed(2) }}</td>
+                  <td class="tier-hint">
+                    7 顆球的尾數去重後恰好 <strong>{{ row.name.replace('尾', '') }}</strong> 個
+                    <em v-if="WEISHULIAN_MAX_ODDS > 0 && row.odds >= WEISHULIAN_MAX_ODDS" class="tier-cap">已封頂</em>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ul class="rule-list rule-list-tight">
+            <li>取 7 顆球的<strong>個位數</strong>去除重複後數個數：例如開出
+              <strong>03 08 15 22 29 36 + 41</strong>（尾數 3 8 5 2 9 6 1 全不重複）＝ <strong>7 尾</strong>，
+              則「7尾」中獎。</li>
+            <li><strong>每期必定恰好一個注項中獎</strong>，判定邏輯與一肖量相同，只是把生肖換成尾數。</li>
+            <li>尾數分布<strong>固定不隨年份輪轉</strong>（0 尾 4 個號、其餘各 5 個），因此同一組開獎在任何年份算出的尾數量都相同。</li>
+            <li v-if="WEISHULIAN_MAX_ODDS > 0"><strong>賠率封頂 {{ WEISHULIAN_MAX_ODDS }}</strong>：
+              同一肖量，「2尾」為極低機率注項，封頂後實際回報率低於其他注項。</li>
           </ul>
 
           <p class="rule-sub-title">各分頁賠率與投注限額</p>
@@ -1438,6 +1616,18 @@ const click = {
       .tier-hint {
         font-size: 11px;
         color: #6b7280;
+
+        /* 一肖量 / 尾數量：公平賠率超過上限、被封頂的注項 */
+        .tier-cap {
+          margin-left: 4px;
+          padding: 1px 5px;
+          border-radius: 3px;
+          background: #fef3c7;
+          font-size: 10px;
+          font-style: normal;
+          font-weight: 700;
+          color: #b45309;
+        }
       }
 
       /* 五行 / 半波：注項涵蓋的號碼 */

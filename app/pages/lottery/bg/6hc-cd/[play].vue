@@ -18,6 +18,11 @@ import HexiaoPlay from '~/components/lottery/bg/6hc/cd/Hexiao.vue'
 import LianxiaoPlay from '~/components/lottery/bg/6hc/cd/Lianxiao.vue'
 import WeishuPlay from '~/components/lottery/bg/6hc/cd/Weishu.vue'
 import LianweiPlay from '~/components/lottery/bg/6hc/cd/Lianwei.vue'
+import ZixuanbuzhongPlay from '~/components/lottery/bg/6hc/cd/Zixuanbuzhong.vue'
+import DuoxuanzhongyiPlay from '~/components/lottery/bg/6hc/cd/Duoxuanzhongyi.vue'
+import ZhengterenzhongPlay from '~/components/lottery/bg/6hc/cd/Zhengterenzhong.vue'
+import IxiaolianPlay from '~/components/lottery/bg/6hc/cd/Ixiaolian.vue'
+import WeishulianPlay from '~/components/lottery/bg/6hc/cd/Weishulian.vue'
 
 import { useBgAutoActive } from '~/composables/useBgAutoActive'
 import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
@@ -68,6 +73,11 @@ const playMap: Record<string, Component> = {
   lianxiao: LianxiaoPlay,
   weishu: WeishuPlay,
   lianwei: LianweiPlay,
+  zixuanbuzhong: ZixuanbuzhongPlay,
+  duoxuanzhongyi: DuoxuanzhongyiPlay,
+  zhengterenzhong: ZhengterenzhongPlay,
+  ixiaolian: IxiaolianPlay,
+  weishulian: WeishulianPlay,
 }
 
 

@@ -728,6 +728,11 @@ export const CREDIT_PLAY_DEFINITIONS: TypePlayItem[] = [
   { key: 'lianxiao', name: '連肖' },
   { key: 'weishu', name: '尾數' },
   { key: 'lianwei', name: '連尾' },
+  { key: 'zixuanbuzhong', name: '全不中' },
+  { key: 'duoxuanzhongyi', name: '中一' },
+  { key: 'zhengterenzhong', name: '特平中' },
+  { key: 'ixiaolian', name: '一肖量' },
+  { key: 'weishulian', name: '尾數量' },
 ]
 
 // ── 信用盤（6hc-cd）賠率與中獎判定 ────────────────────────────────
@@ -1439,6 +1444,109 @@ export function judgeCreditLianweiBet(
   return _payout('number', hit ? 'win' : 'lose', odds, coin)
 }
 
+// ── 自選號碼組合玩法（全不中 / 中一 / 特平中）中獎判定 ──────────────
+// 三者都是「選 N 個號，看它們在 7 顆球中的出現情況」，只有命中方向不同：
+//   全不中   miss  一個都沒有命中才中（機率 C(49-N,7)/C(49,7)）
+//   中一     hit   至少一個命中即中（1 - 上式，與全不中嚴格互補）
+//   特平中   hit   同中一，只是選號數範圍不同（1~5 vs 5~10）
+//
+// 所有號碼的機率相同，賠率不隨所選號碼變動，故 config 把單一賠率放在 tiers（同連碼），
+// 判定只需取 tiers[0]。方向由分頁的 settings.match 決定。
+
+/**
+ * 自選號碼組合玩法中獎判定（不設和局）
+ * @param betCodes 該注所選的號碼（不重複，數量須等於分頁 combo.pick）
+ * @param openCode 該期完整開獎號（7 顆：6 正碼 + 特別號）
+ * @param coin 該注注金
+ * @param tiers 下注時鎖在注單上的檔次表（這三個玩法只會有一檔）
+ * @param mode hit = 至少一個命中、miss = 一個都沒命中
+ */
+export function judgeCreditPickBet(
+  betCodes: Array<string | number>,
+  openCode: Array<string | number>,
+  coin: number,
+  tiers: CreditLianmaTier[],
+  mode: CreditMatchMode = 'hit'
+): CreditJudgeResult | null {
+  const raw = Array.isArray(betCodes) ? betCodes : []
+  const nums = raw.map((code) => Number(code))
+  // 任一注碼無效就整注拒判（不可 filter 掉 —— 那會讓「含 50」的注剩 4 個號後照樣判成中獎）
+  if (nums.length === 0) return null
+  if (nums.some((num) => !Number.isInteger(num) || num < 1 || num > 49)) return null
+  if (new Set(nums).size !== nums.length) return null
+  const opened = new Set(
+    (Array.isArray(openCode) ? openCode : [])
+      .map((code) => Number(code))
+      .filter((num) => Number.isFinite(num) && num > 0)
+  )
+  if (opened.size === 0) return null
+  const tier = (Array.isArray(tiers) ? tiers : []).find((item) => Number(item?.odds) > 0)
+  if (!tier) return null
+  const anyHit = nums.some((num) => opened.has(num))
+  const hit = mode === 'miss' ? !anyHit : anyHit
+  const result = _payout('number', hit ? 'win' : 'lose', Number(tier.odds), coin)
+  return { ...result, tier: String(tier.key ?? ''), tierName: String(tier.name ?? ''), weight: Number(tier.weight ?? 0) }
+}
+
+// ── 一肖量 / 尾數量（6hc-cd）中獎判定 ─────────────────────────────
+// 押「7 顆球共涵蓋幾個生肖 / 幾個尾數」，注項是數量（2肖 ~ 7肖、2尾 ~ 7尾）。
+//
+// ⚠️ 與一肖／尾數完全不同 —— 那些是押「某個生肖／某個尾」，這裡押的是「種類數」。
+// 賠率寫在 config 的注項上（各注項難易差距極大），故由呼叫端帶入。
+
+/** 取一組開獎號涵蓋的生肖數（依該期年份的生肖表） */
+export function creditShengxiaoCountOf(openCode: Array<string | number>, year: number): number {
+  const opened = (Array.isArray(openCode) ? openCode : [])
+    .map((code) => Number(code))
+    .filter((num) => Number.isFinite(num) && num > 0)
+    .map((num) => String(num).padStart(2, '0'))
+  if (opened.length === 0) return 0
+  const table = shengxiaoAll(shengxiaoOfYear(year))
+  const hit = new Set<string>()
+  Object.entries(table).forEach(([animal, nums]) => {
+    const padded = nums.map((num) => String(Number(num)).padStart(2, '0'))
+    if (opened.some((code) => padded.includes(code))) hit.add(animal)
+  })
+  return hit.size
+}
+
+/** 取一組開獎號涵蓋的尾數個數 */
+export function creditWeishuCountOf(openCode: Array<string | number>): number {
+  const tails = (Array.isArray(openCode) ? openCode : [])
+    .map((code) => Number(code))
+    .filter((num) => Number.isFinite(num) && num > 0)
+    .map((num) => num % 10)
+  return new Set(tails).size
+}
+
+/**
+ * 一肖量 / 尾數量中獎判定（不設和局）
+ * @param betCode 注項名（"4肖" / "5尾"）
+ * @param openCode 該期完整開獎號（7 顆）
+ * @param coin 該注注金
+ * @param odds 該注項賠率（來自 config，由呼叫端帶入）
+ * @param year 該期年份（一肖量需要；尾數量不使用）
+ */
+export function judgeCreditCountBet(
+  betCode: string | number,
+  openCode: Array<string | number>,
+  coin: number,
+  odds: number,
+  year: number
+): CreditJudgeResult | null {
+  const code = String(betCode ?? '').trim()
+  const matched = /^(\d+)(肖|尾)$/.exec(code)
+  if (!matched) return null
+  if (!(Number(odds) > 0)) return null
+  const want = Number(matched[1])
+  const actual = matched[2] === '肖'
+    ? creditShengxiaoCountOf(openCode, year)
+    : creditWeishuCountOf(openCode)
+  if (!(actual > 0)) return null
+  // 與色波同類（一組固定條件對整期開獎），爆池分配沿用 color 權重
+  return _payout('color', actual === want ? 'win' : 'lose', Number(odds), coin)
+}
+
 // ── 連碼玩法（6hc-cd）判定 ────────────────────────────────────────
 // 連碼與前四個玩法最大的差異：一注帶「一組號碼」而非單一注項，
 // 而且同一注有多種中法（三中二可能中三或中二），賠率在開獎後才確定。
@@ -1559,6 +1667,14 @@ export function creditOddsOf(playKey: string | undefined, betCode: string | numb
     case 'lianwei': return 0
     // 連碼的賠率在分頁 tiers（開獎後才知道命中哪一檔），單一號碼沒有賠率。
     // 一定要有這個 case —— 少了它會落到 default 被當成特碼，號碼注項會拿到 48。
+    // 全不中／中一／特平中：賠率在分頁 tiers（單一檔次），單一號碼沒有賠率
+    case 'zixuanbuzhong':
+    case 'duoxuanzhongyi':
+    case 'zhengterenzhong': return 0
+    // 一肖量／尾數量：賠率寫在 config 的注項上，creditTabOddsOf 直接查得到；
+    // 走到這裡代表查不到該注項，回 0 而不是落到 default 被當成特碼（會拿到 48）
+    case 'ixiaolian':
+    case 'weishulian': return 0
     case 'lianma': return 0
     // 未帶 play_key 的舊注單一律以特碼解讀（原有行為）
     default: return creditTemaOddsOf(betCode)
@@ -1573,7 +1689,8 @@ export function creditNumberBetHitsSpecial(playKey?: string): boolean {
   const key = String(playKey ?? '')
   // 五行 / 半波 / 一肖 / 特肖 / 合肖 / 尾數雖然看特別號，但注項是一組號碼（同色波），不算「單號命中」；
   // 連肖 / 連尾看整期 7 顆球，也不是單一號碼命中特別號
-  return !['zhengma', 'zhengmate', 'qima', 'lianma', 'wuxing', 'banbo', 'yixiao', 'texiao', 'hexiao', 'lianxiao', 'weishu', 'lianwei'].includes(key)
+  return !['zhengma', 'zhengmate', 'qima', 'lianma', 'wuxing', 'banbo', 'yixiao', 'texiao', 'hexiao', 'lianxiao', 'weishu', 'lianwei',
+    'zixuanbuzhong', 'duoxuanzhongyi', 'zhengterenzhong', 'ixiaolian', 'weishulian'].includes(key)
 }
 
 /** 依玩法判定單注結果；未支援的玩法回 null（呼叫端視為和局退還本金） */
@@ -1594,6 +1711,12 @@ export function judgeCreditBet(input: {
   rtp?: number
   /** 命中方向（一肖 / 特肖 / 合肖 / 連肖 / 尾數 / 連尾使用：xx不中要把判定反過來） */
   match?: CreditMatchMode
+  /**
+   * 該注項賠率（僅一肖量 / 尾數量使用）
+   * 這兩個玩法的賠率寫在 config 的注項上、且各項差距極大（890 ~ 2.11），
+   * 本檔不讀設定檔（會與 helpers 形成循環），故由呼叫端帶入
+   */
+  odds?: number
 }): CreditJudgeResult | null {
   const codes = Array.isArray(input?.openCode) ? input.openCode : []
   switch (String(input?.playKey ?? '')) {
@@ -1643,6 +1766,23 @@ export function judgeCreditBet(input: {
       codes, input.coin,
       input.match,
       input.rtp
+    )
+    // 全不中／中一／特平中：同一支判定，方向由 match 決定
+    case 'zixuanbuzhong':
+    case 'duoxuanzhongyi':
+    case 'zhengterenzhong': return judgeCreditPickBet(
+      Array.isArray(input.betCodes) && input.betCodes.length > 0 ? input.betCodes : [input.betCode],
+      codes,
+      input.coin,
+      Array.isArray(input.tiers) ? input.tiers : [],
+      input.match
+    )
+    // 一肖量／尾數量：押「7 顆球涵蓋幾個生肖／幾個尾」
+    case 'ixiaolian':
+    case 'weishulian': return judgeCreditCountBet(
+      input.betCode, codes, input.coin,
+      Number(input.odds ?? 0),
+      Number(input.year) || new Date().getFullYear()
     )
     case 'lianma': return judgeCreditLianmaBet(
       Array.isArray(input.betCodes) && input.betCodes.length > 0 ? input.betCodes : [input.betCode],

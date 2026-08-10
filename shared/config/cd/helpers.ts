@@ -208,6 +208,15 @@ export function creditRtpOf(playKey?: string, tabId?: number | string): number {
 }
 
 /**
+ * 取分頁設定的賠率上限（一肖量 / 尾數量用）；未設定回 0 表示不封頂
+ * 封頂只影響「公平賠率高於上限」的極端注項，說明頁據此標註哪幾項被封
+ */
+export function creditMaxOddsOf(playKey?: string, tabId?: number | string): number {
+  const maxOdds = Number(findCreditTab(playKey, tabId)?.settings?.payout?.maxOdds)
+  return Number.isFinite(maxOdds) && maxOdds > 0 ? maxOdds : 0
+}
+
+/**
  * 取分頁的連碼選號規格；非連碼分頁（沒有 combo 設定）回 null
  * 前端看板據此限制可選號碼數，伺端據此驗證每注的號碼數
  */

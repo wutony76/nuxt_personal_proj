@@ -27,6 +27,8 @@ export default [
             },
           },
           // 選號規格：一注固定 5 個號，最多可選 7 個組複式（C(7,5) = 21 注）
+          // 命中方向：hit = 所選號碼「至少一個」命中即中
+          match: 'hit',
           combo: {
             pick: 5,
             minPick: 5,
@@ -112,6 +114,8 @@ export default [
             },
           },
           // 選號規格：一注固定 6 個號，最多可選 8 個組複式（C(8,6) = 28 注）
+          // 命中方向：hit = 所選號碼「至少一個」命中即中
+          match: 'hit',
           combo: {
             pick: 6,
             minPick: 6,
@@ -197,6 +201,8 @@ export default [
             },
           },
           // 選號規格：一注固定 7 個號，最多可選 9 個組複式（C(9,7) = 36 注）
+          // 命中方向：hit = 所選號碼「至少一個」命中即中
+          match: 'hit',
           combo: {
             pick: 7,
             minPick: 7,
@@ -282,6 +288,8 @@ export default [
             },
           },
           // 選號規格：一注固定 8 個號，最多可選 10 個組複式（C(10,8) = 45 注）
+          // 命中方向：hit = 所選號碼「至少一個」命中即中
+          match: 'hit',
           combo: {
             pick: 8,
             minPick: 8,
@@ -367,6 +375,8 @@ export default [
             },
           },
           // 選號規格：一注固定 9 個號，最多可選 11 個組複式（C(11,9) = 55 注）
+          // 命中方向：hit = 所選號碼「至少一個」命中即中
+          match: 'hit',
           combo: {
             pick: 9,
             minPick: 9,
@@ -452,6 +462,8 @@ export default [
             },
           },
           // 選號規格：一注固定 10 個號，最多可選 12 個組複式（C(12,10) = 66 注）
+          // 命中方向：hit = 所選號碼「至少一個」命中即中
+          match: 'hit',
           combo: {
             pick: 10,
             minPick: 10,

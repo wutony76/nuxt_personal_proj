@@ -312,6 +312,12 @@ export default class LHC_CD extends LOTTERY_BASE {
             const playCoin = Number(play?.amount ?? play?.coin ?? input.amount)
             // 連碼：賠率在命中檔次上，整份 tiers 快照到注單，結算再依命中檔次取值
             const tiers = creditTiersOf(playKey, tabId)
+            // 注項本身的賠率（號碼池型玩法查不到，會是 0）
+            const itemOdds = creditTabOddsOf(playKey, tabId, betCodes[0], _issueYear(input.issue), betCodes)
+            // 只有一個檔次的分頁（三全中 / 二全中 / 特串 / 全不中 / 中一 / 特平中）中法唯一，
+            // 賠率下注時就確定 —— 鎖上注單讓預估獎金與注單紀錄有值；
+            // 多檔次（三中二 / 二中特）仍留 0，結算依實際命中檔次取值
+            const lockedTierOdds = tiers.length === 1 ? Number(tiers[0]?.odds ?? 0) : 0
             rows.push({
               issue: input.issue,
               user_id: input.userId,
@@ -327,7 +333,7 @@ export default class LHC_CD extends LOTTERY_BASE {
               // 以該分頁設定的賠率鎖定在注單上（A/B 盤賠率不同，結算以此為準）
               // 五行的賠率取決於該期年份的號碼表，故一併帶入期別年份；
               // 合肖 / 連肖的賠率取決於整組生肖，一併帶入完整 betCodes
-              odds: creditTabOddsOf(playKey, tabId, betCodes[0], _issueYear(input.issue), betCodes),
+              odds: itemOdds > 0 ? itemOdds : lockedTierOdds,
               ...(tiers.length > 0 ? { tiers } : {})
             })
           })
@@ -483,6 +489,10 @@ export default class LHC_CD extends LOTTERY_BASE {
           const betCode = String(betCodes[0] ?? '')
           const playKey = String(row.playKey ?? '')
           const tabId = Number(row.tabId ?? 0)
+          // 下注時鎖在注單上的賠率（A/B 盤不同、五行等逐年變動，一律以此為準）。
+          // 一肖量／尾數量的判定也需要它 —— 那兩個玩法的賠率寫在 config 的注項上，
+          // 而 shared/config/6hc-cd 不讀設定檔（會與 helpers 形成循環），故由這裡帶入。
+          const lockedOdds = Number(row.odds ?? 0)
           // 依玩法分派判定：特碼看特別號、正碼看 6 顆正碼與七球總和、
           // 正碼特看該分頁對應名次的那一顆正碼、七碼看七顆球的單雙／大小組成、
           // 連碼看整組號碼命中幾個正碼／是否含特別號（賠率取注單上的 tiers 快照）、
@@ -494,12 +504,14 @@ export default class LHC_CD extends LOTTERY_BASE {
             rtp: creditRtpOf(playKey, tabId),
             // 一肖不中的判定方向與一肖中相反，方向記在分頁設定上
             match: creditMatchModeOf(playKey, tabId),
+            // 一肖量／尾數量的賠率寫在 config 的注項上（各項差距極大），
+            // shared 不讀設定檔，故把注單上鎖定的賠率帶進判定
+            odds: lockedOdds,
           })
           // 無法辨識的注項（尚未支援的玩法）視為和局退還本金，避免吞掉玩家注金
           const result: CreditBetResult = judged?.result ?? 'tie'
-          // 賠率以「下注時鎖定在注單上的值」為準（A/B 盤賠率不同），
+          // 賠率以「下注時鎖定在注單上的值」為準（lockedOdds，宣告於判定之前），
           // 注單沒帶（舊資料）才退回判定函式回傳的玩法預設賠率
-          const lockedOdds = Number(row.odds ?? 0)
           const odds = lockedOdds > 0 ? lockedOdds : Number(judged?.odds ?? 0)
           const payout = result === 'win'
             ? Number((coin * odds).toFixed(2))
