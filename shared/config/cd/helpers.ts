@@ -65,8 +65,12 @@ type ConfigTab = {
   settings?: {
     quota?: Partial<CreditQuota>
     combo?: Partial<CreditCombo>
-    /** 五行 / 一肖：賠率由號碼數推算，config 只設回報率 */
-    payout?: { rtp?: number }
+    /**
+     * rtp   五行 / 一肖 / 特肖 / 合肖 / 連肖 / 尾數 / 連尾：賠率由號碼數或組合推算，config 只設回報率
+     * maxOdds 賠率上限：一肖量 / 尾數量 的極端注項公平賠率高達五~六位數，
+     *         實務不可能照付，config 的 odds 已夾到此值（該注項的 RTP 會遠低於 rtp）
+     */
+    payout?: { rtp?: number; maxOdds?: number }
     /** 一肖：命中方向（hit = 開出即中、miss = 沒開出才中） */
     match?: CreditMatchMode
   }
