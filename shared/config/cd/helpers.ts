@@ -150,7 +150,8 @@ export function creditTabOddsOf(
   if (String(playKey ?? '') === 'wuxing') {
     return creditWuxingOddsOf(code, safeYear, creditRtpOf(playKey, tabId))
   }
-  if (String(playKey ?? '') === 'yixiao') {
+  // 特肖與一肖的賠率公式相同（rtp × 49 / 該生肖號碼數），差別只在判定看哪些球
+  if (['yixiao', 'texiao'].includes(String(playKey ?? ''))) {
     return creditYixiaoOddsOf(code, safeYear, creditMatchModeOf(playKey, tabId), creditRtpOf(playKey, tabId))
   }
   const odds = Number(_findTabItem(playKey, tabId, code)?.item?.odds)

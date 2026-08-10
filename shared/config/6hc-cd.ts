@@ -261,6 +261,113 @@ export function creditYixiaoOddsOf(
   return Number((safeRtp * 49 / winCount).toFixed(2))
 }
 
+// ── 合肖玩法（6hc-cd）賠率 ────────────────────────────────────────
+// 選 n 個生肖組成一組，看「特別號的生肖」在不在這組裡面。
+//
+// ⚠️ 與連肖是完全不同的判定，別搞混：
+//     合肖 只看特別號一顆球，所選生肖是「或」的關係（任一命中即中）
+//     連肖 看 7 顆球，所選生肖是「且」的關係（全部出現才中）
+//    也因此合肖的中／不中是嚴格互補（特別號的生肖非在即不在），
+//    連肖則不是（中間夾著「部分出現」）。
+//
+// 機率 = 所選生肖的號碼總數 / 49，故賠率 = rtp × 49 / Σ號碼數（不中則除以 49 - Σ）。
+
+/**
+ * 取合肖注項賠率（含本金）
+ * @param animals 該注所選的生肖（不重複）
+ * @param year 該期年份（決定哪個生肖有 5 個號）
+ * @param mode hit = 特別號屬所選生肖之一、miss = 都不屬
+ * @param rtp 分頁設定的回報率
+ */
+export function creditHexiaoOddsOf(
+  animals: string[],
+  year: number,
+  mode: CreditMatchMode = 'hit',
+  rtp: number = CREDIT_YIXIAO_RTP_FALLBACK
+): number {
+  const list = Array.from(new Set((Array.isArray(animals) ? animals : []).map((a) => String(a).trim())))
+  if (list.length === 0 || list.length !== (animals?.length ?? 0)) return 0
+  const sizes = list.map((animal) => shengxiaoNumsOf(animal, year).length)
+  if (sizes.some((size) => size <= 0)) return 0
+  const covered = sizes.reduce((sum, size) => sum + size, 0)
+  // 中：特別號落在所選生肖的號碼裡；不中：落在其餘號碼裡（兩者互補）
+  const winCount = mode === 'miss' ? 49 - covered : covered
+  if (!(winCount > 0)) return 0
+  const safeRtp = Number(rtp) > 0 ? Number(rtp) : CREDIT_YIXIAO_RTP_FALLBACK
+  return Number((safeRtp * 49 / winCount).toFixed(2))
+}
+
+// ── 連肖玩法（6hc-cd）賠率 ────────────────────────────────────────
+// 選 n 個生肖，n 個「全部」出現在 7 顆球中才中獎（連不中則是全部都不出現）。
+//
+// ⚠️ 賠率取決於「所選的那幾個生肖」而非單一注項 —— 含當年生肖（5 個號）與否，
+//    公平賠率會差到兩成（二肖 4.87 vs 4.12、五肖 128.86 vs 105.94），
+//    所以不能像半波那樣把賠率寫在 config 的注項上，必須逐注推算。
+
+/** 開獎球數（6 正碼 + 特別號） */
+const LHC_DRAW_COUNT = 7
+
+/** 組合數 C(n, k) */
+const _combination = (n: number, k: number): number => {
+  if (k < 0 || k > n) return 0
+  let result = 1
+  for (let i = 1; i <= k; i++) result = (result * (n - k + i)) / i
+  return Math.round(result)
+}
+
+/**
+ * 一組生肖「全部出現」在 7 顆球中的機率（容斥原理）
+ *
+ *   P(全部出現) = Σ_{S⊆所選} (-1)^|S| × C(49 - Σk_S, 7) / C(49, 7)
+ *
+ * @param animals 生肖中文名清單（不重複）
+ * @param year 該期年份（決定哪個生肖有 5 個號）
+ * @returns 命中機率；生肖無效或重複回 0
+ */
+export function creditLianxiaoHitRate(animals: string[], year: number): number {
+  const list = Array.from(new Set((Array.isArray(animals) ? animals : []).map((a) => String(a).trim())))
+  if (list.length === 0 || list.length !== (animals?.length ?? 0)) return 0
+  const sizes = list.map((animal) => shengxiaoNumsOf(animal, year).length)
+  if (sizes.some((size) => size <= 0)) return 0
+  const total = _combination(49, LHC_DRAW_COUNT)
+  let sum = 0
+  // 走訪所有子集：子集內的生肖視為「完全沒開出」
+  for (let mask = 0; mask < (1 << sizes.length); mask++) {
+    let excluded = 0
+    let bits = 0
+    for (let i = 0; i < sizes.length; i++) {
+      if (mask & (1 << i)) { excluded += sizes[i] as number; bits++ }
+    }
+    sum += (bits % 2 === 1 ? -1 : 1) * _combination(49 - excluded, LHC_DRAW_COUNT)
+  }
+  return sum / total
+}
+
+/**
+ * 取連肖注項賠率（含本金）
+ * @param animals 該注所選的生肖
+ * @param year 該期年份
+ * @param mode hit = 全部出現才中、miss = 全部都不出現才中
+ * @param rtp 分頁設定的回報率
+ */
+export function creditLianxiaoOddsOf(
+  animals: string[],
+  year: number,
+  mode: CreditMatchMode = 'hit',
+  rtp: number = CREDIT_YIXIAO_RTP_FALLBACK
+): number {
+  const hitRate = creditLianxiaoHitRate(animals, year)
+  if (!(hitRate > 0) || hitRate >= 1) return 0
+  // 連不中的中獎機率不是 1 - P(全部出現)，而是「一個都沒出現」
+  const rate = mode === 'miss'
+    ? _combination(49 - animals.reduce((sum, a) => sum + shengxiaoNumsOf(a, year).length, 0), LHC_DRAW_COUNT)
+      / _combination(49, LHC_DRAW_COUNT)
+    : hitRate
+  if (!(rate > 0)) return 0
+  const safeRtp = Number(rtp) > 0 ? Number(rtp) : CREDIT_YIXIAO_RTP_FALLBACK
+  return Number((safeRtp / rate).toFixed(2))
+}
+
 // ── CREDIT_PLAY_DEFINITIONS helpers ─────────────────────────────────────────
 
 type NumberOption = { id: string; label: string; num: number }
