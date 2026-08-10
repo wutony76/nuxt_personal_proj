@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue'
 import {
   banboNumsOf,
+  creditHexiaoOddsOf,
+  creditLianxiaoOddsOf,
   creditWuxingOddsOf,
   ganzhiOfYear,
   shengxiaoNumsOf,
@@ -16,12 +18,14 @@ import {
   CREDIT_ZHENGMA_NORMAL_COUNT,
   CREDIT_ZHENGMA_ODDS,
   CREDIT_ZHENGMA_SUM_LINE,
-  CREDIT_ZHENGMATE_ODDS
+  CREDIT_ZHENGMATE_ODDS,
+  type CreditMatchMode
 } from '#shared/config/6hc-cd'
 import C_PLAYS from '#shared/config/cd/plays'
 import {
   creditComboCount,
   creditComboOf,
+  creditMatchModeOf,
   creditQuotaOf,
   creditRtpOf,
   creditTabOddsOf,
@@ -252,6 +256,79 @@ const YIXIAO_ROWS = (SX as readonly string[]).map((name) => {
   }
 })
 
+// 特肖：與一肖中同賠率公式與判定（只看特別號所屬生肖），只有一個分頁（無中/不中之分）
+const TEXIAO_YEAR = new Date().getFullYear()
+const TEXIAO_ROWS = (SX as readonly string[]).map((name) => {
+  const nums = shengxiaoNumsOf(name, TEXIAO_YEAR)
+  return { name, nums, count: nums.length, odds: creditTabOddsOf('texiao', 11000, name, TEXIAO_YEAR) }
+})
+
+// 合肖 / 連肖：注項由玩家自組（選 n 個生肖），賠率取決於是否含當年生肖 ——
+// 以「全部不含當年生肖」與「恰含 1 個當年生肖」兩種極端組合算出實際區間，與 config 檔頭註解的算法一致
+const _animalOddsRangeOf = (
+  oddsFn: (animals: string[], year: number, mode: CreditMatchMode, rtp: number) => number,
+  pick: number,
+  year: number,
+  mode: CreditMatchMode,
+  rtp: number
+): { min: number; max: number } | null => {
+  if (!(pick > 0)) return null
+  const yearAnimal = shengxiaoOfYear(year)
+  const others = (SX as readonly string[]).filter((a) => a !== yearAnimal)
+  const allCommon = others.slice(0, pick)
+  const withYearAnimal = [yearAnimal, ...others.slice(0, pick - 1)]
+  const values = [allCommon, withYearAnimal]
+    .filter((list) => list.length === pick)
+    .map((list) => oddsFn(list, year, mode, rtp))
+    .filter((odds) => odds > 0)
+  if (values.length === 0) return null
+  return { min: Math.min(...values), max: Math.max(...values) }
+}
+const _formatOddsRange = (range: { min: number; max: number } | null): string => {
+  if (!range) return '—'
+  return range.min === range.max ? String(range.min) : `${range.min} — ${range.max}`
+}
+
+const HEXIAO_YEAR = new Date().getFullYear()
+const HEXIAO_TABS = (C_PLAYS as Array<{ key?: string; list?: Array<Record<string, any>> }>)
+  .find((play) => play.key === 'hexiao')?.list ?? []
+const HEXIAO_PLAY_TYPES = HEXIAO_TABS.map((tab) => {
+  const name = String(tab.tabName ?? '')
+  const combo = creditComboOf('hexiao', tab.tabId)
+  const mode = creditMatchModeOf('hexiao', tab.tabId)
+  const range = _animalOddsRangeOf(creditHexiaoOddsOf, combo?.pick ?? 0, HEXIAO_YEAR, mode, creditRtpOf('hexiao', tab.tabId))
+  return {
+    key: `hexiao-${tab.tabId}`,
+    name,
+    odds: _formatOddsRange(range),
+    rule: mode === 'miss'
+      ? `特別號的生肖都不屬於所選 ${combo?.pick ?? 0} 個生肖才中`
+      : `特別號的生肖屬於所選 ${combo?.pick ?? 0} 個生肖之一即中`,
+    desc: `選 ${combo?.pick ?? 0} 個生肖，最多可選 ${combo?.maxPick ?? 0} 個組複式（${creditComboCount(combo?.maxPick ?? 0, combo?.pick ?? 0)} 注）。只看特別號一顆球，賠率依所選生肖是否含當年生肖變動。`,
+    example: '',
+  }
+})
+
+const LIANXIAO_YEAR = new Date().getFullYear()
+const LIANXIAO_TABS = (C_PLAYS as Array<{ key?: string; list?: Array<Record<string, any>> }>)
+  .find((play) => play.key === 'lianxiao')?.list ?? []
+const LIANXIAO_PLAY_TYPES = LIANXIAO_TABS.map((tab) => {
+  const name = String(tab.tabName ?? '')
+  const combo = creditComboOf('lianxiao', tab.tabId)
+  const mode = creditMatchModeOf('lianxiao', tab.tabId)
+  const range = _animalOddsRangeOf(creditLianxiaoOddsOf, combo?.pick ?? 0, LIANXIAO_YEAR, mode, creditRtpOf('lianxiao', tab.tabId))
+  return {
+    key: `lianxiao-${tab.tabId}`,
+    name,
+    odds: _formatOddsRange(range),
+    rule: mode === 'miss'
+      ? `所選 ${combo?.pick ?? 0} 個生肖一個都沒出現在 7 顆球中才中`
+      : `所選 ${combo?.pick ?? 0} 個生肖全部出現在 7 顆球中才中`,
+    desc: `選 ${combo?.pick ?? 0} 個生肖，最多可選 ${combo?.maxPick ?? 0} 個組複式（${creditComboCount(combo?.maxPick ?? 0, combo?.pick ?? 0)} 注）。看整期 7 顆球，賠率依所選生肖是否含當年生肖變動。`,
+    example: '',
+  }
+})
+
 const PRIZE_ROWS = [
   { name: '特碼單號', condition: '號碼 = 特別號', odds: CREDIT_TEMA_ODDS.number, hint: '49 選 1，理論值 49' },
   { name: '特碼兩面', condition: '大小／單雙／合單雙／尾大小', odds: CREDIT_TEMA_ODDS.side, hint: `開 ${CREDIT_TIE_SPECIAL_NUMBER} 號為和局，退還本金` },
@@ -389,7 +466,9 @@ const click = {
               <strong>正碼特</strong>看指定名次的那一顆正碼，
               <strong>連碼</strong>看自選號碼組命中幾個正碼／是否含特別號，
               <strong>七碼</strong>看 {{ CREDIT_QIMA_BALL_COUNT }} 顆球的單雙／大小組成顆數，
-              <strong>五行</strong>、<strong>半波</strong>與<strong>一肖</strong>看特別號落在哪一組號碼。
+              <strong>五行</strong>、<strong>半波</strong>、<strong>一肖</strong>與<strong>特肖</strong>看特別號落在哪一組號碼，
+              <strong>合肖</strong>看特別號所屬生肖是否屬於自選的那組生肖，
+              <strong>連肖</strong>看自選生肖是否全部出現在 7 顆球中。
             </li>
             <li>與官方玩法的差異：官方是「一注 6 顆號碼、依命中數分層領獎池」，信用玩法是「一注一個注項、中獎即按賠率派彩」。</li>
           </ul>
@@ -427,10 +506,11 @@ const click = {
         <div id="cd-section-play" class="rule-section">
           <h4 class="rule-title">投注玩法</h4>
           <p class="rule-note">
-            目前開放「<strong>特碼</strong>」「<strong>正碼</strong>」「<strong>正碼特</strong>」「<strong>連碼</strong>」「<strong>七碼</strong>」「<strong>五行</strong>」「<strong>半波</strong>」「<strong>一肖</strong>」八種玩法。
+            目前開放「<strong>特碼</strong>」「<strong>正碼</strong>」「<strong>正碼特</strong>」「<strong>連碼</strong>」「<strong>七碼</strong>」「<strong>五行</strong>」「<strong>半波</strong>」「<strong>一肖</strong>」「<strong>特肖</strong>」「<strong>合肖</strong>」「<strong>連肖</strong>」十一種玩法。
             特碼與正碼各分為 <strong>A / B</strong> 兩個分頁（注項相同、賠率與限額不同）；
             正碼特分為 <strong>正一特 — 正六特</strong> 六個分頁（對應 6 顆正碼的名次）；
-            連碼分為 <strong>三全中 / 三中二 / 二全中 / 二中特 / 特串</strong> 五個分頁；七碼只有一個分頁。
+            連碼分為 <strong>三全中 / 三中二 / 二全中 / 二中特 / 特串</strong> 五個分頁；
+            合肖與連肖各分為 <strong>二肖 — 六肖</strong> 的中／不中多個分頁；七碼與特肖只有一個分頁。
             注單一律記錄所屬分頁，結算時依分頁判定。
           </p>
 
@@ -652,6 +732,78 @@ const click = {
             <li><strong>不設和局</strong>：{{ CREDIT_TIE_SPECIAL_NUMBER }} 號已歸屬當年生肖，落在既有注項內。</li>
           </ul>
 
+          <p class="rule-sub-title">特肖 — 只看特別號所屬生肖結算（與一肖中同賠率公式）</p>
+          <div class="rule-table-wrap">
+            <table class="rule-table prize-table">
+              <colgroup>
+                <col style="width: 10%" />
+                <col style="width: 10%" />
+                <col style="width: 12%" />
+                <col style="width: 68%" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>生肖</th>
+                  <th>號碼數</th>
+                  <th>賠率</th>
+                  <th>號碼</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in TEXIAO_ROWS" :key="`tx-${row.name}`">
+                  <td class="tier-name">{{ row.name }}</td>
+                  <td class="tier-match">{{ row.count }}</td>
+                  <td class="tier-odds">{{ row.odds }}</td>
+                  <td class="tier-nums">
+                    <em v-for="num in row.nums" :key="`tx-${row.name}-${num}`">{{ num }}</em>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ul class="rule-list rule-list-tight">
+            <li>判定與賠率公式皆與<strong>一肖中</strong>相同 —— 只看特別號一顆球，中獎面 4 — 5 個號，
+              賠率隨當年號碼數變動（回報率固定 {{ (creditRtpOf('texiao', 11000) * 100).toFixed(0) }}%）。</li>
+            <li>只有一個分頁（無中／不中之分）；<strong>不設和局</strong>：49 已歸屬當年生肖，落在既有注項內。</li>
+          </ul>
+
+          <p class="rule-sub-title">合肖 — 自選 n 個生肖，特別號所屬生肖「屬於 / 不屬於」該組結算</p>
+          <div class="play-cards">
+            <div v-for="play in HEXIAO_PLAY_TYPES" :key="play.key" class="play-card">
+              <div class="play-card-head">
+                <span class="play-card-name">{{ play.name }}</span>
+                <span class="play-card-odds">賠率 {{ play.odds }}</span>
+              </div>
+              <p class="play-card-rule">{{ play.rule }}</p>
+              <p class="play-card-desc">{{ play.desc }}</p>
+            </div>
+          </div>
+          <ul class="rule-list rule-list-tight">
+            <li>只看特別號一顆球，所選生肖是「<strong>或</strong>」的關係 —— 與連肖（且的關係）不同。</li>
+            <li>同一組生肖的「n肖中」與「n肖不中」機率相加恰為 100%（嚴格互補）。</li>
+            <li>賠率不固定：<strong>選到當年生肖與否會讓賠率差一截</strong>（該生肖多 1 個號），
+              上表「賠率」為實際區間，下注時的賠率會依當下選取即時算出並鎖在注單上。</li>
+          </ul>
+
+          <p class="rule-sub-title">連肖 — 自選 n 個生肖，是否全部出現在 7 顆球中結算</p>
+          <div class="play-cards">
+            <div v-for="play in LIANXIAO_PLAY_TYPES" :key="play.key" class="play-card">
+              <div class="play-card-head">
+                <span class="play-card-name">{{ play.name }}</span>
+                <span class="play-card-odds">賠率 {{ play.odds }}</span>
+              </div>
+              <p class="play-card-rule">{{ play.rule }}</p>
+              <p class="play-card-desc">{{ play.desc }}</p>
+            </div>
+          </div>
+          <ul class="rule-list rule-list-tight">
+            <li>看整期 7 顆球（6 正碼＋特別號），所選生肖是「<strong>且</strong>」的關係 —— 與合肖（或的關係）不同。</li>
+            <li><strong>連不中不是連中的反面</strong>：連中的反面是「至少一個沒出現」，連不中要求「全部都沒出現」，
+              中間還夾著「部分出現」，兩者機率相加 <strong>&lt; 100%</strong>。</li>
+            <li>賠率不固定：<strong>選到當年生肖與否會讓賠率差約兩成</strong>，上表「賠率」為實際區間，
+              下注時的賠率會依當下選取即時算出並鎖在注單上。</li>
+          </ul>
+
           <p class="rule-sub-title">各分頁賠率與投注限額</p>
           <div class="rule-table-wrap">
             <table class="rule-table">
@@ -819,11 +971,11 @@ const click = {
               正碼特<strong>只看所選分頁對應名次的那一顆</strong>，開在其他名次不算中獎。</li>
             <li><strong>正碼、連碼與七碼不設和局</strong>：開出 {{ CREDIT_TIE_SPECIAL_NUMBER }} 號時，正碼單號命中照賠、總和兩面照常判定；
               七碼一律以 {{ CREDIT_QIMA_BALL_COUNT }} 顆球的組成顆數判定，組合需<strong>完全相同</strong>才算中獎。</li>
-            <li><strong>連碼一注多號</strong>：同一注內號碼不得重複，號碼數需與該分頁規格相符（三選 3 個、二選 2 個）；
+            <li><strong>連碼一注多號、合肖／連肖一注多生肖</strong>：同一注內不得重複，數量需與該分頁規格相符（三選 3 個、二選 2 個…）；
               複式送單時<strong>每注獨立扣款、獨立結算</strong>，不會因為其中一注中獎而影響其他注。</li>
             <li>封盤後送出的投注<strong>不予受理</strong>，請在開盤期間內完成下注。</li>
             <li>賠率可依營運需求調整，結算<strong>以下注時記錄在注單上的賠率為準</strong>（可於下注紀錄查閱）。</li>
-            <li>尚未開放的玩法（生肖、五行、連碼等）若經由其他管道下注，結算時一律<strong>退還本金</strong>。</li>
+            <li>尚未開放的玩法若經由其他管道下注，結算時一律<strong>退還本金</strong>。</li>
             <li>爆池分配權重<strong>依玩法設定</strong>（見「獎池滾存」章節的權重表），
               下注時不鎖定，結算時以當下設定為準。</li>
             <li>開獎結果以系統公布為準，如對結果有疑問請聯繫客服。</li>

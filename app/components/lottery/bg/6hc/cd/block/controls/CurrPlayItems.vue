@@ -75,8 +75,9 @@ const click = {
             <td class="col-bet">
               <!-- 連碼：一注帶多個號碼，逐顆畫成號碼球 -->
               <template v-if="item.codes?.length">
-                <span v-for="code in item.codes" :key="`${item.playId}-${code}`"
-                  class="option is-ball" :class="`c-${_handlers.colorOf(code)}`">
+                <span v-for="code in item.codes" :key="`${item.playId}-${code}`" class="option is-ball" :class="[
+                  _handlers.isNumber(code) ? `c-${_handlers.colorOf(code)}` : 'c-animal',
+                ]">
                   {{ code }}
                 </span>
               </template>
@@ -277,6 +278,16 @@ const click = {
 
         &.is-pill {
           color: var(--6hcOf-ball-yellow);
+        }
+      }
+
+      /* 合肖／連肖：生肖球無波色可判斷，改用紅字凸顯已選生肖 */
+      &.c-animal {
+        border-color: var(--6hcOf-ball-red);
+
+        &.is-ball {
+          color: var(--6hcOf-ball-red);
+          font-weight: 700;
         }
       }
     }

@@ -13,6 +13,9 @@ import QimaPlay from '~/components/lottery/bg/6hc/cd/Qima.vue'
 import WuxingPlay from '~/components/lottery/bg/6hc/cd/Wuxing.vue'
 import BanboPlay from '~/components/lottery/bg/6hc/cd/Banbo.vue'
 import YixiaoPlay from '~/components/lottery/bg/6hc/cd/Yixiao.vue'
+import TexiaoPlay from '~/components/lottery/bg/6hc/cd/Texiao.vue'
+import HexiaoPlay from '~/components/lottery/bg/6hc/cd/Hexiao.vue'
+import LianxiaoPlay from '~/components/lottery/bg/6hc/cd/Lianxiao.vue'
 
 import { useBgAutoActive } from '~/composables/useBgAutoActive'
 import PlayTabs from '~/components/lottery/bg/6hc/cd/PlayTabs.vue'
@@ -58,6 +61,9 @@ const playMap: Record<string, Component> = {
   wuxing: WuxingPlay,
   banbo: BanboPlay,
   yixiao: YixiaoPlay,
+  texiao: TexiaoPlay,
+  hexiao: HexiaoPlay,
+  lianxiao: LianxiaoPlay,
 }
 
 

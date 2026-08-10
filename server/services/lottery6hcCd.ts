@@ -8,6 +8,7 @@ import {
   creditNumberBetHitsSpecial,
   judgeCreditBet,
   shengxiaoAll,
+  SX,
   type CreditBetKind,
   type CreditBetResult,
   type CreditLianmaTier
@@ -153,12 +154,17 @@ function _issueYear(issue: string): number {
 
 type PlayInput = NonNullable<Group['playList']>[number]
 
+/** 生肖組合玩法：codes 語意是生肖中文名（非 01~49 號碼），驗證與排序方式跟連碼不同 */
+const ANIMAL_COMBO_PLAYS = new Set(['hexiao', 'lianxiao'])
+const ANIMAL_SET = new Set<string>(SX as readonly string[])
+
 /**
  * 取一注的號碼組
  * 連碼一注帶多個號（play.codes），需驗證數量與 combo.pick 相符、號碼在 01~49 且不重複；
+ * 合肖 / 連肖一注帶多個生肖，需驗證數量與 combo.pick 相符、生肖須為有效值且不重複；
  * 其餘玩法沿用 normalizeBetCode 的單一注碼。
  *
- * 複式展開由前端做（選 N 個號 → C(N, pick) 注），伺端不信任「注數」這個數字 ——
+ * 複式展開由前端做（選 N 個 → C(N, pick) 注），伺端不信任「注數」這個數字 ——
  * 每一注都在這裡獨立驗證號碼組是否合法，扣款與限額也一律以實際收到的注數計算。
  * @returns 合法的號碼組；無效回 null（呼叫端整筆拒絕）
  */
@@ -169,6 +175,13 @@ function _resolveBetCodes(playKey: string, tabId: number, play: PlayInput): stri
     return code ? [code] : null
   }
   const raw = Array.isArray(play?.codes) ? play.codes : []
+  if (ANIMAL_COMBO_PLAYS.has(playKey)) {
+    const animals = raw.map((code) => String(code).trim()).filter((name) => ANIMAL_SET.has(name))
+    if (animals.length !== combo.pick) return null
+    if (new Set(animals).size !== animals.length) return null
+    // 依生肖固定順序排列，讓相同組合的注單長得一樣（方便比對與去重）
+    return (SX as readonly string[]).filter((animal) => animals.includes(animal))
+  }
   const nums = raw.map((code) => Number(code)).filter((num) => Number.isInteger(num) && num >= 1 && num <= 49)
   if (nums.length !== combo.pick) return null
   if (new Set(nums).size !== nums.length) return null
@@ -300,8 +313,9 @@ export default class LHC_CD extends LOTTERY_BASE {
               play_key: playKey,
               play_type_name: playTypeName,
               // 以該分頁設定的賠率鎖定在注單上（A/B 盤賠率不同，結算以此為準）
-              // 五行的賠率取決於該期年份的號碼表，故一併帶入期別年份
-              odds: creditTabOddsOf(playKey, tabId, betCodes[0], _issueYear(input.issue)),
+              // 五行的賠率取決於該期年份的號碼表，故一併帶入期別年份；
+              // 合肖 / 連肖的賠率取決於整組生肖，一併帶入完整 betCodes
+              odds: creditTabOddsOf(playKey, tabId, betCodes[0], _issueYear(input.issue), betCodes),
               ...(tiers.length > 0 ? { tiers } : {})
             })
           })
@@ -343,7 +357,8 @@ export default class LHC_CD extends LOTTERY_BASE {
             const betCodes = _resolveBetCodes(playKey, tabId, play)
             if (!betCodes) {
               if (!combo) return // 非連碼且注碼為空 → 沿用原行為（略過該注）
-              this.handle.rejectBet(`${tabName} 每注需選 ${combo.pick} 個不重複的號碼（01–49）`)
+              const unit = ANIMAL_COMBO_PLAYS.has(playKey) ? '個不重複的生肖' : '個不重複的號碼（01–49）'
+              this.handle.rejectBet(`${tabName} 每注需選 ${combo.pick} ${unit}`)
             }
             const betCode = betCodes.join('、')
             const rawCoin = Number(play?.amount ?? play?.coin ?? input.amount)

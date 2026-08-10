@@ -201,8 +201,9 @@ function _combinations(codes: string[], pick: number): string[][] {
 /**
  * 依 pool 的 select 狀態重算「當前注項」
  * 一般玩法：一個被選取的注項 = 一注
- * 連碼：被選取的是「號碼」，要展開成 C(已選, pick) 個組合，每個組合才是一注
- *      （伺端會逐注重新驗證號碼組是否合法，前端展開只影響顯示與送單內容）
+ * 連碼：被選取的是「號碼」；合肖 / 連肖：被選取的是「生肖」——
+ *      兩者都要展開成 C(已選, pick) 個組合，每個組合才是一注
+ *      （伺端會逐注重新驗證號碼／生肖組是否合法，前端展開只影響顯示與送單內容）
  */
 function _syncSelectItems() {
   const picked = select.pool.filter((item) => Boolean(item.select))
@@ -211,9 +212,11 @@ function _syncSelectItems() {
     select.items = picked
     return
   }
+  // 連碼的注項是數字號碼（補零、依數值排序）；合肖 / 連肖是生肖中文名（不可轉數字，依文字排序）
+  const isNumeric = picked.every((item) => /^\d+$/.test(String(item.name).trim()))
   const codes = picked
-    .map((item) => String(Number(item.name)).padStart(2, '0'))
-    .sort((a, b) => Number(a) - Number(b))
+    .map((item) => (isNumeric ? String(Number(item.name)).padStart(2, '0') : String(item.name).trim()))
+    .sort((a, b) => (isNumeric ? Number(a) - Number(b) : a.localeCompare(b, 'zh-Hant')))
   const coin = Math.min(currentQuota.value.item.max, Math.max(currentQuota.value.item.min, Number(state.amount) || 0))
   select.items = _combinations(codes, combo.pick).map((group) => ({
     playId: `${state.selectTabId}-${group.join('-')}`,

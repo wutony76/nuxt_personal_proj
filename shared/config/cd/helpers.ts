@@ -1,5 +1,7 @@
 import C_PLAYS from '#shared/config/cd/plays'
 import {
+  creditHexiaoOddsOf,
+  creditLianxiaoOddsOf,
   creditOddsOf,
   creditWuxingOddsOf,
   creditYixiaoOddsOf,
@@ -141,7 +143,9 @@ export function creditTabOddsOf(
   playKey?: string,
   tabId?: number | string,
   betCode?: string | number,
-  year?: number
+  year?: number,
+  /** 合肖 / 連肖專用：賠率取決於「所選的那幾個生肖」，需帶完整號碼組才能推算；未帶則退回單一 betCode */
+  betCodes?: Array<string | number>
 ): number {
   const code = String(betCode ?? '').trim()
   if (!code) return 0
@@ -153,6 +157,15 @@ export function creditTabOddsOf(
   // 特肖與一肖的賠率公式相同（rtp × 49 / 該生肖號碼數），差別只在判定看哪些球
   if (['yixiao', 'texiao'].includes(String(playKey ?? ''))) {
     return creditYixiaoOddsOf(code, safeYear, creditMatchModeOf(playKey, tabId), creditRtpOf(playKey, tabId))
+  }
+  // 合肖 / 連肖：注項是玩家自選的一組生肖，賠率隨組合變動，不能只看單一 betCode
+  if (['hexiao', 'lianxiao'].includes(String(playKey ?? ''))) {
+    const animals = (Array.isArray(betCodes) && betCodes.length > 0 ? betCodes : [betCode]).map((a) => String(a).trim())
+    const mode = creditMatchModeOf(playKey, tabId)
+    const rtp = creditRtpOf(playKey, tabId)
+    return String(playKey) === 'hexiao'
+      ? creditHexiaoOddsOf(animals, safeYear, mode, rtp)
+      : creditLianxiaoOddsOf(animals, safeYear, mode, rtp)
   }
   const odds = Number(_findTabItem(playKey, tabId, code)?.item?.odds)
   if (Number.isFinite(odds) && odds > 0) return odds

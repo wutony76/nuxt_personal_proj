@@ -591,6 +591,9 @@ export const CREDIT_PLAY_DEFINITIONS: TypePlayItem[] = [
   { key: 'wuxing', name: '五行' },
   { key: 'banbo', name: '半波' },
   { key: 'yixiao', name: '一肖' },
+  { key: 'texiao', name: '特肖' },
+  { key: 'hexiao', name: '合肖' },
+  { key: 'lianxiao', name: '連肖' },
 ]
 
 // ── 信用盤（6hc-cd）賠率與中獎判定 ────────────────────────────────
@@ -1137,6 +1140,78 @@ export function judgeCreditYixiaoBet(
   return _payout('color', hit ? 'win' : 'lose', odds, coin)
 }
 
+// ⚠️ 特肖與一肖中的判定完全相同（皆為特別號屬該生肖即中），賠率公式亦同
+//    （見 creditHexiaoOddsOf 上方的 creditYixiaoOddsOf），故直接沿用
+//    creditYixiaoOddsOf / judgeCreditYixiaoBet，見下方 creditOddsOf / judgeCreditBet 的 'texiao' case。
+
+// ── 合肖玩法（6hc-cd）中獎判定 ────────────────────────────────────
+// 只看特別號一顆球：所選生肖是「或」的關係，特別號的生肖「屬於」所選集合（hit＝合肖中）
+// 或「都不屬於」（miss＝合肖不中）即中，不設和局。
+/**
+ * 合肖玩法中獎判定
+ * @param animals 該注所選的生肖（不重複，數量須等於分頁 combo.pick）
+ * @param openCode 該期完整開獎號（7 顆：6 正碼 + 特別號）
+ * @param coin 該注注金
+ * @param year 該期年份（生肖號碼表逐年輪轉）
+ * @param mode hit = 合肖中、miss = 合肖不中
+ * @param rtp 分頁設定的回報率
+ */
+export function judgeCreditHexiaoBet(
+  animals: string[],
+  openCode: Array<string | number>,
+  coin: number,
+  year: number,
+  mode: CreditMatchMode = 'hit',
+  rtp: number = CREDIT_YIXIAO_RTP_FALLBACK
+): CreditJudgeResult | null {
+  const list = Array.from(new Set((Array.isArray(animals) ? animals : []).map((a) => String(a).trim()).filter(Boolean)))
+  if (list.length === 0 || list.length !== (animals?.length ?? 0)) return null
+  const special = Number((Array.isArray(openCode) ? openCode : [])[6])
+  if (!Number.isFinite(special) || special <= 0) return null
+  const odds = creditHexiaoOddsOf(list, year, mode, rtp)
+  if (!(odds > 0)) return null
+  const specialCode = String(special).padStart(2, '0')
+  const belongs = list.some((animal) => shengxiaoNumsOf(animal, year).includes(specialCode))
+  const hit = mode === 'miss' ? !belongs : belongs
+  // 與五行／半波／一肖同類（一組號碼對特別號），爆池分配沿用 color 權重
+  return _payout('color', hit ? 'win' : 'lose', odds, coin)
+}
+
+// ── 連肖玩法（6hc-cd）中獎判定 ────────────────────────────────────
+// 看整期 7 顆球：所選生肖是「且」的關係，全部出現才中（hit＝連中）、
+// 全部都沒出現才中（miss＝連不中），不設和局。中間夾著「部分出現」，兩者機率相加 < 100%。
+/**
+ * 連肖玩法中獎判定
+ * @param animals 該注所選的生肖（不重複，數量須等於分頁 combo.pick）
+ * @param openCode 該期完整開獎號（7 顆：6 正碼 + 特別號）
+ * @param coin 該注注金
+ * @param year 該期年份
+ * @param mode hit = 連中（全部出現）、miss = 連不中（全部都不出現）
+ * @param rtp 分頁設定的回報率
+ */
+export function judgeCreditLianxiaoBet(
+  animals: string[],
+  openCode: Array<string | number>,
+  coin: number,
+  year: number,
+  mode: CreditMatchMode = 'hit',
+  rtp: number = CREDIT_YIXIAO_RTP_FALLBACK
+): CreditJudgeResult | null {
+  const list = Array.from(new Set((Array.isArray(animals) ? animals : []).map((a) => String(a).trim()).filter(Boolean)))
+  if (list.length === 0 || list.length !== (animals?.length ?? 0)) return null
+  const opened = (Array.isArray(openCode) ? openCode : [])
+    .map((code) => Number(code))
+    .filter((num) => Number.isFinite(num) && num > 0)
+  if (opened.length === 0) return null
+  const odds = creditLianxiaoOddsOf(list, year, mode, rtp)
+  if (!(odds > 0)) return null
+  const openedCodes = new Set(opened.map((num) => String(num).padStart(2, '0')))
+  const appears = (animal: string) => shengxiaoNumsOf(animal, year).some((num) => openedCodes.has(num))
+  const hit = mode === 'miss' ? list.every((animal) => !appears(animal)) : list.every((animal) => appears(animal))
+  // 連碼同類（一注帶一組號碼，非單一號碼對特別號），爆池分配沿用 number 權重
+  return _payout('number', hit ? 'win' : 'lose', odds, coin)
+}
+
 // ── 連碼玩法（6hc-cd）判定 ────────────────────────────────────────
 // 連碼與前四個玩法最大的差異：一注帶「一組號碼」而非單一注項，
 // 而且同一注有多種中法（三中二可能中三或中二），賠率在開獎後才確定。
@@ -1239,9 +1314,14 @@ export function creditOddsOf(playKey: string | undefined, betCode: string | numb
     case 'qima': return creditQimaOddsOf(betCode)
     case 'wuxing': return creditWuxingOddsOf(betCode, Number(year) || new Date().getFullYear())
     case 'banbo': return creditBanboOddsOf(betCode)
-    // 一肖的中／不中方向由分頁設定決定，這裡取不到分頁，一律以「中」計算；
+    // 一肖／特肖的中／不中方向由分頁設定決定，這裡取不到分頁，一律以「中」計算；
     // 正式取值走 helpers 的 creditTabOddsOf（會帶入 match 與 rtp）
-    case 'yixiao': return creditYixiaoOddsOf(String(betCode), Number(year) || new Date().getFullYear())
+    case 'yixiao':
+    case 'texiao': return creditYixiaoOddsOf(String(betCode), Number(year) || new Date().getFullYear())
+    // 合肖／連肖的賠率取決於「所選的那幾個生肖」（一組），單一號碼算不出來，
+    // 正式取值走 helpers 的 creditTabOddsOf（會帶入完整 betCodes）
+    case 'hexiao':
+    case 'lianxiao': return 0
     // 連碼的賠率在分頁 tiers（開獎後才知道命中哪一檔），單一號碼沒有賠率。
     // 一定要有這個 case —— 少了它會落到 default 被當成特碼，號碼注項會拿到 48。
     case 'lianma': return 0
@@ -1256,8 +1336,9 @@ export function creditOddsOf(playKey: string | undefined, betCode: string | numb
  */
 export function creditNumberBetHitsSpecial(playKey?: string): boolean {
   const key = String(playKey ?? '')
-  // 五行 / 半波 / 一肖雖然看特別號，但注項是一組號碼（同色波），不算「單號命中」
-  return !['zhengma', 'zhengmate', 'qima', 'lianma', 'wuxing', 'banbo', 'yixiao'].includes(key)
+  // 五行 / 半波 / 一肖 / 特肖 / 合肖雖然看特別號，但注項是一組號碼（同色波），不算「單號命中」；
+  // 連肖看整期 7 顆球，也不是單一號碼命中特別號
+  return !['zhengma', 'zhengmate', 'qima', 'lianma', 'wuxing', 'banbo', 'yixiao', 'texiao', 'hexiao', 'lianxiao'].includes(key)
 }
 
 /** 依玩法判定單注結果；未支援的玩法回 null（呼叫端視為和局退還本金） */
@@ -1272,11 +1353,11 @@ export function judgeCreditBet(input: {
   betCodes?: Array<string | number>
   /** 下注時鎖在注單上的檔次表（僅連碼使用） */
   tiers?: CreditLianmaTier[]
-  /** 該期年份（僅五行使用：號碼表逐年輪轉，結算舊期須帶該期年份而非今年） */
+  /** 該期年份（五行 / 一肖 / 特肖 / 合肖 / 連肖使用：號碼表逐年輪轉，結算舊期須帶該期年份而非今年） */
   year?: number
-  /** 分頁設定的回報率（五行 / 一肖使用） */
+  /** 分頁設定的回報率（五行 / 一肖 / 特肖 / 合肖 / 連肖使用） */
   rtp?: number
-  /** 命中方向（僅一肖使用：一肖不中要把判定反過來） */
+  /** 命中方向（一肖 / 特肖 / 合肖 / 連肖使用：xx不中要把判定反過來） */
   match?: CreditMatchMode
 }): CreditJudgeResult | null {
   const codes = Array.isArray(input?.openCode) ? input.openCode : []
@@ -1290,8 +1371,23 @@ export function judgeCreditBet(input: {
       input.rtp
     )
     case 'banbo': return judgeCreditBanboBet(input.betCode, codes, input.coin)
-    case 'yixiao': return judgeCreditYixiaoBet(
+    case 'yixiao':
+    case 'texiao': return judgeCreditYixiaoBet(
       input.betCode, codes, input.coin,
+      Number(input.year) || new Date().getFullYear(),
+      input.match,
+      input.rtp
+    )
+    case 'hexiao': return judgeCreditHexiaoBet(
+      (Array.isArray(input.betCodes) && input.betCodes.length > 0 ? input.betCodes : [input.betCode]).map(String),
+      codes, input.coin,
+      Number(input.year) || new Date().getFullYear(),
+      input.match,
+      input.rtp
+    )
+    case 'lianxiao': return judgeCreditLianxiaoBet(
+      (Array.isArray(input.betCodes) && input.betCodes.length > 0 ? input.betCodes : [input.betCode]).map(String),
+      codes, input.coin,
       Number(input.year) || new Date().getFullYear(),
       input.match,
       input.rtp
