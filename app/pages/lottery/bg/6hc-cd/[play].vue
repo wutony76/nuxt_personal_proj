@@ -549,9 +549,11 @@ onBeforeUnmount(() => {
     display: flex;
     min-height: 0;
     /* 高度由「注號分析」的號碼檢視決定：49 顆球排 5 列（每列 = 球 2.5rem + 下方統計數字）
-       需要 309px，加上角度 tab / 標題列 / 上方號碼推薦面板後為 560px。
-       當期注單與注號分析同在這個 flex 列裡，故兩者高度自動對齊。 */
-    height: 560px;
+       需要 357px，加上角度 tab、標題列（上下各 15px 邊距）與上方號碼推薦面板後為 580px。
+       當期注單與注號分析同在這個 flex 列裡，故兩者高度自動對齊。
+       ⚠️ 動到 .analyze-issue-bets 的 header 邊距或球尺寸就要同步調這個值，
+          否則第 5 列會被 .record-analyze 的 overflow: hidden 裁掉。 */
+    height: 580px;
     // margin-top: 0.75rem;
     gap: 0.75rem;
     animation: cd-sec-in 0.55s ease both;

@@ -216,7 +216,8 @@ watch(
 
   .header {
     flex: 0 0 auto;
-    margin: 6px 0 7px;
+    margin-top: 15px;
+    margin-bottom: 15px;
     display: flex;
     align-items: center;
     justify-content: space-between;
