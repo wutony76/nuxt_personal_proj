@@ -3,6 +3,11 @@ import { Storage } from '../services/storage'
 import BaseClass from '../services/base'
 
 export default defineNitroPlugin((nitroApp) => {
+  console.log('')
+  console.log('')
+  console.log('')
+  console.log('')
+  console.log('***NEW---------SERV.INIT')
   Storage.init()
   new BaseClass().runCircle(() => {
     // console.log('BaseClass.runCircle.Task')

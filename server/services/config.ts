@@ -14,7 +14,7 @@ export default class ConfigClass {
   }
 
   init() {
-    console.log('ConfigClass.init')
+    console.log('START ---ConfigClass.init')
     this.handle.LHC()
   }
 

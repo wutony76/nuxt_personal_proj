@@ -92,19 +92,22 @@ export class Storage {
   static handle = {
     configInit: () => {
       new ConfigClass()
-      console.log('config.init.success', Storage.config.LHC)
+      // console.log('config.init.success', Storage.config.LHC)
+      console.log('SUCCESS ---BASE>config.init')
     },
     usersInit: () => {
       const _accounts = Object.keys(this.account)
       _accounts.forEach(account => {
         this.users[account] = new UsersClass(account)
       })
-      console.log('account.init.success')
+      // console.log('account.init.success')
+      console.log('SUCCESS ---BASE>account.init')
     },
     gamesInit: () => {
       new LhcCdClass()
       new LhcOfClass()
-      console.log('games.init.success', Storage.games)
+      // console.log('games.init.success', Storage.games)
+      console.log('SUCCESS ---BASE>games.init')
     }
   }
   static init() {

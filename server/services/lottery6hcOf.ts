@@ -494,10 +494,11 @@ export default class LHC_OF extends LOTTERY_BASE {
   }
 
   init() {
+    console.log('TTT---RUN.LHC.官方')
     this._handle.jackpotBase()
     this.handle.prdOpenCode()
     Storage.games[LOTTERY['LHC-OF'].key] = this
-    console.log('LHC_OF.init.success', this.recordOpenCode)
+    // console.log('LHC_OF.init.success', this.recordOpenCode)
     LOTTERY_BASE.getOrders(LOTTERY['LHC-OF'].id, LOTTERY['LHC-OF'].key)
   }
 

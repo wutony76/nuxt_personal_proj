@@ -800,6 +800,7 @@ export default class LHC_CD extends LOTTERY_BASE {
   }
 
   init() {
+    console.log('TTT---RUN.LHC.信用')
     this._handle.jackpotBase()
     this.handle.prdOpenCode()
     Storage.games[this.key] = this
