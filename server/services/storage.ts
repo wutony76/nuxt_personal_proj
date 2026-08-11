@@ -10,6 +10,8 @@ import UsersClass from './users'
 import ConfigClass from './config'
 import LhcOfClass from './lottery6hcOf'
 import LhcCdClass from './lottery6hcCd'
+import K3CdClass from './lotteryK3Cd'
+import K3OfClass from './lotteryK3Of'
 import { LOTTERY } from '~/config/constants'
 
 export const verifyPasswordHash = (password: string, storedHash: string): boolean => {
@@ -106,6 +108,10 @@ export class Storage {
     gamesInit: () => {
       new LhcCdClass()
       new LhcOfClass()
+      // 快3：K3-CD 與 K3-OF 共用開獎號與彩池（見 k3Shared.ts），
+      // 先 new 的那個產生當日期表，後 new 的直接沿用同一份
+      new K3CdClass()
+      new K3OfClass()
       // console.log('games.init.success', Storage.games)
       console.log('SUCCESS ---BASE>games.init')
     }

@@ -11,6 +11,10 @@ export const LOTTERY = {
   'LHC-OF':{ id: 100101, key: 'LHC-OF', name: '六合彩', sub:'OF', sort: 101 },
 
   'K3':{ id: 2001, key: 'K3', name: '快3', sort: 2 },
+  // 快3 的兩個盤口：CD/OF 共用開獎號與彩池（見 server/services/k3Shared.ts），
+  // id 編碼比照 LHC-CD/LHC-OF（玩法 id ×100 + 盤口序號）
+  'K3-CD':{ id: 200100, key: 'K3-CD', name: '快3', sub:'CD', sort: 200 },
+  'K3-OF':{ id: 200101, key: 'K3-OF', name: '快3', sub:'OF', sort: 201 },
   'PK10':{ id: 3001, key: 'PK10', name: 'PK10', sort: 3 },
   'SSC':{ id: 4001, key: 'SSC', name: '時時彩', sort: 4 },
 } 
