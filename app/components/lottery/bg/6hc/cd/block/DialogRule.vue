@@ -1132,6 +1132,16 @@ const click = {
             <li><strong>單注金額</strong>需在該分頁區間內，<strong>單期上限</strong>以「同一期、同一分頁」累計計算，超限整筆不受理。</li>
             <li>每注可<strong>獨立設定金額</strong>，總扣款 = 各注金額加總，<strong>下注即扣款</strong>。</li>
             <li><strong>隨機選號</strong>：可指定注數由系統機選號碼球，或一鍵清空。</li>
+            <li><strong>注號分析</strong>：上方可切換<strong>分析角度</strong> ——
+              <strong>號碼</strong>（49 顆球各自的統計）、<strong>大小</strong>、<strong>單雙</strong>、
+              <strong>兩面</strong>（大小／單雙／合單雙／尾大小共 8 項）、<strong>五行</strong>、
+              <strong>生肖</strong>、<strong>尾數</strong>；下方可切換統計種類
+              （下注次數／攪出次數／相隔期數）。兩者可任意組合，隨時切換。</li>
+            <li><strong>群組統計怎麼算</strong>：<strong>攪出次數</strong>與<strong>下注次數</strong>為組內各號碼<strong>相加</strong>；
+              <strong>相隔期數</strong>取組內<strong>最小值</strong>（該組上次出現距今幾期，相加沒有意義）——
+              因此號碼數多的角度（大小／單雙／兩面每組 24 ~ 25 個號）在相隔期數下幾乎恆為 0，
+              這類角度建議搭配攪出次數觀察。分組沿用結算用的號碼表，
+              <strong>五行與生肖逐年輪轉</strong>，一律以當期年份計算。</li>
             <li><strong>號碼推薦</strong>：依「攪出次數 / 相隔期數」落差把 49 個號碼排序，
               並把排序前 7 名當成<strong>預測本期開獎</strong>（第 1 名為特別號、第 2 ~ 7 名為正碼）。
               推薦面板<strong>直接顯示當前分頁該押的注項</strong>（五行顯示「木」、二肖中顯示「鼠 兔」、
@@ -1144,7 +1154,14 @@ const click = {
             <li><strong>一次點擊加入幾注</strong>：組合型玩法（連碼／合肖／連肖／連尾／全不中／中一／特平中）
               的一注是一整組號碼或生肖，因此固定加入<strong>一注</strong>；
               其餘玩法每個推薦注項各自一注（例如特碼會加入號碼＋兩面＋色波共 6 注）。</li>
-            <li><strong>自動投注</strong>：開啟後每期開盤自動隨機下注指定注數，餘額不足會自動跳過該期。</li>
+            <li><strong>自動投注</strong>：開啟後每期開盤自動下注，餘額不足會自動跳過該期。
+              選號方式分兩種 —— <strong>隨機</strong>依當前分頁組注、<strong>號碼推薦</strong>則直接押上面推薦換算出的注項
+              （注數由推薦決定，不可自訂）。</li>
+            <li><strong>自動投注的一注怎麼算</strong>：組合型玩法（連碼／合肖／連肖／連尾／全不中／中一／特平中）
+              一注是 <strong>pick 個號碼／生肖／尾數</strong>，隨機模式每注獨立組出一組、注與注之間不重複；
+              其餘玩法一個注項就是一注。<strong>每期注數上限</strong>依分頁而異
+              （組合型為「選滿 maxPick 個號能組出的注數」，例如一粒任中只有 3 注、二全中有 45 注），
+              切到上限較低的分頁時會自動夾值，避免整期被拒單。</li>
           </ul>
         </div>
 

@@ -548,7 +548,10 @@ onBeforeUnmount(() => {
     flex: 1 1 auto;
     display: flex;
     min-height: 0;
-    height: 500px;
+    /* 高度由「注號分析」的號碼檢視決定：49 顆球排 5 列（每列 = 球 2.5rem + 下方統計數字）
+       需要 309px，加上角度 tab / 標題列 / 上方號碼推薦面板後為 560px。
+       當期注單與注號分析同在這個 flex 列裡，故兩者高度自動對齊。 */
+    height: 560px;
     // margin-top: 0.75rem;
     gap: 0.75rem;
     animation: cd-sec-in 0.55s ease both;

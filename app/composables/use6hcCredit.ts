@@ -19,6 +19,7 @@ import C_PLAYS from '#shared/config/cd/plays'
 // 賠率與限額讀取層（分頁 settings.quota / 注項 odds / 連碼選號規格）
 import { creditComboCount, creditComboOf, creditQuotaOf, creditTiersOf } from '#shared/config/cd/helpers'
 import { creditRecommendOf, type CreditRecommend } from '#shared/config/cd/recommend'
+import { type CreditAnalyzeDimension } from '#shared/config/cd/analyze'
 
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -95,9 +96,13 @@ const road = reactive({
   fetchStatus: 'idle' as 'idle' | 'loading' | 'success' | 'error',
   errorMessage: '' as string,
 })
-// 注號分析排序模式（預設 / 下注次數(自) / 攪出次數(系) / 相隔期數(系)）
+// 注號分析
 const analyze = reactive({
+  // 排序模式（預設 / 下注次數(自) / 攪出次數(系) / 相隔期數(系)）
   status: SORT.DEFAULT as string,
+  // 分析角度（號碼 / 大小 / 單雙 / 兩面 / 五行 / 生肖 / 尾數）
+  // 'number' 為原本的 49 顆球檢視，其餘會把號碼依該角度分組後比較群組統計
+  dimension: 'number' as CreditAnalyzeDimension,
 })
 // 下注紀錄 Dialog（餘額變動表 / 下注紀錄 / 可領獎金）
 const userRecord = reactive({
@@ -224,6 +229,20 @@ function _recommendOf(ranked: Array<string | number>): CreditRecommend | null {
 }
 
 /**
+ * 組合型玩法「一注」的注碼正規化
+ * 連碼／全不中… 的注項是數字號碼（補零成兩位、依數值排序）；
+ * 合肖／連肖／連尾是生肖或尾數中文名（不可轉數字，依文字排序）
+ * 排序是為了讓同一組合有穩定的 key（去重與 playId 都靠它）
+ */
+function _normalizeComboCodes(names: Array<string | number>): string[] {
+  const list = (Array.isArray(names) ? names : []).map((name) => String(name).trim()).filter(Boolean)
+  const isNumeric = list.length > 0 && list.every((name) => /^\d+$/.test(name))
+  return list
+    .map((name) => (isNumeric ? String(Number(name)).padStart(2, '0') : name))
+    .sort((a, b) => (isNumeric ? Number(a) - Number(b) : a.localeCompare(b, 'zh-Hant')))
+}
+
+/**
  * 依 pool 的 select 狀態重算「當前注項」
  * 一般玩法：一個被選取的注項 = 一注
  * 連碼：被選取的是「號碼」；合肖 / 連肖：被選取的是「生肖」——
@@ -238,10 +257,7 @@ function _syncSelectItems() {
     return
   }
   // 連碼的注項是數字號碼（補零、依數值排序）；合肖 / 連肖是生肖中文名（不可轉數字，依文字排序）
-  const isNumeric = picked.every((item) => /^\d+$/.test(String(item.name).trim()))
-  const codes = picked
-    .map((item) => (isNumeric ? String(Number(item.name)).padStart(2, '0') : String(item.name).trim()))
-    .sort((a, b) => (isNumeric ? Number(a) - Number(b) : a.localeCompare(b, 'zh-Hant')))
+  const codes = _normalizeComboCodes(picked.map((item) => item.name))
   const coin = Math.min(currentQuota.value.item.max, Math.max(currentQuota.value.item.min, Number(state.amount) || 0))
   select.items = _combinations(codes, combo.pick).map((group) => ({
     playId: `${state.selectTabId}-${group.join('-')}`,
@@ -464,6 +480,53 @@ function _randomBetPool(): SelectItem[] {
   return balls.length > 0 ? balls : [...select.pool]
 }
 
+/**
+ * 自動投注可送出的最大注數（超過會被伺端拒單，整期投不進去）
+ * 組合型玩法：一注是一組號碼／生肖／尾數，注數上限 = C(maxPick, pick)（與伺端 validateBetQuota 同一條）
+ * 其餘玩法：一個注項 = 一注，上限就是注項數
+ */
+function _autoBetMaxCount(): number {
+  const combo = currentCombo.value
+  if (combo) return creditComboCount(combo.maxPick, combo.pick)
+  return _randomBetPool().length
+}
+
+/**
+ * 產生自動投注的注項（依當前玩法決定「一注長什麼樣」）
+ *
+ * ⚠️ 舊版一律「隨機取 count 個注項、每個注項一注」，組合型玩法（連碼／合肖／連肖／連尾／
+ *    全不中／中一／特平中）會送出不帶 codes 的單一注項 —— 伺端 _resolveBetCodes 取不到
+ *    合法號碼組，整筆被拒單（「每注需選 n 個不重複的號碼」），等於這些玩法根本不支援自動投注。
+ *    現在改為：組合型玩法每注隨機組出 pick 個項目，注與注之間不重複。
+ */
+function _autoBetItems(count: number, amount: number): SelectItem[] {
+  const pool = _randomBetPool()
+  if (pool.length === 0) return []
+  const size = Math.max(1, Math.min(Math.trunc(Number(count) || 1), _autoBetMaxCount()))
+  const combo = currentCombo.value
+  if (!combo) {
+    // 單一注項型：一個注項 = 一注
+    return _shuffleBetItems(pool)
+      .slice(0, size)
+      .map((item) => ({ playId: item.playId, name: item.name, coin: amount }))
+  }
+  if (pool.length < combo.pick) return []
+  // 組合型：每注隨機取 pick 個項目組成一注；用 key 去重避免同一組合重複下注
+  const seen = new Set<string>()
+  const items: SelectItem[] = []
+  // 亂數可能一直撞到重複組合，用 guard 限制嘗試次數（注數上限已由 size 夾住）
+  const maxTry = size * 40 + 100
+  for (let tried = 0; items.length < size && tried < maxTry; tried++) {
+    const codes = _normalizeComboCodes(_shuffleBetItems(pool).slice(0, combo.pick).map((item) => item.name))
+    if (codes.length !== combo.pick) continue
+    const key = codes.join('-')
+    if (seen.has(key)) continue
+    seen.add(key)
+    items.push({ playId: `${state.selectTabId}-${key}`, name: codes.join('、'), codes, coin: amount })
+  }
+  return items
+}
+
 // Fisher-Yates：回傳打亂後的新陣列（不動原 pool 順序）
 function _shuffleBetItems(list: SelectItem[]): SelectItem[] {
   const result = [...list]
@@ -664,16 +727,40 @@ const fetch = {
     }
     return fetch.submitBetItems(betItems, { clearSelection: true })
   },
-  // 自動投注：從當前分頁隨機取 count 注（每注 amount），不動使用者手動選取的注項
-  autoBets: async (input: { count: number; amount: number }) => {
+  /**
+   * 自動投注（不動使用者手動選取的注項）
+   *
+   * 依當前玩法決定「一注長什麼樣」：
+   *   單一注項型 —— 一個注項 = 一注（特碼號碼、五行、一肖、七碼顆數、一肖量…）
+   *   組合型     —— 一注是 pick 個號碼／生肖／尾數（連碼、合肖、連肖、連尾、全不中、中一、特平中）
+   *
+   * @param input.mode   random = 隨機組注（預設）；recommend = 押號碼推薦換算出的注項
+   * @param input.ranked recommend 模式必填：對沖排序（全部 49 個號碼）
+   */
+  autoBets: async (input: {
+    count: number
+    amount: number
+    mode?: 'random' | 'recommend'
+    ranked?: Array<string | number>
+  }) => {
     const amount = Math.trunc(Number(input?.amount) || 0)
     if (amount <= 0) return { ok: false, message: '自動投注金額需大於 0' }
-    const pool = _randomBetPool()
-    if (pool.length === 0) return { ok: false, message: '目前分頁沒有可自動投注的號碼' }
-    const size = Math.max(1, Math.min(Math.trunc(Number(input?.count) || 1), pool.length))
-    const items = _shuffleBetItems(pool)
-      .slice(0, size)
-      .map((item) => ({ playId: item.playId, name: item.name, coin: amount }))
+    if (select.pool.length === 0) return { ok: false, message: '目前分頁沒有可自動投注的注項' }
+    if (input?.mode === 'recommend') {
+      const recommend = _recommendOf(input.ranked ?? [])
+      const wanted = recommend?.codes.length ? recommend.codes : recommend?.names ?? []
+      if (wanted.length === 0) return { ok: false, message: '此分頁依目前推薦推不出注項' }
+      // 組合型玩法的推薦是「一注」，其餘玩法每個推薦注項各自一注
+      const items: SelectItem[] = recommend?.codes.length
+        ? [{ playId: `${state.selectTabId}-${wanted.join('-')}`, name: wanted.join('、'), codes: [...wanted], coin: amount }]
+        : wanted.map((name) => {
+          const found = select.pool.find((item) => _normalizeBetName(item.name) === _normalizeBetName(name))
+          return { playId: found?.playId ?? `${state.selectTabId}-${name}`, name: found?.name ?? name, coin: amount }
+        })
+      return fetch.submitBetItems(items, { clearSelection: false })
+    }
+    const items = _autoBetItems(Number(input?.count) || 1, amount)
+    if (items.length === 0) return { ok: false, message: '目前分頁組不出可自動投注的注項' }
     return fetch.submitBetItems(items, { clearSelection: false })
   },
   // 共用送單流程（三段狀態 + 本地當期注單 + 餘額／當期資訊刷新）
@@ -1054,6 +1141,8 @@ export const use6hcCredit = () => {
     groupList,
     // 依對沖排序算出當前分頁的推薦注項（純查詢，供號碼推薦面板顯示）
     recommendOf: _recommendOf,
+    // 自動投注一次最多能送幾注（組合型玩法為 C(maxPick, pick)，與伺端上限同一條）
+    autoBetMaxCount: _autoBetMaxCount,
     currentQuota,
     currentCombo,
     currentTiers,

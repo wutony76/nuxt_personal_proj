@@ -1,3 +1,6 @@
+/** 號碼上限（六合彩為 01 ~ 49） */
+export const LHC_NUMBER_MAX = 49
+
 /** 生肖列表（子鼠起，依序 12 生肖） */
 export const SX = ['鼠', '牛', '虎', '兔', '龍', '蛇', '馬', '羊', '猴', '雞', '狗', '豬'] as const
 
@@ -974,6 +977,28 @@ const CREDIT_ZHENGMATE_SIDE_JUDGES: Record<string, (num: number) => boolean> = {
   合雙: (num) => _digitSum(num) % 2 === 0,
   尾大: (num) => num % 10 >= 5,
   尾小: (num) => num % 10 <= 4,
+}
+
+/** 兩面注項名稱（大／小／單／雙／合單／合雙／尾大／尾小） */
+export const CREDIT_SIDE_NAMES = Object.keys(CREDIT_ZHENGMATE_SIDE_JUDGES)
+
+/**
+ * 取兩面注項涵蓋的號碼（供注號分析的「大小／單雙／兩面」分組用）
+ *
+ * 直接跑判定表本身，而不是另外寫一份 25~49 之類的範圍 ——
+ * 分組與結算共用同一組條件，改了判定就不可能跟分析頁不一致
+ * @param name 兩面注項名稱（大／小／單／雙／合單／合雙／尾大／尾小；特碼的「特大」等前綴也接受）
+ * @returns 補零後的號碼清單；名稱無法辨識回空陣列
+ */
+export function creditSideNumbersOf(name: string): string[] {
+  const key = String(name ?? '').trim().replace(/^特/, '')
+  const judge = CREDIT_ZHENGMATE_SIDE_JUDGES[key]
+  if (!judge) return []
+  const result: string[] = []
+  for (let num = 1; num <= LHC_NUMBER_MAX; num++) {
+    if (judge(num)) result.push(String(num).padStart(2, '0'))
+  }
+  return result
 }
 
 /**
