@@ -1,0 +1,62 @@
+/* Scoped under .lottery-k3（頁面根）。結構與色票沿用 lhc_cd.scss，讓快3 與 6hc 視覺一致 */
+.lottery-k3 {
+  .block-main {
+    padding: 0.75rem;
+    border: 1px solid var(--color-red-700);
+    border-radius: var(--base-radius);
+  }
+
+  /* 報表表格：與 6hc 的 .report-table 同一套（色票沿用專案 CSS 變數） */
+  $report-table-border: var(--color-red-content);
+  $report-table-header-bg: color-mix(in srgb, var(--color-red-main) 8%, #fff);
+  $report-table-header-ft: var(--color-red-desc);
+  $report-table-total-bg: color-mix(in srgb, var(--color-red-main) 5%, #f9f9f9);
+
+  .report-table {
+    width: 100%;
+    border: 1px solid $report-table-border;
+    border-collapse: collapse;
+
+    tr {
+      min-height: 35px;
+
+      td,
+      th {
+        border-right: 1px solid $report-table-border;
+        border-bottom: 1px solid $report-table-border;
+        padding: 6px 4px;
+        text-align: center;
+        font-size: 12px;
+      }
+
+      th {
+        background: $report-table-header-bg;
+        font-weight: 700;
+        color: $report-table-header-ft;
+        white-space: nowrap;
+      }
+
+      &:last-child td {
+        border-bottom: unset;
+      }
+
+      td:last-child,
+      th:last-child {
+        border-right: unset;
+      }
+    }
+
+    &.is-empty {
+      td {
+        padding: 28px 4px;
+        color: var(--color-red-desc);
+      }
+    }
+
+    .total-row td {
+      background: $report-table-total-bg;
+      font-weight: 700;
+      color: var(--color-red-main);
+    }
+  }
+}

@@ -53,6 +53,60 @@ export type Lottery6hcRoadPlay = {
   animal?: string // 信用盤（6hc-cd）帶當年生肖
 }
 
+/** 快3 共用彩池狀態（K3-CD 與 K3-OF 讀到同一份，見 server/services/k3Shared.ts） */
+export type K3Pool = {
+  issue: string
+  base: number
+  carry: number
+  /** 該期已累積的抽水（官方盤路由才會帶） */
+  issuePool?: number
+  /** 可發放 = 該期抽水 + 累積滾存 */
+  distributable: number
+}
+
+/** 快3 當期資訊：開獎為 3 顆骰子（openCode 長度 3） */
+export type K3Current = {
+  issue: string
+  issueCurrent: string
+  issueLatest: string
+  currentStatus: string
+  countdown: string
+  statusEndAt: number
+  openCode: string[]
+  openingCode: string[]
+  openCodePlay: Array<{ num: number; label: string; index: number }>
+  time: { start: string; end: string }
+  startAt: number
+  endAt: number
+  pool: K3Pool
+}
+
+/** 快3 玩家紀錄 */
+export type K3UserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: K3UserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+  pool: K3Pool
+}
+
+export type K3UserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  betCode: string[]
+  openCode: string[]
+  matchCount: number
+  /** 信用盤：tie = 和局退還本金（大小單雙開出圍骰） */
+  winStatus: 'pending' | 'win' | 'lose' | 'tie'
+  winAmount: number
+  /** 信用盤才有：該注鎖定的賠率 */
+  odds?: number
+  /** 官方盤才有：命中分層名稱（頭獎／二獎／三獎） */
+  tierName?: string
+  jackpotAmount: number
+}
+
 /** 信用盤（6hc-cd）獎池狀態：含可發放累積池、發放參數與最近一次爆池紀錄 */
 export type Lottery6hcCdJackpot = {
   issue: string
@@ -236,6 +290,10 @@ export const api = {
           return $fetch<Lottery6hcCurrent>('/api/lottery/6hc-cd/current')
         case LOTTERY['LHC-OF'].id:
           return $fetch<Lottery6hcCurrent>('/api/lottery/6hc-of/current')
+        case LOTTERY['K3-CD'].id:
+          return $fetch<K3Current>('/api/lottery/k3-cd/current')
+        case LOTTERY['K3-OF'].id:
+          return $fetch<K3Current>('/api/lottery/k3-of/current')
         default:
           return null
       }
@@ -257,6 +315,17 @@ export const api = {
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/6hc-cd/claim', {
         method: 'POST'
       }),
+    // ── 快3（K3-CD / K3-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
+    currentK3Cd: () => $fetch<K3Current>('/api/lottery/k3-cd/current'),
+    currentK3Of: () => $fetch<K3Current>('/api/lottery/k3-of/current'),
+    openCodeHistoryK3Cd: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/k3-cd/opencode-history'),
+    openCodeHistoryK3Of: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/k3-of/opencode-history'),
+    userRecordK3Cd: () => $fetch<K3UserRecordResponse>('/api/lottery/k3-cd/user-record'),
+    userRecordK3Of: () => $fetch<K3UserRecordResponse>('/api/lottery/k3-of/user-record'),
+    claimOneIssueK3Cd: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/k3-cd/claim', { method: 'POST' }),
+    claimOneIssueK3Of: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/k3-of/claim', { method: 'POST' }),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),

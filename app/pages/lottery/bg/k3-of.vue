@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { onBeforeUnmount, onMounted } from 'vue'
 import K3Header from '~/components/lottery/bg/k3/block/Header.vue'
-import K3Board from '~/components/lottery/bg/k3/base/K3Board.vue'
+import OfPicker from '~/components/lottery/bg/k3/block/OfPicker.vue'
 import CurrItems from '~/components/lottery/bg/k3/block/CurrItems.vue'
 import Controls from '~/components/lottery/bg/k3/block/Controls.vue'
 import Report from '~/components/lottery/bg/k3/block/Report.vue'
@@ -9,43 +9,28 @@ import History from '~/components/lottery/bg/k3/block/History.vue'
 import { useK3 } from '~/composables/useK3'
 
 /**
- * 快3 信用玩法（K3-CD）
+ * 快3 官方玩法（K3-OF）
  *
- * 注項一律讀 shared/config/k3cd 的設定檔（與 6hc-cd 同一套結構），
- * 賠率由 helpers 依該分頁 rtp 即時推算，畫面顯示與伺端鎖進注單的值一致。
- * 期別／倒數／開獎骰子／彩池與官方盤共用（server/services/k3Shared.ts）。
+ * 一注 = 選 3 個點數（可重複），依命中顆數分層從共用彩池分配。
+ * 期別／倒數／開獎骰子／彩池與信用盤共用（server/services/k3Shared.ts），
+ * 所以兩個頁面看到的同一期骰子必然一致。
+ * 版面骨架與 6hc-cd 一致（容器寬度、卡片邊框陰影、進場動畫）。
  */
 const {
   state: mxState,
   wallet: mxWallet,
   pool: mxPool,
-  playList,
-  groupList,
-  selectedCount,
-  totalAmount,
+  ofPicked,
   actions: mxActions,
   fetch: mxFetch
 } = useK3()
 
-const { $dialog } = useNuxtApp()
-const state = reactive({ randomCount: 5 })
-
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
-const currentPlayName = computed(() =>
-  playList.value.find((play) => play.key === mxState.select)?.name ?? ''
-)
-
-const click = {
-  play: (playKey: string) => mxActions.setPlay(playKey),
-  tab: (tabId: number) => mxActions.setTab(tabId),
-  random: () => {
-    const applied = mxActions.randomSelect(state.randomCount)
-    if (applied === 0) $dialog.alert('目前分頁沒有可選注項')
-  }
-}
 
 onMounted(async () => {
-  mxActions.setMode('cd')
+  mxActions.setMode('of')
+  // 官方盤限額（伺端 K3_OF_QUOTA）與信用盤不同，切過來要把金額夾回區間
+  mxState.amount = Math.min(5000, Math.max(10, Math.trunc(Number(mxState.amount) || 0)))
   await mxFetch.initPageData()
   await mxFetch.userRecordAll()
   mxFetch.startPolling()
@@ -55,7 +40,6 @@ onBeforeUnmount(() => mxFetch.stopPolling())
 
 <template>
   <div class="base lottery-k3">
-    <!-- 背景光點（同 6hc-cd） -->
     <div class="bg-fx">
       <span v-for="i in 8" :key="i" class="orb" :style="`--i: ${i}`" />
     </div>
@@ -63,7 +47,6 @@ onBeforeUnmount(() => mxFetch.stopPolling())
     <main class="main">
       <K3Header />
 
-      <!-- 使用者資訊 + 開獎歷史 -->
       <section class="info-warp">
         <aside class="info-side">
           <div class="user-warp">
@@ -71,7 +54,7 @@ onBeforeUnmount(() => mxFetch.stopPolling())
             <div class="row">F幣餘額<b class="is-coin">{{ money(mxWallet.coin) }}</b></div>
             <div class="row">當期已投注<b>{{ money(mxWallet.currentBets) }}</b></div>
             <div class="row">累計已投注<b>{{ money(mxWallet.totalBets) }}</b></div>
-            <div class="row">共用彩池<b>{{ money(mxPool.distributable) }}</b></div>
+            <div class="row">可發放彩池<b>{{ money(mxPool.distributable) }}</b></div>
             <div class="row">累積滾存<b>{{ money(mxPool.carry) }}</b></div>
             <p class="user-id">USER_ID: {{ mxWallet.userId }}</p>
           </div>
@@ -81,49 +64,25 @@ onBeforeUnmount(() => mxFetch.stopPolling())
         </div>
       </section>
 
-      <!-- 投注區 -->
       <section class="play-warp">
         <div class="play-tabs">
-          <button v-for="play in playList" :key="play.key" type="button" class="play-tab"
-            :class="{ active: mxState.select === play.key }" @click="click.play(String(play.key))">
-            {{ play.name }}
-          </button>
-          <NuxtLink to="/lottery/bg/k3-of" class="mode-link">切換官方玩法 →</NuxtLink>
-        </div>
-
-        <div class="tabs-warp">
-          <div v-if="groupList.length > 1" class="bar-tabs">
-            <button v-for="tab in groupList" :key="tab.tabId" type="button" class="bar-tabs-btn"
-              :class="{ active: Number(mxState.selectTabId) === Number(tab.tabId) }"
-              @click="click.tab(Number(tab.tabId))">
-              {{ tab.tabName }}
-            </button>
-          </div>
-          <span v-else class="bar-tabs" />
-
-          <div class="auto-select">
-            <span>隨機選號</span>
-            <input type="number" min="1" class="count-input" v-model.number="state.randomCount" />
-            <span>注</span>
-            <button type="button" class="act-btn" @click="click.random()">機選</button>
-            <button type="button" class="act-btn is-clear" @click="mxActions.clearSelect()">清空</button>
-          </div>
+          <span class="play-tab active">選號（3 顆點數）</span>
+          <NuxtLink to="/lottery/bg/k3-cd" class="mode-link">切換信用玩法 →</NuxtLink>
         </div>
 
         <div class="selector-warp">
           <div class="selector">
             <div class="head">
-              <span>[ {{ currentPlayName }} · {{ mxState.selectTabName }} ] 請選擇注項</span>
-              <span>已選 {{ selectedCount }} 注 · 共 {{ money(totalAmount) }}</span>
+              <span>[ 官方玩法 · 獎池分層 ] 請選 3 個點數</span>
+              <span>{{ ofPicked ? '已選滿' : '未選滿' }}</span>
             </div>
             <div class="body">
-              <K3Board />
+              <OfPicker />
             </div>
           </div>
         </div>
       </section>
 
-      <!-- 注單 + 投注面板 -->
       <section class="record-warp">
         <div class="record-main">
           <Report />

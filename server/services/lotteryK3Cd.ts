@@ -140,6 +140,7 @@ export default class K3_CD extends LOTTERY_BASE {
   }
   declare get: LOTTERY_BASE['get'] & {
     poolState: () => { issue: string; base: number; carry: number; distributable: number }
+    userInfo: (userId: string) => { currentBets: number; totalBets: number; analysis: string }
     userDialogRecord: (userId: string) => {
       balanceChanges: UserBalanceChange[]
       betHistory: UserBetHistory[]
@@ -398,6 +399,29 @@ export default class K3_CD extends LOTTERY_BASE {
     })
 
     Object.assign(this.get, {
+      /**
+       * 投注統計（供 /api/lottery/userInfo 使用）
+       * ⚠️ 那支路由是無條件呼叫 gameClass.get.userInfo()，
+       *    沒實作就會 TypeError → 500，新增彩種一定要補這支
+       */
+      userInfo: (userId: string) => {
+        const orders = this._get.orders()
+        const issue = this.recordOpenCode[this.currentIndex]?.issue ?? ''
+        const currentBets = Number(orders.get.members.issue(issue, userId) ?? 0)
+        const totalBets = Number(orders.get.members.user(userId) ?? 0)
+        // 與上一期比較的投注變化（文案格式對齊 6hc）
+        const prevIssue = String(Number(issue) - 1)
+        const prevBets = Number(orders.get.members.issue(prevIssue, userId) ?? 0)
+        let analysis = '尚未投注'
+        if (prevBets === 0 && currentBets > 0) analysis = '比上期多了 100%'
+        else if (prevBets > 0) {
+          const percent = ((currentBets - prevBets) / prevBets) * 100
+          analysis = percent > 0
+            ? `比上期多了 ${percent.toFixed(2)}%`
+            : percent < 0 ? `比上期少了 ${Math.abs(percent).toFixed(2)}%` : '與上一期投注相同'
+        }
+        return { currentBets, totalBets, analysis }
+      },
       /** 共用彩池狀態（與 K3-OF 讀到同一份） */
       poolState: () => {
         const issue = this._get.latestIssue()
