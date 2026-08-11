@@ -15,8 +15,33 @@ useHead({
   ],
 })
 
-const GAME_META: Record<string, { en: string; ribbon: string; desc: string }> = {
-  '6HC': { en: 'LHC', ribbon: 'BG · 49 取 7', desc: '凡局開時不問名，\n自有規章定分明。\n一念無私循序轉，\n萬機皆在信中行。' },
+/**
+ * 各玩法的卡片文案
+ * en / desc            —— 該玩法兩種模式共用的值（en 另供左側玩法導覽使用）
+ * enByMode / descByMode —— 指定模式專屬的值（key 為 MODE_META 的 suffix），沒寫就退回上面共用的
+ *
+ * ⚠️ 這些覆寫要掛在玩法底下、不要掛在 MODE_META：大廳目前有 4 個玩法但只有 6HC 有這些文案，
+ *    掛在模式上會讓其餘 3 個玩法的卡片也跟著被套用。
+ */
+const GAME_META: Record<string, {
+  en: string
+  ribbon: string
+  desc: string
+  enByMode?: Record<string, string>
+  descByMode?: Record<string, string>
+}> = {
+  '6HC': {
+    en: 'LHC',
+    ribbon: 'BG · 49 取 7',
+    enByMode: {
+      OF: 'LHC [OF]',
+      CD: 'LHC [CD]',
+    },
+    desc: '凡局開時不問名，\n自有規章定分明。\n一念無私循序轉，\n萬機皆在信中行。',
+    descByMode: {
+      OF: '啟局依章守其規，\n明文立矩定輸贏。\n公心一秤分高下，\n萬象皆依信而成。',
+    },
+  },
 }
 
 const MODE_META = [
@@ -48,9 +73,11 @@ const _handlers = {
         tag: mode.tag,
         note: mode.note,
         name: item.name,
-        en: GAME_META[item.key]?.en || item.key,
+        // 卡片的 en 可依模式覆寫（6HC 分成 LHC [OF] / LHC [CD]）；左側玩法導覽仍用共用的 en
+        en: GAME_META[item.key]?.enByMode?.[mode.suffix] || GAME_META[item.key]?.en || item.key,
         ribbon: GAME_META[item.key]?.ribbon || '',
-        desc: GAME_META[item.key]?.desc || '',
+        // 該玩法有指定模式專屬題詩就用它（6HC 官方），否則用玩法層共用的
+        desc: GAME_META[item.key]?.descByMode?.[mode.suffix] || GAME_META[item.key]?.desc || '',
         serial: `L · ${String(gameIdx + 1).padStart(2, '0')} / ${item.key}-${mode.suffix}`,
       }))
     ),
