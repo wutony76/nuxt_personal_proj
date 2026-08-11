@@ -174,7 +174,7 @@ onMounted(() => {
 
       <div class="games-grid">
         <button v-for="(card, idx) in cards" :key="card.routeKey" type="button" class="gc" :class="`gc--${card.theme}`"
-          :style="`--enter-delay: ${_handlers.enterDelay(1.05, idx, 0.14)}`" @click="click.start(card.routeKey)">
+          :style="`--enter-delay: ${_handlers.enterDelay(1.05, idx, 0.14)}`">
           <div class="brush gc__big-num">{{ card.mark }}</div>
           <div class="mono gc__meta">{{ card.serial }}</div>
           <h3 class="brush gc__name">{{ card.name }}</h3>
@@ -184,7 +184,7 @@ onMounted(() => {
           </div>
           <p class="gc__desc">{{ card.desc }}</p>
           <div class="mono gc__note">{{ card.note }}</div>
-          <span class="gc__enter">
+          <span class="gc__enter" @click="click.start(card.routeKey)">
             <span class="brush gc__enter-label">{{ card.label }}</span>
             <span class="mono gc__enter-tag">{{ card.tag }}</span>
           </span>
@@ -828,7 +828,7 @@ onMounted(() => {
   text-align: left;
   font-family: inherit;
   color: inherit;
-  cursor: pointer;
+  // cursor: pointer;
   animation: fadeSlideUp 0.6s ease-out var(--enter-delay, 1.05s) both;
   transition: transform 0.35s ease, box-shadow 0.35s ease;
 
@@ -975,6 +975,9 @@ onMounted(() => {
     position: relative;
     overflow: hidden;
     z-index: 1;
+    /* 入場鈕是唯一綁 click 的元素（卡片本體不再導頁），指標樣式掛在它身上；
+       不寫在 .gc--of 的 &:hover 底下，否則只有官方卡有、且滑到卡片其他區域也會變手指 */
+    cursor: pointer;
 
     &::after {
       content: '';
@@ -1015,6 +1018,7 @@ onMounted(() => {
         width: 20%;
         background: rgba(255, 255, 255, 0.9);
       }
+
     }
 
     &:hover .gc__enter {
