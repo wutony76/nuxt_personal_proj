@@ -63,7 +63,10 @@ const _handlers = {
     if (s.includes('綠')) return 'green'
     return ''
   },
+  /** 開獎號碼顯示：維持兩位數（開獎號是官方牌面，與注碼寫法無關） */
   displayCode: (code: string | number) => (/^\d+$/.test(String(code)) ? String(code).padStart(2, '0') : String(code)),
+  /** 注碼顯示：不補零（1 ~ 9 就顯示 1 ~ 9），與看板設定、伺端存下的注碼一致 */
+  displayBetCode: (code: string | number) => String(code),
   formatTime: (timestamp: number) => (Number(timestamp) > 0 ? new Date(Number(timestamp)).toLocaleString() : '-'),
   betCount: (item: LotteryUserBetHistory) => Number(item.betCount ?? 0) || (Array.isArray(item.betCode) ? item.betCode.length : 1) || 1,
   winStatusText: (status: string) => WIN_STATUS_TEXT[status] ?? status,
@@ -259,7 +262,7 @@ const click = {
                         _handlers.colorOf(code) ? `c-${_handlers.colorOf(code)}` : '',
                         { 'is-miss': selectedIssueOpenCode && _handlers.isNumber(code) && !_handlers.isHit(code, selectedIssueOpenCode) },
                       ]">
-                        {{ _handlers.displayCode(code) }}
+                        {{ _handlers.displayBetCode(code) }}
                       </span>
                     </div>
                   </td>

@@ -241,15 +241,23 @@ export function creditRecommendOf(input: {
       candidates = _comboCandidates({ pool, inDraw: hit, must: hit.includes(must) ? must : null, pick, mode })
     } else {
       // 號碼組合：中方向取預測開獎、不中方向取對沖排序末段（最不被看好會開出的號碼）
-      const ranked = (Array.isArray(input.ranked) ? input.ranked : []).map((num) => _pad(Number(num)))
+      //
+      // ⚠️ 預測開獎一律補零（"03"），但設定檔的注項名稱不一定（c_tema 等已改成 "3"），
+      //    直接字串比對會全部對不上 —— 一律換算成「該分頁自己的寫法」再比
+      const poolByNum = new Map(
+        pool.filter((name) => /^\d+$/.test(name)).map((name) => [Number(name), name] as const)
+      )
+      const asPool = (code: string) => poolByNum.get(Number(code)) ?? code
+      const opened = draw.openCode.map(asPool)
+      const ranked = (Array.isArray(input.ranked) ? input.ranked : []).map((num) => asPool(_pad(Number(num))))
       candidates = _comboCandidates({
         pool,
-        inDraw: draw.openCode,
+        inDraw: opened,
         // 「八選中一」以上要選 8 ~ 10 個號，超過預測的 7 顆 ——
         // 中一只需命中一個，補進來的號碼不必命中，故用對沖排序前段補滿
-        hitOrder: [...draw.openCode, ...ranked.filter((num) => !draw.openCode.includes(num))],
+        hitOrder: [...opened, ...ranked.filter((num) => !opened.includes(num))],
         missOrder: [...ranked].reverse(),
-        must: draw.special,
+        must: asPool(draw.special),
         pick,
         mode
       })

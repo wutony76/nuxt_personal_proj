@@ -48,7 +48,11 @@ const _handlers = {
     return ''
   },
   // 顯示值：數字補零成兩位，其餘（膠囊玩法文字）原樣
-  displayCode: (name: string | number) => (/^\d+$/.test(String(name)) ? String(name).padStart(2, '0') : String(name)),
+  /**
+   * 注碼顯示：不補零（1 ~ 9 就顯示 1 ~ 9），與看板設定、伺端存下的注碼一致
+   * 色波配色另外由 colorOf 內部補零查表，兩者互不影響
+   */
+  displayCode: (name: string | number) => String(name),
   syncScrollState: () => {
     const el = state.tableScrollRef
     if (!el) {

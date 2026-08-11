@@ -163,11 +163,25 @@ const TAIL_COMBO_PLAYS = new Set(['lianwei'])
 const TAIL_SET = new Set<string>(Array.from({ length: 10 }, (_, i) => `${i}尾`))
 
 /**
+ * 6hc-cd 的單一注碼正規化（不補零：1 ~ 9 就寫 "1" ~ "9"）
+ *
+ * ⚠️ 不能直接用 LOTTERY_BASE.normalizeBetCode —— 那支會補零成 "01"，且 6hc-of 共用，
+ *    動它會一起改到另一個彩種。6hc-cd 的看板設定（c_tema 等）已改成不補零，
+ *    注單注碼跟著一致，畫面上才不會出現「看板顯示 1、注單顯示 01」。
+ *    判定端一律走 Number() 比對（見 shared/config/6hc-cd.ts 各 judge），故不受寫法影響。
+ */
+function _normalizeCdBetCode(play: PlayInput): string {
+  const num = Number(play?.num)
+  if (Number.isFinite(num) && num > 0) return String(num)
+  return String(play?.label ?? '').trim()
+}
+
+/**
  * 取一注的號碼組
- * 連碼一注帶多個號（play.codes），需驗證數量與 combo.pick 相符、號碼在 01~49 且不重複；
+ * 連碼一注帶多個號（play.codes），需驗證數量與 combo.pick 相符、號碼在 1~49 且不重複；
  * 合肖 / 連肖一注帶多個生肖，需驗證數量與 combo.pick 相符、生肖須為有效值且不重複；
  * 連尾一注帶多個尾數，需驗證數量與 combo.pick 相符、尾數須為 0~9 尾且不重複；
- * 其餘玩法沿用 normalizeBetCode 的單一注碼。
+ * 其餘玩法沿用 _normalizeCdBetCode 的單一注碼。
  *
  * 複式展開由前端做（選 N 個 → C(N, pick) 注），伺端不信任「注數」這個數字 ——
  * 每一注都在這裡獨立驗證號碼組是否合法，扣款與限額也一律以實際收到的注數計算。
@@ -176,7 +190,7 @@ const TAIL_SET = new Set<string>(Array.from({ length: 10 }, (_, i) => `${i}尾`)
 function _resolveBetCodes(playKey: string, tabId: number, play: PlayInput): string[] | null {
   const combo = creditComboOf(playKey, tabId)
   if (!combo) {
-    const code = LOTTERY_BASE.normalizeBetCode(play)
+    const code = _normalizeCdBetCode(play)
     return code ? [code] : null
   }
   const raw = Array.isArray(play?.codes) ? play.codes : []
@@ -197,8 +211,8 @@ function _resolveBetCodes(playKey: string, tabId: number, play: PlayInput): stri
   const nums = raw.map((code) => Number(code)).filter((num) => Number.isInteger(num) && num >= 1 && num <= 49)
   if (nums.length !== combo.pick) return null
   if (new Set(nums).size !== nums.length) return null
-  // 同一注內號碼排序，讓相同組合的注單長得一樣（方便比對與去重）
-  return nums.sort((a, b) => a - b).map((num) => String(num).padStart(2, '0'))
+  // 同一注內號碼排序，讓相同組合的注單長得一樣（方便比對與去重）；不補零，與看板設定一致
+  return nums.sort((a, b) => a - b).map((num) => String(num))
 }
 
 type JackpotHit = {
