@@ -15,6 +15,7 @@ export const LOTTERY = {
   // id 編碼比照 LHC-CD/LHC-OF（玩法 id ×100 + 盤口序號）
   'K3-CD':{ id: 200100, key: 'K3-CD', name: '快3', sub:'CD', sort: 200 },
   'K3-OF':{ id: 200101, key: 'K3-OF', name: '快3', sub:'OF', sort: 201 },
+
   'PK10':{ id: 3001, key: 'PK10', name: 'PK10', sort: 3 },
   'SSC':{ id: 4001, key: 'SSC', name: '時時彩', sort: 4 },
 } 
@@ -65,8 +66,15 @@ export const FLAG = {
 
 // FUNC
 export const GET_CONT = { 
+  /**
+   * 大廳的玩法清單：只回「玩法本身」，不含 CD / OF 盤口
+   *
+   * ⚠️ 以 sub 欄位判斷而非寫死 key 清單 —— 盤口一律帶 sub（'CD' / 'OF'），玩法本身沒有。
+   *    原本寫死 ['LHC-CD','LHC-OF']，新增 K3-CD / K3-OF 後就漏掉，
+   *    大廳把盤口也當成獨立玩法、各再 ×2 模式 → 出現重複的快3 卡。
+   */
   lotteryAll: () => {
-    return Object.values(LOTTERY).filter(item => !['LHC-CD', 'LHC-OF'].includes(item.key)).sort((a, b) => a.sort - b.sort)
+    return Object.values(LOTTERY).filter(item => !item.sub).sort((a, b) => a.sort - b.sort)
   },
   lotteryById: (id) => {
     return Object.values(LOTTERY).find((lottery) => lottery.id === id)

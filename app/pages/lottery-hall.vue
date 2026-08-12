@@ -20,13 +20,15 @@ useHead({
  * en / desc            —— 該玩法兩種模式共用的值（en 另供左側玩法導覽使用）
  * enByMode / descByMode —— 指定模式專屬的值（key 為 MODE_META 的 suffix），沒寫就退回上面共用的
  *
- * ⚠️ 這些覆寫要掛在玩法底下、不要掛在 MODE_META：大廳目前有 4 個玩法但只有 6HC 有這些文案，
- *    掛在模式上會讓其餘 3 個玩法的卡片也跟著被套用。
+ * ⚠️ 這些覆寫要掛在玩法底下、不要掛在 MODE_META：大廳目前有 4 個玩法但只有 6HC / K3 有這些文案，
+ *    掛在模式上會讓其餘 2 個玩法的卡片也跟著被套用。
+ *
+ * desc 為選填：每個盤口都用 descByMode 指定完了就不需要共用那份（K3 就是這種寫法）。
  */
 const GAME_META: Record<string, {
   en: string
   ribbon: string
-  desc: string
+  desc?: string
   enByMode?: Record<string, string>
   descByMode?: Record<string, string>
 }> = {
@@ -42,6 +44,18 @@ const GAME_META: Record<string, {
       OF: '啟局依章守其規，\n明文立矩定輸贏。\n公心一秤分高下，\n萬象皆依信而成。',
     },
   },
+  K3: {
+    en: 'K3',
+    ribbon: 'BG · 3 骰子點數組合',
+    enByMode: {
+      OF: 'K3 [OF]',
+      CD: 'K3 [CD]',
+    },
+    descByMode: {
+      OF: '三骰落定乾坤現，\n點數分明照章行。\n大小單雙皆有序， \n一擲落定自分明。',
+      CD: '六面藏機隨數轉，\n骰落之時見真章。\n點數分明藏變化， \n一擲落定判輸贏。',
+    },
+  }
 }
 
 const MODE_META = [

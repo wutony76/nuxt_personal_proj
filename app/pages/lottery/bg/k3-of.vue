@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from 'vue'
+import { onBeforeUnmount, onMounted, reactive } from 'vue'
 import K3Header from '~/components/lottery/bg/k3/block/Header.vue'
 import OfPicker from '~/components/lottery/bg/k3/block/OfPicker.vue'
 import CurrItems from '~/components/lottery/bg/k3/block/CurrItems.vue'
 import Controls from '~/components/lottery/bg/k3/block/Controls.vue'
 import Report from '~/components/lottery/bg/k3/block/Report.vue'
 import History from '~/components/lottery/bg/k3/block/History.vue'
+import DialogUser from '~/components/lottery/bg/k3/block/DialogUser.vue'
+import DialogOpenCode from '~/components/lottery/bg/k3/block/DialogOpenCode.vue'
+import DialogRule from '~/components/lottery/bg/k3/block/DialogRule.vue'
 import { useK3 } from '~/composables/useK3'
 
 /**
@@ -27,6 +30,14 @@ const {
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
+/** 三個彈窗由 LotteryBgBaseTop 的 USER / OPENCODE / RULE 觸發 */
+const dialog = reactive({ user: false, openCode: false, rule: false })
+const dialogClick = {
+  openUser: async () => { dialog.user = true; await mxFetch.userRecordAll() },
+  openOpenCode: async () => { dialog.openCode = true; await mxFetch.openCodeHistoryAll() },
+  openRule: () => { dialog.rule = true }
+}
+
 onMounted(async () => {
   mxActions.setMode('of')
   // 官方盤限額（伺端 K3_OF_QUOTA）與信用盤不同，切過來要把金額夾回區間
@@ -43,6 +54,9 @@ onBeforeUnmount(() => mxFetch.stopPolling())
     <div class="bg-fx">
       <span v-for="i in 8" :key="i" class="orb" :style="`--i: ${i}`" />
     </div>
+
+    <LotteryBgBaseTop @open-user-dialog="dialogClick.openUser()"
+      @open-opencode-dialog="dialogClick.openOpenCode()" @open-rule-dialog="dialogClick.openRule()" />
 
     <main class="main">
       <K3Header />
@@ -93,6 +107,10 @@ onBeforeUnmount(() => mxFetch.stopPolling())
         </aside>
       </section>
     </main>
+
+    <DialogUser :visible="dialog.user" @close="dialog.user = false" />
+    <DialogOpenCode :visible="dialog.openCode" @close="dialog.openCode = false" />
+    <DialogRule :visible="dialog.rule" @close="dialog.rule = false" />
   </div>
 </template>
 
