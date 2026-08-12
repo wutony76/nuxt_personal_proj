@@ -119,6 +119,16 @@ export function k3PairExactHitCount(): number {
   return K3_DICE_COUNT
 }
 
+/**
+ * 長牌（如「長12」）：指定的兩個不同點數都出現（第三顆任意）
+ * 排容原理：|含a| + |含b| − |含a或b| = 91 + 91 − (216 − 4³) = 30
+ */
+export function k3LongHitCount(): number {
+  const containsOne = K3_TOTAL_OUTCOMES - (K3_DICE_MAX - 1) ** K3_DICE_COUNT
+  const containsEither = K3_TOTAL_OUTCOMES - (K3_DICE_MAX - 2) ** K3_DICE_COUNT
+  return containsOne * 2 - containsEither
+}
+
 /** 三不同號標選（如「1-2-3」）：3! = 6 種排列 */
 export function k3TripleDiffHitCount(): number {
   let permutations = 1
@@ -164,6 +174,15 @@ const _parsePairExact = (code: string): { pair: number; single: number } | null 
   const single = Number(matched[2])
   return pair === single ? null : { pair, single }
 }
+/** 「長12」→ [1,2]（升冪、兩點不同）；非長牌回 null */
+const _parseLong = (code: string): number[] | null => {
+  const matched = /^長([1-6])([1-6])$/.exec(code)
+  if (!matched) return null
+  const a = Number(matched[1])
+  const b = Number(matched[2])
+  return a === b ? null : [a, b].sort((x, y) => x - y)
+}
+
 /** 「1-2-3」→ [1,2,3]（升冪、互不相同）；非三不同號標選回 null */
 const _parseTripleDiff = (code: string): number[] | null => {
   if (!/^[1-6](-[1-6]){2}$/.test(code)) return null
@@ -206,6 +225,8 @@ export function k3OddsOf(betCode: string | number, rtp: number = K3_RTP_FALLBACK
   if (_parsePair(code) > 0) return _oddsOf(k3PairHitCount(), K3_TOTAL_OUTCOMES, rtp)
   // 三不同號全選
   if (code === '三不同全') return _oddsOf(k3AnyTripleDiffHitCount(), K3_TOTAL_OUTCOMES, rtp)
+  // 長牌（兩個指定點數都出現）
+  if (_parseLong(code)) return _oddsOf(k3LongHitCount(), K3_TOTAL_OUTCOMES, rtp)
   // 二同號單選
   if (_parsePairExact(code)) return _oddsOf(k3PairExactHitCount(), K3_TOTAL_OUTCOMES, rtp)
   // 三不同號標選
@@ -284,6 +305,13 @@ export function judgeK3Bet(
     return _payout('combo', counts.size === K3_DICE_COUNT ? 'win' : 'lose', lockedOdds, coin)
   }
 
+  // 長牌：指定的兩個點數都出現（第三顆任意）
+  const long = _parseLong(code)
+  if (long) {
+    const hit = long.every((point) => (counts.get(point) ?? 0) > 0)
+    return _payout('combo', hit ? 'win' : 'lose', lockedOdds, coin)
+  }
+
   // 二同號單選：兩顆 pair + 一顆 single
   const pairExact = _parsePairExact(code)
   if (pairExact) {
@@ -303,12 +331,9 @@ export function judgeK3Bet(
 }
 
 /** 玩法定義（供前端玩法列表與伺端註冊對帳） */
+/** 玩法定義（順序即前端玩法列的顯示順序，需與 k3cd/plays.ts 一致） */
 export const K3_PLAY_DEFINITIONS: Array<{ key: string; name: string }> = [
-  { key: 'hezhi', name: '和值' },
-  { key: 'daxiao', name: '大小單雙' },
-  { key: 'sanjun', name: '三軍' },
-  { key: 'weitou', name: '圍骰' },
-  { key: 'duizi', name: '對子' },
-  { key: 'ertonghao', name: '二同號' },
-  { key: 'sanbutong', name: '三不同號' }
+  { key: 'sanjun', name: '三軍/大小/點數' },
+  { key: 'weitou', name: '圍骰/全骰' },
+  { key: 'changduan', name: '長牌/短牌' }
 ]

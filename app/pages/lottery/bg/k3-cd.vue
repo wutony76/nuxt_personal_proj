@@ -75,7 +75,7 @@ onBeforeUnmount(() => mxFetch.stopPolling())
       @open-opencode-dialog="dialogClick.openOpenCode()" @open-rule-dialog="dialogClick.openRule()" />
 
     <main class="main">
-      <K3Header />
+      <K3Header @open-opencode-dialog="dialogClick.openOpenCode()" />
 
       <!-- 使用者資訊 + 開獎歷史 -->
       <section class="info-warp">
@@ -85,8 +85,6 @@ onBeforeUnmount(() => mxFetch.stopPolling())
             <div class="row">F幣餘額<b class="is-coin">{{ money(mxWallet.coin) }}</b></div>
             <div class="row">當期已投注<b>{{ money(mxWallet.currentBets) }}</b></div>
             <div class="row">累計已投注<b>{{ money(mxWallet.totalBets) }}</b></div>
-            <div class="row">共用彩池<b>{{ money(mxPool.distributable) }}</b></div>
-            <div class="row">累積滾存<b>{{ money(mxPool.carry) }}</b></div>
             <p class="user-id">USER_ID: {{ mxWallet.userId }}</p>
           </div>
         </aside>

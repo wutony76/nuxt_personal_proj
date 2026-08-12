@@ -28,8 +28,16 @@ type ConfigOption = {
   name?: string | number
   odds?: number
   weight?: number
+  /** 該注項要畫幾顆骰子（長牌 [1,2]、短牌 [1,1]、三軍 [3]）；判定不讀這裡，一律看 name */
+  nums?: number[]
 }
-type ConfigGroup = { groupName?: string; groupList?: ConfigOption[]; weight?: number }
+type ConfigGroup = {
+  groupName?: string
+  groupList?: ConfigOption[]
+  weight?: number
+  /** 版面：本群組一列排幾個注項（對齊 pcv2 的 thirdWidth / quarterWidth / fifthWidth） */
+  columns?: number
+}
 type ConfigTab = {
   tabId?: number
   tabName?: string

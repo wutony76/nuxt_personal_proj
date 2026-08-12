@@ -7,9 +7,15 @@ import { useK3 } from '~/composables/useK3'
  * 金額一律夾在該分頁限額內 —— 超限伺端會整筆拒單
  */
 const {
-  state: mxState, currentQuota, canSubmit, isOpen, isCd,
-  selectedCount, totalAmount, ofPicked, ofPicks, fetch: mxFetch
+  state: mxState, currentQuota, canSubmit, isOpen, isCd, isBetModeNormal,
+  selectedCount, totalAmount, ofPicked, ofPicks, actions: mxActions, fetch: mxFetch
 } = useK3()
+
+/** 投注模式（對齊 pcv2 的 MODE_BET.NORMAL / FAST） */
+const BET_MODES = [
+  { key: 'normal' as const, label: '一般', hint: '逐項填金額' },
+  { key: 'fast' as const, label: '快速', hint: '點選即套用共用金額' }
+]
 
 const { $dialog } = useNuxtApp()
 const QUICK_COINS = [10, 50, 100, 300, 1000]
@@ -26,19 +32,26 @@ const betLabel = computed(() => {
   return ofPicked.value ? `（${ofPicks.list.join('、')}）` : ''
 })
 
+/** fast 模式編輯的是共用金額（moneyFast），其餘編輯 amount */
+const currentMoney = computed(() => (isCd.value && !isBetModeNormal.value ? mxState.moneyFast : mxState.amount))
+
 const _handlers = {
   clamp: (value: string | number) =>
     Math.min(range.value.max, Math.max(range.value.min, Math.trunc(Number(value) || 0))),
+  setMoney: (value: string | number) => {
+    const coin = _handlers.clamp(value)
+    if (isCd.value && !isBetModeNormal.value) mxActions.setMoneyFast(coin)
+    else mxState.amount = coin
+    return coin
+  },
   onAmountInput: (event: Event) => {
     const target = event.target as HTMLInputElement
-    const val = _handlers.clamp(target.value)
-    mxState.amount = val
-    target.value = String(val)
+    target.value = String(_handlers.setMoney(target.value))
   }
 }
 
 const click = {
-  coin: (coin: number) => { mxState.amount = _handlers.clamp(coin) },
+  coin: (coin: number) => { _handlers.setMoney(coin) },
   submit: async () => {
     if (!isOpen.value) return $dialog.alert('目前非開盤中，無法投注')
     if (!isCd.value && !ofPicked.value) return $dialog.alert('請選滿 3 個點數')
@@ -51,9 +64,18 @@ const click = {
 
 <template>
   <div class="block-main k3-ctrl">
-    <div class="ctrl-head">投注金額</div>
+    <!-- 投注模式切換：僅信用盤有（官方盤一注固定 3 個點數，沒有逐項金額的概念） -->
+    <div v-if="isCd" class="ctrl-modes">
+      <button v-for="mode in BET_MODES" :key="mode.key" type="button" class="mode-btn"
+        :class="{ active: mxState.betMode === mode.key }" @click="mxActions.setBetMode(mode.key)">
+        {{ mode.label }}
+      </button>
+      <span class="mode-hint">{{ BET_MODES.find((m) => m.key === mxState.betMode)?.hint }}</span>
+    </div>
+
+    <div class="ctrl-head">{{ isCd && !isBetModeNormal ? '共用金額' : '投注金額' }}</div>
     <div class="ctrl-row">
-      <input type="number" :min="range.min" :max="range.max" class="ctrl-input" :value="mxState.amount"
+      <input type="number" :min="range.min" :max="range.max" class="ctrl-input" :value="currentMoney"
         @input="_handlers.onAmountInput" @blur="_handlers.onAmountInput" />
       <span class="ctrl-unit">元</span>
       <span class="ctrl-range">{{ money(range.min) }} — {{ money(range.max) }}</span>
@@ -63,9 +85,13 @@ const click = {
         +{{ coin }}
       </button>
     </div>
-    <button type="button" class="submit-btn" :disabled="!canBet" @click="click.submit()">
-      投注{{ betLabel }}
-    </button>
+    <div class="ctrl-acts">
+      <button type="button" class="submit-btn" :disabled="!canBet" @click="click.submit()">
+        確認投注{{ betLabel }}
+      </button>
+      <button type="button" class="clear-btn"
+        @click="isCd ? mxActions.clearSelect() : mxActions.clearOfPicks()">清空</button>
+    </div>
     <p v-if="mxState.errorMessage" class="ctrl-err">{{ mxState.errorMessage }}</p>
   </div>
 </template>
@@ -135,6 +161,49 @@ const click = {
 
     &:hover:not(:disabled) { filter: brightness(1.08); }
     &:disabled { opacity: 0.45; cursor: not-allowed; }
+  }
+
+  .ctrl-modes {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 10px;
+
+    .mode-btn {
+      border: 1px solid var(--color-red-content);
+      border-radius: 4px;
+      background: #fff;
+      padding: 3px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-red-main);
+      cursor: pointer;
+
+      &.active { border-color: var(--color-red-main); background: var(--color-red-main); color: #fff; }
+    }
+
+    .mode-hint { font-size: 11px; color: var(--color-red-desc); }
+  }
+
+  .ctrl-acts {
+    display: flex;
+    gap: 6px;
+
+    .submit-btn { flex: 1 1 auto; }
+
+    .clear-btn {
+      flex: 0 0 auto;
+      border: 1px solid var(--color-red-main);
+      border-radius: 4px;
+      background: #fff;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-red-main);
+      cursor: pointer;
+
+      &:hover { background: #fff1f2; }
+    }
   }
 
   .ctrl-err { margin: 8px 0 0; font-size: 12px; font-weight: 700; color: #dc2626; }
