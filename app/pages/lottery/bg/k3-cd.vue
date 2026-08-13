@@ -490,7 +490,8 @@ onBeforeUnmount(() => mxFetch.stopPolling())
     display: flex;
     gap: 0.75rem;
     min-height: 0;
-    height: 460px;
+    /* 高度與 6hc-cd 的 .record-warp 一致（那邊是 580px） */
+    height: 580px;
     animation: k3-sec-in 0.55s ease both;
     animation-delay: 0.38s;
 

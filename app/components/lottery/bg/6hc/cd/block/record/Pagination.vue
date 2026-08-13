@@ -3,7 +3,7 @@
     <div class="total">共 <strong>{{ total }}</strong> 筆</div>
     <div class="controls">
       <div v-if="showSizeChanger" class="size">
-        <select v-model.number="pageSize" @change="throttleChange">
+        <select v-model.number="pageSize" @change="onSizeChange">
           <option v-for="s in sizes" :key="s" :value="s">{{ s }} 筆／頁</option>
         </select>
       </div>
@@ -134,6 +134,22 @@ function goNext() {
 }
 function jump() {
   goTo(Number(inputPage.value || 1))
+}
+
+/**
+ * 每頁筆數變更
+ *
+ * ⚠️ v-model 寫入 modelSize 是走 emit('update:size')，父層更新完 prop 才會反映到
+ *    pageSize.value —— 同一個 tick 內 pageSize 還是舊值。若在此刻直接呼叫
+ *    handleChange，裡面的 `modelSize.value = pageSize.value` 會把剛選的值蓋回舊值，
+ *    畫面就永遠停在原本的筆數。延到下一個 tick 再送（goTo 也是同樣的處理）。
+ */
+function onSizeChange() {
+  setTimeout(() => {
+    currentPage.value = 1
+    inputPage.value = 1
+    throttleChange()
+  })
 }
 
 function onInputBlur() {

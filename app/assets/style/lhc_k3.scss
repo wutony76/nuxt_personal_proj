@@ -30,13 +30,16 @@
       }
 
       th {
+        height: 40px;
         background: $report-table-header-bg;
         font-weight: 700;
         color: $report-table-header-ft;
+        /* K3 的欄位比 6hc 多（7 欄），不鎖 nowrap 標題會折行 */
         white-space: nowrap;
       }
 
-      &:last-child td {
+      &:last-child td,
+      &:last-child th {
         border-bottom: unset;
       }
 
@@ -57,6 +60,18 @@
       background: $report-table-total-bg;
       font-weight: 700;
       color: var(--color-red-main);
+    }
+
+    /* 暫無資料：撐滿捲動區高度（同 lhc_cd.scss），避免空狀態只有一小塊 */
+    tr.tr-no-records {
+      height: 100%;
+
+      .no-records {
+        height: 100%;
+        min-height: 120px;
+        color: var(--color-red-desc);
+        vertical-align: middle;
+      }
     }
   }
 }

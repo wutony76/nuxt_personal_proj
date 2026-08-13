@@ -70,13 +70,14 @@ const click = {
     </div>
     <!-- 總下注額度：信用盤是已選注項金額合計，官方盤是選滿 3 個點數後的單注金額 -->
     <div class="ctrl-total">
-      <span class="total-label">總下注額度</span>
+      <span class="total-label">總注額</span>
       <span class="total-value">{{ money(isCd ? totalAmount : (ofPicked ? Number(mxState.amount) : 0)) }}</span>
     </div>
 
     <div class="ctrl-acts">
       <button type="button" class="submit-btn" :disabled="!canBet" @click="click.submit()">
-        確認投注{{ betLabel }}
+        <!-- 確認投注{{ betLabel }} -->
+        投注
       </button>
       <button type="button" class="clear-btn"
         @click="isCd ? mxActions.clearSelect() : mxActions.clearOfPicks()">清空</button>
@@ -89,7 +90,12 @@ const click = {
 .k3-ctrl {
   background: #fff;
 
-  .ctrl-head { margin-bottom: 8px; font-size: 13px; font-weight: 700; color: var(--color-red-main); }
+  .ctrl-head {
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-red-main);
+  }
 
   .ctrl-row {
     display: flex;
@@ -108,11 +114,22 @@ const click = {
       color: var(--color-red-main);
       outline: none;
 
-      &:focus { border-color: var(--color-red-main); box-shadow: 0 0 0 2px rgba(213, 63, 83, 0.12); }
+      &:focus {
+        border-color: var(--color-red-main);
+        box-shadow: 0 0 0 2px rgba(213, 63, 83, 0.12);
+      }
     }
 
-    .ctrl-unit { font-size: 12px; color: var(--color-red-desc); }
-    .ctrl-range { margin-left: auto; font-size: 11px; color: var(--color-red-desc); }
+    .ctrl-unit {
+      font-size: 12px;
+      color: var(--color-red-desc);
+    }
+
+    .ctrl-range {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--color-red-desc);
+    }
   }
 
   .ctrl-quick {
@@ -131,7 +148,9 @@ const click = {
       color: var(--color-red-main);
       cursor: pointer;
 
-      &:hover { background: #fff1f2; }
+      &:hover {
+        background: #fff1f2;
+      }
     }
   }
 
@@ -159,45 +178,67 @@ const click = {
     }
   }
 
-  /* 黃色投注鈕（色票取專案既有的 --color-yellow-black-btn / --color-yellow-btn-text） */
+  /**
+   * 投注鈕：樣式對齊 6hc-of 的 .action-btn.bet
+   * 基底來自 app/assets/style/lhc_of.scss（radius 4px／字重 700／黃底墨黃字 ＋ #e98e5c 描邊），
+   * 高度 45px／字級 14px／hover 與 disabled 取自
+   * app/components/lottery/bg/6hc/of/block/controls/Coin.vue。
+   */
   .submit-btn {
-    width: 100%;
-    border: none;
+    height: 45px;
+    border: 1px solid #e98e5c;
     border-radius: 4px;
     background: var(--color-yellow-black-btn);
-    padding: 10px 0;
-    font-size: 15px;
+    padding: 0 12px;
+    font-size: 14px;
     font-weight: 700;
-    letter-spacing: 0.08em;
     color: var(--color-yellow-btn-text);
     cursor: pointer;
-    transition: filter 0.15s;
+    transition: filter 0.15s ease, transform 0.15s ease;
 
-    &:hover:not(:disabled) { filter: brightness(1.08); }
-    &:disabled { opacity: 0.45; cursor: not-allowed; }
+    &:hover:not(:disabled) {
+      filter: brightness(1.08) saturate(1.2);
+      transform: translateY(-1px);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   }
 
   .ctrl-acts {
     display: flex;
     gap: 6px;
 
-    .submit-btn { flex: 1 1 auto; }
+    .submit-btn {
+      flex: 1 1 auto;
+    }
 
     .clear-btn {
+      /* 高度跟著投注鈕的 45px，同一列才不會錯位 */
       flex: 0 0 auto;
+      height: 45px;
       border: 1px solid var(--color-red-main);
       border-radius: 4px;
       background: #fff;
-      padding: 10px 16px;
+      padding: 0 16px;
       font-size: 14px;
       font-weight: 700;
       color: var(--color-red-main);
       cursor: pointer;
 
-      &:hover { background: #fff1f2; }
+      &:hover {
+        background: #fff1f2;
+      }
     }
   }
 
-  .ctrl-err { margin: 8px 0 0; font-size: 12px; font-weight: 700; color: #dc2626; }
+  .ctrl-err {
+    margin: 8px 0 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: #dc2626;
+  }
 }
 </style>
