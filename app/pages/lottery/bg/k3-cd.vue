@@ -65,14 +65,14 @@ onBeforeUnmount(() => mxFetch.stopPolling())
 </script>
 
 <template>
-  <div class="base lottery-k3">
+  <div class="base lottery-k3 is-cd">
     <!-- 背景光點（同 6hc-cd） -->
     <div class="bg-fx">
       <span v-for="i in 8" :key="i" class="orb" :style="`--i: ${i}`" />
     </div>
 
-    <LotteryBgBaseTop @open-user-dialog="dialogClick.openUser()"
-      @open-opencode-dialog="dialogClick.openOpenCode()" @open-rule-dialog="dialogClick.openRule()" />
+    <LotteryBgBaseTop @open-user-dialog="dialogClick.openUser()" @open-opencode-dialog="dialogClick.openOpenCode()"
+      @open-rule-dialog="dialogClick.openRule()" />
 
     <main class="main">
       <K3Header @open-opencode-dialog="dialogClick.openOpenCode()" />
@@ -80,11 +80,16 @@ onBeforeUnmount(() => mxFetch.stopPolling())
       <!-- 使用者資訊 + 開獎歷史 -->
       <section class="info-warp">
         <aside class="info-side">
-          <div class="user-warp">
+          <div class="user-warp" @click="dialogClick.openUser()">
             <div class="user-title">{{ mxWallet.userName }}</div>
-            <div class="row">F幣餘額<b class="is-coin">{{ money(mxWallet.coin) }}</b></div>
-            <div class="row">當期已投注<b>{{ money(mxWallet.currentBets) }}</b></div>
-            <div class="row">累計已投注<b>{{ money(mxWallet.totalBets) }}</b></div>
+            <div class="user-content">
+              <div class="row">
+                <span>F幣餘額: <b class="is-coin">{{ money(mxWallet.coin) }}</b></span>
+                <button type="button" class="deposit-btn" @click.stop="dialogClick.openUser()">明細</button>
+              </div>
+              <div class="row"><span>當期已投注:</span><b>{{ money(mxWallet.currentBets) }}</b></div>
+              <div class="row"><span>累計已投注:</span><b>{{ money(mxWallet.totalBets) }}</b></div>
+            </div>
             <p class="user-id">USER_ID: {{ mxWallet.userId }}</p>
           </div>
         </aside>
@@ -95,23 +100,12 @@ onBeforeUnmount(() => mxFetch.stopPolling())
 
       <!-- 投注區 -->
       <section class="play-warp">
+        <!-- 玩法（左）／隨機選號＋切換盤口（右）同一列 -->
         <div class="play-tabs">
           <button v-for="play in playList" :key="play.key" type="button" class="play-tab"
             :class="{ active: mxState.select === play.key }" @click="click.play(String(play.key))">
             {{ play.name }}
           </button>
-          <NuxtLink to="/lottery/bg/k3-of" class="mode-link">切換官方玩法 →</NuxtLink>
-        </div>
-
-        <div class="tabs-warp">
-          <div v-if="groupList.length > 1" class="bar-tabs">
-            <button v-for="tab in groupList" :key="tab.tabId" type="button" class="bar-tabs-btn"
-              :class="{ active: Number(mxState.selectTabId) === Number(tab.tabId) }"
-              @click="click.tab(Number(tab.tabId))">
-              {{ tab.tabName }}
-            </button>
-          </div>
-          <span v-else class="bar-tabs" />
 
           <div class="auto-select">
             <span>隨機選號</span>
@@ -119,6 +113,19 @@ onBeforeUnmount(() => mxFetch.stopPolling())
             <span>注</span>
             <button type="button" class="act-btn" @click="click.random()">機選</button>
             <button type="button" class="act-btn is-clear" @click="mxActions.clearSelect()">清空</button>
+          </div>
+
+          <NuxtLink to="/lottery/bg/k3-of" class="mode-link">切換官方玩法 →</NuxtLink>
+        </div>
+
+        <!-- 分頁列：隨機選號搬到 .play-tabs 後，只有一個分頁時整列不渲染（否則留 10px 空白） -->
+        <div v-if="groupList.length > 1" class="tabs-warp">
+          <div class="bar-tabs">
+            <button v-for="tab in groupList" :key="tab.tabId" type="button" class="bar-tabs-btn"
+              :class="{ active: Number(mxState.selectTabId) === Number(tab.tabId) }"
+              @click="click.tab(Number(tab.tabId))">
+              {{ tab.tabName }}
+            </button>
           </div>
         </div>
 
@@ -155,7 +162,10 @@ onBeforeUnmount(() => mxFetch.stopPolling())
 
 <style lang="scss">
 /* ── 版面骨架：與 6hc-cd 同一套（容器寬度、卡片邊框陰影、進場動畫）───────── */
-.lottery-k3 {
+/* ⚠️ 本頁 <style> 沒有 scoped，選擇器多帶一個 .is-cd 用來隔開另一個盤口 ——
+   k3-cd 與 k3-of 共用 .lottery-k3 根 class，NuxtLink 會預抓對面那頁的 CSS 並注入，
+   兩頁同名規則（例如 .mode-link）就會互相覆蓋。 */
+.lottery-k3.is-cd {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -183,7 +193,7 @@ onBeforeUnmount(() => mxFetch.stopPolling())
     }
   }
 
-  > .main {
+  >.main {
     position: relative;
     z-index: 1;
     width: min(1360px, 97%);
@@ -202,47 +212,87 @@ onBeforeUnmount(() => mxFetch.stopPolling())
     animation-delay: 0.18s;
 
     .info-side {
-      flex: 0 0 240px;
+      /* 寬度與 6hc-of／6hc-cd 一致：同樣的 22%（三個盤口的 .main 都是 1240px → 273px）。
+         不用 flex 固定值，才能跟 6hc 一樣隨容器縮放。 */
+      width: 22%;
 
+      /* 樣式參照 6hc-of 的 .user-warp（app/pages/lottery/bg/6hc-of.vue）：
+         固定 250px 高的卡片 → 置中標題列（52px）／內容區吃剩餘高度／底部 USER_ID，
+         淡紅底 + 呼吸光暈。差異：K3 側欄寬 240px（6hc-of 是 22%），
+         且數值仍用 <b> 標粗、F幣餘額維持綠色。 */
       .user-warp {
-        height: 100%;
+        /* 固定 225px（6hc-of 是 250px，它的路珠剛好那麼高）。
+           刻意不用 height: 100% —— 不跟同列的開獎歷史拉齊，各自維持自己的高度。 */
+        height: 225px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
         border: 1px solid var(--color-red-700);
-        border-radius: var(--base-radius);
-        background: #fff;
-        padding: 0.6rem 0.75rem;
-        cursor: default;
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--color-red-main) 6%, #fff);
+        cursor: pointer;
+        animation: k3-card-glow 3.5s ease-in-out infinite;
 
         .user-title {
-          margin-bottom: 6px;
-          font-size: 15px;
+          height: 52px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-bottom: 1px solid #f6d9de;
+          font-size: 0.875rem;
           font-weight: 700;
           color: var(--color-red-main);
         }
 
-        .row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 6px;
-          font-size: 12px;
-          line-height: 1.9;
+        .user-content {
+          flex: 1;
+          display: grid;
+          padding: 0.75rem;
+          font-size: 13px;
           color: var(--color-red-desc);
 
-          b { font-weight: 700; color: var(--color-red-main); }
-          b.is-coin { color: #15803d; }
+          .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+
+            b {
+              font-weight: 700;
+              color: var(--color-red-main);
+            }
+
+            b.is-coin {
+              color: #15803d;
+            }
+          }
+        }
+
+        .deposit-btn {
+          border: 1px solid #f2b7c1;
+          border-radius: 0.25rem;
+          background: #fff;
+          padding: 0.25rem 0.5rem;
+          font-size: 12px;
+          font-weight: 700;
+          color: var(--color-red-main);
+          cursor: pointer;
         }
 
         .user-id {
-          margin: 8px 0 0;
-          font-size: 10px;
-          letter-spacing: 0.08em;
-          color: #b9a3a3;
+          margin: 0;
+          border-top: 1px solid #f6d9de;
+          padding: 0.5rem 0.75rem;
+          font-size: 12px;
+          color: var(--color-red-desc);
         }
       }
     }
 
     .info-main {
-      flex: 1 1 auto;
+      /* flex-basis 給 0（同 6hc-of 的 flex: 1）——
+         basis auto 時開獎歷史的內容寬度會去擠 .info-side，22% 會被壓成 111px */
+      flex: 1 1 0;
       min-width: 0;
     }
   }
@@ -278,27 +328,77 @@ onBeforeUnmount(() => mxFetch.stopPolling())
         cursor: pointer;
         transition: all 0.15s ease;
 
-        &:hover:not(.active) { background: #fff5f6; }
-        &.active { border-color: var(--color-red-main); background: var(--color-red-main); color: #fff; }
+        &:hover:not(.active) {
+          background: #fff5f6;
+        }
+
+        &.active {
+          border-color: var(--color-red-main);
+          background: var(--color-red-main);
+          color: #fff;
+        }
       }
 
       .mode-link {
-        margin-left: auto;
         font-size: 12px;
         font-weight: 700;
         color: var(--color-red-desc);
         text-decoration: none;
 
-        &:hover { color: var(--color-red-main); }
+        &:hover {
+          color: var(--color-red-main);
+        }
       }
     }
 
-    /* 分頁（左）與隨機選號（右）同一列 —— 同 6hc-cd 的 .tabs-warp */
+    /* 隨機選號：定義在 .play-warp 這一層而不是綁在 .play-tabs 底下 ——
+       這組控制項曾在 .tabs-warp、現在併到 .play-tabs，選擇器不綁父層才不會一搬就掉樣式。
+       margin-left: auto 讓它與後面的 .mode-link 一起貼右邊。 */
+    .auto-select {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--color-red-desc);
+
+      .count-input {
+        width: 3.4rem;
+        border: 1px solid var(--color-red-content);
+        border-radius: 4px;
+        padding: 3px 6px;
+        text-align: right;
+        font-size: 13px;
+        color: var(--color-red-main);
+        outline: none;
+
+        &:focus {
+          border-color: var(--color-red-main);
+        }
+      }
+
+      .act-btn {
+        border: 1px solid var(--color-red-main);
+        border-radius: 4px;
+        background: var(--color-red-main);
+        padding: 3px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #fff;
+        cursor: pointer;
+
+        &.is-clear {
+          background: #fff;
+          color: var(--color-red-main);
+        }
+      }
+    }
+
+    /* 分頁列（隨機選號已併到上面的 .play-tabs） */
     .tabs-warp {
       margin-top: 10px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
       gap: 12px;
       flex-wrap: wrap;
 
@@ -316,43 +416,14 @@ onBeforeUnmount(() => mxFetch.stopPolling())
           color: var(--color-red-main);
           cursor: pointer;
 
-          &.active { border-color: var(--color-red-main); background: var(--color-red-main); color: #fff; }
+          &.active {
+            border-color: var(--color-red-main);
+            background: var(--color-red-main);
+            color: #fff;
+          }
         }
       }
 
-      .auto-select {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 12px;
-        color: var(--color-red-desc);
-
-        .count-input {
-          width: 3.4rem;
-          border: 1px solid var(--color-red-content);
-          border-radius: 4px;
-          padding: 3px 6px;
-          text-align: right;
-          font-size: 13px;
-          color: var(--color-red-main);
-          outline: none;
-
-          &:focus { border-color: var(--color-red-main); }
-        }
-
-        .act-btn {
-          border: 1px solid var(--color-red-main);
-          border-radius: 4px;
-          background: var(--color-red-main);
-          padding: 3px 12px;
-          font-size: 12px;
-          font-weight: 700;
-          color: #fff;
-          cursor: pointer;
-
-          &.is-clear { background: #fff; color: var(--color-red-main); }
-        }
-      }
     }
 
     /* 注項面板：帶標題列的白框（同 6hc-cd 的 .selector-warp .right.selector）*/
@@ -386,7 +457,9 @@ onBeforeUnmount(() => mxFetch.stopPolling())
           color: #fff;
         }
 
-        .body { padding: 0.75rem; }
+        .body {
+          padding: 0.75rem;
+        }
       }
     }
   }
@@ -416,14 +489,43 @@ onBeforeUnmount(() => mxFetch.stopPolling())
   }
 }
 
+@keyframes k3-card-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(185, 28, 28, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 14px 3px rgba(185, 28, 28, 0.18);
+  }
+}
+
 @keyframes k3-sec-in {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @keyframes k3-orb-rise {
-  0% { opacity: 0; transform: translateY(0) scale(1); }
-  8% { opacity: 0.55; }
-  100% { opacity: 0; transform: translateY(-105vh) scale(1.35); }
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(1);
+  }
+
+  8% {
+    opacity: 0.55;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-105vh) scale(1.35);
+  }
 }
 </style>

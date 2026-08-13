@@ -50,7 +50,7 @@ onBeforeUnmount(() => mxFetch.stopPolling())
 </script>
 
 <template>
-  <div class="base lottery-k3">
+  <div class="base lottery-k3 is-of">
     <div class="bg-fx">
       <span v-for="i in 8" :key="i" class="orb" :style="`--i: ${i}`" />
     </div>
@@ -63,11 +63,16 @@ onBeforeUnmount(() => mxFetch.stopPolling())
 
       <section class="info-warp">
         <aside class="info-side">
-          <div class="user-warp">
+          <div class="user-warp" @click="dialogClick.openUser()">
             <div class="user-title">{{ mxWallet.userName }}</div>
-            <div class="row">F幣餘額<b class="is-coin">{{ money(mxWallet.coin) }}</b></div>
-            <div class="row">當期已投注<b>{{ money(mxWallet.currentBets) }}</b></div>
-            <div class="row">累計已投注<b>{{ money(mxWallet.totalBets) }}</b></div>
+            <div class="user-content">
+              <div class="row">
+                <span>F幣餘額: <b class="is-coin">{{ money(mxWallet.coin) }}</b></span>
+                <button type="button" class="deposit-btn" @click.stop="dialogClick.openUser()">明細</button>
+              </div>
+              <div class="row"><span>當期已投注:</span><b>{{ money(mxWallet.currentBets) }}</b></div>
+              <div class="row"><span>累計已投注:</span><b>{{ money(mxWallet.totalBets) }}</b></div>
+            </div>
             <p class="user-id">USER_ID: {{ mxWallet.userId }}</p>
           </div>
         </aside>
@@ -114,7 +119,10 @@ onBeforeUnmount(() => mxFetch.stopPolling())
 
 <style lang="scss">
 /* ── 版面骨架：與 6hc-cd 同一套（容器寬度、卡片邊框陰影、進場動畫）───────── */
-.lottery-k3 {
+/* ⚠️ 本頁 <style> 沒有 scoped，選擇器多帶一個 .is-of 用來隔開另一個盤口 ——
+   k3-cd 與 k3-of 共用 .lottery-k3 根 class，NuxtLink 會預抓對面那頁的 CSS 並注入，
+   兩頁同名規則（例如 .mode-link）就會互相覆蓋。 */
+.lottery-k3.is-of {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -161,47 +169,81 @@ onBeforeUnmount(() => mxFetch.stopPolling())
     animation-delay: 0.18s;
 
     .info-side {
-      flex: 0 0 240px;
+      /* 寬度與 6hc-of／6hc-cd 一致：同樣的 22%（三個盤口的 .main 都是 1240px → 273px）。
+         不用 flex 固定值，才能跟 6hc 一樣隨容器縮放。 */
+      width: 22%;
 
+      /* 樣式參照 6hc-of 的 .user-warp（app/pages/lottery/bg/6hc-of.vue）：
+         固定 250px 高的卡片 → 置中標題列（52px）／內容區吃剩餘高度／底部 USER_ID，
+         淡紅底 + 呼吸光暈。差異：K3 側欄寬 240px（6hc-of 是 22%），
+         且數值仍用 <b> 標粗、F幣餘額維持綠色。 */
       .user-warp {
-        height: 100%;
+        /* 固定 225px（6hc-of 是 250px，它的路珠剛好那麼高）。
+           刻意不用 height: 100% —— 不跟同列的開獎歷史拉齊，各自維持自己的高度。 */
+        height: 225px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
         border: 1px solid var(--color-red-700);
-        border-radius: var(--base-radius);
-        background: #fff;
-        padding: 0.6rem 0.75rem;
-        cursor: default;
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--color-red-main) 6%, #fff);
+        cursor: pointer;
+        animation: k3-card-glow 3.5s ease-in-out infinite;
 
         .user-title {
-          margin-bottom: 6px;
-          font-size: 15px;
+          height: 52px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-bottom: 1px solid #f6d9de;
+          font-size: 0.875rem;
           font-weight: 700;
           color: var(--color-red-main);
         }
 
-        .row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 6px;
-          font-size: 12px;
-          line-height: 1.9;
+        .user-content {
+          flex: 1;
+          display: grid;
+          padding: 0.75rem;
+          font-size: 13px;
           color: var(--color-red-desc);
 
-          b { font-weight: 700; color: var(--color-red-main); }
-          b.is-coin { color: #15803d; }
+          .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+
+            b { font-weight: 700; color: var(--color-red-main); }
+            b.is-coin { color: #15803d; }
+          }
+        }
+
+        .deposit-btn {
+          border: 1px solid #f2b7c1;
+          border-radius: 0.25rem;
+          background: #fff;
+          padding: 0.25rem 0.5rem;
+          font-size: 12px;
+          font-weight: 700;
+          color: var(--color-red-main);
+          cursor: pointer;
         }
 
         .user-id {
-          margin: 8px 0 0;
-          font-size: 10px;
-          letter-spacing: 0.08em;
-          color: #b9a3a3;
+          margin: 0;
+          border-top: 1px solid #f6d9de;
+          padding: 0.5rem 0.75rem;
+          font-size: 12px;
+          color: var(--color-red-desc);
         }
       }
     }
 
     .info-main {
-      flex: 1 1 auto;
+      /* flex-basis 給 0（同 6hc-of 的 flex: 1）——
+         basis auto 時開獎歷史的內容寬度會去擠 .info-side，22% 會被壓成 111px */
+      flex: 1 1 0;
       min-width: 0;
     }
   }
@@ -372,6 +414,18 @@ onBeforeUnmount(() => mxFetch.stopPolling())
       flex-direction: column;
       gap: 0.75rem;
     }
+  }
+}
+
+@keyframes k3-card-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(185, 28, 28, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 14px 3px rgba(185, 28, 28, 0.18);
   }
 }
 
