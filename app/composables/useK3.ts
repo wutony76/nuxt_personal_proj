@@ -36,7 +36,6 @@ export type K3Mode = 'cd' | 'of'
  *   normal —— 每個注項各自填金額；點注項那一列不切換選取（有金額才算選中）
  *   fast   —— 點注項即選取並套用共用金額；沒有逐項金額欄
  */
-export type K3BetMode = 'normal' | 'fast'
 
 /** 看板注項（由 config tabGroup.groupList 複製而來，select / coin 為前端選取狀態） */
 export type K3SelectItem = {
@@ -56,11 +55,8 @@ const state = reactive({
   select: String(C_PLAYS[0]?.key ?? ''),
   selectTabId: Number(C_PLAYS[0]?.list?.[0]?.tabId ?? 0),
   selectTabName: String(C_PLAYS[0]?.list?.[0]?.tabName ?? ''),
+  /** 投注金額：點注項時套用這個值，也可在看板逐項改 */
   amount: 10 as number,
-  /** 投注模式（normal = 逐項填金額、fast = 點選即套用共用金額） */
-  betMode: 'normal' as K3BetMode,
-  /** fast 模式的共用金額 */
-  moneyFast: 10 as number,
   fetchStatus: 'idle' as 'idle' | 'loading' | 'success' | 'error',
   submitStatus: 'idle' as 'idle' | 'loading' | 'success' | 'error',
   message: '' as string,
@@ -114,7 +110,6 @@ const openCodeHistory = reactive({
 
 // ── Computed ───────────────────────────────────────────────────────────────
 const isCd = computed(() => state.mode === 'cd')
-const isBetModeNormal = computed(() => state.betMode === 'normal')
 const lotteryMeta = computed(() => (isCd.value ? LOTTERY['K3-CD'] : LOTTERY['K3-OF']))
 /** 信用盤的玩法清單（官方盤只有一種選號方式，不走這個） */
 const playList = computed(() => C_PLAYS as Array<{ key?: string; name?: string; list?: any[] }>)
@@ -227,29 +222,18 @@ const _actions = {
     select.pool = Array.isArray(items) ? items : []
   },
   syncSelectItems: () => { _syncSelectItems() },
-  /** 切換投注模式：語意不同（逐項金額 vs 共用金額），一律先清掉選取 */
-  setBetMode: (mode: K3BetMode) => {
-    if (state.betMode === mode) return
-    state.betMode = mode
-    _actions.clearSelect()
-  },
-  /**
-   * 點注項（fast 模式）：切換選取並套用共用金額
-   * normal 模式不做事 —— 與 pcv2 一致（那邊 crrModeBetNormal 時 click.select 直接 return）
-   */
+  /** 點注項：切換選取，選取時套用投注金額（同 6hc-cd 的 click.toggle） */
   toggleItem: (playId: string | number) => {
-    if (state.betMode === 'normal') return
     const item = select.pool.find((option) => String(option.playId) === String(playId))
     if (!item) return
     item.select = !item.select
-    item.coin = item.select ? Math.max(0, Math.trunc(Number(state.moneyFast) || 0)) : 0
+    item.coin = item.select ? Math.max(0, Math.trunc(Number(state.amount) || 0)) : 0
     _syncSelectItems()
   },
-  /** 設定 fast 模式的共用金額，並同步已選注項 */
-  setMoneyFast: (money: number) => {
+  /** 設定投注金額，並同步已選注項（同 6hc-cd 對 mxState.amount 的 watch） */
+  setAmount: (money: number) => {
     const coin = Math.max(0, Math.trunc(Number(money) || 0))
-    state.moneyFast = coin
-    if (state.betMode !== 'fast') return
+    state.amount = coin
     select.pool.forEach((item) => { if (item.select) item.coin = coin })
     _syncSelectItems()
   },
@@ -265,7 +249,7 @@ const _actions = {
       shuffled[j] = tmp
     }
     const pickedIds = new Set(shuffled.slice(0, size).map((item) => String(item.playId)))
-    const coin = state.betMode === 'fast' ? state.moneyFast : state.amount
+    const coin = state.amount
     select.pool.forEach((item) => {
       item.select = pickedIds.has(String(item.playId))
       item.coin = item.select ? Math.max(0, Math.trunc(Number(coin) || 0)) : 0
@@ -497,8 +481,6 @@ export function useK3() {
     openCodeHistory,
 
     isCd,
-    /** normal 模式（逐項填金額）—— 對齊 pcv2 的 crrModeBetNormal */
-    isBetModeNormal,
     lotteryMeta,
     playList,
     groupList,

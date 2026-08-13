@@ -23,15 +23,14 @@ const { cloneDeep } = lodash
  *   注項多且賠率不同 → 顯示區間，標題可 hover 浮出逐項賠率（點數）
  * 數值一律用 k3TabOddsOf 依該分頁 rtp 即時推算，不讀 config 的 odds 快照。
  *
- * K3 專屬差異：注項帶 nums 時（三軍／圍骰／長牌／短牌）號碼欄畫骰子點，
- * 而且保留 pcv2 的 normal／fast 兩種投注模式（fast 模式沒有金額欄）。
+ * K3 專屬差異：注項帶 nums 時（三軍／圍骰／長牌／短牌）號碼欄畫骰子點。
+ * 操作方式同 6hc-cd：點注項即選取並套用「投注金額」，也可在格內逐項改金額。
  */
 const {
   state: mxState,
   select: mxSelect,
   currentQuota: mxQuota,
   groupList: mxGroupList,
-  isBetModeNormal,
   actions: mxActions
 } = useK3()
 /**
@@ -165,16 +164,17 @@ const maxCoin = computed(() => mxQuota.value.item.max)
 const cellClassOf = (item: BoardItem | null) => ({
   active: !!item?.select,
   hover: !!item && state.hoverKey === String(item.playId),
-  // normal 模式點格不切換（與 pcv2 一致，靠填金額選取），所以只有 fast 模式才是可點的
-  clickable: !!item && !isBetModeNormal.value
+  clickable: !!item
 })
 
 const click = {
-  /** 點注項：normal 模式不動作（與 pcv2 一致），fast 模式切換選取 */
+  /** 點注項：切換選取，選取時套用「投注金額」並夾在該分頁單注限額內（同 6hc-cd） */
   cell: (item: BoardItem | null) => {
-    if (!item || isBetModeNormal.value) return
+    if (!item) return
     item.select = !item.select
-    item.coin = item.select ? Math.max(0, Math.trunc(Number(mxState.moneyFast) || 0)) : 0
+    item.coin = item.select
+      ? Math.min(maxCoin.value, Math.max(minCoin.value, Math.trunc(Number(mxState.amount) || 0)))
+      : 0
     mxActions.syncSelectItems()
   },
   coinInput: (item: BoardItem, event: Event) => {
@@ -189,24 +189,21 @@ const click = {
   hoverLeave: () => { state.hoverKey = '' }
 }
 
-// fast 模式的共用金額變動時，同步已選注項
-watch(() => mxState.moneyFast, (val) => {
-  if (isBetModeNormal.value) return
-  const coin = Math.max(0, Math.trunc(Number(val) || 0))
+// 投注金額變動時同步已選注項（同 6hc-cd 對 mxState.amount 的 watch）
+watch(() => mxState.amount, (val) => {
+  const coin = Math.min(maxCoin.value, Math.max(minCoin.value, Math.trunc(Number(val) || 0)))
   mxSelect.pool.forEach((item) => { if (item.select) item.coin = coin })
   mxActions.syncSelectItems()
 })
 </script>
 
 <template>
-  <div class="k3-board" :class="{ 'is-fast': !isBetModeNormal }">
+  <div class="k3-board">
     <!-- 該分頁限額（伺端以同一份 settings.quota 驗證） -->
     <div class="quota-bar">
       <span class="quota-item">單注 {{ money(minCoin) }} — {{ money(maxCoin) }}</span>
       <span v-if="mxQuota.issue.max > 0" class="quota-item">單期上限 {{ money(mxQuota.issue.max) }}</span>
-      <span class="quota-note">
-        {{ isBetModeNormal ? '※ 逐項填入金額即為選取' : '※ 點注項即選取，套用上方共用金額' }}
-      </span>
+      <span class="quota-note">※ 點注項即選取並套用投注金額，也可逐項改金額</span>
     </div>
 
     <div v-if="tableGroups.length === 0" class="empty">此分頁尚無注項</div>
@@ -235,7 +232,7 @@ watch(() => mxState.moneyFast, (val) => {
               <th class="th-code" :class="{ 'is-empty': col > group.filled }">
                 {{ col > group.filled ? '' : '號碼' }}
               </th>
-              <th v-if="isBetModeNormal" class="th-amount" :class="{ 'is-empty': col > group.filled }">
+              <th class="th-amount" :class="{ 'is-empty': col > group.filled }">
                 {{ col > group.filled ? '' : '金額' }}
               </th>
             </template>
@@ -255,8 +252,7 @@ watch(() => mxState.moneyFast, (val) => {
                   {{ labelOf(item.name) }}
                 </button>
               </td>
-              <td v-if="isBetModeNormal" class="td-amount" :class="[cellClassOf(item), { 'is-empty': !item }]"
-                @click="click.cell(item)"
+              <td class="td-amount" :class="[cellClassOf(item), { 'is-empty': !item }]" @click="click.cell(item)"
                 @mouseenter="click.hoverEnter(item)" @mouseleave="click.hoverLeave()">
                 <input v-if="item" type="number" min="0" :max="maxCoin" :value="item.coin || ''" placeholder="0"
                   @click.stop @input="click.coinInput(item, $event)" />
@@ -566,20 +562,6 @@ watch(() => mxState.moneyFast, (val) => {
         padding: 0 12px;
         font-size: 14px;
         color: var(--color-red-main);
-      }
-    }
-  }
-
-  /* fast 模式沒有金額欄，號碼欄改由表格平均分配 */
-  &.is-fast .play-group .play-table {
-
-    &.is-dice,
-    &.is-box,
-    &.is-pill {
-
-      .th-code,
-      .td-code {
-        width: auto;
       }
     }
   }

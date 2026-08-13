@@ -7,15 +7,9 @@ import { useK3 } from '~/composables/useK3'
  * 金額一律夾在該分頁限額內 —— 超限伺端會整筆拒單
  */
 const {
-  state: mxState, currentQuota, canSubmit, isOpen, isCd, isBetModeNormal,
+  state: mxState, currentQuota, canSubmit, isOpen, isCd,
   selectedCount, totalAmount, ofPicked, ofPicks, actions: mxActions, fetch: mxFetch
 } = useK3()
-
-/** 投注模式（對齊 pcv2 的 MODE_BET.NORMAL / FAST） */
-const BET_MODES = [
-  { key: 'normal' as const, label: '一般', hint: '逐項填金額' },
-  { key: 'fast' as const, label: '快速', hint: '點選即套用共用金額' }
-]
 
 const { $dialog } = useNuxtApp()
 const QUICK_COINS = [10, 50, 100, 300, 1000]
@@ -32,15 +26,13 @@ const betLabel = computed(() => {
   return ofPicked.value ? `（${ofPicks.list.join('、')}）` : ''
 })
 
-/** fast 模式編輯的是共用金額（moneyFast），其餘編輯 amount */
-const currentMoney = computed(() => (isCd.value && !isBetModeNormal.value ? mxState.moneyFast : mxState.amount))
-
 const _handlers = {
   clamp: (value: string | number) =>
     Math.min(range.value.max, Math.max(range.value.min, Math.trunc(Number(value) || 0))),
+  /** 信用盤改金額要一併更新已選注項（點注項時套用的就是這個值） */
   setMoney: (value: string | number) => {
     const coin = _handlers.clamp(value)
-    if (isCd.value && !isBetModeNormal.value) mxActions.setMoneyFast(coin)
+    if (isCd.value) mxActions.setAmount(coin)
     else mxState.amount = coin
     return coin
   },
@@ -64,18 +56,9 @@ const click = {
 
 <template>
   <div class="block-main k3-ctrl">
-    <!-- 投注模式切換：僅信用盤有（官方盤一注固定 3 個點數，沒有逐項金額的概念） -->
-    <div v-if="isCd" class="ctrl-modes">
-      <button v-for="mode in BET_MODES" :key="mode.key" type="button" class="mode-btn"
-        :class="{ active: mxState.betMode === mode.key }" @click="mxActions.setBetMode(mode.key)">
-        {{ mode.label }}
-      </button>
-      <span class="mode-hint">{{ BET_MODES.find((m) => m.key === mxState.betMode)?.hint }}</span>
-    </div>
-
-    <div class="ctrl-head">{{ isCd && !isBetModeNormal ? '共用金額' : '投注金額' }}</div>
+    <div class="ctrl-head">投注金額</div>
     <div class="ctrl-row">
-      <input type="number" :min="range.min" :max="range.max" class="ctrl-input" :value="currentMoney"
+      <input type="number" :min="range.min" :max="range.max" class="ctrl-input" :value="mxState.amount"
         @input="_handlers.onAmountInput" @blur="_handlers.onAmountInput" />
       <span class="ctrl-unit">元</span>
       <span class="ctrl-range">{{ money(range.min) }} — {{ money(range.max) }}</span>
@@ -85,6 +68,12 @@ const click = {
         +{{ coin }}
       </button>
     </div>
+    <!-- 總下注額度：信用盤是已選注項金額合計，官方盤是選滿 3 個點數後的單注金額 -->
+    <div class="ctrl-total">
+      <span class="total-label">總下注額度</span>
+      <span class="total-value">{{ money(isCd ? totalAmount : (ofPicked ? Number(mxState.amount) : 0)) }}</span>
+    </div>
+
     <div class="ctrl-acts">
       <button type="button" class="submit-btn" :disabled="!canBet" @click="click.submit()">
         確認投注{{ betLabel }}
@@ -146,43 +135,46 @@ const click = {
     }
   }
 
+  /* 總下注額度：擺在確認投注鈕上方 */
+  .ctrl-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+    border-top: 1px dashed var(--color-red-content);
+    padding-top: 8px;
+
+    .total-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-red-desc);
+    }
+
+    .total-value {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--color-red-main);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  /* 黃色投注鈕（色票取專案既有的 --color-yellow-black-btn / --color-yellow-btn-text） */
   .submit-btn {
     width: 100%;
     border: none;
     border-radius: 4px;
-    background: linear-gradient(180deg, #e11d48, #9f1239);
+    background: var(--color-yellow-black-btn);
     padding: 10px 0;
     font-size: 15px;
     font-weight: 700;
     letter-spacing: 0.08em;
-    color: #fff;
+    color: var(--color-yellow-btn-text);
     cursor: pointer;
     transition: filter 0.15s;
 
     &:hover:not(:disabled) { filter: brightness(1.08); }
     &:disabled { opacity: 0.45; cursor: not-allowed; }
-  }
-
-  .ctrl-modes {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-bottom: 10px;
-
-    .mode-btn {
-      border: 1px solid var(--color-red-content);
-      border-radius: 4px;
-      background: #fff;
-      padding: 3px 12px;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--color-red-main);
-      cursor: pointer;
-
-      &.active { border-color: var(--color-red-main); background: var(--color-red-main); color: #fff; }
-    }
-
-    .mode-hint { font-size: 11px; color: var(--color-red-desc); }
   }
 
   .ctrl-acts {
