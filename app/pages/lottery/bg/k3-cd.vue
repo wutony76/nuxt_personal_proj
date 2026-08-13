@@ -423,12 +423,16 @@ onBeforeUnmount(() => mxFetch.stopPolling())
 
     }
 
-    /* 注項面板：帶標題列的白框（同 6hc-cd 的 .selector-warp .right.selector）*/
+    /* 注項面板：外層容器與 6hc-of 的 .selector-warp 一致
+       （app/components/lottery/bg/6hc/of/Single.vue）——
+       display: flex + gap 12px + min-height 300px；
+       margin-top 用 12px 對齊 6hc-of 那邊由父層 .single 的 gap: 12px 產生的間距。
+       裡層 .selector（帶標題列的白框）是 K3 自己的，沿用 6hc-cd 的做法。 */
     .selector-warp {
-      margin-top: 10px;
+      margin-top: 12px;
       display: flex;
-      flex: 1;
-      min-height: 0;
+      gap: 12px;
+      min-height: 300px;
 
       .selector {
         flex: 1;

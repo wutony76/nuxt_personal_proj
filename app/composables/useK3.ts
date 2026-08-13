@@ -293,6 +293,17 @@ const _actions = {
   sumOf: (openCode: string[]) => {
     const dice = (Array.isArray(openCode) ? openCode : []).map(Number)
     return dice.length >= 3 && dice.every((n) => n >= 1 && n <= K3_DICE_MAX) ? k3SumOf(dice.slice(0, 3)) : 0
+  },
+
+  /**
+   * 注碼的顯示名稱
+   *
+   * 點數（和值）的注碼是純數字「3」～「18」，單看數字容易被誤認成骰子點數或號碼球，
+   * 所以畫面一律補上「點」。⚠️ 只影響顯示 —— 送伺端與結算的注碼仍是原本的 name。
+   */
+  labelOf: (betCode: string | number) => {
+    const code = String(betCode ?? '')
+    return /^\d+$/.test(code) ? `${code}點` : code
   }
 }
 

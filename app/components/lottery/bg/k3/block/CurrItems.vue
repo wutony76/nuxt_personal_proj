@@ -27,7 +27,7 @@ const ofLabel = computed(() => ofPicks.list.filter((n) => n > 0).join('、'))
         <!-- 信用盤 -->
         <template v-if="isCd">
           <tr v-for="item in mxSelect.items" :key="String(item.playId)">
-            <td class="c-code">{{ item.name }}</td>
+            <td class="c-code">{{ mxActions.labelOf(item.name) }}</td>
             <td class="c-odds">{{ item.odds }}</td>
             <td class="c-coin">{{ money(Number(item.coin ?? 0)) }}</td>
           </tr>
