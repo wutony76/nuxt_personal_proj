@@ -34,7 +34,10 @@ const {
   isBetModeNormal,
   actions: mxActions
 } = useK3()
-/** 注碼顯示名稱（點數會補「點」），與當期注單／注單報表共用同一份 */
+/**
+ * 注碼顯示名稱（點數會補「點」），與當期注單／注單報表共用同一份
+ * 看板格子、群組標題的逐項賠率、賠率明細浮層都走這支，顯示才不會不一致
+ */
 const labelOf = mxActions.labelOf
 
 type BoardItem = K3SelectItem & { odds: number; nums?: number[] }
@@ -67,7 +70,11 @@ const _handlers = {
         isRange: true
       }
     }
-    return { summary: `賠率[ ${pairs.map((item) => `${item.name}${item.odds}`).join(' | ')} ]`, detail: pairs, isRange: false }
+    return {
+      summary: `賠率[ ${pairs.map((item) => `${labelOf(item.name)} ${item.odds}`).join(' | ')} ]`,
+      detail: pairs,
+      isRange: false
+    }
   },
 
   /**
@@ -213,7 +220,7 @@ watch(() => mxState.moneyFast, (val) => {
           <!-- 標題只顯示區間時（點數），hover / focus 浮出逐項賠率 -->
           <span v-if="group.hasOddsDetail" class="odds-tip" role="tooltip">
             <em v-for="row in group.oddsDetail" :key="`tip-${group.groupName}-${row.name}`">
-              <i>{{ row.name }}</i><b>{{ row.odds }}</b>
+              <i>{{ labelOf(row.name) }}</i><b>{{ row.odds }}</b>
             </em>
           </span>
         </span>

@@ -300,6 +300,10 @@ onBeforeUnmount(() => mxFetch.stopPolling())
   /* 投注區（對應 6hc-cd 的 .play-warp）*/
   .play-warp {
     position: relative;
+    /* ⚠️ animation 會讓本區自成堆疊脈絡，裡面賠率明細浮層的 z-index: 30 出不去，
+       同為 .main flex 子項的 .record-warp（DOM 在後、也有 animation）就會蓋住它。
+       這裡把整區疊在注單區之上，浮層才能完整顯示。 */
+    z-index: 2;
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -440,14 +444,16 @@ onBeforeUnmount(() => mxFetch.stopPolling())
         border: 1px solid #fee2e2;
         border-radius: 6px;
         background: #fff;
-        overflow: hidden;
         display: flex;
         flex-direction: column;
+        /* ⚠️ 不能用 overflow: hidden —— 群組標題的賠率明細浮層（點數 16 項）
+           會被裁掉。圓角改由 .head 自己切上緣兩角。 */
 
         .head {
           height: 36px;
           flex-shrink: 0;
           border-bottom: 1px solid var(--color-red-bets);
+          border-radius: 6px 6px 0 0;
           background: var(--color-red-bets);
           padding: 0 12px;
           display: flex;
