@@ -112,6 +112,10 @@ const click = {
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
+    /* 外框改掛在捲動區：表格自身的框會隨內容捲走，
+       上緣留給 sticky 表頭用 inset 畫（同 6hc-cd 當期注單的做法） */
+    border: 1px solid var(--color-red-content);
+    border-top: 0;
     /* 捲軸與 6hc 當期注單一致（同 History.vue 的 .hist-body） */
     scrollbar-width: thin;
     scrollbar-color: var(--color-red-desc) #e8e6e6;
@@ -140,18 +144,23 @@ const click = {
   .curr-table {
     width: 100%;
     border-collapse: collapse;
-    /* 外框 */
-    border: 1px solid var(--color-red-content);
+    /* 外框由 .curr-body 負責 */
+    border: unset;
     font-size: 13px;
 
     th {
-      /* 表頭釘住，捲動時仍看得到欄位名稱；
-         上框也要給，否則捲動後釘住的表頭上緣會沒有線（表格的外框已被捲上去） */
+      /* 表頭釘住，捲動時仍看得到欄位名稱。
+         ⚠️ border-collapse: collapse 的框線屬於表格而不是格子，不會跟著 sticky 的
+            表頭移動 —— 捲動後上框就消失了。改用 inset box-shadow 畫上下框，
+            它屬於格子本身，會跟著釘住（同 6hc-cd 的 ReportIssueBets）。 */
       position: sticky;
       top: 0;
       z-index: 1;
-      border-top: 1px solid var(--color-red-content);
-      border-bottom: 1px solid var(--color-red-content);
+      border-top: none;
+      border-bottom: none;
+      box-shadow:
+        inset 0 1px 0 0 var(--color-red-content),
+        inset 0 -1px 0 0 var(--color-red-content);
       padding: 4px 6px;
       background: #fff5f6;
       font-size: 12px;
@@ -162,6 +171,11 @@ const click = {
     td {
       border-bottom: 1px dashed #f3d9dc;
       padding: 4px 6px;
+    }
+
+    /* 最後一列不畫下框，免得與 .curr-body 的外框底邊疊線 */
+    tbody tr:last-child td {
+      border-bottom: none;
     }
 
     /* 以下三組同時套用在 th 與 td 上 —— 標題與內容共用對齊方式 */
