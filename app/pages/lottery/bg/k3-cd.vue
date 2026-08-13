@@ -317,25 +317,22 @@ onBeforeUnmount(() => mxFetch.stopPolling())
       align-items: center;
       gap: 8px;
 
+      /* 與 6hc-of 的 .bar-tabs-btn 一致
+         （app/components/lottery/bg/6hc/of/base/BarTabs.vue）*/
       .play-tab {
-        padding: 8px 20px;
-        border: 1px solid var(--color-red-700);
-        border-radius: 6px;
-        background: #fff;
-        font-size: 14px;
+        border: 1px solid #f3b7bf;
+        border-radius: 0.25rem;
+        background: #fff5f6;
+        padding: 6px 14px;
+        font-size: 13px;
         font-weight: 700;
         color: var(--color-red-main);
         cursor: pointer;
-        transition: all 0.15s ease;
-
-        &:hover:not(.active) {
-          background: #fff5f6;
-        }
 
         &.active {
-          border-color: var(--color-red-main);
           background: var(--color-red-main);
           color: #fff;
+          border-color: var(--color-red-main);
         }
       }
 
