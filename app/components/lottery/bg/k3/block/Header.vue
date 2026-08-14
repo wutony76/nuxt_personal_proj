@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, reactive, watch } from 'vue'
 import Dice from '~/components/lottery/bg/k3/base/Dice.vue'
 import { STATUS_TIME } from '~/config/constants'
 import { K3_OF_PRIZE_TIERS, k3OfAllPicks, k3OfMatchCount } from '#shared/config/k3-of'
 import { k3AllOutcomes } from '#shared/config/k3'
-import { K3_BIG_LINE } from '#shared/config/k3-cd'
+import { K3_BIG_LINE, K3_DICE_MAX } from '#shared/config/k3-cd'
 import { useK3 } from '~/composables/useK3'
 
 /**
@@ -104,6 +104,60 @@ const isTriple = computed(() => openCode.value.length === 3 && new Set(openCode.
 /** 大小／單雙：大與單走紅色、小與雙走藍色（分界線讀 K3_BIG_LINE，不寫死） */
 const isBig = computed(() => sum.value >= K3_BIG_LINE)
 const isOdd = computed(() => sum.value % 2 === 1)
+
+/**
+ * 開獎動畫
+ *
+ *   準備開獎／開獎中 → 三顆骰子持續翻點並抖動（rolling）
+ *   新一期開出       → 依序落下彈跳（revealToken 遞增讓 key 變動、CSS 動畫重播）
+ *
+ * ⚠️ 翻點用到 Math.random，只在 client 的 interval 內跑；初始狀態（rolling: false、
+ *    rollFaces 固定值）兩端一致，才不會有 hydration mismatch。
+ */
+const ROLL_INTERVAL_MS = 90
+const anim = reactive({
+  rolling: false,
+  rollFaces: [1, 2, 3] as number[],
+  revealToken: 0
+})
+let rollTimer: ReturnType<typeof setInterval> | null = null
+
+const isDrawing = computed(() =>
+  currentStatus.value === STATUS_TIME.PREPARE_OPEN || currentStatus.value === STATUS_TIME.OPENING
+)
+/** 翻點中顯示隨機點數，其餘顯示該期開獎號 */
+const displayDice = computed(() => (anim.rolling ? anim.rollFaces : dice.value))
+
+const _anim = {
+  start: () => {
+    if (rollTimer) return
+    anim.rolling = true
+    rollTimer = setInterval(() => {
+      anim.rollFaces = [0, 1, 2].map(() => 1 + Math.floor(Math.random() * K3_DICE_MAX))
+    }, ROLL_INTERVAL_MS)
+  },
+  stop: () => {
+    if (rollTimer) clearInterval(rollTimer)
+    rollTimer = null
+    anim.rolling = false
+  }
+}
+
+if (import.meta.client) {
+  watch(isDrawing, (drawing) => {
+    if (drawing) _anim.start()
+    else _anim.stop()
+  }, { immediate: true })
+
+  // 新一期開出：停下翻點並播放落下動畫
+  watch(issueLatest, (next, prev) => {
+    if (!next || next === '—' || next === prev) return
+    _anim.stop()
+    anim.revealToken += 1
+  })
+}
+
+onBeforeUnmount(_anim.stop)
 </script>
 
 <template>
@@ -150,11 +204,13 @@ const isOdd = computed(() => sum.value % 2 === 1)
               <div class="dice-legend-title"><span>開獎點數</span></div>
             </div>
 
-            <div v-for="(code, idx) in dice" :key="`k3-open-${idx}`" class="dice-warp">
-              <Dice :num="code" size="lg" :pending="openCode.length === 0" />
+            <!-- key 帶 revealToken：新一期開出時強制重建，CSS 落下動畫才會重播 -->
+            <div v-for="(code, idx) in displayDice" :key="`k3-open-${anim.revealToken}-${idx}`" class="dice-warp"
+              :class="{ 'is-rolling': anim.rolling }" :style="{ '--i': idx }">
+              <Dice :num="code" size="lg" :pending="!anim.rolling && openCode.length === 0" />
             </div>
 
-            <div v-if="openCode.length > 0" class="open-meta">
+            <div v-if="openCode.length > 0 && !anim.rolling" :key="`k3-meta-${anim.revealToken}`" class="open-meta">
               <span class="meta-sum">和值 {{ sum }}</span>
               <span class="meta-tag" :class="{ 'is-blue': !isBig }">{{ isBig ? '大' : '小' }}</span>
               <span class="meta-tag" :class="{ 'is-blue': !isOdd }">{{ isOdd ? '單' : '雙' }}</span>
@@ -389,9 +445,21 @@ const isOdd = computed(() => sum.value % 2 === 1)
           .dice-warp {
             display: inline-flex;
             align-items: center;
+            /* 新一期開出：依序落下彈跳（--i 是第幾顆） */
+            animation: k3-die-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+            animation-delay: calc(var(--i, 0) * 0.12s);
+
+            /* 準備開獎／開獎中：持續翻點抖動 */
+            &.is-rolling {
+              animation: k3-die-roll 0.32s linear infinite;
+              animation-delay: calc(var(--i, 0) * 0.06s);
+            }
           }
 
           .open-meta {
+            /* 骰子落定後才浮出（延遲＝最後一顆的 delay + 動畫長度） */
+            animation: k3-meta-in 0.4s ease both;
+            animation-delay: 0.62s;
             margin-left: 0.5rem;
             display: inline-flex;
             flex-direction: column;
@@ -456,6 +524,68 @@ const isOdd = computed(() => sum.value % 2 === 1)
       font-size: 42px;
       letter-spacing: -4px;
     }
+  }
+}
+
+/* ── 開獎動畫 ─────────────────────────────────────────────── */
+@keyframes k3-die-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.7) rotate(-20deg);
+  }
+
+  60% {
+    opacity: 1;
+    transform: translateY(3px) scale(1.08) rotate(5deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes k3-die-roll {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  25% {
+    transform: translateY(-7px) rotate(14deg);
+  }
+
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  75% {
+    transform: translateY(-5px) rotate(-14deg);
+  }
+
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes k3-meta-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 使用者要求減少動態時只留最終狀態 */
+@media (prefers-reduced-motion: reduce) {
+
+  .dice-warp,
+  .dice-warp.is-rolling,
+  .open-meta {
+    animation: none !important;
   }
 }
 </style>

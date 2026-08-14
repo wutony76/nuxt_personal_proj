@@ -6,6 +6,7 @@ import CurrItems from '~/components/lottery/bg/k3/block/CurrItems.vue'
 import Controls from '~/components/lottery/bg/k3/block/Controls.vue'
 import Report from '~/components/lottery/bg/k3/block/Report.vue'
 import History from '~/components/lottery/bg/k3/block/History.vue'
+import Road from '~/components/lottery/bg/k3/block/Road.vue'
 import DialogUser from '~/components/lottery/bg/k3/block/DialogUser.vue'
 import DialogOpenCode from '~/components/lottery/bg/k3/block/DialogOpenCode.vue'
 import DialogRule from '~/components/lottery/bg/k3/block/DialogRule.vue'
@@ -78,6 +79,7 @@ onBeforeUnmount(() => mxFetch.stopPolling())
         </aside>
         <div class="info-main">
           <History />
+          <Road />
         </div>
       </section>
 
@@ -245,6 +247,13 @@ onBeforeUnmount(() => mxFetch.stopPolling())
          basis auto 時開獎歷史的內容寬度會去擠 .info-side，22% 會被壓成 111px */
       flex: 1 1 0;
       min-width: 0;
+      /* 開獎歷史（50%）與路珠並排，右半邊不再留白 */
+      display: flex;
+      gap: 0.75rem;
+
+      .k3-road {
+        flex: 1 1 auto;
+      }
     }
   }
 
