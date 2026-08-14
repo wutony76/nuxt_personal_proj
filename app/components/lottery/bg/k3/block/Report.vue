@@ -87,7 +87,7 @@ watch([total, () => state.pageSize], ([count, size]) => {
     <div class="rp-head">
       <span class="rp-title">下注紀錄</span>
       <span class="rp-claim">
-        可領 <b>{{ money(claimable) }}</b>
+        待領中獎金額 <b>{{ money(claimable) }}</b>
         <button type="button" class="claim-btn" :disabled="claimable <= 0 || mxRecord.isSubmittingClaim"
           @click="mxFetch.claimOneIssue()">
           {{ mxRecord.isSubmittingClaim ? '領取中…' : '領取' }}
@@ -112,7 +112,7 @@ watch([total, () => state.pageSize], ([count, size]) => {
         <tbody>
           <tr v-for="row in pagedRows" :key="row.orderId" :class="`is-${row.winStatus}`">
             <td class="t-issue">{{ row.issue }}</td>
-            <td class="t-code">{{ row.betCode.map((code) => mxActions.labelOf(code)).join('、') }}</td>
+            <td class="t-code">{{row.betCode.map((code) => mxActions.labelOf(code)).join('、')}}</td>
             <td class="t-num">{{ money(row.coin) }}</td>
             <td v-if="isCd" class="t-num">{{ row.odds ?? '—' }}</td>
             <td v-else class="t-num">{{ row.matchCount }} 顆<em v-if="row.tierName">（{{ row.tierName }}）</em></td>

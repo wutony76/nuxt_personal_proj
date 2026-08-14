@@ -39,7 +39,8 @@ const isTriple = (codes: string[]) => codes.length === 3 && new Set(codes).size 
       <span class="doc-note">※ 與信用／官方玩法為同一份開獎號</span>
     </div>
 
-    <table class="report-table">
+    <div class="dialog-table-wrap">
+      <table class="report-table">
       <thead>
         <tr><th>期數</th><th>骰子</th><th>和值</th><th>大小</th><th>單雙</th><th>牌型</th><th>開獎時間</th></tr>
       </thead>
@@ -65,11 +66,38 @@ const isTriple = (codes: string[]) => codes.length === 3 && new Set(codes).size 
           <td colspan="7" class="no-records">{{ mxHistory.isLoading ? '載入中…' : '暫無資料' }}</td>
         </tr>
       </tbody>
-    </table>
+      </table>
+    </div>
   </DialogShell>
 </template>
 
 <style scoped lang="scss">
+/* 表格自己捲動（比照 6hc-of／6hc-cd 的 .dialog-table-wrap）——
+   原本整個彈窗一起捲，表頭會跟著滑掉，資料多的時候看不出在看哪一欄 */
+.dialog-table-wrap {
+  max-height: 320px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-red-desc) #e8e6e6;
+}
+
+:deep(.report-table) {
+  /* ⚠️ 表格自身的 border-top 要拿掉：它與下面 th 的 inset 上框會疊成 2px，
+     看起來比表頭下緣（1px）粗一截。上框一律交給 th 的 inset 畫，
+     捲動時才不會被捲走。 */
+  border-top: 0;
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    /* 捲動時表格自身的上框會被捲走，改用 inset 畫上下框（同 6hc-cd） */
+    box-shadow:
+      inset 0 1px 0 0 var(--color-red-content),
+      inset 0 -1px 0 0 var(--color-red-content);
+  }
+}
+
 /* 空狀態撐開高度（同 6hc 的 .no-records）並反灰 */
 .no-records {
   height: 150px;

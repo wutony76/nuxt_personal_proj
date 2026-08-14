@@ -239,7 +239,7 @@ const click = {
                   <th>投注號碼</th>
                   <th>注數 / 金額</th>
                   <th>賠率</th>
-                  <th>注單狀態</th>
+                  <th>狀態</th>
                   <th class="sortable-th" @click="click.toggleBetSort('winAmount')">
                     中獎金額
                     <span class="sort-icon">{{ _handlers.sortIcon(state.betSortField === 'winAmount',

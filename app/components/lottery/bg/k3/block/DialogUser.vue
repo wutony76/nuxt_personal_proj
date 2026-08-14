@@ -37,79 +37,138 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
     </div>
 
     <nav class="du-tabs">
-      <button v-for="tab in TABS" :key="tab.key" type="button" class="du-tab"
-        :class="{ active: state.tab === tab.key }" @click="state.tab = tab.key">
+      <button v-for="tab in TABS" :key="tab.key" type="button" class="du-tab" :class="{ active: state.tab === tab.key }"
+        @click="state.tab = tab.key">
         {{ tab.label }}
       </button>
     </nav>
 
     <!-- 可領獎金 -->
-    <table v-if="state.tab === 'claim'" class="report-table">
-      <thead><tr><th>期數</th><th>金額</th><th>開獎</th><th>時間</th></tr></thead>
-      <tbody>
-        <tr v-for="item in mxRecord.claimableIssues" :key="item.issue">
-          <td>{{ item.issue }}</td>
-          <td>{{ money(Number(item.amount)) }}</td>
-          <td>
-            <span class="du-dice">
-              <Dice v-for="(code, idx) in (item.openCode ?? [])" :key="idx" :num="code" size="sm" />
-            </span>
-          </td>
-          <td>{{ timeOf(Number(item.createdAt)) }}</td>
-        </tr>
-        <tr v-if="mxRecord.claimableIssues.length === 0"><td colspan="4">目前沒有可領取獎金</td></tr>
-      </tbody>
-    </table>
+    <div v-if="state.tab === 'claim'" class="dialog-table-wrap">
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>期數</th>
+            <th>金額</th>
+            <th>開獎</th>
+            <th>時間</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in mxRecord.claimableIssues" :key="item.issue">
+            <td>{{ item.issue }}</td>
+            <td>{{ money(Number(item.amount)) }}</td>
+            <td>
+              <span class="du-dice">
+                <Dice v-for="(code, idx) in (item.openCode ?? [])" :key="idx" :num="code" size="sm" />
+              </span>
+            </td>
+            <td>{{ timeOf(Number(item.createdAt)) }}</td>
+          </tr>
+          <tr v-if="mxRecord.claimableIssues.length === 0">
+            <td colspan="4">目前沒有可領取獎金</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <!-- 餘額變動表 -->
-    <table v-else-if="state.tab === 'balance'" class="report-table">
-      <thead><tr><th>時間</th><th>期數</th><th>類型</th><th>備註</th><th>變動</th><th>餘額</th></tr></thead>
-      <tbody>
-        <tr v-for="row in mxRecord.balanceChanges" :key="String(row.id)">
-          <td>{{ timeOf(Number(row.createdAt)) }}</td>
-          <td>{{ row.issue }}</td>
-          <td>{{ row.type === 'bet' ? '下注' : '領獎' }}</td>
-          <td>{{ row.note }}</td>
-          <td :class="Number(row.amount) < 0 ? 'is-minus' : 'is-plus'">{{ money(Number(row.amount)) }}</td>
-          <td>{{ money(Number(row.after)) }}</td>
-        </tr>
-        <tr v-if="mxRecord.balanceChanges.length === 0"><td colspan="6" class="no-records">暫無資料</td></tr>
-      </tbody>
-    </table>
+    <div v-else-if="state.tab === 'balance'" class="dialog-table-wrap">
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>時間</th>
+            <th>期數</th>
+            <th>類型</th>
+            <th>備註</th>
+            <th>變動</th>
+            <th>餘額</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in mxRecord.balanceChanges" :key="String(row.id)">
+            <td>{{ timeOf(Number(row.createdAt)) }}</td>
+            <td>{{ row.issue }}</td>
+            <td>{{ row.type === 'bet' ? '下注' : '領獎' }}</td>
+            <td>{{ row.note }}</td>
+            <td :class="Number(row.amount) < 0 ? 'is-minus' : 'is-plus'">{{ money(Number(row.amount)) }}</td>
+            <td>{{ money(Number(row.after)) }}</td>
+          </tr>
+          <tr v-if="mxRecord.balanceChanges.length === 0">
+            <td colspan="6" class="no-records">暫無資料</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <!-- 下注紀錄 -->
-    <table v-else class="report-table">
-      <thead>
-        <tr>
-          <th>期數</th><th>注碼</th><th>金額</th>
-          <th>{{ isCd ? '賠率' : '命中' }}</th><th>結果</th><th>派彩</th><th>開獎</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in mxRecord.betHistory" :key="row.orderId">
-          <td>{{ row.issue }}</td>
-          <td>{{ row.betCode.join('、') }}</td>
-          <td>{{ money(row.coin) }}</td>
-          <td>
-            <template v-if="isCd">{{ row.odds ?? '—' }}</template>
-            <template v-else>{{ row.matchCount }} 顆<em v-if="row.tierName">（{{ row.tierName }}）</em></template>
-          </td>
-          <td :class="`is-${row.winStatus}`">{{ statusText(row.winStatus) }}</td>
-          <td>{{ row.winAmount > 0 ? money(row.winAmount) : '—' }}</td>
-          <td>
-            <span v-if="row.openCode?.length" class="du-dice">
-              <Dice v-for="(code, idx) in row.openCode" :key="idx" :num="code" size="sm" />
-            </span>
-            <em v-else>—</em>
-          </td>
-        </tr>
-        <tr v-if="mxRecord.betHistory.length === 0"><td colspan="7" class="no-records">暫無資料</td></tr>
-      </tbody>
-    </table>
+    <div v-else class="dialog-table-wrap">
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>期數</th>
+            <th>注碼</th>
+            <th>金額</th>
+            <th>{{ isCd ? '賠率' : '命中' }}</th>
+            <th>狀態</th>
+            <th>派彩</th>
+            <th>開獎</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in mxRecord.betHistory" :key="row.orderId">
+            <td>{{ row.issue }}</td>
+            <td>{{ row.betCode.join('、') }}</td>
+            <td>{{ money(row.coin) }}</td>
+            <td>
+              <template v-if="isCd">{{ row.odds ?? '—' }}</template>
+              <template v-else>{{ row.matchCount }} 顆<em v-if="row.tierName">（{{ row.tierName }}）</em></template>
+            </td>
+            <td :class="`is-${row.winStatus}`">{{ statusText(row.winStatus) }}</td>
+            <td>{{ row.winAmount > 0 ? money(row.winAmount) : '—' }}</td>
+            <td>
+              <span v-if="row.openCode?.length" class="du-dice">
+                <Dice v-for="(code, idx) in row.openCode" :key="idx" :num="code" size="sm" />
+              </span>
+              <em v-else>—</em>
+            </td>
+          </tr>
+          <tr v-if="mxRecord.betHistory.length === 0">
+            <td colspan="7" class="no-records">暫無資料</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </DialogShell>
 </template>
 
 <style scoped lang="scss">
+/* 表格自己捲動（比照 6hc-of／6hc-cd 的 .dialog-table-wrap）——
+   原本整個彈窗一起捲，表頭會跟著滑掉，資料多的時候看不出在看哪一欄 */
+.dialog-table-wrap {
+  max-height: 320px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-red-desc) #e8e6e6;
+}
+
+:deep(.report-table) {
+  /* ⚠️ 表格自身的 border-top 要拿掉：它與下面 th 的 inset 上框會疊成 2px，
+     看起來比表頭下緣（1px）粗一截。上框一律交給 th 的 inset 畫，
+     捲動時才不會被捲走。 */
+  border-top: 0;
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    /* 捲動時表格自身的上框會被捲走，改用 inset 畫上下框（同 6hc-cd） */
+    box-shadow:
+      inset 0 1px 0 0 var(--color-red-content),
+      inset 0 -1px 0 0 var(--color-red-content);
+  }
+}
+
 /* 空狀態撐開高度（同 6hc 的 .no-records）並反灰 */
 .no-records {
   height: 150px;
@@ -125,8 +184,15 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
   font-size: 13px;
   color: var(--color-red-desc);
 
-  b { font-size: 15px; font-weight: 700; color: var(--color-red-main); }
-  b.is-coin { color: #15803d; }
+  b {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-red-main);
+  }
+
+  b.is-coin {
+    color: #15803d;
+  }
 
   .claim-btn {
     margin-left: auto;
@@ -139,7 +205,10 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
     color: #fff;
     cursor: pointer;
 
-    &:disabled { opacity: 0.45; cursor: not-allowed; }
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
   }
 }
 
@@ -158,18 +227,47 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
     color: var(--color-red-main);
     cursor: pointer;
 
-    &.active { border-color: var(--color-red-main); background: var(--color-red-main); color: #fff; }
+    &.active {
+      border-color: var(--color-red-main);
+      background: var(--color-red-main);
+      color: #fff;
+    }
   }
 }
 
-.du-dice { display: inline-flex; gap: 3px; }
+.du-dice {
+  display: inline-flex;
+  gap: 3px;
+}
 
 :deep(.report-table) {
-  .is-plus { color: #15803d; font-weight: 700; }
-  .is-minus { color: #dc2626; font-weight: 700; }
-  .is-win { color: #15803d; font-weight: 700; }
-  .is-tie { color: #b45309; font-weight: 700; }
-  .is-pending { color: #f59e0b; }
-  em { font-style: normal; color: #d97706; }
+  .is-plus {
+    color: #15803d;
+    font-weight: 700;
+  }
+
+  .is-minus {
+    color: #dc2626;
+    font-weight: 700;
+  }
+
+  .is-win {
+    color: #15803d;
+    font-weight: 700;
+  }
+
+  .is-tie {
+    color: #b45309;
+    font-weight: 700;
+  }
+
+  .is-pending {
+    color: #f59e0b;
+  }
+
+  em {
+    font-style: normal;
+    color: #d97706;
+  }
 }
 </style>
