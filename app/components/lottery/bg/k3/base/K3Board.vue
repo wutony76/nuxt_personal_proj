@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive } from 'vue'
 import lodash from 'lodash'
 import Dice from '~/components/lottery/bg/k3/base/Dice.vue'
 import { useK3, type K3SelectItem } from '~/composables/useK3'
@@ -189,12 +189,13 @@ const click = {
   hoverLeave: () => { state.hoverKey = '' }
 }
 
-// 投注金額變動時同步已選注項（同 6hc-cd 對 mxState.amount 的 watch）
-watch(() => mxState.amount, (val) => {
-  const coin = Math.min(maxCoin.value, Math.max(minCoin.value, Math.trunc(Number(val) || 0)))
-  mxSelect.pool.forEach((item) => { if (item.select) item.coin = coin })
-  mxActions.syncSelectItems()
-})
+/*
+ * 已選注項的金額同步改由 composable 的 actions.setAmount 負責，這裡不再 watch
+ * mxState.amount ——
+ * 用 watch 的話「投注金額的清空」只是把欄位還原成下限，卻會連帶把已選注項的金額
+ * 全部改掉；那顆鈕應該只動欄位、不動當前注項。
+ * 打字／快捷金額都走 setMoney → setAmount，同步行為不變。
+ */
 </script>
 
 <template>

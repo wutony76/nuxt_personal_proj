@@ -12,7 +12,7 @@ const {
 } = useK3()
 
 const { $dialog } = useNuxtApp()
-const QUICK_COINS = [10, 50, 100, 300, 1000]
+const QUICK_COINS = [1, 5, 10, 30, 100]
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
 // 官方盤的限額寫在伺端 K3_OF_QUOTA，信用盤讀該分頁 settings.quota
@@ -43,7 +43,17 @@ const _handlers = {
 }
 
 const click = {
-  coin: (coin: number) => { _handlers.setMoney(coin) },
+  /** 快捷金額是「累加」不是「設定」（按鈕文案就是 +10、+50…），同 6hc-of Coin.vue 的 add */
+  coin: (coin: number) => { _handlers.setMoney((Number(mxState.amount) || 0) + coin) },
+  /**
+   * 清空：只還原投注金額到該分頁的單注最低額
+   *
+   * ⚠️ 不動當前注項 —— 既不清掉已選注項，也不透過 setAmount 去改它們的金額
+   *    （setAmount 會把已選注項一起同步成新金額）。要清注項請用當前注項卡上的清空。
+   */
+  clear: () => {
+    mxState.amount = range.value.min
+  },
   submit: async () => {
     if (!isOpen.value) return $dialog.alert('目前非開盤中，無法投注')
     if (!isCd.value && !ofPicked.value) return $dialog.alert('請選滿 3 個點數')
@@ -79,8 +89,7 @@ const click = {
         <!-- 確認投注{{ betLabel }} -->
         投注
       </button>
-      <button type="button" class="clear-btn"
-        @click="isCd ? mxActions.clearSelect() : mxActions.clearOfPicks()">清空</button>
+      <button type="button" class="clear-btn" @click="click.clear()">清空</button>
     </div>
     <p v-if="mxState.errorMessage" class="ctrl-err">{{ mxState.errorMessage }}</p>
   </div>
