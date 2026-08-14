@@ -368,6 +368,62 @@ const _actions = {
     list.push(num)
     list.sort((a, b) => a - b)
   },
+  /**
+   * 官方盤隨機選號
+   *
+   * 三種分頁的語意不同（count 一律當「目標注數」）：
+   *   單選分頁 —— 從該分頁所有注項隨機挑 count 個（正好 count 注）
+   *   組合分頁 —— 隨機挑點數，挑到「展開後的注數 ≥ count」為止（最多 6 個點數）；
+   *               膽拖固定先挑 1 個膽碼，再逐步補拖碼
+   *   彩池玩法 —— 走 randomOfPicks()（隨機 3 個點數 = 1 注）
+   * ⚠️ 組合分頁的注數是組合數，不見得剛好等於 count（例如三不同號選 4 個點數就是 4 注），
+   *    所以是「至少 count 注」。實際注數由看板與當前注項顯示。
+   * @returns 實際選出的注數
+   */
+  randomOgSelect: (count: number) => {
+    if (og.play === OG_POOL_PLAY_KEY) {
+      _actions.randomOfPicks()
+      return 1
+    }
+    const size = Math.max(1, Math.trunc(Number(count) || 1))
+    const shuffle = <T>(list: T[]) => {
+      const pool = [...list]
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        const tmp = pool[i] as T
+        pool[i] = pool[j] as T
+        pool[j] = tmp
+      }
+      return pool
+    }
+    _actions.clearOg()
+
+    const combo = k3OgComboOf(og.play, og.tabId)
+    if (!combo) {
+      const codes = ((findK3OgTab(og.play, og.tabId)?.tabGroup ?? []) as any[])
+        .flatMap((group) => (group.groupList ?? []).map((option: any) => String(option?.name ?? '')))
+        .filter((code) => code.length > 0)
+      shuffle(codes).slice(0, Math.min(size, codes.length)).forEach((code) => _actions.toggleOgItem(code))
+      return og.items.length
+    }
+
+    const points = shuffle([1, 2, 3, 4, 5, 6])
+    const expanded = () => k3OgExpandCombo(og.play, og.tabId, { nums: og.nums, dan: og.dan, tuo: og.tuo }).length
+    if (combo.mode === 'standard') {
+      for (let take = combo.pick; take <= points.length; take++) {
+        og.nums = points.slice(0, take).sort((a, b) => a - b)
+        if (expanded() >= size) break
+      }
+    } else {
+      const danCount = Math.min(combo.maxDan ?? combo.pick - 1, 1)
+      og.dan = points.slice(0, danCount).sort((a, b) => a - b)
+      for (let take = combo.pick - danCount; danCount + take <= points.length; take++) {
+        og.tuo = points.slice(danCount, danCount + take).sort((a, b) => a - b)
+        if (expanded() >= size) break
+      }
+    }
+    return expanded()
+  },
   /** 取注碼賠率（依當前玩法／分頁的 rtp 即時推算，看板顯示用） */
   ogOddsOf: (code: string) => k3OgTabOddsOf(og.play, og.tabId, String(code ?? '')),
   /** 清空賠率玩法的選取 */

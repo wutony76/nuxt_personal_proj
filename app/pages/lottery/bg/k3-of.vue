@@ -51,8 +51,26 @@ const headHint = computed(() => {
     : `請選 ${combo.pick} 個以上不同點數`
 })
 
+const { $dialog } = useNuxtApp()
 const router = useRouter()
 const { isLoggedIn, init: authInit } = useAuth()
+
+const state = reactive({ randomCount: 5 })
+
+const click = {
+  /**
+   * 機選：語意依分頁型態不同（詳見 useK3 的 randomOgSelect）——
+   * 單選正好 N 注、組合至少 N 注、彩池固定 1 注
+   */
+  random: () => {
+    const picked = mxActions.randomOgSelect(state.randomCount)
+    if (picked <= 0) $dialog.alert('此分頁無法隨機選號')
+  },
+  clear: () => {
+    if (isOgPool.value) mxActions.clearOfPicks()
+    else mxActions.clearOg()
+  }
+}
 
 /** 三個彈窗由 LotteryBgBaseTop 的 USER / OPENCODE / RULE 觸發 */
 const dialog = reactive({ user: false, openCode: false, rule: false })
@@ -124,6 +142,14 @@ onBeforeUnmount(() => mxFetch.stopPolling())
             :class="{ active: mxOg.play === play.key }" @click="mxActions.setOgPlay(play.key)">
             {{ play.name }}
           </button>
+          <div class="auto-select">
+            <span>隨機選號</span>
+            <input type="number" min="1" class="count-input" v-model.number="state.randomCount" />
+            <span>注</span>
+            <button type="button" class="act-btn" @click="click.random()">機選</button>
+            <button type="button" class="act-btn is-clear" @click="click.clear()">清空</button>
+          </div>
+
           <NuxtLink to="/lottery/bg/k3-cd" class="mode-link">切換信用玩法 →</NuxtLink>
         </div>
 
@@ -342,7 +368,7 @@ onBeforeUnmount(() => mxFetch.stopPolling())
       }
 
       .mode-link {
-        margin-left: auto;
+        /* 靠右推由 .auto-select 負責（兩個都設 auto 會把剩餘空間對半分掉） */
         font-size: 12px;
         font-weight: 700;
         color: var(--color-red-desc);
@@ -379,41 +405,45 @@ onBeforeUnmount(() => mxFetch.stopPolling())
         }
       }
 
-      .auto-select {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 12px;
-        color: var(--color-red-desc);
-
-        .count-input {
-          width: 3.4rem;
-          border: 1px solid var(--color-red-content);
-          border-radius: 4px;
-          padding: 3px 6px;
-          text-align: right;
-          font-size: 13px;
-          color: var(--color-red-main);
-          outline: none;
-
-          &:focus { border-color: var(--color-red-main); }
-        }
-
-        .act-btn {
-          border: 1px solid var(--color-red-main);
-          border-radius: 4px;
-          background: var(--color-red-main);
-          padding: 3px 12px;
-          font-size: 12px;
-          font-weight: 700;
-          color: #fff;
-          cursor: pointer;
-
-          &.is-clear { background: #fff; color: var(--color-red-main); }
-        }
-      }
     }
 
+    /* 隨機選號：定義在 .play-warp 這一層而不是綁在 .play-tabs 底下 ——
+       選擇器不綁父層才不會一搬位置就掉樣式（k3-cd 同樣處理）。
+       margin-left: auto 讓它與後面的 .mode-link 一起貼右邊。 */
+    .auto-select {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--color-red-desc);
+
+      .count-input {
+        width: 3.4rem;
+        border: 1px solid var(--color-red-content);
+        border-radius: 4px;
+        padding: 3px 6px;
+        text-align: right;
+        font-size: 13px;
+        color: var(--color-red-main);
+        outline: none;
+
+        &:focus { border-color: var(--color-red-main); }
+    }
+
+      .act-btn {
+        border: 1px solid var(--color-red-main);
+        border-radius: 4px;
+        background: var(--color-red-main);
+        padding: 3px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #fff;
+        cursor: pointer;
+
+        &.is-clear { background: #fff; color: var(--color-red-main); }
+    }
+    }
     /* 注項面板：外層容器與 6hc-of 的 .selector-warp 一致
        （app/components/lottery/bg/6hc/of/Single.vue）——
        display: flex + gap 12px + min-height 300px；
