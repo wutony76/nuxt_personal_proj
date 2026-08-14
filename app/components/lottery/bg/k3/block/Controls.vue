@@ -8,23 +8,43 @@ import { useK3 } from '~/composables/useK3'
  */
 const {
   state: mxState, currentQuota, canSubmit, isOpen, isCd,
-  selectedCount, totalAmount, ofPicked, ofPicks, actions: mxActions, fetch: mxFetch
+  selectedCount, totalAmount, ofPicked, ofPicks, actions: mxActions, fetch: mxFetch,
+  ogQuota, ogSelectedCount, ogTotalAmount, canSubmitOg, isOgPool
 } = useK3()
 
 const { $dialog } = useNuxtApp()
 const QUICK_COINS = [1, 5, 10, 30, 100]
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
-// 官方盤的限額寫在伺端 K3_OF_QUOTA（server/services/lotteryK3Of.ts），
-// 信用盤讀該分頁 settings.quota。⚠️ 官方盤這組值是手抄的，改伺端要一起改。
-const range = computed(() => (isCd.value
-  ? { min: currentQuota.value.item.min, max: currentQuota.value.item.max }
-  : { min: 2, max: 10000 }))
+/**
+ * 單注限額
+ *   信用盤          → 該分頁 settings.quota
+ *   官方盤賠率玩法  → k3og 該分頁 settings.quota
+ *   官方盤彩池玩法  → 伺端 K3_OF_QUOTA（⚠️ 這組值是手抄的，改伺端要一起改）
+ */
+const range = computed(() => {
+  if (isCd.value) return { min: currentQuota.value.item.min, max: currentQuota.value.item.max }
+  if (!isOgPool.value) return { min: ogQuota.value.item.min, max: ogQuota.value.item.max }
+  return { min: 2, max: 10000 }
+})
 
-const canBet = computed(() => (isCd.value ? canSubmit.value : isOpen.value && ofPicked.value))
+const canBet = computed(() => {
+  if (isCd.value) return canSubmit.value
+  return isOgPool.value ? isOpen.value && ofPicked.value : canSubmitOg.value
+})
 const betLabel = computed(() => {
   if (isCd.value) return selectedCount.value > 0 ? `（${selectedCount.value} 注 / ${money(totalAmount.value)}）` : ''
+  if (!isOgPool.value) {
+    return ogSelectedCount.value > 0 ? `（${ogSelectedCount.value} 注 / ${money(ogTotalAmount.value)}）` : ''
+  }
   return ofPicked.value ? `（${ofPicks.list.join('、')}）` : ''
+})
+
+/** 總下注額度：信用盤／官方盤賠率玩法都是合計，彩池玩法是單注金額 */
+const totalBetAmount = computed(() => {
+  if (isCd.value) return totalAmount.value
+  if (!isOgPool.value) return ogTotalAmount.value
+  return ofPicked.value ? Number(mxState.amount) : 0
 })
 
 const _handlers = {
@@ -57,8 +77,10 @@ const click = {
   },
   submit: async () => {
     if (!isOpen.value) return $dialog.alert('目前非開盤中，無法投注')
-    if (!isCd.value && !ofPicked.value) return $dialog.alert('請選滿 3 個點數')
-    const result = isCd.value ? await mxFetch.bets() : await mxFetch.betsOf()
+    if (!isCd.value && isOgPool.value && !ofPicked.value) return $dialog.alert('請選滿 3 個點數')
+    const result = isCd.value
+      ? await mxFetch.bets()
+      : isOgPool.value ? await mxFetch.betsOf() : await mxFetch.betsOg()
     $dialog.alert(result.ok ? `下注成功${betLabel.value}` : result.message)
     if (result.ok) await mxFetch.userRecordAll()
   }
@@ -67,7 +89,7 @@ const click = {
 
 <template>
   <div class="block-main k3-ctrl">
-    <div class="ctrl-head">投注金額</div>
+    <!-- <div class="ctrl-head">投注金額</div> -->
     <div class="ctrl-row">
       <input type="number" :min="range.min" :max="range.max" class="ctrl-input" :value="mxState.amount"
         @input="_handlers.onAmountInput" @blur="_handlers.onAmountInput" />
@@ -82,7 +104,7 @@ const click = {
     <!-- 總下注額度：信用盤是已選注項金額合計，官方盤是選滿 3 個點數後的單注金額 -->
     <div class="ctrl-total">
       <span class="total-label">總注額</span>
-      <span class="total-value">{{ money(isCd ? totalAmount : (ofPicked ? Number(mxState.amount) : 0)) }}</span>
+      <span class="total-value">{{ money(totalBetAmount) }}</span>
     </div>
 
     <div class="ctrl-acts">

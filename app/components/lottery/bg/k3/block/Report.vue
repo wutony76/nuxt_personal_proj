@@ -102,8 +102,8 @@ watch([total, () => state.pageSize], ([count, size]) => {
             <th>期數</th>
             <th>注碼</th>
             <th>金額</th>
-            <th v-if="isCd">賠率</th>
-            <th v-else>命中</th>
+            <!-- 官方盤兩套派彩並存：賠率玩法顯示賠率、彩池玩法顯示命中顆數 -->
+            <th>{{ isCd ? '賠率' : '賠率／命中' }}</th>
             <th>結果</th>
             <th>派彩</th>
             <th>開獎</th>
@@ -115,6 +115,8 @@ watch([total, () => state.pageSize], ([count, size]) => {
             <td class="t-code">{{row.betCode.map((code) => mxActions.labelOf(code)).join('、')}}</td>
             <td class="t-num">{{ money(row.coin) }}</td>
             <td v-if="isCd" class="t-num">{{ row.odds ?? '—' }}</td>
+            <!-- odds > 0 代表賠率玩法（下注時鎖了賠率）；否則是彩池玩法的分層 -->
+            <td v-else-if="Number(row.odds) > 0" class="t-num">{{ row.odds }}</td>
             <td v-else class="t-num">{{ row.matchCount }} 顆<em v-if="row.tierName">（{{ row.tierName }}）</em></td>
             <td class="t-status">{{ statusText(row.winStatus) }}</td>
             <td class="t-num t-payout">{{ row.winAmount > 0 ? money(row.winAmount) : '—' }}</td>

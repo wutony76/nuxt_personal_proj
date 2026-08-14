@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
 import K3Header from '~/components/lottery/bg/k3/block/Header.vue'
-import OfPicker from '~/components/lottery/bg/k3/block/OfPicker.vue'
+import K3OgBoard from '~/components/lottery/bg/k3/base/K3OgBoard.vue'
 import CurrItems from '~/components/lottery/bg/k3/block/CurrItems.vue'
 import Controls from '~/components/lottery/bg/k3/block/Controls.vue'
 import Report from '~/components/lottery/bg/k3/block/Report.vue'
@@ -11,6 +11,7 @@ import DialogUser from '~/components/lottery/bg/k3/block/DialogUser.vue'
 import DialogOpenCode from '~/components/lottery/bg/k3/block/DialogOpenCode.vue'
 import DialogRule from '~/components/lottery/bg/k3/block/DialogRule.vue'
 import { useK3 } from '~/composables/useK3'
+import { useAuth } from '~/composables/useAuth'
 
 /**
  * 快3 官方玩法（K3-OF）
@@ -25,11 +26,33 @@ const {
   wallet: mxWallet,
   pool: mxPool,
   ofPicked,
+  og: mxOg,
+  ogPlayList,
+  ogCombo,
+  ogSelectedCount,
+  ogTotalAmount,
+  isOgPool,
   actions: mxActions,
   fetch: mxFetch
 } = useK3()
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
+
+const currentOgPlayName = computed(() =>
+  ogPlayList.value.find((play) => play.key === mxOg.play)?.name ?? '官方玩法'
+)
+/** 標題列的操作提示：彩池玩法固定選 3 顆，組合玩法看 pick，其餘是逐項選 */
+const headHint = computed(() => {
+  if (isOgPool.value) return '請選 3 個點數（獎池分層派彩）'
+  const combo = ogCombo.value
+  if (!combo) return '請選擇注項'
+  return combo.mode === 'dantuo'
+    ? `請選膽碼與拖碼（一注 ${combo.pick} 個點數）`
+    : `請選 ${combo.pick} 個以上不同點數`
+})
+
+const router = useRouter()
+const { isLoggedIn, init: authInit } = useAuth()
 
 /** 三個彈窗由 LotteryBgBaseTop 的 USER / OPENCODE / RULE 觸發 */
 const dialog = reactive({ user: false, openCode: false, rule: false })
@@ -39,7 +62,18 @@ const dialogClick = {
   openRule: () => { dialog.rule = true }
 }
 
+/**
+ * 未登入處理：與 6hc 一致 —— 先 await useAuth().init() 確認登入狀態，
+ * 沒登入就 router.replace('/login') 並中止後續初始化。
+ * ⚠️ 一定要中止（return）：initPageData／userRecordAll 都會打需要登入的 API，
+ *    沒攔住會先噴一串 401 才跳頁。
+ */
 onMounted(async () => {
+  await authInit()
+  if (!isLoggedIn.value) {
+    router.replace('/login')
+    return
+  }
   mxActions.setMode('of')
   // 官方盤限額（伺端 K3_OF_QUOTA）與信用盤不同，切過來要把金額夾回區間
   mxState.amount = Math.min(5000, Math.max(10, Math.trunc(Number(mxState.amount) || 0)))
@@ -84,8 +118,12 @@ onBeforeUnmount(() => mxFetch.stopPolling())
       </section>
 
       <section class="play-warp">
+        <!-- 玩法分頁：k3og 的 6 個賠率玩法 + 原本的彩池玩法（結構參照 pcv2 的 conf_k3_og.js） -->
         <div class="play-tabs">
-          <span class="play-tab active">選號（3 顆點數）</span>
+          <button v-for="play in ogPlayList" :key="play.key" type="button" class="play-tab"
+            :class="{ active: mxOg.play === play.key }" @click="mxActions.setOgPlay(play.key)">
+            {{ play.name }}
+          </button>
           <NuxtLink to="/lottery/bg/k3-cd" class="mode-link">切換信用玩法 →</NuxtLink>
         </div>
 
@@ -93,11 +131,12 @@ onBeforeUnmount(() => mxFetch.stopPolling())
         <div class="selector-warp">
           <div class="selector">
             <div class="head">
-              <span>[ 官方玩法 · 獎池分層 ] 請選 3 個點數</span>
-              <span>{{ ofPicked ? '已選滿' : '未選滿' }}</span>
+              <span>[ {{ currentOgPlayName }}{{ mxOg.tabName ? ` · ${mxOg.tabName}` : '' }} ] {{ headHint }}</span>
+              <span v-if="isOgPool">{{ ofPicked ? '已選滿' : '未選滿' }}</span>
+              <span v-else>已選 {{ ogSelectedCount }} 注 · 共 {{ money(ogTotalAmount) }}</span>
             </div>
             <div class="body">
-              <OfPicker />
+              <K3OgBoard />
             </div>
           </div>
           <aside class="selector-side">

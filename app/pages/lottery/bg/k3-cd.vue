@@ -11,6 +11,7 @@ import DialogUser from '~/components/lottery/bg/k3/block/DialogUser.vue'
 import DialogOpenCode from '~/components/lottery/bg/k3/block/DialogOpenCode.vue'
 import DialogRule from '~/components/lottery/bg/k3/block/DialogRule.vue'
 import { useK3 } from '~/composables/useK3'
+import { useAuth } from '~/composables/useAuth'
 import { useBgAutoActive } from '~/composables/useBgAutoActive'
 
 /**
@@ -33,6 +34,8 @@ const {
 } = useK3()
 
 const { $dialog } = useNuxtApp()
+const router = useRouter()
+const { isLoggedIn, init: authInit } = useAuth()
 /** 下方的自動下注／CHAT 面板由 app.vue 的 BgAutoPanel 統一渲染（同 6hc-of） */
 const { activate: activateAutoPanel, deactivate: deactivateAutoPanel } = useBgAutoActive()
 const state = reactive({ randomCount: 5 })
@@ -59,7 +62,18 @@ const dialogClick = {
   openRule: () => { dialog.rule = true }
 }
 
+/**
+ * 未登入處理：與 6hc 一致 —— 先 await useAuth().init() 確認登入狀態，
+ * 沒登入就 router.replace('/login') 並中止後續初始化。
+ * ⚠️ 一定要中止（return）：initPageData／userRecordAll 都會打需要登入的 API，
+ *    沒攔住會先噴一串 401 才跳頁。
+ */
 onMounted(async () => {
+  await authInit()
+  if (!isLoggedIn.value) {
+    router.replace('/login')
+    return
+  }
   mxActions.setMode('cd')
   activateAutoPanel('k3-cd')
   await mxFetch.initPageData()

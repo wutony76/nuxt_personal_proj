@@ -5,11 +5,33 @@ import { useK3, type K3SelectItem } from '~/composables/useK3'
 /** 當前注項：信用盤列已選注項（金額可直接改），官方盤列選好的 3 個點數 */
 const {
   select: mxSelect, state: mxState, isCd, ofPicks, ofPicked,
-  totalAmount, selectedCount, currentQuota: mxQuota, actions: mxActions
+  totalAmount, selectedCount, currentQuota: mxQuota, actions: mxActions,
+  og: mxOg, ogCombo, ogComboCodes, ogSelectedCount, isOgPool
 } = useK3()
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 const ofLabel = computed(() => ofPicks.list.filter((n) => n > 0).join('、'))
+
+/**
+ * 官方盤賠率玩法的注項列
+ *   單選分頁 → 逐項（注碼／賠率／金額）
+ *   組合分頁 → 展開後的每一注都用同一個投注金額
+ */
+/** 右上角的注數標籤 */
+const currCountLabel = computed(() => {
+  if (isCd.value) return `${selectedCount.value} 注`
+  if (!isOgPool.value) return `${ogSelectedCount.value} 注`
+  return ofPicked.value ? '1 注' : '未選滿'
+})
+
+const ogRows = computed(() => {
+  if (isOgPool.value) return []
+  if (ogCombo.value) {
+    const coin = Number(mxState.amount) || 0
+    return ogComboCodes.value.map((code) => ({ code, odds: mxActions.ogOddsOf(code), coin }))
+  }
+  return mxOg.items.filter((item) => Number(item.coin) > 0)
+})
 
 const click = {
   /**
@@ -43,7 +65,7 @@ const click = {
     <div class="curr-head">
       <span class="curr-title">當前注項</span>
       <!-- 只顯示注數；金額改在投注金額卡的「總下注額度」呈現 -->
-      <span class="curr-count">{{ isCd ? `${selectedCount} 注` : (ofPicked ? '1 注' : '未選滿') }}</span>
+      <span class="curr-count">{{ currCountLabel }}</span>
     </div>
 
     <div class="curr-body">
@@ -52,7 +74,7 @@ const click = {
           <!-- th 的 class 與對應 td 共用同一組對齊規則，標題才會與內容對齊 -->
           <tr>
             <th class="c-code">投注號碼</th>
-            <th v-if="isCd" class="c-odds">賠率</th>
+            <th v-if="isCd || !isOgPool" class="c-odds">賠率</th>
             <th class="c-coin">金額</th>
           </tr>
         </thead>
@@ -69,13 +91,22 @@ const click = {
             </tr>
             <tr v-if="mxSelect.items.length === 0"><td colspan="3" class="c-empty">尚未選擇注項</td></tr>
           </template>
-          <!-- 官方盤 -->
-          <template v-else>
+          <!-- 官方盤：彩池玩法 -->
+          <template v-else-if="isOgPool">
             <tr v-if="ofPicked">
               <td class="c-code">{{ ofLabel }}</td>
               <td class="c-coin">{{ money(Number(mxState.amount)) }}</td>
             </tr>
             <tr v-else><td colspan="2" class="c-empty">請選滿 3 個點數</td></tr>
+          </template>
+          <!-- 官方盤：賠率玩法（組合分頁展開後一注一列） -->
+          <template v-else>
+            <tr v-for="row in ogRows" :key="row.code">
+              <td class="c-code">{{ row.code }}</td>
+              <td class="c-odds">{{ row.odds }}</td>
+              <td class="c-coin">{{ money(Number(row.coin ?? 0)) }}</td>
+            </tr>
+            <tr v-if="ogRows.length === 0"><td colspan="3" class="c-empty">尚未選擇注項</td></tr>
           </template>
         </tbody>
       </table>
@@ -83,6 +114,8 @@ const click = {
 
     <button v-if="isCd && mxSelect.items.length > 0" type="button" class="clear-btn"
       @click="mxActions.clearSelect()">清空</button>
+    <button v-else-if="!isCd && !isOgPool && ogRows.length > 0" type="button" class="clear-btn"
+      @click="mxActions.clearOg()">清空</button>
   </section>
 </template>
 
