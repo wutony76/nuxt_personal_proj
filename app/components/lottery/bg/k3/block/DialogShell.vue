@@ -6,7 +6,7 @@ const emit = defineEmits<{ close: [] }>()
 
 <template>
   <div v-if="props.visible" class="k3-dialog-mask" @click.self="emit('close')">
-    <section class="k3-dialog" :style="props.width ? `width: ${props.width}` : undefined">
+    <section class="k3-dialog lottery-scrollbar" :style="props.width ? `width: ${props.width}` : undefined">
       <header class="k3-dialog-header">
         <h3>{{ props.title }}</h3>
         <button type="button" class="close-btn" aria-label="關閉" @click="emit('close')">×</button>

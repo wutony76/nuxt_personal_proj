@@ -544,7 +544,7 @@ const click = {
 
 <template>
   <div v-if="visible" class="cd-rule-mask" @click.self="emit('close')">
-    <section ref="dialogEl" class="cd-rule-dialog">
+    <section ref="dialogEl" class="cd-rule-dialog lottery-scrollbar">
       <header class="cd-rule-header">
         <h3>遊戲說明 — 六合彩信用玩法</h3>
         <button type="button" class="close-btn" @click="emit('close')">×</button>

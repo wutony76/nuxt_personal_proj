@@ -76,7 +76,7 @@ const playTypes = [
 
 <template>
   <div v-if="visible" class="rule-dialog-mask" @click.self="emit('close')">
-    <section ref="dialogEl" class="rule-dialog">
+    <section ref="dialogEl" class="rule-dialog lottery-scrollbar">
       <header class="rule-dialog-header">
         <h3>遊戲說明 — 六合彩官方玩法</h3>
         <button type="button" class="close-btn" @click="emit('close')">×</button>
