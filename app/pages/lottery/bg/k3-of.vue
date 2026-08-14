@@ -420,8 +420,9 @@ onBeforeUnmount(() => mxFetch.stopPolling())
     display: flex;
     gap: 0.75rem;
     min-height: 0;
-    /* 高度與 6hc-cd 的 .record-warp 一致（那邊是 580px） */
-    height: 580px;
+    /* 下注紀錄的高度由這裡決定：表格區吃剩餘高度、超出則內部捲動，
+       標題列（可領／領取）與下方分頁器高度固定不受影響 */
+    height: 380px;
     animation: k3-sec-in 0.55s ease both;
     animation-delay: 0.38s;
 
