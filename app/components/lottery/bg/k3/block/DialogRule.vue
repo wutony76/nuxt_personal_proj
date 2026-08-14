@@ -369,8 +369,6 @@ const sumRows = computed(() =>
 /* 大段標題（投注玩法／獎金結構）：不是卡片，用來分隔上下兩群 */
 .rule-group-title {
   margin: 18px 0 10px;
-  border-bottom: 2px solid var(--color-red-main);
-  padding-bottom: 4px;
   font-size: 14px;
   font-weight: 800;
   color: var(--color-red-main);
