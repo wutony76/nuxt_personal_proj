@@ -7,6 +7,8 @@ import { k3QuotaOf, k3RtpOf, k3TabOddsOf, k3HasBetCode, findK3Tab } from '#share
 import {
   K3_SHARED,
   k3AddIssuePool,
+  k3EnsurePoolBase,
+  k3IssuePool,
   k3DistributablePool,
   k3EnsureDraw,
   k3RandomOpenCode
@@ -139,7 +141,7 @@ export default class K3_CD extends LOTTERY_BASE {
     settleIssuePrize: (issue: string, openCode: string[]) => void
   }
   declare get: LOTTERY_BASE['get'] & {
-    poolState: () => { issue: string; base: number; carry: number; distributable: number }
+    poolState: () => { issue: string; base: number; carry: number; issuePool: number; distributable: number }
     userInfo: (userId: string) => { currentBets: number; totalBets: number; analysis: string }
     userDialogRecord: (userId: string) => {
       balanceChanges: UserBalanceChange[]
@@ -425,10 +427,14 @@ export default class K3_CD extends LOTTERY_BASE {
       /** 共用彩池狀態（與 K3-OF 讀到同一份） */
       poolState: () => {
         const issue = this._get.latestIssue()
+        // 沒有池底（或已被吃到低於頭獎保障門檻）就重骰，兩個盤口共用同一份
+        k3EnsurePoolBase()
         return {
           issue,
           base: K3_SHARED.pool.base,
           carry: K3_SHARED.pool.carry,
+          // 該期抽水也一起回（K3-OF 本來就有回，型別 K3Pool 也有這個欄位）
+          issuePool: k3IssuePool(issue),
           distributable: k3DistributablePool(issue)
         }
       },

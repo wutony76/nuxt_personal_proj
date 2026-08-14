@@ -7,6 +7,7 @@ import { k3OfMatchCount, k3OfPicksOf, K3_OF_PICK_COUNT, K3_OF_PRIZE_TIERS } from
 import {
   K3_SHARED,
   k3AddIssuePool,
+  k3EnsurePoolBase,
   k3DistributablePool,
   k3EnsureDraw,
   k3IssuePool,
@@ -413,6 +414,8 @@ export default class K3_OF extends LOTTERY_BASE {
       },
       poolState: () => {
         const issue = this._get.latestIssue()
+        // 沒有池底（或已被吃到低於頭獎保障門檻）就重骰，兩個盤口共用同一份
+        k3EnsurePoolBase()
         return {
           issue,
           base: K3_SHARED.pool.base,

@@ -491,11 +491,13 @@ const fetch = {
       pollTimer = setInterval(() => {
         const before = String(current.runtime?.issueLatest ?? '')
         fetch.refreshCurrentInfo().then(() => {
-          // 期別換了代表上一期已開獎，把注單結果與可領獎金一起刷新
-          if (String(current.runtime?.issueLatest ?? '') !== before) {
-            current.detail = []
-            fetch.userRecordAll()
-          }
+          if (String(current.runtime?.issueLatest ?? '') === before) return
+          // 期別換了代表上一期已開獎：注單結果、可領獎金、開獎歷史一起刷新
+          current.detail = []
+          fetch.userRecordAll()
+          // 開獎歷史原本只在 initPageData 抓一次 —— 不補這行，近五期開獎／路單走勢／
+          // 開獎歷史彈窗都會停在進頁那一刻，要重新整理才看得到新開的一期
+          fetch.openCodeHistoryAll()
         })
       }, 3000)
     }

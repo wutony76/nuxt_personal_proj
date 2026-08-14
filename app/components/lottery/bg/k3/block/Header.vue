@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import Dice from '~/components/lottery/bg/k3/base/Dice.vue'
 import { STATUS_TIME } from '~/config/constants'
 import { K3_OF_PRIZE_TIERS, k3OfAllPicks, k3OfMatchCount } from '#shared/config/k3-of'
@@ -28,6 +28,53 @@ const money = (value: number) =>
   Number(value ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /**
+ * 獎金跳動動畫（與 6hc-of 的 Header 同一套）
+ *
+ * 彩池變大時用 rAF 在 15 秒內以 ease-out 跑到新值，變小（結算後歸零）則直接跳到底 ——
+ * 只有往上才慢慢加，看起來像獎金在累積。
+ */
+const POOL_ANIM_MS = 15000
+const displayPool = ref(0)
+let poolRafId: number | null = null
+
+const _poolAnim = {
+  stop: () => {
+    if (poolRafId !== null) cancelAnimationFrame(poolRafId)
+    poolRafId = null
+  },
+  to: (target: number, durationMs = POOL_ANIM_MS) => {
+    _poolAnim.stop()
+    const from = displayPool.value
+    const diff = target - from
+    if (Math.abs(diff) < 0.01) {
+      displayPool.value = target
+      return
+    }
+    const start = performance.now()
+    const step = (now: number) => {
+      const t = Math.min((now - start) / durationMs, 1)
+      const ease = 1 - Math.pow(1 - t, 3)
+      displayPool.value = Number((from + diff * ease).toFixed(2))
+      poolRafId = t < 1 ? requestAnimationFrame(step) : null
+    }
+    poolRafId = requestAnimationFrame(step)
+  }
+}
+
+onMounted(() => {
+  displayPool.value = mxPool.distributable
+  watch(() => mxPool.distributable, (next) => {
+    if (next > displayPool.value) _poolAnim.to(next)
+    else {
+      _poolAnim.stop()
+      displayPool.value = next
+    }
+  })
+})
+
+onBeforeUnmount(_poolAnim.stop)
+
+/**
  * 預估頭獎 = 可發放彩池 × 頭獎那一層的比例
  *
  * 比例讀 K3_OF_PRIZE_TIERS 的 match 3（官方盤的頭獎層）而不是寫死 0.7 ——
@@ -38,7 +85,7 @@ const jackpotRatio = computed(() => {
   const top = K3_OF_PRIZE_TIERS.find((tier) => tier.type === 'pool' && tier.match === 3)
   return top && top.type === 'pool' ? Number(top.ratio) : 0
 })
-const estimatedJackpot = computed(() => Number((mxPool.distributable * jackpotRatio.value).toFixed(2)))
+const estimatedJackpot = computed(() => Number((displayPool.value * jackpotRatio.value).toFixed(2)))
 
 /**
  * 中獎機率 = 官方盤「隨機選一注」有中到任一獎項（命中 ≥ 1 顆）的機率
@@ -171,7 +218,7 @@ onBeforeUnmount(_anim.stop)
       <div class="info-bonus">
         <div class="row">
           <span class="label">總獎金</span>
-          <span class="val val-big">{{ money(mxPool.distributable) }}</span>
+          <span class="val val-big">{{ money(displayPool) }}</span>
         </div>
         <div class="row">
           <span class="label">預估頭獎</span>
