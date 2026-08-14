@@ -413,7 +413,9 @@ onBeforeUnmount(_anim.stop)
           align-items: center;
           justify-content: center;
           gap: 0.4rem;
-          overflow: hidden;
+          /* ⚠️ 不能 overflow: hidden —— 骰子落下動畫會往上抬 18px，而這裡骰子上方
+             只有 6px 空間，會被裁掉。橫向溢出仍由外層 .inner（overflow: hidden）擋住。 */
+          overflow: visible;
           white-space: nowrap;
 
           .dice-legend {

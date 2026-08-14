@@ -64,7 +64,8 @@ const rows = computed(() => mxHistory.list.slice(0, HIST_ROWS).map((item) => {
 <style scoped lang="scss">
 .k3-history {
   /* 一期一列後不需要整個 .info-main 的寬度，取一半 */
-  width: 33%;
+  // width: 33%;
+  flex: 0 0 33%;
   height: 100%;
   display: flex;
   flex-direction: column;
