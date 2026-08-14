@@ -4,11 +4,19 @@ import Dice from '~/components/lottery/bg/k3/base/Dice.vue'
 import DialogShell from '~/components/lottery/bg/k3/block/DialogShell.vue'
 import { useK3 } from '~/composables/useK3'
 
-/** 開獎歷史彈窗：可搜期號、翻轉排序，並標出和值／大小／單雙／圍骰 */
+/**
+ * 開獎歷史彈窗：可搜期號、翻轉排序，並標出和值／大小／單雙／圍骰
+ *
+ * 該期沒有下注的話整列反灰（灰底灰字、骰子與牌型去彩），一眼看得出哪幾期有下注。
+ */
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
-const { openCodeHistory: mxHistory, actions: mxActions } = useK3()
+const { openCodeHistory: mxHistory, userRecord: mxRecord, actions: mxActions } = useK3()
+
+/** 有下注的期號（來自使用者注單，逐期比對用） */
+const betIssues = computed(() => new Set(mxRecord.betHistory.map((row) => String(row.issue))))
+const hasBet = (issue: string | number) => betIssues.value.has(String(issue))
 const state = reactive({ query: '', desc: true })
 
 const rows = computed(() => {
@@ -36,7 +44,7 @@ const isTriple = (codes: string[]) => codes.length === 3 && new Set(codes).size 
         <tr><th>期數</th><th>骰子</th><th>和值</th><th>大小</th><th>單雙</th><th>牌型</th><th>開獎時間</th></tr>
       </thead>
       <tbody>
-        <tr v-for="item in rows" :key="item.issue">
+        <tr v-for="item in rows" :key="item.issue" :class="{ 'is-no-bet': !hasBet(item.issue) }">
           <td>{{ item.issue }}</td>
           <td>
             <span class="doc-dice">
@@ -54,7 +62,7 @@ const isTriple = (codes: string[]) => codes.length === 3 && new Set(codes).size 
           <td>{{ timeOf(item.time?.end ?? '') }}</td>
         </tr>
         <tr v-if="rows.length === 0">
-          <td colspan="7">{{ mxHistory.isLoading ? '載入中…' : '尚無開獎紀錄' }}</td>
+          <td colspan="7" class="no-records">{{ mxHistory.isLoading ? '載入中…' : '暫無資料' }}</td>
         </tr>
       </tbody>
     </table>
@@ -62,6 +70,13 @@ const isTriple = (codes: string[]) => codes.length === 3 && new Set(codes).size 
 </template>
 
 <style scoped lang="scss">
+/* 空狀態撐開高度（同 6hc 的 .no-records）並反灰 */
+.no-records {
+  height: 150px;
+  background: #f7f7f7;
+  color: var(--text-gray);
+}
+
 .doc-bar {
   display: flex;
   align-items: center;
@@ -100,6 +115,35 @@ const isTriple = (codes: string[]) => codes.length === 3 && new Set(codes).size 
 
 :deep(.report-table) {
   .is-sum { font-weight: 700; color: var(--color-red-main); }
+
+  /* 該期沒有下注：整列反灰（淡一點，只要能與有下注的列區隔就好） */
+  tr.is-no-bet {
+    td {
+      background: #fcfcfc;
+      color: #a3a3a3;
+    }
+
+    .is-sum {
+      color: #a3a3a3;
+    }
+
+    /* 骰子改成淡紅（#eacccf）：外框與點都換色，不用 grayscale 才不會變成灰骰子 */
+    .doc-dice {
+      .k3-dice {
+        border-color: #eacccf;
+      }
+
+      .dice-pip {
+        background: #eacccf;
+      }
+    }
+
+    /* 牌型標籤去彩，才不會在灰列裡跳出來 */
+    .tag {
+      filter: grayscale(1);
+      opacity: 0.55;
+    }
+  }
 
   .tag {
     border-radius: 3px;

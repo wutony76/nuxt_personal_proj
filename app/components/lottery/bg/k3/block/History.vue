@@ -55,7 +55,7 @@ const rows = computed(() => mxHistory.list.slice(0, HIST_ROWS).map((item) => {
         </span>
       </div>
       <div v-if="rows.length === 0" class="hist-empty">
-        {{ mxHistory.isLoading ? '載入中…' : '尚無開獎紀錄' }}
+        {{ mxHistory.isLoading ? '載入中…' : '暫無資料' }}
       </div>
     </div>
   </div>
@@ -185,13 +185,16 @@ const rows = computed(() => mxHistory.list.slice(0, HIST_ROWS).map((item) => {
     }
   }
 
+  /* 沒有資料時整塊反灰（灰字 + 淡灰底），與有資料時的紅色系明顯區隔 */
   .hist-empty {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 6px;
+    background: #f7f7f7;
     font-size: 12px;
-    color: var(--color-red-desc);
+    color: var(--text-gray);
   }
 }
 </style>

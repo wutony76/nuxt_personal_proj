@@ -145,7 +145,7 @@ const click = {
         :class="outcome ? TONES[outcome] : 'is-empty'">
         {{ outcome ? LABELS[outcome] : '' }}
       </span>
-      <div v-if="!hasData" class="road-empty">{{ mxHistory.isLoading ? '載入中…' : '尚無開獎紀錄' }}</div>
+      <div v-if="!hasData" class="road-empty">{{ mxHistory.isLoading ? '載入中…' : '暫無資料' }}</div>
     </div>
 
     <p class="road-note">※ 圍骰於兩面判定為和局，另計為「和」；往左拉可看更早的走勢</p>
@@ -266,16 +266,17 @@ const click = {
       }
     }
 
+    /* 沒有資料時整塊反灰 */
     .road-empty {
       position: absolute;
       inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #fffafa;
+      background: #f7f7f7;
       font-size: 12px;
       font-weight: 700;
-      color: var(--color-red-desc);
+      color: var(--text-gray);
     }
   }
 

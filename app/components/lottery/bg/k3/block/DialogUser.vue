@@ -73,7 +73,7 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
           <td :class="Number(row.amount) < 0 ? 'is-minus' : 'is-plus'">{{ money(Number(row.amount)) }}</td>
           <td>{{ money(Number(row.after)) }}</td>
         </tr>
-        <tr v-if="mxRecord.balanceChanges.length === 0"><td colspan="6">尚無餘額變動</td></tr>
+        <tr v-if="mxRecord.balanceChanges.length === 0"><td colspan="6" class="no-records">暫無資料</td></tr>
       </tbody>
     </table>
 
@@ -103,13 +103,20 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
             <em v-else>—</em>
           </td>
         </tr>
-        <tr v-if="mxRecord.betHistory.length === 0"><td colspan="7">尚無下注紀錄</td></tr>
+        <tr v-if="mxRecord.betHistory.length === 0"><td colspan="7" class="no-records">暫無資料</td></tr>
       </tbody>
     </table>
   </DialogShell>
 </template>
 
 <style scoped lang="scss">
+/* 空狀態撐開高度（同 6hc 的 .no-records）並反灰 */
+.no-records {
+  height: 150px;
+  background: #f7f7f7;
+  color: var(--text-gray);
+}
+
 .du-summary {
   display: flex;
   align-items: center;

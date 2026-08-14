@@ -127,7 +127,7 @@ watch([total, () => state.pageSize], ([count, size]) => {
           </tr>
           <tr v-if="!hasData" class="tr-no-records">
             <td :colspan="COLUMN_COUNT" class="no-records">
-              {{ mxRecord.isLoading ? '載入中…' : '尚無下注紀錄' }}
+              {{ mxRecord.isLoading ? '載入中…' : '暫無資料' }}
             </td>
           </tr>
         </tbody>
