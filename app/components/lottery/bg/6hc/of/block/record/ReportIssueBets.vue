@@ -17,7 +17,7 @@ const state = reactive({
   betListPage: 1,
   betListPageSize: 10,
   tableScrollRef: null as HTMLElement | null,
-  hasVerticalScroll: false,
+  isTableFilled: false,
   tableResizeObserver: null as ResizeObserver | null
 })
 const betListTotal = computed(() => mxCurrent.detail.length)
@@ -30,13 +30,20 @@ const thisPageDetail = computed(() => {
 const betTotalCoin = computed(() => actions.thousands(mxCurrent.detail.reduce((acc, curr) => acc + Number(curr.coin), 0) ?? 0))
 
 const _handlers = {
+  /**
+   * 表格是否「填滿」捲動區（剛好等高或溢出都算）
+   *
+   * 填滿時，表格最後一列的下框會落在捲動區底緣，與 footer（總投注額）的上框
+   * 重疊成 2px 粗線 —— 沒有任何投注時 .is-empty 讓表格 height: 100%，必定填滿，
+   * 所以空狀態一定看得到那條粗線。填滿時就把最後一列的下框拿掉，改由 footer 畫。
+   *
+   * ⚠️ 不能用 scrollHeight > clientHeight 判斷：內容沒有溢出時 scrollHeight
+   *    等於 clientHeight（規範如此），剛好等高的情況會被判成 false。
+   */
   syncScrollState: () => {
     const el = state.tableScrollRef
-    if (!el) {
-      state.hasVerticalScroll = false
-      return
-    }
-    state.hasVerticalScroll = el.scrollHeight > el.clientHeight + 1
+    const table = el?.querySelector('table') as HTMLElement | null
+    state.isTableFilled = !!el && !!table && table.offsetHeight >= el.clientHeight - 1
   },
   setTableScrollRef: (el: Element | ComponentPublicInstance | null) => {
     state.tableScrollRef = el as HTMLElement | null
@@ -73,7 +80,7 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
 <template>
   <div class="report-issue-bets-root">
     <div :ref="_handlers.setTableScrollRef" class="report-issue-bets"
-      :class="{ 'has-scroll': state.hasVerticalScroll }">
+      :class="{ 'is-filled': state.isTableFilled }">
       <table class="report-table report-issue-bets-table" :class="{ 'is-empty': !hasData }">
         <colgroup>
           <col class="col-id" />
@@ -365,7 +372,8 @@ watch([betListTotal, () => state.betListPageSize], ([total, pageSize]) => {
       }
     }
 
-    &.has-scroll .report-issue-bets-table tbody tr:last-child td {
+    /* 填滿捲動區時，最後一列的下框會與 footer 上框疊成 2px，改由 footer 單獨畫 */
+    &.is-filled .report-issue-bets-table tbody tr:last-child td {
       border-bottom: none;
     }
   }

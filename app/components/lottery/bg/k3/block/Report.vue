@@ -27,7 +27,7 @@ const state = reactive({
   page: 1,
   pageSize: 10,
   scrollRef: null as HTMLElement | null,
-  hasVerticalScroll: false,
+  isTableFilled: false,
   resizeObserver: null as ResizeObserver | null
 })
 
@@ -43,10 +43,16 @@ const pagedRows = computed(() => {
 const COLUMN_COUNT = 7
 
 const _handlers = {
-  /** 有沒有出現垂直捲軸 —— 有的話最後一列不畫下框，避免與捲動區外框疊線 */
+  /**
+   * 表格是否「填滿」捲動區（剛好等高或溢出都算）——
+   * 填滿時最後一列的下框會與捲動區外框底邊疊成 2px 粗線，此時改由外框單獨畫。
+   * ⚠️ 不能用 scrollHeight > clientHeight：內容沒溢出時兩者相等（規範如此），
+   *    剛好等高的情況會被判成 false。
+   */
   syncScrollState: () => {
     const el = state.scrollRef
-    state.hasVerticalScroll = el ? el.scrollHeight > el.clientHeight + 1 : false
+    const table = el?.querySelector('table') as HTMLElement | null
+    state.isTableFilled = !!el && !!table && table.offsetHeight >= el.clientHeight - 1
   },
   setScrollRef: (el: Element | ComponentPublicInstance | null) => {
     state.scrollRef = el as HTMLElement | null
@@ -89,7 +95,7 @@ watch([total, () => state.pageSize], ([count, size]) => {
       </span>
     </div>
 
-    <div :ref="_handlers.setScrollRef" class="rp-body" :class="{ 'has-scroll': state.hasVerticalScroll }">
+    <div :ref="_handlers.setScrollRef" class="rp-body" :class="{ 'is-filled': state.isTableFilled }">
       <table class="report-table rp-table" :class="{ 'is-empty': !hasData }">
         <thead>
           <tr>
@@ -218,8 +224,8 @@ watch([total, () => state.pageSize], ([count, size]) => {
       background: #de4304;
     }
 
-    /* 有捲軸時最後一列不畫下框，免得與捲動區外框疊成雙線 */
-    &.has-scroll .rp-table tbody tr:last-child td {
+    /* 填滿捲動區時最後一列不畫下框，免得與外框底邊疊成雙線 */
+    &.is-filled .rp-table tbody tr:last-child td {
       border-bottom: none;
     }
   }
