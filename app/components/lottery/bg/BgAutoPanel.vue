@@ -4,8 +4,10 @@
       <div class="bg-auto-panel-inner">
         <OfAuto v-if="lotteryType === '6hc-of'" />
         <CdAuto v-else-if="lotteryType === '6hc-cd'" />
+        <K3Auto v-else-if="lotteryType === 'k3-cd'" />
         <OfChat v-if="lotteryType === '6hc-of'" />
         <CdChat v-else-if="lotteryType === '6hc-cd'" />
+        <K3Chat v-else-if="lotteryType === 'k3-cd'" />
       </div>
     </div>
   </Transition>
@@ -22,6 +24,9 @@ const OfChat = defineAsyncComponent(() => import('~/components/lottery/bg/6hc/of
 
 const CdAuto = defineAsyncComponent(() => import('~/components/lottery/bg/6hc/cd/block/footer/Auto.vue'))
 const CdChat = defineAsyncComponent(() => import('~/components/lottery/bg/6hc/cd/block/footer/Chat.vue'))
+
+const K3Auto = defineAsyncComponent(() => import('~/components/lottery/bg/k3/block/footer/Auto.vue'))
+const K3Chat = defineAsyncComponent(() => import('~/components/lottery/bg/k3/block/footer/Chat.vue'))
 </script>
 
 <style lang="scss">

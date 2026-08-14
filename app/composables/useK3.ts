@@ -381,6 +381,44 @@ const fetch = {
       totalAmount.value
     )
   },
+  /**
+   * 自動投注：從當前分頁的注項池隨機取 count 項，各下 amount 元
+   *
+   * 直接組 payload 送單，不經由 select.items —— 這樣不會覆蓋使用者手動填的注項。
+   * ⚠️ 送單成功後 submit 會清空選取（與手動下注一致）。
+   */
+  autoBets: async ({ count, amount }: { count: number; amount: number }) => {
+    const pool = select.pool
+    if (pool.length === 0) return { ok: false, message: '注項尚未載入', count: 0, amount: 0 }
+    const coin = Math.max(0, Math.trunc(Number(amount) || 0))
+    if (!(coin > 0)) return { ok: false, message: '請填入投注金額', count: 0, amount: 0 }
+    const size = Math.max(1, Math.min(Math.trunc(Number(count) || 1), pool.length))
+
+    const shuffled = [...pool]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      const tmp = shuffled[i] as K3SelectItem
+      shuffled[i] = shuffled[j] as K3SelectItem
+      shuffled[j] = tmp
+    }
+    const picked = shuffled.slice(0, size)
+
+    const result = await fetch.submit(
+      [{
+        playKey: state.select,
+        playTypeName: state.selectTabName,
+        selectTabId: state.selectTabId,
+        playList: picked.map((item) => ({
+          playId: item.playId,
+          selectTabId: state.selectTabId,
+          label: String(item.name),
+          amount: coin
+        }))
+      }],
+      coin * size
+    )
+    return { ...result, count: size, amount: coin * size }
+  },
   /** 官方盤投注：一注 = 3 個點數 */
   betsOf: async () => {
     const picks = k3OfPicksOf(ofPicks.list)

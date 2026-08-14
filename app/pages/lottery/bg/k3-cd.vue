@@ -11,6 +11,7 @@ import DialogUser from '~/components/lottery/bg/k3/block/DialogUser.vue'
 import DialogOpenCode from '~/components/lottery/bg/k3/block/DialogOpenCode.vue'
 import DialogRule from '~/components/lottery/bg/k3/block/DialogRule.vue'
 import { useK3 } from '~/composables/useK3'
+import { useBgAutoActive } from '~/composables/useBgAutoActive'
 
 /**
  * 快3 信用玩法（K3-CD）
@@ -32,6 +33,8 @@ const {
 } = useK3()
 
 const { $dialog } = useNuxtApp()
+/** 下方的自動下注／CHAT 面板由 app.vue 的 BgAutoPanel 統一渲染（同 6hc-of） */
+const { activate: activateAutoPanel, deactivate: deactivateAutoPanel } = useBgAutoActive()
 const state = reactive({ randomCount: 5 })
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
@@ -58,11 +61,15 @@ const dialogClick = {
 
 onMounted(async () => {
   mxActions.setMode('cd')
+  activateAutoPanel('k3-cd')
   await mxFetch.initPageData()
   await mxFetch.userRecordAll()
   mxFetch.startPolling()
 })
-onBeforeUnmount(() => mxFetch.stopPolling())
+onBeforeUnmount(() => {
+  mxFetch.stopPolling()
+  deactivateAutoPanel()
+})
 </script>
 
 <template>
