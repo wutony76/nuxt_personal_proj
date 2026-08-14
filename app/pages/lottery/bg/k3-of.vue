@@ -89,6 +89,7 @@ onBeforeUnmount(() => mxFetch.stopPolling())
           <NuxtLink to="/lottery/bg/k3-cd" class="mode-link">切換信用玩法 →</NuxtLink>
         </div>
 
+        <!-- 選號盤（左）＋ 當前注項／投注金額（右）同一列（同 k3-cd） -->
         <div class="selector-warp">
           <div class="selector">
             <div class="head">
@@ -99,17 +100,18 @@ onBeforeUnmount(() => mxFetch.stopPolling())
               <OfPicker />
             </div>
           </div>
+          <aside class="selector-side">
+            <CurrItems />
+            <Controls />
+          </aside>
         </div>
       </section>
 
+      <!-- 注單 -->
       <section class="record-warp">
         <div class="record-main">
           <Report />
         </div>
-        <aside class="record-side">
-          <CurrItems />
-          <Controls />
-        </aside>
       </section>
     </main>
 
@@ -385,7 +387,8 @@ onBeforeUnmount(() => mxFetch.stopPolling())
       min-height: 300px;
 
       .selector {
-        flex: 1;
+        /* 右欄是固定 300px，這裡吃掉剩下的寬度（含扣掉 12px 的 gap） */
+        flex: 1 1 auto;
         min-width: 0;
         border: 1px solid #fee2e2;
         border-radius: 6px;
@@ -412,10 +415,20 @@ onBeforeUnmount(() => mxFetch.stopPolling())
 
         .body { padding: 0.75rem; }
       }
+
+      /* 右側：當前注項 + 投注金額（原本在下方 .record-warp 的側欄） */
+      .selector-side {
+        flex: 0 0 300px;
+        width: 300px;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
     }
   }
 
-  /* 注單 + 側欄（對應 6hc-cd 的 .record-warp）*/
+  /* 注單（當前注項／投注金額已移到上方 .selector-warp 右側，這裡獨佔整列）*/
   .record-warp {
     display: flex;
     gap: 0.75rem;
@@ -427,17 +440,9 @@ onBeforeUnmount(() => mxFetch.stopPolling())
     animation-delay: 0.38s;
 
     .record-main {
-      flex: 1 1 62%;
+      flex: 1 1 auto;
       min-width: 0;
       display: flex;
-    }
-
-    .record-side {
-      flex: 0 0 34%;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
     }
   }
 }
