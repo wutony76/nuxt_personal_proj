@@ -20,7 +20,7 @@ export default [
         tabName: '三軍/大小/點數',
         settings: {
           quota: {
-            item: { min: 10, max: 1000 },
+            item: { min: 2, max: 10000 },
             issue: { max: 1000000 },
           },
           payout: { rtp: 0.97 },

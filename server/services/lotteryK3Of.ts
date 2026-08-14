@@ -98,7 +98,7 @@ type UserStoreLike = { userId?: string; coin?: number; k3OfRecord?: UserRecord }
 const K3_OF_RAKE_RATIO = 0.6
 
 /** 單注限額（官方盤注項固定為「選 3 個點數」，不像信用盤有分頁差異） */
-const K3_OF_QUOTA = { item: { min: 10, max: 5000 }, issue: { max: 500000 } }
+const K3_OF_QUOTA = { item: { min: 2, max: 10000 }, issue: { max: 500000 } }
 
 export default class K3_OF extends LOTTERY_BASE {
   issueSettledMap: Record<string, boolean>

@@ -15,10 +15,11 @@ const { $dialog } = useNuxtApp()
 const QUICK_COINS = [1, 5, 10, 30, 100]
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
-// 官方盤的限額寫在伺端 K3_OF_QUOTA，信用盤讀該分頁 settings.quota
+// 官方盤的限額寫在伺端 K3_OF_QUOTA（server/services/lotteryK3Of.ts），
+// 信用盤讀該分頁 settings.quota。⚠️ 官方盤這組值是手抄的，改伺端要一起改。
 const range = computed(() => (isCd.value
   ? { min: currentQuota.value.item.min, max: currentQuota.value.item.max }
-  : { min: 10, max: 5000 }))
+  : { min: 2, max: 10000 }))
 
 const canBet = computed(() => (isCd.value ? canSubmit.value : isOpen.value && ofPicked.value))
 const betLabel = computed(() => {
