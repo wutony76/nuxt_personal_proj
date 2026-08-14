@@ -41,7 +41,13 @@ const picked = computed(() => ofPicks.list.filter((num) => num > 0))
     </div>
 
     <table class="report-table tier-table">
-      <thead><tr><th>命中</th><th>分層</th><th>派彩方式</th></tr></thead>
+      <thead>
+        <tr>
+          <th>命中</th>
+          <th>分層</th>
+          <th>派彩方式</th>
+        </tr>
+      </thead>
       <tbody>
         <tr v-for="tier in ofPrizeTiers" :key="tier.name">
           <td class="t-match">{{ tier.match }} 顆</td>
@@ -56,7 +62,7 @@ const picked = computed(() => ofPicks.list.filter((num) => num > 0))
         </tr>
       </tbody>
     </table>
-    <p class="tier-note">※ 該層沒有中獎者時，該層獎金整塊滾存至下期</p>
+    <p class="tier-note">※ 沒有中獎者時，獎金滾存至下期</p>
   </div>
 </template>
 
@@ -67,7 +73,9 @@ const picked = computed(() => ofPicks.list.filter((num) => num > 0))
     font-size: 13px;
     color: var(--color-red-desc);
 
-    strong { color: var(--color-red-main); }
+    strong {
+      color: var(--color-red-main);
+    }
   }
 
   .pick-row {
@@ -92,8 +100,14 @@ const picked = computed(() => ofPicks.list.filter((num) => num > 0))
       cursor: pointer;
       transition: border-color 0.15s, transform 0.15s;
 
-      &:hover { transform: translateY(-2px); }
-      &.active { border-color: var(--color-red-main); background: #fff1f2; }
+      &:hover {
+        transform: translateY(-2px);
+      }
+
+      &.active {
+        border-color: var(--color-red-main);
+        background: #fff1f2;
+      }
     }
   }
 
@@ -107,8 +121,17 @@ const picked = computed(() => ofPicks.list.filter((num) => num > 0))
 
     .pick-current {
       color: var(--color-red-desc);
-      strong { font-size: 15px; color: var(--color-red-main); }
-      em { font-size: 12px; font-style: normal; color: #d97706; }
+
+      strong {
+        font-size: 15px;
+        color: var(--color-red-main);
+      }
+
+      em {
+        font-size: 12px;
+        font-style: normal;
+        color: #d97706;
+      }
     }
 
     .act-btn {
@@ -122,17 +145,40 @@ const picked = computed(() => ofPicks.list.filter((num) => num > 0))
       color: #fff;
       cursor: pointer;
 
-      &.is-clear { background: #fff; color: var(--color-red-main); }
+      &.is-clear {
+        background: #fff;
+        color: var(--color-red-main);
+      }
     }
   }
 
   /* 表格外觀沿用全域 .report-table（同 6hc），這裡只寫欄寬與強調色 */
   .tier-table {
-    .t-match { width: 4rem; font-weight: 700; color: var(--color-red-main); }
-    .t-name { width: 4rem; font-weight: 700; color: #d97706; }
-    .t-desc { color: var(--color-red-desc); em { font-style: normal; } }
+    .t-match {
+      width: 4rem;
+      font-weight: 700;
+      color: var(--color-red-main);
+    }
+
+    .t-name {
+      width: 4rem;
+      font-weight: 700;
+      color: #d97706;
+    }
+
+    .t-desc {
+      color: var(--color-red-desc);
+
+      em {
+        font-style: normal;
+      }
+    }
   }
 
-  .tier-note { margin: 6px 0 0; font-size: 11px; color: var(--color-red-desc); }
+  .tier-note {
+    margin: 6px 0 0;
+    font-size: 11px;
+    color: var(--color-red-desc);
+  }
 }
 </style>

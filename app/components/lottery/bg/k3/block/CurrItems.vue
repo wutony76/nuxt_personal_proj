@@ -6,7 +6,7 @@ import { useK3, type K3SelectItem } from '~/composables/useK3'
 const {
   select: mxSelect, state: mxState, isCd, ofPicks, ofPicked,
   totalAmount, selectedCount, currentQuota: mxQuota, actions: mxActions,
-  og: mxOg, ogCombo, ogComboCodes, ogSelectedCount, isOgPool
+  og: mxOg, ogCombo, ogComboCodes, ogSelectedCount, ogQuota, isOgPool
 } = useK3()
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
@@ -23,6 +23,35 @@ const currCountLabel = computed(() => {
   if (!isOgPool.value) return `${ogSelectedCount.value} 注`
   return ofPicked.value ? '1 注' : '未選滿'
 })
+
+/**
+ * 官方盤的金額輸入
+ *
+ * 單選分頁 —— 每一注各自有金額，逐項改。
+ * 組合分頁／彩池 —— 每一注都用同一個「投注金額」，所以改任一列等於改 mxState.amount，
+ *                  畫面上其他列會一起變（它們本來就是同一個值）。
+ */
+const ogCoinHandlers = {
+  input: (row: { code: string }, event: Event) => {
+    const target = event.target as HTMLInputElement
+    const coin = Math.min(ogQuota.value.item.max, Math.max(0, Math.trunc(Number(target.value) || 0)))
+    if (ogCombo.value || isOgPool.value) mxState.amount = coin
+    else mxActions.setOgItemCoin(row.code, coin)
+    target.value = coin > 0 ? String(coin) : ''
+  },
+  /** 離開欄位夾回 [min, max]，不讓它留在 0（0 會被伺端拒單） */
+  blur: (row: { code: string }, event: Event) => {
+    const target = event.target as HTMLInputElement
+    const quota = ogQuota.value.item
+    const raw = ogCombo.value || isOgPool.value
+      ? Number(mxState.amount)
+      : Number(mxOg.items.find((item) => item.code === row.code)?.coin ?? 0)
+    const coin = Math.min(quota.max, Math.max(quota.min, Math.trunc(raw || 0)))
+    if (ogCombo.value || isOgPool.value) mxState.amount = coin
+    else mxActions.setOgItemCoin(row.code, coin)
+    target.value = String(coin)
+  }
+}
 
 const ogRows = computed(() => {
   if (isOgPool.value) return []
@@ -95,7 +124,11 @@ const click = {
           <template v-else-if="isOgPool">
             <tr v-if="ofPicked">
               <td class="c-code">{{ ofLabel }}</td>
-              <td class="c-coin">{{ money(Number(mxState.amount)) }}</td>
+              <td class="c-coin">
+                <input type="number" min="0" :max="ogQuota.item.max" class="coin-input" :value="mxState.amount || ''"
+                  placeholder="0" @input="ogCoinHandlers.input({ code: '' }, $event)"
+                  @blur="ogCoinHandlers.blur({ code: '' }, $event)" />
+              </td>
             </tr>
             <tr v-else><td colspan="2" class="c-empty">請選滿 3 個點數</td></tr>
           </template>
@@ -104,7 +137,10 @@ const click = {
             <tr v-for="row in ogRows" :key="row.code">
               <td class="c-code">{{ row.code }}</td>
               <td class="c-odds">{{ row.odds }}</td>
-              <td class="c-coin">{{ money(Number(row.coin ?? 0)) }}</td>
+              <td class="c-coin">
+                <input type="number" min="0" :max="ogQuota.item.max" class="coin-input" :value="row.coin || ''"
+                  placeholder="0" @input="ogCoinHandlers.input(row, $event)" @blur="ogCoinHandlers.blur(row, $event)" />
+              </td>
             </tr>
             <tr v-if="ogRows.length === 0"><td colspan="3" class="c-empty">尚未選擇注項</td></tr>
           </template>

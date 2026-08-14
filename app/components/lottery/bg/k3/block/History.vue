@@ -11,7 +11,7 @@ import { useK3 } from '~/composables/useK3'
  *   150  ⚂⚁⚃  和9 小 單
  * 只顯示 HIST_ROWS 期；卡片寬度取 .info-main 的一半，一列的資訊不需要吃滿版。
  */
-const { openCodeHistory: mxHistory, actions: mxActions } = useK3()
+const { openCodeHistory: mxHistory, isCd, actions: mxActions } = useK3()
 
 /** 要顯示幾期（列數） */
 const HIST_ROWS = 5
@@ -39,7 +39,8 @@ const rows = computed(() => mxHistory.list.slice(0, HIST_ROWS).map((item) => {
   <div class="block-main k3-history">
     <div class="hist-head">
       <span class="hist-title">近五期開獎</span>
-      <span class="hist-note">※ 與 [官方] 同開獎號</span>
+      <!-- 兩個盤口共用同一份開獎號，說明要指向「對面那個盤口」 -->
+      <span class="hist-note">※ 與 [{{ isCd ? '官方' : '信用' }}] 同開獎號</span>
     </div>
     <div class="hist-body">
       <div v-for="row in rows" :key="row.issue" class="hist-row">
