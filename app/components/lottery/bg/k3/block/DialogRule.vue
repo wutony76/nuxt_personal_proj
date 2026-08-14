@@ -165,12 +165,12 @@ const sumRows = computed(() =>
 
     <section id="k3-section-timeline" class="rule-sec">
       <h4>時間流程（每期共 7 分鐘）</h4>
-      <table class="report-table">
+      <table class="rule-table">
         <thead><tr><th>時間</th><th>狀態</th><th>說明</th></tr></thead>
         <tbody>
           <tr v-for="row in TIMELINE" :key="row.range">
-            <td>{{ row.range }}</td>
-            <td class="is-name">{{ row.status }}</td>
+            <td class="td-range">{{ row.range }}</td>
+            <td><span class="status-badge" :class="`status-${row.status}`">{{ row.status }}</span></td>
             <td>{{ row.desc }}</td>
           </tr>
         </tbody>
@@ -180,7 +180,7 @@ const sumRows = computed(() =>
 
     <section class="rule-sec">
       <h4>和值分布（{{ K3_TOTAL_OUTCOMES }} 種結果窮舉）</h4>
-      <table class="report-table">
+      <table class="rule-table">
         <thead><tr><th>和值</th><th v-for="row in sumRows" :key="row.sum">{{ row.sum }}</th></tr></thead>
         <tbody>
           <tr><td>組數</td><td v-for="row in sumRows" :key="row.sum">{{ row.count }}</td></tr>
@@ -207,7 +207,7 @@ const sumRows = computed(() =>
       <h4>{{ play.name }}</h4>
       <div v-for="tab in play.tabs" :key="tab.tabName">
         <p class="rule-note">回報率 {{ (tab.rtp * 100).toFixed(0) }}%</p>
-        <table v-for="group in tab.groups" :key="group.groupName" class="report-table rule-table">
+        <table v-for="group in tab.groups" :key="group.groupName" class="rule-table">
           <thead>
             <tr><th>{{ group.groupName }}</th><th>賠率</th><th>命中機率%</th></tr>
           </thead>
@@ -239,7 +239,7 @@ const sumRows = computed(() =>
           <li>每一注的機率相同 —— 賠率 <strong>{{ tab.combo.odds }}</strong>、
             命中機率 {{ tab.combo.percent }}%（例：{{ tab.combo.sample }}）。</li>
         </ul>
-        <table v-for="group in tab.groups" :key="group.groupName" class="report-table rule-table">
+        <table v-for="group in tab.groups" :key="group.groupName" class="rule-table">
           <thead>
             <tr><th>{{ group.groupName }}</th><th>賠率</th><th>命中機率%</th></tr>
           </thead>
@@ -282,7 +282,7 @@ const sumRows = computed(() =>
           命中數為<strong>多重集交集</strong> —— 每顆開獎骰子只能被配掉一次。
           例：選 2,2,4 開 2,4,4 → 命中 2 顆；選 2,2,2 開 2,3,4 → 命中 1 顆。</li>
       </ul>
-      <table class="report-table">
+      <table class="rule-table">
         <thead><tr><th>命中</th><th>分層</th><th>派彩方式</th></tr></thead>
         <tbody>
           <tr v-for="tier in K3_OF_PRIZE_TIERS" :key="tier.name">
@@ -333,14 +333,17 @@ const sumRows = computed(() =>
 </template>
 
 <style scoped lang="scss">
-/* 快捷選單（同 6hc 的 .cd-rule-nav —— 跟著內容捲走，不釘在上方） */
+/* 版面與 6hc-of 的遊戲說明同一套：每段落一張帶框的區塊卡片、紅底表頭的表格 */
+
+/* 快捷選單（同 6hc 的 .rule-nav —— 跟著內容捲走，不釘在上方）
+   下緣不畫框、只圓上面兩角，與緊接的第一張卡片接在一起 */
 .rule-nav {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 12px;
   border: 1px solid #fee2e2;
-  border-radius: 6px;
+  border-bottom: unset;
+  border-radius: 6px 6px 0 0;
   background: #fff5f6;
   padding: 8px 10px;
 
@@ -363,57 +366,165 @@ const sumRows = computed(() =>
   }
 }
 
-/* 大段標題（投注玩法／獎金結構），與段落標題 h4 區隔 */
+/* 大段標題（投注玩法／獎金結構）：不是卡片，用來分隔上下兩群 */
 .rule-group-title {
-  margin: 18px 0 8px;
+  margin: 18px 0 10px;
   border-bottom: 2px solid var(--color-red-main);
   padding-bottom: 4px;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 800;
   color: var(--color-red-main);
-
-  &:first-of-type {
-    margin-top: 8px;
-  }
 }
 
+/* 段落卡片 */
 .rule-sec {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+  border: 1px solid #fee2e2;
+  border-radius: 6px;
+  padding: 12px 14px;
+
+  /* 緊接快捷選單的第一張卡片只圓下面兩角，與選單連成一塊 */
+  &#k3-section-intro {
+    border-radius: 0 0 6px 6px;
+  }
+
+  &:last-of-type {
+    margin-bottom: 4px;
+  }
 
   h4 {
-    margin: 0 0 6px;
-    border-left: 4px solid var(--color-red-main);
+    margin: 0 0 10px;
+    border-left: 3px solid var(--color-red-main);
     padding-left: 8px;
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--color-red-main);
   }
 
   ul {
-    margin: 0 0 8px;
+    margin: 0;
     padding-left: 1.2rem;
+    display: grid;
+    gap: 5px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #374151;
 
-    li {
-      font-size: 13px;
-      line-height: 1.9;
-      color: var(--color-red-desc);
-
-      strong { color: var(--color-red-main); }
+    strong {
+      color: var(--color-red-main);
     }
   }
 
+  /* 清單之後還有表格時要留間距 */
+  ul + .rule-table,
+  ul + p {
+    margin-top: 10px;
+  }
+
   .rule-note {
-    margin: 6px 0;
+    margin: 0 0 8px;
     font-size: 12px;
     color: var(--color-red-desc);
   }
+}
 
-  .rule-table { margin-bottom: 8px; }
+/* 表格：紅底表頭、置中、hover 淡紅（同 6hc-of 的 .rule-table）
+   欄寬均分並鎖 fixed，各玩法的表才會上下對齊 */
+.rule-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin-bottom: 8px;
+  font-size: 12px;
 
-  :deep(.report-table) {
-    .is-name { font-weight: 700; color: var(--color-red-main); }
-    .is-odds { font-weight: 700; color: #d97706; }
-    em { font-style: normal; color: #d97706; }
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  th,
+  td {
+    width: calc(100% / 3);
+    padding: 6px 8px;
+    text-align: center;
+  }
+
+  thead th {
+    background: var(--color-red-main);
+    color: #fff;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  tbody td {
+    border-bottom: 1px solid #fee2e2;
+    color: #374151;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover td {
+    background: #fff5f6;
+  }
+
+  .is-name {
+    font-weight: 700;
+    color: var(--color-red-main);
+  }
+
+  .is-odds {
+    font-weight: 700;
+    color: #d97706;
+  }
+
+  em {
+    font-style: normal;
+    color: #d97706;
+  }
+}
+
+/* 和值分布是 17 欄的寬表，不能均分（會擠爆），改水平捲動 */
+#k3-section-timeline .rule-table th,
+#k3-section-timeline .rule-table td {
+  width: auto;
+}
+
+/* 時間流程的狀態徽章（同 6hc-of） */
+.td-range {
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--color-red-desc);
+  font-variant-numeric: tabular-nums;
+}
+
+.status-badge {
+  display: inline-block;
+  border-radius: 0.25rem;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #374151;
+
+  &.status-開盤中 {
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  &.status-正在開獎中 {
+    background: #fef9c3;
+    color: #92400e;
+  }
+
+  &.status-已開獎 {
+    background: #fee2e2;
+    color: var(--color-red-main);
+  }
+
+  &.status-已封盤 {
+    background: #f3f4f6;
+    color: #6b7280;
   }
 }
 </style>
