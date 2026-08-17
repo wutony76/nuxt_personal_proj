@@ -13,6 +13,7 @@ const {
 } = useK3()
 
 const { $dialog } = useNuxtApp()
+const router = useRouter()
 const QUICK_COINS = [1, 5, 10, 30, 100]
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
@@ -81,6 +82,10 @@ const click = {
     const result = isCd.value
       ? await mxFetch.bets()
       : isOgPool.value ? await mxFetch.betsOf() : await mxFetch.betsOg()
+    // 登入失效：提示後導回登入頁（與 6hc-of 的 Coin.vue 一致）
+    if ((result as { loginExpired?: boolean }).loginExpired) {
+      return $dialog.alert(result.message, { cb: () => router.push('/login') })
+    }
     $dialog.alert(result.ok ? `下注成功${betLabel.value}` : result.message)
     // 注單刷新已收進 fetch.submit（手動與自動下注共用），這裡不再重複打一次
   }

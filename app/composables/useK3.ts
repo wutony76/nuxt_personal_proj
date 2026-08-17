@@ -1,5 +1,5 @@
 import { computed, reactive, ref, watch } from 'vue'
-import { LOTTERY, STATUS_TIME } from '~/config/constants'
+import { LOTTERY, STATUS_TIME, STATUS_ERR_CODE } from '~/config/constants'
 import {
   api,
   type K3Current,
@@ -813,7 +813,16 @@ const fetch = {
       state.errorMessage = String(
         err?.data?.statusMessage ?? err?.data?.message ?? (error instanceof Error ? error.message : '下注失敗')
       )
-      return { ok: false, message: state.errorMessage }
+      /*
+       * 登入失效：與 6hc 一致 —— 標記出來讓呼叫端跳出提示並導回登入頁。
+       *
+       * ⚠️ 業務碼優先，退回 HTTP 401（舊注單或其他來源的未授權回應也要導頁）。
+       *    不處理的話畫面會停在原地、只在角落顯示一行錯誤，使用者不知道要重新登入。
+       */
+      const isLoginExpired = err?.data?.data?.code === STATUS_ERR_CODE[40001].code
+        || err?.data?.statusCode === STATUS_ERR_CODE[40001].httpStatus
+        || err?.statusCode === STATUS_ERR_CODE[40001].httpStatus
+      return { ok: false, message: state.errorMessage, loginExpired: isLoginExpired }
     }
   },
   initPageData: async () => {
