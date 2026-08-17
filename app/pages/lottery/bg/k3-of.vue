@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
 import K3Header from '~/components/lottery/bg/k3/block/Header.vue'
-import K3OgBoard from '~/components/lottery/bg/k3/base/K3OgBoard.vue'
+import K3OgBoard from '~/components/lottery/bg/k3/of/base/Board.vue'
 import CurrItems from '~/components/lottery/bg/k3/block/CurrItems.vue'
 import Controls from '~/components/lottery/bg/k3/block/Controls.vue'
 import Report from '~/components/lottery/bg/k3/block/Report.vue'

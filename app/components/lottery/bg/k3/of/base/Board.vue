@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import Dice from '~/components/lottery/bg/k3/base/Dice.vue'
-import OfPicker from '~/components/lottery/bg/k3/block/OfPicker.vue'
+import Picker from '~/components/lottery/bg/k3/of/block/Picker.vue'
 import { useK3 } from '~/composables/useK3'
 
 /**
@@ -14,7 +14,7 @@ import { useK3 } from '~/composables/useK3'
  *   單選　—— 一格一注碼（和值、三同號、三連號、二同號），填金額即選取
  *   標準　—— 從 1~6 選 pick 個以上點數，注碼由 C(n, pick) 展開（三不同號、二不同號）
  *   膽拖　—— 膽碼必含、拖碼補滿 pick 個，注碼由 C(拖, pick−膽) 展開
- *   彩池　—— 切到「選號（彩池）」時直接用原本的 OfPicker（獎池分層派彩）
+ *   彩池　—— 切到「選號（彩池）」時直接用 of/block/Picker.vue（獎池分層派彩）
  *
  * ⚠️ 賠率一律用 k3OgTabOddsOf 依該分頁 rtp 即時推算，不讀 config 的 odds 快照。
  */
@@ -112,7 +112,7 @@ const comboHint = computed(() => {
 
 <template>
   <!-- 彩池玩法：沿用原本的選號器（獎池分層派彩） -->
-  <OfPicker v-if="isOgPool" />
+  <Picker v-if="isOgPool" />
 
   <div v-else class="k3-og-board">
     <!-- 分頁（通選／單選、標準／膽拖）；只有一個分頁時不顯示 -->

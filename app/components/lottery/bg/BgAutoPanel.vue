@@ -28,8 +28,8 @@ const CdChat = defineAsyncComponent(() => import('~/components/lottery/bg/6hc/cd
 
 // ⚠️ 兩個盤口各自一個元件：同一個元件放在 v-if 鏈裡，Vue 會就地 patch 保留 instance，
 //    切換盤口時自動下注的開關會殘留（6hc 也是各自一個元件）
-const K3CdAuto = defineAsyncComponent(() => import('~/components/lottery/bg/k3/block/footer/AutoCd.vue'))
-const K3OfAuto = defineAsyncComponent(() => import('~/components/lottery/bg/k3/block/footer/AutoOf.vue'))
+const K3CdAuto = defineAsyncComponent(() => import('~/components/lottery/bg/k3/cd/block/footer/Auto.vue'))
+const K3OfAuto = defineAsyncComponent(() => import('~/components/lottery/bg/k3/of/block/footer/Auto.vue'))
 const K3Chat = defineAsyncComponent(() => import('~/components/lottery/bg/k3/block/footer/Chat.vue'))
 </script>
 

@@ -33,6 +33,29 @@
 - Server API routes are under `server/api/`
 - Server domain logic/services are under `server/services/`
 
+### 彩票遊戲組件目錄（新增遊戲一律照此分類）
+
+`app/components/lottery/bg/<game>/` 底下以「盤口」分三層，判斷標準是**這個組件會不會被兩個盤口同時用到**：
+
+```
+<game>/                     ← 共用：cd 與 of 兩個盤口都會用到的組件
+  base/                       原子元件（Dice、Ball…）
+  block/                      版面區塊（Header、Report、History、Road、Dialog*…）
+  block/footer/               頁尾共用（Chat…）
+<game>/cd/                  ← 信用盤專屬
+  base/ block/ block/footer/
+<game>/of/                  ← 官方盤專屬
+  base/ block/ block/footer/
+```
+
+- 共用組件內部以 composable 的 `isCd` 分流文案／欄位（例：k3 的 `Report.vue` 用它切「賠率」與「賠率／命中」），
+  不要為了一兩處差異複製成兩份。
+- 反過來說，**含有跨盤口狀態的組件必須各自一份**（例：自動下注 `cd/block/footer/Auto.vue` 與
+  `of/block/footer/Auto.vue`）—— `BgAutoPanel` 的 `v-if` 鏈若指向同一個元件，Vue 會就地 patch 保留 instance，
+  切換盤口時 `enabled` 會殘留、對另一個盤口偷偷下注。
+- 專屬資料夾內不必再帶盤口前綴：用 `cd/base/Board.vue`，不要 `cd/base/K3CdBoard.vue`。
+- 現況：`k3/` 已照此分類；`6hc/` 仍是 `cd/`、`of/` 各自完整一份（無共用層），日後有動到再收斂。
+
 ## Development Workflow
 
 - 非 trivial 需求需走 OpenSpec 流程

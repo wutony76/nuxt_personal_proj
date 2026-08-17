@@ -264,7 +264,7 @@ const click = {
       text-align: right;
       font-weight: 700;
 
-      /* 與看板 .td-amount input 同一套（K3Board.vue） */
+      /* 與看板 .td-amount input 同一套（cd/base/Board.vue） */
       .coin-input {
         width: 100%;
         min-width: 0;
