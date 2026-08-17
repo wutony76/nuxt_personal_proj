@@ -12,6 +12,8 @@ import LhcOfClass from './lottery6hcOf'
 import LhcCdClass from './lottery6hcCd'
 import K3CdClass from './lotteryK3Cd'
 import K3OfClass from './lotteryK3Of'
+import Pk10CdClass from './lotteryPK10Cd'
+import Pk10OfClass from './lotteryPK10Of'
 import { LOTTERY } from '~/config/constants'
 
 export const verifyPasswordHash = (password: string, storedHash: string): boolean => {
@@ -112,6 +114,10 @@ export class Storage {
       // 先 new 的那個產生當日期表，後 new 的直接沿用同一份
       new K3CdClass()
       new K3OfClass()
+      // PK10：PK10-CD 與 PK10-OF 共用開獎號與彩池（見 pk10Shared.ts），
+      // 與快3 一樣，先 new 的那個產生當日期表，後 new 的直接沿用同一份
+      new Pk10CdClass()
+      new Pk10OfClass()
       // console.log('games.init.success', Storage.games)
       console.log('SUCCESS ---BASE>games.init')
     }

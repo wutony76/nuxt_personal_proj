@@ -17,6 +17,11 @@ export const LOTTERY = {
   'K3-OF':{ id: 200101, key: 'K3-OF', name: '快3', sub:'OF', sort: 201 },
 
   'PK10':{ id: 3001, key: 'PK10', name: 'PK10', sort: 3 },
+  // PK10 的兩個盤口：CD/OF 共用開獎號與彩池（見 server/services/pk10Shared.ts），
+  // id 編碼比照 LHC-CD/LHC-OF、K3-CD/K3-OF（玩法 id ×100 + 盤口序號）
+  'PK10-CD':{ id: 300100, key: 'PK10-CD', name: 'PK10', sub:'CD', sort: 300 },
+  'PK10-OF':{ id: 300101, key: 'PK10-OF', name: 'PK10', sub:'OF', sort: 301 },
+
   'SSC':{ id: 4001, key: 'SSC', name: '時時彩', sort: 4 },
 } 
 

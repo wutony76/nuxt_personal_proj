@@ -107,6 +107,65 @@ export type K3UserBetHistory = {
   jackpotAmount: number
 }
 
+/** PK10 共用彩池狀態（PK10-CD 與 PK10-OF 讀到同一份，見 server/services/pk10Shared.ts） */
+export type Pk10Pool = {
+  issue: string
+  base: number
+  carry: number
+  /** 該期已累積的抽水 */
+  issuePool?: number
+  /** 可發放 = 池底 + 該期抽水 × 0.8 + 累積滾存，再乘 0.55 */
+  distributable: number
+}
+
+/**
+ * PK10 當期資訊
+ * ⚠️ openCode 長度固定 10，`openCode[i]` 是「第 i+1 名的車號」（不是第 i 台車的名次）
+ */
+export type Pk10Current = {
+  issue: string
+  issueCurrent: string
+  issueLatest: string
+  currentStatus: string
+  countdown: string
+  statusEndAt: number
+  openCode: string[]
+  openingCode: string[]
+  openCodePlay: Array<{ num: number; label: string; rank: number; index: number }>
+  time: { start: string; end: string }
+  startAt: number
+  endAt: number
+  pool: Pk10Pool
+}
+
+/** PK10 玩家紀錄 */
+export type Pk10UserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: Pk10UserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+  pool: Pk10Pool
+}
+
+export type Pk10UserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  betCode: string[]
+  openCode: string[]
+  matchCount: number
+  /** PK10 名次必分得出來，tie 只在注碼無法辨識時出現（退還本金） */
+  winStatus: 'pending' | 'win' | 'lose' | 'tie'
+  winAmount: number
+  /** 賠率制注單才有：該注鎖定的賠率（前三直選彩池為 0） */
+  odds?: number
+  /** 官方盤前三直選才有：命中分層名稱（頭獎／二獎／三獎） */
+  tierName?: string
+  /** 該注所屬分頁 */
+  tabId?: number
+  jackpotAmount: number
+}
+
 /** 信用盤（6hc-cd）獎池狀態：含可發放累積池、發放參數與最近一次爆池紀錄 */
 export type Lottery6hcCdJackpot = {
   issue: string
@@ -294,6 +353,10 @@ export const api = {
           return $fetch<K3Current>('/api/lottery/k3-cd/current')
         case LOTTERY['K3-OF'].id:
           return $fetch<K3Current>('/api/lottery/k3-of/current')
+        case LOTTERY['PK10-CD'].id:
+          return $fetch<Pk10Current>('/api/lottery/pk10-cd/current')
+        case LOTTERY['PK10-OF'].id:
+          return $fetch<Pk10Current>('/api/lottery/pk10-of/current')
         default:
           return null
       }
@@ -326,6 +389,17 @@ export const api = {
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/k3-cd/claim', { method: 'POST' }),
     claimOneIssueK3Of: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/k3-of/claim', { method: 'POST' }),
+    // ── PK10（PK10-CD / PK10-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
+    currentPk10Cd: () => $fetch<Pk10Current>('/api/lottery/pk10-cd/current'),
+    currentPk10Of: () => $fetch<Pk10Current>('/api/lottery/pk10-of/current'),
+    openCodeHistoryPk10Cd: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/pk10-cd/opencode-history'),
+    openCodeHistoryPk10Of: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/pk10-of/opencode-history'),
+    userRecordPk10Cd: () => $fetch<Pk10UserRecordResponse>('/api/lottery/pk10-cd/user-record'),
+    userRecordPk10Of: () => $fetch<Pk10UserRecordResponse>('/api/lottery/pk10-of/user-record'),
+    claimOneIssuePk10Cd: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/pk10-cd/claim', { method: 'POST' }),
+    claimOneIssuePk10Of: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/pk10-of/claim', { method: 'POST' }),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),

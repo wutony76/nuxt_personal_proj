@@ -6,9 +6,12 @@
         <CdAuto v-else-if="lotteryType === '6hc-cd'" />
         <K3CdAuto v-else-if="lotteryType === 'k3-cd'" />
         <K3OfAuto v-else-if="lotteryType === 'k3-of'" />
+        <Pk10CdAuto v-else-if="lotteryType === 'pk10-cd'" />
+        <Pk10OfAuto v-else-if="lotteryType === 'pk10-of'" />
         <OfChat v-if="lotteryType === '6hc-of'" />
         <CdChat v-else-if="lotteryType === '6hc-cd'" />
         <K3Chat v-else-if="lotteryType === 'k3-cd' || lotteryType === 'k3-of'" />
+        <Pk10Chat v-else-if="lotteryType === 'pk10-cd' || lotteryType === 'pk10-of'" />
       </div>
     </div>
   </Transition>
@@ -31,6 +34,11 @@ const CdChat = defineAsyncComponent(() => import('~/components/lottery/bg/6hc/cd
 const K3CdAuto = defineAsyncComponent(() => import('~/components/lottery/bg/k3/cd/block/footer/Auto.vue'))
 const K3OfAuto = defineAsyncComponent(() => import('~/components/lottery/bg/k3/of/block/footer/Auto.vue'))
 const K3Chat = defineAsyncComponent(() => import('~/components/lottery/bg/k3/block/footer/Chat.vue'))
+
+// PK10 同理：兩個盤口各自一個 Auto，共用一個 Chat
+const Pk10CdAuto = defineAsyncComponent(() => import('~/components/lottery/bg/pk10/cd/block/footer/Auto.vue'))
+const Pk10OfAuto = defineAsyncComponent(() => import('~/components/lottery/bg/pk10/of/block/footer/Auto.vue'))
+const Pk10Chat = defineAsyncComponent(() => import('~/components/lottery/bg/pk10/block/footer/Chat.vue'))
 </script>
 
 <style lang="scss">

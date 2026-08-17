@@ -70,6 +70,8 @@ const ROUTE_DICT: Record<string, string> = {
   '6HC-OF': '/lottery/bg/6hc-of',
   'K3-CD': '/lottery/bg/k3-cd',
   'K3-OF': '/lottery/bg/k3-of',
+  'PK10-CD': '/lottery/bg/pk10-cd',
+  'PK10-OF': '/lottery/bg/pk10-of',
 }
 
 const state = reactive({
