@@ -5,25 +5,30 @@ import { K3_OF_PICK_COUNT } from '#shared/config/k3-of'
 import { useK3 } from '~/composables/useK3'
 
 /**
- * 快3 自動下注（信用盤與官方盤共用，版面與 6hc-of／6hc-cd 的 footer/Auto.vue 同一套）
+ * 快3 官方盤自動下注（版面與 6hc-of 的 footer/Auto.vue 同一套）
  *
  * 由 app.vue 的 BgAutoPanel 統一渲染，頁面進入時以 useBgAutoActive 啟用。
- * 每期開盤時隨機取 N 個注項各下 M 元；以期數為單位記錄，避免同一期重複觸發。
+ * 隨機方式依當前分頁型態不同：
+ *   單選分頁 —— 從該分頁注碼隨機取 N 個
+ *   組合分頁 —— 隨機挑點數，展開到注數 ≥ N（最多 6 個點數，故為「至少 N 注」）
+ *   彩池玩法 —— 隨機 3 個點數，固定 1 注
  *
- * ⚠️ 兩個盤口各走自己的 fetch.autoBets／fetch.autoBetsOg（都是直接組 payload），
- *    不動使用者手動填的注項；但送單成功後會與手動下注一樣清空選取。
+ * ⚠️ 與信用盤分成兩個元件（AutoCd／AutoOf）而不是一個元件用 isCd 分流 ——
+ *    BgAutoPanel 的 v-if 鏈若用同一個元件，Vue 會就地 patch 保留 instance，
+ *    切換盤口時 enabled 會殘留、對另一個盤口偷偷下注（6hc 也是各自一個元件）。
+ * ⚠️ 走 fetch.autoBetsOg（直接組 payload），不動使用者手動填的注項；
+ *    但送單成功後會與手動下注一樣清空選取。
  */
 const {
-  state: mxState, current: mxCurrent, select: mxSelect, wallet: mxWallet,
-  currentQuota: mxQuota, playList, fetch: mxFetch,
-  isCd, og: mxOg, ogPlayList, ogQuota, ogAutoCodes, ogCombo, isOgPool
+  current: mxCurrent, wallet: mxWallet, fetch: mxFetch,
+  og: mxOg, ogPlayList, ogQuota, ogAutoCodes, ogCombo, isOgPool
 } = useK3()
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
-/** 每注金額限額依當前分頁 settings.quota（官方盤讀 k3og 的），超限伺端會整筆拒單 */
-const minAmount = computed(() => (isCd.value ? mxQuota.value.item.min : ogQuota.value.item.min))
-const maxAmount = computed(() => (isCd.value ? mxQuota.value.item.max : ogQuota.value.item.max))
+/** 每注金額限額依當前分頁的 k3og settings.quota，超限伺端會整筆拒單 */
+const minAmount = computed(() => ogQuota.value.item.min)
+const maxAmount = computed(() => ogQuota.value.item.max)
 
 const state = reactive({
   enabled: false,
@@ -38,16 +43,12 @@ const state = reactive({
 
 // --- COMPUTED ---
 const isOpen = computed(() => String(mxCurrent.runtime?.currentStatus ?? '') === STATUS_TIME.OPEN)
-/** 可投注的注項數（信用盤＝看板注項池、官方盤＝該分頁可組出的注碼數） */
-const poolSize = computed(() => (isCd.value ? mxSelect.pool.length : ogAutoCodes.value.length))
+/** 可投注的注碼數（該分頁能組出幾注） */
+const poolSize = computed(() => ogAutoCodes.value.length)
 /** 注數上限；彩池玩法一次固定 1 注 */
 const maxCount = computed(() => (isOgPool.value ? 1 : Math.max(1, poolSize.value || 1)))
 const totalCost = computed(() => state.betCount * state.betAmount)
 const playInfo = computed(() => {
-  if (isCd.value) {
-    const play = playList.value.find((item) => item.key === mxState.select)?.name || '-'
-    return `${play} / ${mxState.selectTabName || '-'}：隨機 ${state.betCount} 注（上限 ${maxCount.value} 注）`
-  }
   const play = ogPlayList.value.find((item) => item.key === mxOg.play)?.name || '-'
   if (isOgPool.value) return `${play}：隨機 ${K3_OF_PICK_COUNT} 個點數（固定 1 注）`
   const tab = mxOg.tabName || '-'
@@ -101,9 +102,7 @@ const _actions = {
     state.isRunning = true
     _handlers.setStatus(`第${issue}期 投注中...`, 'running')
     try {
-      const result = isCd.value
-        ? await mxFetch.autoBets({ count: state.betCount, amount: state.betAmount })
-        : await mxFetch.autoBetsOg({ count: state.betCount, amount: state.betAmount })
+      const result = await mxFetch.autoBetsOg({ count: state.betCount, amount: state.betAmount })
       if (result?.ok) {
         state.lastIssue = issue
         _handlers.setStatus(
@@ -144,7 +143,7 @@ watch(maxCount, () => {
   state.betCount = _handlers.normalizeCount(state.betCount)
 }, { immediate: true })
 // 換玩法／分頁視為新設定，允許本期重新投注一次（否則要等下一期）
-watch([() => mxOg.play, () => mxOg.tabId, () => mxState.select, () => mxState.selectTabId], () => {
+watch([() => mxOg.play, () => mxOg.tabId], () => {
   state.lastIssue = ''
 })
 </script>

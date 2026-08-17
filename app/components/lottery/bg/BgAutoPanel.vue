@@ -4,7 +4,8 @@
       <div class="bg-auto-panel-inner">
         <OfAuto v-if="lotteryType === '6hc-of'" />
         <CdAuto v-else-if="lotteryType === '6hc-cd'" />
-        <K3Auto v-else-if="lotteryType === 'k3-cd' || lotteryType === 'k3-of'" />
+        <K3CdAuto v-else-if="lotteryType === 'k3-cd'" />
+        <K3OfAuto v-else-if="lotteryType === 'k3-of'" />
         <OfChat v-if="lotteryType === '6hc-of'" />
         <CdChat v-else-if="lotteryType === '6hc-cd'" />
         <K3Chat v-else-if="lotteryType === 'k3-cd' || lotteryType === 'k3-of'" />
@@ -25,7 +26,10 @@ const OfChat = defineAsyncComponent(() => import('~/components/lottery/bg/6hc/of
 const CdAuto = defineAsyncComponent(() => import('~/components/lottery/bg/6hc/cd/block/footer/Auto.vue'))
 const CdChat = defineAsyncComponent(() => import('~/components/lottery/bg/6hc/cd/block/footer/Chat.vue'))
 
-const K3Auto = defineAsyncComponent(() => import('~/components/lottery/bg/k3/block/footer/Auto.vue'))
+// ⚠️ 兩個盤口各自一個元件：同一個元件放在 v-if 鏈裡，Vue 會就地 patch 保留 instance，
+//    切換盤口時自動下注的開關會殘留（6hc 也是各自一個元件）
+const K3CdAuto = defineAsyncComponent(() => import('~/components/lottery/bg/k3/block/footer/AutoCd.vue'))
+const K3OfAuto = defineAsyncComponent(() => import('~/components/lottery/bg/k3/block/footer/AutoOf.vue'))
 const K3Chat = defineAsyncComponent(() => import('~/components/lottery/bg/k3/block/footer/Chat.vue'))
 </script>
 
