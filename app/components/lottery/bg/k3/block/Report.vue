@@ -39,8 +39,8 @@ const pagedRows = computed(() => {
   const size = Math.max(1, state.pageSize)
   return mxRecord.betHistory.slice((page - 1) * size, (page - 1) * size + size)
 })
-/** 期數／注碼／金額／賠率或命中／結果／派彩／開獎 */
-const COLUMN_COUNT = 7
+/** 投注單號／期數／注碼／金額／賠率或命中／結果／派彩／開獎 */
+const COLUMN_COUNT = 8
 
 const _handlers = {
   /**
@@ -99,6 +99,7 @@ watch([total, () => state.pageSize], ([count, size]) => {
       <table class="report-table rp-table" :class="{ 'is-empty': !hasData }">
         <thead>
           <tr>
+            <th class="th-order">投注單號</th>
             <th>期數</th>
             <th>注碼</th>
             <th>金額</th>
@@ -111,6 +112,8 @@ watch([total, () => state.pageSize], ([count, size]) => {
         </thead>
         <tbody>
           <tr v-for="row in pagedRows" :key="row.orderId" :class="`is-${row.winStatus}`">
+            <!-- 單號完整放在 DOM（複製得到全長），title 供 hover 看；太窄時折行不截字 -->
+            <td class="t-order" :title="row.orderId">{{ row.orderId }}</td>
             <td class="t-issue">{{ row.issue }}</td>
             <td class="t-code">{{row.betCode.map((code) => mxActions.labelOf(code)).join('、')}}</td>
             <td class="t-num">{{ money(row.coin) }}</td>
@@ -264,6 +267,24 @@ watch([total, () => state.pageSize], ([count, size]) => {
 
     &.is-empty tbody tr:last-child td {
       border-bottom: none;
+    }
+
+    /* 投注單號：單號要能整段複製（對帳用），所以顯示完整字串不截字。
+       ⚠️ table-layout 是 fixed，欄寬只認 thead 那一列 —— width 設在 tbody 的 td 上會被忽略，
+          一定要設在 th。設錯的話 8 欄均分成 152px，單號折成兩行、列高從 31px 變成 62px。
+       寬度按最長的單號實測：一次送整個分頁（點數 26 項）時單號長到
+       K3-CD20260817156000001(26/26)，11px 下需 200px，這裡給 215px 留餘裕。 */
+    .th-order,
+    .t-order {
+      width: 215px;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .t-order {
+      color: var(--color-red-desc);
+      /* 真的塞不下時折行，不要溢出（.rp-body 是 overflow-x: hidden） */
+      overflow-wrap: anywhere;
     }
 
     .t-issue {

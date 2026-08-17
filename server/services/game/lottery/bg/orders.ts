@@ -1,4 +1,4 @@
-import { Storage } from './storage'
+import { Storage } from '../../../storage'
 import type { CreditLianmaTier } from '#shared/config/6hc-cd'
 
 type OrderRow = {

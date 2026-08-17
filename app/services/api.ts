@@ -53,7 +53,7 @@ export type Lottery6hcRoadPlay = {
   animal?: string // 信用盤（6hc-cd）帶當年生肖
 }
 
-/** 快3 共用彩池狀態（K3-CD 與 K3-OF 讀到同一份，見 server/services/k3Shared.ts） */
+/** 快3 共用彩池狀態（K3-CD 與 K3-OF 讀到同一份，見 server/services/game/lottery/bg/k3Shared.ts） */
 export type K3Pool = {
   issue: string
   base: number
@@ -107,7 +107,7 @@ export type K3UserBetHistory = {
   jackpotAmount: number
 }
 
-/** PK10 共用彩池狀態（PK10-CD 與 PK10-OF 讀到同一份，見 server/services/pk10Shared.ts） */
+/** PK10 共用彩池狀態（PK10-CD 與 PK10-OF 讀到同一份，見 server/services/game/lottery/bg/pk10Shared.ts） */
 export type Pk10Pool = {
   issue: string
   base: number

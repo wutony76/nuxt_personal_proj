@@ -1,5 +1,5 @@
 import lodash from 'lodash'
-import { Storage } from './storage'
+import { Storage } from '../../../storage'
 import { PLAYLIST } from '#shared/config/6hc-of'
 import { LOTTERY } from '~/config/constants'
 

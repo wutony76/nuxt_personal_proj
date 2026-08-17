@@ -106,6 +106,7 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
       <table class="report-table">
         <thead>
           <tr>
+            <th class="th-order">投注單號</th>
             <th>期數</th>
             <th>注碼</th>
             <th>金額</th>
@@ -117,6 +118,7 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
         </thead>
         <tbody>
           <tr v-for="row in mxRecord.betHistory" :key="row.orderId">
+            <td class="td-order" :title="row.orderId">{{ row.orderId }}</td>
             <td>{{ row.issue }}</td>
             <td>{{ row.betCode.join('、') }}</td>
             <td>{{ money(row.coin) }}</td>
@@ -134,7 +136,7 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
             </td>
           </tr>
           <tr v-if="mxRecord.betHistory.length === 0">
-            <td colspan="7" class="no-records">暫無資料</td>
+            <td colspan="8" class="no-records">暫無資料</td>
           </tr>
         </tbody>
       </table>
@@ -166,6 +168,17 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
     box-shadow:
       inset 0 1px 0 0 var(--color-red-content),
       inset 0 -1px 0 0 var(--color-red-content);
+  }
+}
+
+/* 投注單號：不換行讓它保持一段完整字串（方便整段複製），
+   表格因此可能比彈窗寬 —— .dialog-table-wrap 是 overflow: auto，會橫向捲動 */
+:deep(.report-table) {
+  .th-order,
+  .td-order {
+    white-space: nowrap;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
   }
 }
 

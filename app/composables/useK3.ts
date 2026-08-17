@@ -28,7 +28,7 @@ import {
  *
  * ── 為什麼兩個盤口共用一支 composable ────────────────────
  *   兩邊的期別、倒數、開獎骰子、彩池都來自伺端的同一份共用狀態
- *   （server/services/k3Shared.ts），前端沒有理由拆成兩份互相打架。
+ *   （server/services/game/lottery/bg/k3Shared.ts），前端沒有理由拆成兩份互相打架。
  *   差異只有「注項怎麼選」與「怎麼派彩」：
  *     mode = 'cd' → 讀 shared/config/k3cd 的注項，按賠率派彩
  *     mode = 'of' → 選 3 個點數，依命中顆數分層從獎池分配

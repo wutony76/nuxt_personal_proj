@@ -40,7 +40,7 @@ import {
  *
  * ── 為什麼兩個盤口共用一支 composable ────────────────────
  *   兩邊的期別、倒數、開獎名次、彩池都來自伺端的同一份共用狀態
- *   （server/services/pk10Shared.ts），前端沒有理由拆成兩份互相打架。
+ *   （server/services/game/lottery/bg/pk10Shared.ts），前端沒有理由拆成兩份互相打架。
  *   差異只有「注項怎麼選」與「怎麼派彩」：
  *     mode = 'cd' → 讀 shared/config/pk10cd 的注項，按賠率派彩
  *     mode = 'of' → 讀 shared/config/pk10og，前三直選走彩池分層、其餘走賠率

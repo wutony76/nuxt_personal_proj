@@ -21,7 +21,7 @@ import { useBgAutoActive } from '~/composables/useBgAutoActive'
  * 注項一律讀 shared/config/pk10cd 的設定檔（內容照 pcv2_0223 的 conf_pk10_cd.js 提取），
  * 玩法列、分頁列、群組、注項、限額都由 config 決定 —— 這一頁不寫死任何玩法。
  * 賠率由 helpers 依該分頁 rtp 即時推算，畫面顯示與伺端鎖進注單的值一致。
- * 期別／倒數／開獎名次／彩池與官方盤共用（server/services/pk10Shared.ts）。
+ * 期別／倒數／開獎名次／彩池與官方盤共用（server/services/game/lottery/bg/pk10Shared.ts）。
  */
 const {
   state: mxState,

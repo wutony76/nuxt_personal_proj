@@ -1,7 +1,7 @@
-import { Storage } from './storage'
+import { Storage } from '../../../storage'
 import { STATUS_TIME } from '~/config/constants'
 import OrdersClass from './orders'
-import BaseClass from './base'
+import BaseClass from '../../../base'
 
 type PlayItem = {
   num?: number | string

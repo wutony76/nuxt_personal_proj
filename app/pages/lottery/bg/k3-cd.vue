@@ -19,7 +19,7 @@ import { useBgAutoActive } from '~/composables/useBgAutoActive'
  *
  * 注項一律讀 shared/config/k3cd 的設定檔（與 6hc-cd 同一套結構），
  * 賠率由 helpers 依該分頁 rtp 即時推算，畫面顯示與伺端鎖進注單的值一致。
- * 期別／倒數／開獎骰子／彩池與官方盤共用（server/services/k3Shared.ts）。
+ * 期別／倒數／開獎骰子／彩池與官方盤共用（server/services/game/lottery/bg/k3Shared.ts）。
  */
 const {
   state: mxState,

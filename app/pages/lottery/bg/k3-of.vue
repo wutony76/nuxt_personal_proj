@@ -18,7 +18,7 @@ import { useBgAutoActive } from '~/composables/useBgAutoActive'
  * 快3 官方玩法（K3-OF）
  *
  * 一注 = 選 3 個點數（可重複），依命中顆數分層從共用彩池分配。
- * 期別／倒數／開獎骰子／彩池與信用盤共用（server/services/k3Shared.ts），
+ * 期別／倒數／開獎骰子／彩池與信用盤共用（server/services/game/lottery/bg/k3Shared.ts），
  * 所以兩個頁面看到的同一期骰子必然一致。
  * 版面骨架與 6hc-cd 一致（容器寬度、卡片邊框陰影、進場動畫）。
  */

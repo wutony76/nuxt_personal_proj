@@ -21,7 +21,7 @@ import { useBgAutoActive } from '~/composables/useBgAutoActive'
  * （內容照 pcv2_0223 的 conf_pk10_og.js 提取）：前一直選／前二直選／前三直選／定位膽。
  *   單選分頁（前一／定位膽）→ 逐項填金額，按賠率派彩
  *   複式分頁（前二／前三）  → 每個名次選車號，送單時展開；前三直選走共用彩池分層
- * 期別／倒數／開獎名次／彩池與信用盤共用（server/services/pk10Shared.ts）。
+ * 期別／倒數／開獎名次／彩池與信用盤共用（server/services/game/lottery/bg/pk10Shared.ts）。
  */
 const {
   state: mxState,

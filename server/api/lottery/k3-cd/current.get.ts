@@ -24,7 +24,7 @@ export default defineEventHandler(() => {
   const current = game.get.currentInfo()
   if (!current) throw createError({ statusCode: 503, statusMessage: '尚無開獎資料。' })
 
-  // 彩池為 K3-CD 與 K3-OF 共用（見 server/services/k3Shared.ts），兩支路由回的是同一份
+  // 彩池為 K3-CD 與 K3-OF 共用（見 server/services/game/lottery/bg/k3Shared.ts），兩支路由回的是同一份
   const pool = game.get.poolState?.() ?? {}
   return { ...current, pool }
 })

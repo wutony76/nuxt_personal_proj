@@ -24,7 +24,7 @@ export default defineEventHandler(() => {
   const current = game.get.currentInfo()
   if (!current) throw createError({ statusCode: 503, statusMessage: '尚無開獎資料。' })
 
-  // 彩池為 PK10-CD 與 PK10-OF 共用（見 server/services/pk10Shared.ts），兩支路由回的是同一份
+  // 彩池為 PK10-CD 與 PK10-OF 共用（見 server/services/game/lottery/bg/pk10Shared.ts），兩支路由回的是同一份
   const pool = game.get.poolState?.() ?? {}
   return { ...current, pool }
 })
