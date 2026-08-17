@@ -12,6 +12,7 @@ import DialogOpenCode from '~/components/lottery/bg/k3/block/DialogOpenCode.vue'
 import DialogRule from '~/components/lottery/bg/k3/block/DialogRule.vue'
 import { useK3 } from '~/composables/useK3'
 import { useAuth } from '~/composables/useAuth'
+import { useBgAutoActive } from '~/composables/useBgAutoActive'
 
 /**
  * 快3 官方玩法（K3-OF）
@@ -54,6 +55,8 @@ const headHint = computed(() => {
 const { $dialog } = useNuxtApp()
 const router = useRouter()
 const { isLoggedIn, init: authInit } = useAuth()
+/** 下方的自動下注／CHAT 面板由 app.vue 的 BgAutoPanel 統一渲染（同 k3-cd） */
+const { activate: activateAutoPanel, deactivate: deactivateAutoPanel } = useBgAutoActive()
 
 const state = reactive({ randomCount: 5 })
 
@@ -93,13 +96,17 @@ onMounted(async () => {
     return
   }
   mxActions.setMode('of')
+  activateAutoPanel('k3-of')
   // 官方盤限額（伺端 K3_OF_QUOTA）與信用盤不同，切過來要把金額夾回區間
   mxState.amount = Math.min(5000, Math.max(10, Math.trunc(Number(mxState.amount) || 0)))
   await mxFetch.initPageData()
   await mxFetch.userRecordAll()
   mxFetch.startPolling()
 })
-onBeforeUnmount(() => mxFetch.stopPolling())
+onBeforeUnmount(() => {
+  mxFetch.stopPolling()
+  deactivateAutoPanel()
+})
 </script>
 
 <template>

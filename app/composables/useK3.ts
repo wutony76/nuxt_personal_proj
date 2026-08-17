@@ -196,6 +196,21 @@ const ogTotalAmount = computed(() => {
   if (ogCombo.value) return Number((ogComboCodes.value.length * Number(state.amount || 0)).toFixed(2))
   return Number(og.items.reduce((sum, item) => sum + Number(item.coin ?? 0), 0).toFixed(2))
 })
+/**
+ * 官方盤自動投注的注碼池
+ *
+ * 單選分頁 → 該分頁所有注碼；組合分頁 → 全選 1~6 展開後的所有組合；彩池 → 只有 1 注。
+ * Auto 元件用它算注數上限，也用來判斷「玩法載入了沒」。
+ */
+const ogAutoCodes = computed(() => {
+  if (isOgPool.value) return ['選號']
+  const combo = k3OgComboOf(og.play, og.tabId)
+  if (combo) return k3OgExpandCombo(og.play, og.tabId, { nums: [1, 2, 3, 4, 5, 6], dan: [], tuo: [] })
+  return ((findK3OgTab(og.play, og.tabId)?.tabGroup ?? []) as any[])
+    .flatMap((group) => (group.groupList ?? []).map((option: any) => String(option?.name ?? '')))
+    .filter((code) => code.length > 0)
+})
+
 /** 賠率玩法可否送單 */
 const canSubmitOg = computed(() =>
   isOpen.value && state.submitStatus !== 'loading' && ogSelectedCount.value > 0 && ogTotalAmount.value > 0
@@ -670,6 +685,69 @@ const fetch = {
     if (result.ok) _actions.clearOg()
     return result
   },
+  /**
+   * 官方盤自動投注
+   *
+   * 與信用盤的 autoBets 同一個原則：直接組 payload 送單，不動使用者手動選的注項。
+   * 依當前分頁型態決定怎麼隨機：
+   *   彩池玩法 → 隨機 3 個點數（固定 1 注）
+   *   組合分頁 → 隨機挑點數，展開到注數 ≥ count（最多 6 個點數，故為「至少 count 注」）
+   *   單選分頁 → 從該分頁注碼隨機取 count 個
+   * ⚠️ 送單成功後 submit 會清空選取（與手動下注一致）。
+   */
+  autoBetsOg: async ({ count, amount }: { count: number; amount: number }) => {
+    const coin = Math.max(0, Math.trunc(Number(amount) || 0))
+    if (!(coin > 0)) return { ok: false, message: '請填入投注金額', count: 0, amount: 0 }
+    const size = Math.max(1, Math.trunc(Number(count) || 1))
+    const shuffle = <T>(list: T[]) => {
+      const pool = [...list]
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        const tmp = pool[i] as T
+        pool[i] = pool[j] as T
+        pool[j] = tmp
+      }
+      return pool
+    }
+
+    // 彩池玩法：一注 = 3 個點數
+    if (isOgPool.value) {
+      const picks = Array.from({ length: K3_OF_PICK_COUNT }, () => 1 + Math.floor(Math.random() * K3_DICE_MAX))
+      const result = await fetch.submit(
+        [{
+          playKey: 'xuanhao',
+          playTypeName: '選號',
+          playList: [{ codes: picks.map(String), amount: coin, label: picks.join(',') }]
+        }],
+        coin
+      )
+      return { ...result, count: 1, amount: coin }
+    }
+
+    const combo = k3OgComboOf(og.play, og.tabId)
+    let codes: string[] = []
+    if (combo) {
+      const points = shuffle([1, 2, 3, 4, 5, 6])
+      for (let take = combo.pick; take <= points.length; take++) {
+        codes = k3OgExpandCombo(og.play, og.tabId, { nums: points.slice(0, take) })
+        if (codes.length >= size) break
+      }
+    } else {
+      codes = shuffle(ogAutoCodes.value).slice(0, Math.min(size, ogAutoCodes.value.length))
+    }
+    if (codes.length === 0) return { ok: false, message: '此分頁無法自動選號', count: 0, amount: 0 }
+
+    const result = await fetch.submit(
+      [{
+        playKey: og.play,
+        playTypeName: og.tabName,
+        selectTabId: og.tabId,
+        playList: codes.map((code) => ({ label: code, amount: coin }))
+      }],
+      Number((codes.length * coin).toFixed(2))
+    )
+    return { ...result, count: codes.length, amount: Number((codes.length * coin).toFixed(2)) }
+  },
   /** 官方盤投注：一注 = 3 個點數 */
   betsOf: async () => {
     const picks = k3OfPicksOf(ofPicks.list)
@@ -793,6 +871,7 @@ export function useK3() {
     ogComboCodes,
     ogSelectedCount,
     ogTotalAmount,
+    ogAutoCodes,
     canSubmitOg,
     isOgPool,
 

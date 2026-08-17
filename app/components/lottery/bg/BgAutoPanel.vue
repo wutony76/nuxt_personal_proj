@@ -4,10 +4,10 @@
       <div class="bg-auto-panel-inner">
         <OfAuto v-if="lotteryType === '6hc-of'" />
         <CdAuto v-else-if="lotteryType === '6hc-cd'" />
-        <K3Auto v-else-if="lotteryType === 'k3-cd'" />
+        <K3Auto v-else-if="lotteryType === 'k3-cd' || lotteryType === 'k3-of'" />
         <OfChat v-if="lotteryType === '6hc-of'" />
         <CdChat v-else-if="lotteryType === '6hc-cd'" />
-        <K3Chat v-else-if="lotteryType === 'k3-cd'" />
+        <K3Chat v-else-if="lotteryType === 'k3-cd' || lotteryType === 'k3-of'" />
       </div>
     </div>
   </Transition>
