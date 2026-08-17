@@ -82,7 +82,7 @@ const click = {
       ? await mxFetch.bets()
       : isOgPool.value ? await mxFetch.betsOf() : await mxFetch.betsOg()
     $dialog.alert(result.ok ? `下注成功${betLabel.value}` : result.message)
-    if (result.ok) await mxFetch.userRecordAll()
+    // 注單刷新已收進 fetch.submit（手動與自動下注共用），這裡不再重複打一次
   }
 }
 </script>

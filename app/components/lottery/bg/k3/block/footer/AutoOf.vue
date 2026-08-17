@@ -43,6 +43,8 @@ const state = reactive({
 
 // --- COMPUTED ---
 const isOpen = computed(() => String(mxCurrent.runtime?.currentStatus ?? '') === STATUS_TIME.OPEN)
+/** 當前期別狀態（待命文字要寫出來，讓人知道是還沒開盤而不是壞了） */
+const currentStatusText = computed(() => String(mxCurrent.runtime?.currentStatus ?? '—'))
 /** 可投注的注碼數（該分頁能組出幾注） */
 const poolSize = computed(() => ogAutoCodes.value.length)
 /** 注數上限；彩池玩法一次固定 1 注 */
@@ -84,7 +86,12 @@ const _handlers = {
 const _actions = {
   /** 開盤中 + 該期尚未自動投注 → 投注（以期數為單位，避免一期內重複觸發） */
   tryBet: () => {
-    if (!state.enabled || !isOpen.value) return
+    if (!state.enabled) return
+    if (!isOpen.value) {
+      // 待命中：寫出當下卡在哪個階段，否則只看到「等待開盤...」會以為是壞了
+      _handlers.setStatus(`等待開盤（目前：${currentStatusText.value}）`, 'waiting')
+      return
+    }
     const issue = String(mxCurrent.runtime?.issueCurrent ?? '')
     if (!issue || issue === state.lastIssue) return
     _actions.autoBet(issue)
@@ -129,12 +136,12 @@ const click = {
     }
     // 開啟時若已在開盤中就直接投注本期，否則等下一期開盤
     state.lastIssue = ''
-    _handlers.setStatus('等待開盤...', 'waiting')
+    _handlers.setStatus(`等待開盤（目前：${currentStatusText.value}）`, 'waiting')
     _actions.tryBet()
   }
 }
 
-watch([isOpen, () => mxCurrent.runtime?.issueCurrent], () => { _actions.tryBet() })
+watch([isOpen, () => mxCurrent.runtime?.issueCurrent, currentStatusText], () => { _actions.tryBet() })
 // 切換玩法／分頁時把金額與注數夾回新分頁的限額，否則自動投注會整期被伺端拒單
 watch([minAmount, maxAmount], () => {
   state.betAmount = _handlers.normalizeAmount(state.betAmount)

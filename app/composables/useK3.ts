@@ -798,7 +798,14 @@ const fetch = {
       if (isCd.value) _actions.clearSelect()
       else _actions.clearOfPicks()
       select.resetToken += 1
-      await fetch.userInfo()
+      /*
+       * 送單成功一律刷新餘額與注單。
+       *
+       * ⚠️ userRecordAll 原本只寫在 Controls 的手動投注流程裡，自動下注是直接呼叫
+       *    fetch.submit，所以下注成功了但「下注紀錄」不會更新 —— 要等下一期輪詢
+       *    偵測到期別變動才補上，看起來就像沒下到。放在這裡讓兩條路都涵蓋。
+       */
+      await Promise.all([fetch.userInfo(), fetch.userRecordAll()])
       return { ok: true, message: state.message, count: ((result as any)?.orders ?? []).length, amount }
     } catch (error) {
       state.submitStatus = 'error'
