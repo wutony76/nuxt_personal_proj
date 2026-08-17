@@ -155,6 +155,15 @@ const _handlers = {
 }
 
 const _actions = {
+  /** 開盤中 + 本期尚未投注 → 投注（自動投注與自動追號共用同一個閘門） */
+  tryRun() {
+    if (!isOpen.value) return
+    const issue = String(current.runtime?.issueCurrent ?? '')
+    if (!issue) return
+    if (state.enabled && issue !== state.lastIssue) _actions.autoBet(issue)
+    if (state.track.enabled && issue !== state.track.lastIssue) _actions.trackBet(issue)
+  },
+
   async autoBet(issue) {
     if (state.isRunning) return
     state.isRunning = true
@@ -240,7 +249,10 @@ const click = {
     if (!state.enabled) {
       _handlers.setStatus('尚未啟用', 'idle')
     } else {
+      // 已在開盤中就直接投本期，否則等下一次開盤
+      state.lastIssue = ''
       _handlers.setStatus('等待開盤...', 'waiting')
+      _actions.tryRun()
     }
   },
   toggleTrack() {
@@ -253,7 +265,9 @@ const click = {
       if (state.track.numbers.length === 0) {
         state.track.numbers = _handlers.buildTrackNumbers()
       }
+      state.track.lastIssue = ''
       _handlers.setTrackStatus('等待開盤...', 'waiting')
+      _actions.tryRun()
     }
   },
   rerollTrack() {
@@ -261,18 +275,15 @@ const click = {
   },
 }
 
-watch(isOpen, (open) => {
-  if (!open) return
-  const issue = String(current.runtime?.issueCurrent ?? '')
-  if (!issue) return
-
-  if (state.enabled && issue !== state.lastIssue) {
-    _actions.autoBet(issue)
-  }
-  if (state.track.enabled && issue !== state.track.lastIssue) {
-    _actions.trackBet(issue)
-  }
-})
+/*
+ * 觸發：開盤中且本期尚未投注就送單。
+ *
+ * ⚠️ 原本只 watch(isOpen)，而且 click.toggle 只改狀態文字不呼叫這裡 ——
+ *    在「已經開盤中」的時候按下開啟，isOpen 沒有變化、watcher 不會觸發，
+ *    要等到下一期開盤（最久 7 分鐘）才會投，看起來就像打開沒反應。
+ *    改成按下開關時也跑一次，並把 issueCurrent 一起納入 watch（同 6hc-cd／k3）。
+ */
+watch([isOpen, () => current.runtime?.issueCurrent], () => { _actions.tryRun() })
 
 onMounted(() => {
   state.track.numbers = _handlers.buildTrackNumbers()
