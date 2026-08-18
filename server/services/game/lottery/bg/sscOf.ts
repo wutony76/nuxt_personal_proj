@@ -1,38 +1,51 @@
 import { Storage } from '../../../storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
-import LOTTERY_BASE, { CYCLE_MS, TOTAL_ISSUES_PER_DAY, type OpenCodeRecord } from './lotteryBase'
+import LOTTERY_BASE, { CYCLE_MS, TOTAL_ISSUES_PER_DAY, type OpenCodeRecord } from './base'
+// ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
+//    ./base 才是本層的彩票基底（期表／狀態機／訂單）
 import { MEMORY } from '../../../base'
-import { judgeK3Bet, k3SumOf, k3DiceOf, type K3BetResult } from '#shared/config/k3-cd'
-import { k3QuotaOf, k3RtpOf, k3TabOddsOf, k3HasBetCode, findK3Tab } from '#shared/config/k3cd/helpers'
+import { sscDigitsOf, sscSumOf } from '#shared/config/ssc'
+import { judgeSscOgBet, SSC_OG_MAX_COMBO } from '#shared/config/sscog'
 import {
-  K3_SHARED,
-  k3AddIssuePool,
-  k3EnsurePoolBase,
-  k3IssuePool,
-  k3DistributablePool,
-  k3EnsureDraw,
-  k3RandomOpenCode
-} from './k3Shared'
+  sscOgHasBetCode,
+  sscOgQuotaOf,
+  sscOgTabOddsOf,
+  findSscOgTab
+} from '#shared/config/sscog/helpers'
+import {
+  SSC_SHARED,
+  sscAddIssuePool,
+  sscEnsurePoolBase,
+  sscDistributablePool,
+  sscEnsureDraw,
+  sscIssuePool,
+  sscRandomOpenCode
+} from './sscShared'
 
 /**
- * 快3 信用盤（K3-CD）
+ * 時時彩官方盤（SSC-OF）
  *
- * ── 與 K3-OF 的共用關係 ─────────────────────────────────
- * 開獎號與彩池都放在 k3Shared 的 module 級單例：
- *   prdOpenCode 覆寫後，先啟動的那個 class 產生當日期表，
- *   後啟動的直接拿到「同一個陣列參照」，兩邊的期別／開獎號／倒數必然一致。
- *   抽水一律進 K3_SHARED.pool，兩個盤口的投注共同養同一個彩池。
+ * ── 與 SSC-CD 的共用關係 ────────────────────────────────
+ *   開獎號：兩邊的 recordOpenCode 都指向 sscShared 的同一個陣列（prdOpenCode 已覆寫），
+ *           所以同一期的期別、號碼、倒數完全一致。
+ *   彩池  ：抽水一律進 SSC_SHARED.pool，兩個盤口共同養同一個池。
  *
- * ── 與 6hc-cd 的差異 ────────────────────────────────────
- *   開獎是 3 顆骰子（可重複）而非 49 取 7，故 randomOpenCode 也要覆寫。
- *   注項一律「一注一個注項」，沒有連碼那種一注多碼的組合玩法，
- *   因此不需要 combo / tiers 那一套。
+ * ── 派彩方式：全部固定賠率 ──────────────────────────────
+ *   與 PK10-OF 最大的不同 —— 時時彩官方盤**沒有彩池分層玩法**，
+ *   11 個分頁全是「公平賠率 × 分頁 rtp」，下注時把賠率鎖進注單。
+ *   因此這裡沒有 PK10_OF_PRIZE_TIERS 那一整段分層邏輯，
+ *   SSC_SHARED.pool 只是看板上的「總獎金」門面（carry 永遠是 0，見 sscShared.ts）。
+ *
+ * ── 複式的注碼從哪來 ────────────────────────────────────
+ *   除了定位膽是單選分頁，其餘 10 個分頁都是複式：
+ *   前端用 sscOgComboCodes() 把選號展開成一注一碼後送上來，
+ *   伺端逐注用 sscOgHasBetCode() 驗（複式分頁改驗「前綴符合 + 可判定」）。
+ *   ⚠️ 伺端不信任前端的注數，一個群組超過 SSC_OG_MAX_COMBO 注就整筆拒絕。
  */
 
 type BetOrderRow = {
   issue: string
   user_id: string
-  select_tab_id: number
   bet_time: number
   coin: number
   order_id: string
@@ -40,8 +53,10 @@ type BetOrderRow = {
   bet_code: string[]
   play_key: string
   play_type_name: string
-  /** 下注時鎖定的賠率（含本金），結算派彩以此為準 */
+  /** 下注時鎖進注單的賠率（含本金），結算派彩以此為準 */
   odds: number
+  /** 注碼所屬分頁，單期限額與結算都靠它 */
+  tab_id: number
 }
 
 type Group = {
@@ -50,7 +65,6 @@ type Group = {
   selectTabId?: number | string
   playList?: Array<{
     playId?: number | string
-    selectTabId?: number | string
     num?: number | string
     label?: string | number
     amount?: number | string
@@ -78,12 +92,16 @@ type UserBetHistory = {
   betCode: string[]
   openCode: string[]
   matchCount: number
-  specialMatch: boolean
-  /** tie = 和局退還本金（大小單雙開出圍骰） */
+  /** 中獎狀態文案（中獎／和局），未中為空字串 */
+  tierName: string
+  /** tie：時時彩官方盤沒有真正的和局，僅在注碼無法辨識時退回本金 */
   winStatus: 'pending' | 'win' | 'lose' | 'tie'
   winAmount: number
-  odds: number
   jackpotAmount: number
+  /** 下注時鎖進注單的賠率 */
+  odds: number
+  /** 注碼所屬分頁 */
+  tabId: number
 }
 type UserClaimableIssue = { issue: string; amount: number; openCode: string[]; createdAt: number }
 type UserRecord = {
@@ -92,37 +110,24 @@ type UserRecord = {
   claimableIssues: UserClaimableIssue[]
   updatedAt: number
 }
-type UserStoreLike = { userId?: string; coin?: number; k3Record?: UserRecord }
-
-/** 抽水比例：投注額的固定比例撥入共用彩池（賠率派彩由莊家支付） */
-const K3_RAKE_RATIO = 0.02
-
-/** 取分頁 id：優先每注帶的 selectTabId，其次群組層級，最後由 playId 前綴推回 */
-function _resolveTabId(
-  play?: { playId?: number | string; selectTabId?: number | string },
-  group?: { selectTabId?: number | string }
-): number {
-  const candidates = [play?.selectTabId, group?.selectTabId, String(play?.playId ?? '').split('-')[0]]
-  for (const candidate of candidates) {
-    const id = Number(candidate)
-    if (Number.isFinite(id) && id > 0) return id
-  }
-  return 0
-}
+type UserStoreLike = { userId?: string; coin?: number; sscOfRecord?: UserRecord }
 
 /**
- * 取一注的注碼
- * 快3 的注項名稱本身就是注碼（"7"、"大"、"三軍3"、"圍111"、"11-2"、"1-2-3"…），
- * 因此優先取 label；num 只在和值這種純數字注項會帶。
+ * 抽水比例
+ *
+ * ⚠️ 不比照 PK10-OF 的 0.6 —— 那個高比例是因為彩池玩法的獎金全部來自池；
+ *    時時彩官方盤全是固定賠率、由莊家賠付，池只是門面，故沿用信用盤的 2%。
  */
+const SSC_OF_RAKE_RATIO = 0.02
+
+/** 取一注的注碼（官方盤的注碼一律是字串：後三直選123、大小單雙後二大單、第一球7…） */
 function _resolveBetCode(play?: { num?: number | string; label?: string | number }): string {
   const label = String(play?.label ?? '').trim()
   if (label) return label
-  const num = Number(play?.num)
-  return Number.isFinite(num) && num > 0 ? String(num) : ''
+  return String(play?.num ?? '').trim()
 }
 
-export default class K3_CD extends LOTTERY_BASE {
+export default class SSC_OF extends LOTTERY_BASE {
   issueSettledMap: Record<string, boolean>
 
   declare _get: LOTTERY_BASE['_get'] & {
@@ -139,6 +144,7 @@ export default class K3_CD extends LOTTERY_BASE {
     buildOrderRows: (input: { issue: string; userId: string; amount: number; groups: Group[] }) => BetOrderRow[]
     settleClosedIssueIfNeeded: () => void
     settleIssuePrize: (issue: string, openCode: string[]) => void
+    pushClaimable: (userId: string, issue: string, amount: number, openCode: string[]) => void
   }
   declare get: LOTTERY_BASE['get'] & {
     poolState: () => { issue: string; base: number; carry: number; issuePool: number; distributable: number }
@@ -152,7 +158,7 @@ export default class K3_CD extends LOTTERY_BASE {
   }
 
   constructor() {
-    super(LOTTERY['K3-CD'].key, LOTTERY['K3-CD'].id)
+    super(LOTTERY['SSC-OF'].key, LOTTERY['SSC-OF'].id)
     this.issueSettledMap = {}
 
     Object.assign(this._get, {
@@ -161,20 +167,17 @@ export default class K3_CD extends LOTTERY_BASE {
     })
 
     Object.assign(this.handle, {
-      // 快3 開獎：3 顆骰子（可重複），不是 49 取 7
-      randomOpenCode: () => k3RandomOpenCode(),
+      randomOpenCode: () => sscRandomOpenCode(),
       /**
-       * 覆寫期表產生：改由 k3Shared 持有，與 K3-OF 共用同一份開獎號
-       * ⚠️ 一定要把共用陣列「直接賦值」給 this.recordOpenCode（同一個參照），
-       *    複製一份就會失去共用效果
+       * 與 SSC-CD 完全相同的覆寫：期表交給 sscShared
+       * 先啟動的 class 產生、後啟動的直接沿用同一個陣列參照
        */
       prdOpenCode: (now = new Date()) => {
         const dateKey = this.timer.formatDateKey(now)
-        this.recordOpenCode = k3EnsureDraw(dateKey, () => this.handle.buildDayRecords(now))
+        this.recordOpenCode = sscEnsureDraw(dateKey, () => this.handle.buildDayRecords(now))
         this.currentIndex = 0
         this.currentStatus = STATUS_TIME.PREPARE
       },
-      /** 產生當日期表（期別／時間沿用 base 的週期常數，開獎號用 K3 的 3 顆骰子） */
       buildDayRecords: (now: Date): OpenCodeRecord[] => {
         const dayStart = this.timer.getStartOfDay(now).getTime()
         const dateKey = this.timer.formatDateKey(now)
@@ -183,7 +186,7 @@ export default class K3_CD extends LOTTERY_BASE {
           const startAt = dayStart + i * CYCLE_MS
           records.push({
             issue: `${dateKey}${String(i + 1).padStart(3, '0')}`,
-            openCode: k3RandomOpenCode(),
+            openCode: sscRandomOpenCode(),
             time: { start: new Date(startAt).toISOString(), end: new Date(startAt + CYCLE_MS).toISOString() },
             startAt,
             endAt: startAt + CYCLE_MS
@@ -191,22 +194,46 @@ export default class K3_CD extends LOTTERY_BASE {
         }
         return records
       },
-      /** 開獎球資料：快3 直接把點數帶出去（沒有 49 顆球那張對照表） */
       openCodePlay: (openCode: string[]) => {
-        const dice = k3DiceOf(openCode)
-        if (!dice) return []
-        return dice.map((num, idx) => ({ num, label: String(num), index: idx }))
+        const digits = sscDigitsOf(openCode)
+        if (!digits) return []
+        return digits.map((digit, idx) => ({ num: digit, label: String(digit), ball: idx + 1, index: idx }))
+      },
+      /**
+       * 寫入某期的可領獎金（同一期重複呼叫會累加）
+       * 同一期若多個分頁都中，金額要疊在同一筆上，玩家才不會看到同一期出現兩列可領。
+       */
+      pushClaimable: (userId: string, issue: string, amount: number, openCode: string[]) => {
+        if (!(amount > 0)) return
+        const record = this.handle.ensureUserRecord(this._get.user(userId))
+        const idx = record.claimableIssues.findIndex((item) => String(item.issue) === String(issue))
+        const old = record.claimableIssues[idx]
+        if (idx >= 0 && old) {
+          record.claimableIssues[idx] = {
+            issue: String(old.issue),
+            amount: Number((Number(old.amount ?? 0) + amount).toFixed(2)),
+            openCode: [...openCode],
+            createdAt: Number(old.createdAt ?? Date.now())
+          }
+          return
+        }
+        record.claimableIssues.push({
+          issue: String(issue),
+          amount: Number(amount.toFixed(2)),
+          openCode: [...openCode],
+          createdAt: Date.now()
+        })
       },
       ensureUserRecord: (user: UserStoreLike) => {
-        // 與 6hc 分開存（k3Record），兩個彩種的注單紀錄互不干擾
-        if (!user.k3Record) {
-          user.k3Record = { balanceChanges: [], betHistory: [], claimableIssues: [], updatedAt: Date.now() }
+        // 與 SSC-CD（sscRecord）、PK10、快3、6hc 分開存，各盤口的注單紀錄互不干擾
+        if (!user.sscOfRecord) {
+          user.sscOfRecord = { balanceChanges: [], betHistory: [], claimableIssues: [], updatedAt: Date.now() }
         }
-        if (!Array.isArray(user.k3Record.balanceChanges)) user.k3Record.balanceChanges = []
-        if (!Array.isArray(user.k3Record.betHistory)) user.k3Record.betHistory = []
-        if (!Array.isArray(user.k3Record.claimableIssues)) user.k3Record.claimableIssues = []
-        user.k3Record.updatedAt = Date.now()
-        return user.k3Record
+        if (!Array.isArray(user.sscOfRecord.balanceChanges)) user.sscOfRecord.balanceChanges = []
+        if (!Array.isArray(user.sscOfRecord.betHistory)) user.sscOfRecord.betHistory = []
+        if (!Array.isArray(user.sscOfRecord.claimableIssues)) user.sscOfRecord.claimableIssues = []
+        user.sscOfRecord.updatedAt = Date.now()
+        return user.sscOfRecord
       },
       pushBalanceChange: (userId: string, payload: Omit<UserBalanceChange, 'id' | 'createdAt'>) => {
         if (!userId) return
@@ -228,33 +255,47 @@ export default class K3_CD extends LOTTERY_BASE {
           betCode: Array.isArray(row.bet_code) ? row.bet_code : [],
           openCode: [],
           matchCount: 0,
-          specialMatch: false,
+          tierName: '',
           winStatus: 'pending',
           winAmount: 0,
+          jackpotAmount: 0,
           odds: Number(row.odds ?? 0),
-          jackpotAmount: 0
+          tabId: Number(row.tab_id ?? 0)
         })
         if (record.betHistory.length > 5000) record.betHistory = record.betHistory.slice(-4000)
       },
-      /** 統一的拒單方式（文案放 message；statusMessage 會被 h3 消毒掉中文，不要用） */
       rejectBet: (message: string): never => {
         throw createError({ statusCode: 400, message })
       },
-      /** 限額與注項合法性驗證：任一注違規就整筆拒絕，且必須在扣款／建單之前呼叫 */
+      /**
+       * 注碼與限額驗證
+       *
+       * 官方盤只有一種注碼形狀（字串），所以比 PK10-OF 少一整條彩池分支：
+       *   單選分頁（定位膽）→ 注碼要在 groupList 內
+       *   複式分頁          → 前綴符合該分頁的 combo 規則且能被 sscog.ts 判定
+       * 限額一律讀該分頁的 config，伺端不信任前端送的注數與金額。
+       */
       validateBetQuota: (input: { issue: string; userId: string; amount: number; groups: Group[] }) => {
         const _money = (value: number) => Number(value).toLocaleString('zh-TW')
+        /** 本次送單依分頁累計，供單期限額比對 */
         const newByTab = new Map<number, { playKey: string; coin: number }>()
         ;(Array.isArray(input.groups) ? input.groups : []).forEach((group) => {
           const playKey = String(group?.playKey || '')
-          ;(Array.isArray(group?.playList) ? group.playList : []).forEach((play) => {
-            const tabId = _resolveTabId(play, group)
-            const tabName = findK3Tab(playKey, tabId)?.tabName ?? String(tabId)
+          const tab = findSscOgTab(playKey, group?.selectTabId)
+          if (!tab) this.handle.rejectBet(`玩法或分頁不存在（${playKey} / ${group?.selectTabId ?? ''}）`)
+          const safeTabId = Number(tab!.tabId)
+          const tabName = String(tab!.tabName ?? safeTabId)
+          const quota = sscOgQuotaOf(playKey, safeTabId)
+          const playList = Array.isArray(group?.playList) ? group.playList : []
+          // 複式展開的上限：前端的 sscOgComboCodes() 已擋過一次，這裡是伺端的第二道
+          if (playList.length > SSC_OG_MAX_COMBO) {
+            this.handle.rejectBet(`${tabName} 單次最多 ${_money(SSC_OG_MAX_COMBO)} 注，本次 ${_money(playList.length)} 注`)
+          }
+          playList.forEach((play) => {
             const betCode = _resolveBetCode(play)
-            // 注項必須真的存在於該分頁，否則前端亂送也能建單
-            if (!betCode || !k3HasBetCode(playKey, tabId, betCode)) {
-              this.handle.rejectBet(`${tabName}「${betCode || '(空白)'}」不是有效注項`)
+            if (!betCode || !sscOgHasBetCode(playKey, safeTabId, betCode)) {
+              this.handle.rejectBet(`${tabName}「${betCode || '(空白)'}」不在該分頁的注項內`)
             }
-            const quota = k3QuotaOf(playKey, tabId)
             const rawCoin = Number(play?.amount ?? play?.coin ?? input.amount)
             const coin = Number.isFinite(rawCoin) && rawCoin > 0 ? rawCoin : Number(input.amount)
             if (coin < quota.item.min) {
@@ -263,8 +304,8 @@ export default class K3_CD extends LOTTERY_BASE {
             if (coin > quota.item.max) {
               this.handle.rejectBet(`${tabName}「${betCode}」單注上限 ${_money(quota.item.max)}，本次 ${_money(coin)}`)
             }
-            const prev = newByTab.get(tabId)
-            newByTab.set(tabId, { playKey: prev?.playKey || playKey, coin: Number(prev?.coin ?? 0) + coin })
+            const prev = newByTab.get(safeTabId)
+            newByTab.set(safeTabId, { playKey: prev?.playKey || playKey, coin: Number(prev?.coin ?? 0) + coin })
           })
         })
         // 單期投注額：同一玩家、同一期、同一分頁的既有注單 + 本次送單
@@ -272,11 +313,11 @@ export default class K3_CD extends LOTTERY_BASE {
           get: { issueTabCoin: (issue: string, userId: string, tabId: number) => number }
         }
         newByTab.forEach(({ playKey, coin: newCoin }, tabId) => {
-          const quota = k3QuotaOf(playKey, tabId)
+          const quota = sscOgQuotaOf(playKey, tabId)
           if (!(quota.issue.max > 0)) return
           const used = Number(orders?.get?.issueTabCoin?.(input.issue, input.userId, tabId) ?? 0)
           if (used + newCoin > quota.issue.max) {
-            const tabName = findK3Tab(playKey, tabId)?.tabName ?? String(tabId)
+            const tabName = findSscOgTab(playKey, tabId)?.tabName ?? String(tabId)
             this.handle.rejectBet(
               `${tabName} 單期投注上限 ${_money(quota.issue.max)}，本期已投注 ${_money(used)}、本次 ${_money(newCoin)}`
             )
@@ -288,18 +329,19 @@ export default class K3_CD extends LOTTERY_BASE {
         ;(Array.isArray(input.groups) ? input.groups : []).forEach((group) => {
           const playTypeName = String(group?.playTypeName || '')
           const playKey = String(group?.playKey || '')
+          // 分頁 id 一律以 config 為準（前端沒帶就回該玩法第一個分頁），
+          // 結算與單期限額都靠它，不能直接信前端送的數字
+          const tabId = Number(findSscOgTab(playKey, group?.selectTabId)?.tabId ?? 0)
           const playList = Array.isArray(group?.playList) ? group.playList : []
           const total = playList.length
           playList.forEach((play, index) => {
             const orderId = this.handle.createOrderId(input.issue)
-            const tabId = _resolveTabId(play, group)
             const betCode = _resolveBetCode(play)
             if (!betCode) return
             const playCoin = Number(play?.amount ?? play?.coin ?? input.amount)
             rows.push({
               issue: input.issue,
               user_id: input.userId,
-              select_tab_id: tabId,
               bet_time: Date.now(),
               coin: Number.isFinite(playCoin) && playCoin > 0 ? playCoin : input.amount,
               order_id: `${orderId}(${index + 1}/${total})`,
@@ -307,8 +349,9 @@ export default class K3_CD extends LOTTERY_BASE {
               bet_code: [betCode],
               play_key: playKey,
               play_type_name: playTypeName,
-              // 賠率由 helpers 依該分頁 rtp 即時推算後鎖上注單，結算以此值派彩
-              odds: k3TabOddsOf(playKey, tabId, betCode)
+              // 賠率鎖進注單：之後改 rtp 或設定也不會影響已成立的注單
+              odds: sscOgTabOddsOf(playKey, tabId, betCode),
+              tab_id: tabId
             })
           })
         })
@@ -327,7 +370,10 @@ export default class K3_CD extends LOTTERY_BASE {
           this.issueSettledMap[record.issue] = true
         }
       },
-      /** 信用盤結算：每注獨立、按注單鎖定的賠率派彩 */
+      /**
+       * 官方盤結算：逐注按注單鎖定的賠率派彩
+       * ⚠️ 沒有彩池分層那條路，所以也不動 SSC_SHARED.pool.carry。
+       */
       settleIssuePrize: (issue: string, openCode: string[]) => {
         const safeIssue = String(issue ?? '')
         if (!safeIssue) return
@@ -346,16 +392,12 @@ export default class K3_CD extends LOTTERY_BASE {
         issueOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
           const betCode = String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
-          const playKey = String(row.playKey ?? '')
-          const tabId = Number(row.tabId ?? 0)
           const lockedOdds = Number(row.odds ?? 0)
-          const judged = judgeK3Bet(betCode, codes, coin, lockedOdds, k3RtpOf(playKey, tabId))
-          // 無法辨識的注項視為和局退還本金，避免吞掉玩家注金
-          const result: K3BetResult = judged?.result ?? 'tie'
-          const odds = lockedOdds > 0 ? lockedOdds : Number(judged?.odds ?? 0)
-          const payout = result === 'win'
-            ? Number((coin * odds).toFixed(2))
-            : result === 'tie' ? coin : 0
+          const judged = judgeSscOgBet(betCode, codes, coin, lockedOdds)
+          // 無法辨識的注碼視為和局退還本金，不吞玩家注金
+          const status = judged?.status ?? 'tie'
+          const odds = judged?.odds ?? lockedOdds
+          const payout = judged?.payout ?? coin
 
           const record = this.handle.ensureUserRecord(this._get.user(row.userId))
           const idx = record.betHistory.findIndex((item) => String(item.orderId) === String(row.orderId))
@@ -364,9 +406,9 @@ export default class K3_CD extends LOTTERY_BASE {
             record.betHistory[idx] = {
               ...current,
               openCode: [...codes],
-              matchCount: result === 'win' ? 1 : 0,
-              specialMatch: false,
-              winStatus: result,
+              matchCount: status === 'win' ? 1 : 0,
+              tierName: status === 'win' ? '中獎' : status === 'tie' ? '和局' : '',
+              winStatus: status,
               winAmount: payout,
               odds
             }
@@ -377,25 +419,7 @@ export default class K3_CD extends LOTTERY_BASE {
         })
 
         payoutByUser.forEach((amount, userId) => {
-          if (amount <= 0) return
-          const record = this.handle.ensureUserRecord(this._get.user(userId))
-          const issueIdx = record.claimableIssues.findIndex((item) => String(item.issue) === safeIssue)
-          const old = record.claimableIssues[issueIdx]
-          if (issueIdx >= 0 && old) {
-            record.claimableIssues[issueIdx] = {
-              issue: String(old.issue),
-              amount: Number((Number(old.amount ?? 0) + amount).toFixed(2)),
-              openCode: [...codes],
-              createdAt: Number(old.createdAt ?? Date.now())
-            }
-          } else {
-            record.claimableIssues.push({
-              issue: safeIssue,
-              amount: Number(amount.toFixed(2)),
-              openCode: [...codes],
-              createdAt: Date.now()
-            })
-          }
+          this.handle.pushClaimable(userId, safeIssue, amount, codes)
         })
       }
     })
@@ -411,7 +435,7 @@ export default class K3_CD extends LOTTERY_BASE {
         const issue = this.recordOpenCode[this.currentIndex]?.issue ?? ''
         const currentBets = Number(orders.get.members.issue(issue, userId) ?? 0)
         const totalBets = Number(orders.get.members.user(userId) ?? 0)
-        // 與上一期比較的投注變化（文案格式對齊 6hc）
+        // 與上一期比較的投注變化（文案格式對齊 6hc / k3 / pk10）
         const prevIssue = String(Number(issue) - 1)
         const prevBets = Number(orders.get.members.issue(prevIssue, userId) ?? 0)
         let analysis = '尚未投注'
@@ -424,18 +448,16 @@ export default class K3_CD extends LOTTERY_BASE {
         }
         return { currentBets, totalBets, analysis }
       },
-      /** 共用彩池狀態（與 K3-OF 讀到同一份） */
+      /** 共用彩池狀態（與 SSC-CD 讀到同一份；時時彩沒有吃池的玩法，純顯示） */
       poolState: () => {
         const issue = this._get.latestIssue()
-        // 沒有池底（或已被吃到低於頭獎保障門檻）就重骰，兩個盤口共用同一份
-        k3EnsurePoolBase()
+        sscEnsurePoolBase()
         return {
           issue,
-          base: K3_SHARED.pool.base,
-          carry: K3_SHARED.pool.carry,
-          // 該期抽水也一起回（K3-OF 本來就有回，型別 K3Pool 也有這個欄位）
-          issuePool: k3IssuePool(issue),
-          distributable: k3DistributablePool(issue)
+          base: SSC_SHARED.pool.base,
+          carry: SSC_SHARED.pool.carry,
+          issuePool: sscIssuePool(issue),
+          distributable: sscDistributablePool(issue)
         }
       },
       userDialogRecord: (userId: string) => {
@@ -446,10 +468,10 @@ export default class K3_CD extends LOTTERY_BASE {
           claimableIssues: [...record.claimableIssues]
         }
       },
-      /** 該期開獎的和值（供前端顯示與冷熱分析） */
+      /** 該期開獎的總和（0 ~ 45，官方盤看板也會顯示） */
       sumOf: (openCode: string[]) => {
-        const dice = k3DiceOf(openCode)
-        return dice ? k3SumOf(dice) : 0
+        const digits = sscDigitsOf(openCode)
+        return digits ? sscSumOf(digits) : 0
       }
     })
 
@@ -457,7 +479,7 @@ export default class K3_CD extends LOTTERY_BASE {
   }
 
   init() {
-    console.log('TTT---RUN.K3.信用')
+    console.log('TTT---RUN.SSC.官方')
     this.handle.prdOpenCode()
     Storage.games[this.key] = this
     LOTTERY_BASE.getOrders(this.id, this.key)
@@ -469,7 +491,6 @@ export default class K3_CD extends LOTTERY_BASE {
   }
 
   playBets(payload: PlayBetsPayload, user: UserStoreLike) {
-    // 期別狀態閘門：只有「開盤中」可受理投注（前端 disable 可被繞過，故伺端再擋一次）
     this.handle.refreshCurrent(new Date())
     if (this.currentStatus !== STATUS_TIME.OPEN) {
       const _msg = `目前為「${this.currentStatus}」，不受理投注`
@@ -481,7 +502,6 @@ export default class K3_CD extends LOTTERY_BASE {
     const issue = this.recordOpenCode[this.currentIndex]?.issue ?? this._get.latestIssue()
     const groups = Array.isArray(payload?.groups) ? payload.groups : []
 
-    // 限額與注項合法性一律擋在扣款前
     this.handle.validateBetQuota({ issue, userId, amount, groups })
 
     const beforeCoin = Number(user?.coin ?? 0)
@@ -489,8 +509,8 @@ export default class K3_CD extends LOTTERY_BASE {
     const afterCoin = Number(user?.coin ?? 0)
 
     const rows = this.handle.buildOrderRows({ issue, userId, amount, groups })
-    // 抽水入共用彩池（K3-CD 與 K3-OF 共同養同一個池）
-    k3AddIssuePool(issue, Number((amount * K3_RAKE_RATIO).toFixed(2)))
+    // 抽水入共用彩池（SSC-CD 與 SSC-OF 共同養同一個池）
+    sscAddIssuePool(issue, Number((amount * SSC_OF_RAKE_RATIO).toFixed(2)))
     this.handle.pushBalanceChange(userId, {
       issue,
       type: 'bet',
@@ -506,11 +526,15 @@ export default class K3_CD extends LOTTERY_BASE {
         issue: row.issue,
         userId: row.user_id,
         coin: row.coin,
+        // ⚠️ orderId 一定要帶：結算是用它回頭比對 betHistory 那一列
+        //    （少了它，注單會永遠停在 pending）
         orderId: row.order_id,
-        tabId: row.select_tab_id,
+        // ⚠️ 記真正的 config 分頁 id（不是彩種 id）——
+        //    單期限額是 per 分頁比對，記錯就變成整個官方盤共用一條限額
+        tabId: Number(row.tab_id ?? 0),
         betCode: row.bet_code,
         playKey: row.play_key,
-        odds: row.odds
+        odds: Number(row.odds ?? 0)
       })
       this.handle.appendBetHistory(row)
     })

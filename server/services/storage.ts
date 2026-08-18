@@ -8,12 +8,14 @@ import { encodePasswordBcjs } from '../utils/encrypt'
 import { compareSync } from 'bcryptjs'
 import UsersClass from './users'
 import ConfigClass from './game/lottery/bg/config'
-import LhcOfClass from './game/lottery/bg/lottery6hcOf'
-import LhcCdClass from './game/lottery/bg/lottery6hcCd'
-import K3CdClass from './game/lottery/bg/lotteryK3Cd'
-import K3OfClass from './game/lottery/bg/lotteryK3Of'
-import Pk10CdClass from './game/lottery/bg/lotteryPK10Cd'
-import Pk10OfClass from './game/lottery/bg/lotteryPK10Of'
+import LhcOfClass from './game/lottery/bg/6hcOf'
+import LhcCdClass from './game/lottery/bg/6hcCd'
+import K3CdClass from './game/lottery/bg/k3Cd'
+import K3OfClass from './game/lottery/bg/k3Of'
+import Pk10CdClass from './game/lottery/bg/pk10Cd'
+import Pk10OfClass from './game/lottery/bg/pk10Of'
+import SscCdClass from './game/lottery/bg/sscCd'
+import SscOfClass from './game/lottery/bg/sscOf'
 import { LOTTERY } from '~/config/constants'
 
 export const verifyPasswordHash = (password: string, storedHash: string): boolean => {
@@ -118,6 +120,10 @@ export class Storage {
       // 與快3 一樣，先 new 的那個產生當日期表，後 new 的直接沿用同一份
       new Pk10CdClass()
       new Pk10OfClass()
+      // 時時彩：SSC-CD 與 SSC-OF 共用開獎號與彩池（見 sscShared.ts），
+      // 與快3 / PK10 一樣，先 new 的那個產生當日期表，後 new 的直接沿用同一份
+      new SscCdClass()
+      new SscOfClass()
       // console.log('games.init.success', Storage.games)
       console.log('SUCCESS ---BASE>games.init')
     }

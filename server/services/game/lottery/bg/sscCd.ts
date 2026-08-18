@@ -1,33 +1,36 @@
 import { Storage } from '../../../storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
-import LOTTERY_BASE, { CYCLE_MS, TOTAL_ISSUES_PER_DAY, type OpenCodeRecord } from './lotteryBase'
+import LOTTERY_BASE, { CYCLE_MS, TOTAL_ISSUES_PER_DAY, type OpenCodeRecord } from './base'
+// ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
+//    ./base 才是本層的彩票基底（期表／狀態機／訂單）
 import { MEMORY } from '../../../base'
-import { judgePk10Bet, pk10CarsOf, pk10SumOf, type Pk10BetResult } from '#shared/config/pk10-cd'
-import { pk10QuotaOf, pk10RtpOf, pk10TabOddsOf, pk10HasBetCode, findPk10Tab } from '#shared/config/pk10cd/helpers'
+import { judgeSscBet, type SscBetResult } from '#shared/config/ssc-cd'
+import { sscDigitsOf, sscSumOf } from '#shared/config/ssc'
+import { sscQuotaOf, sscRtpOf, sscTabOddsOf, sscHasBetCode, findSscTab } from '#shared/config/ssccd/helpers'
 import {
-  PK10_SHARED,
-  pk10AddIssuePool,
-  pk10EnsurePoolBase,
-  pk10IssuePool,
-  pk10DistributablePool,
-  pk10EnsureDraw,
-  pk10RandomOpenCode
-} from './pk10Shared'
+  SSC_SHARED,
+  sscAddIssuePool,
+  sscEnsurePoolBase,
+  sscIssuePool,
+  sscDistributablePool,
+  sscEnsureDraw,
+  sscRandomOpenCode
+} from './sscShared'
 
 /**
- * PK10 信用盤（PK10-CD）
+ * 時時彩信用盤（SSC-CD）
  *
- * ── 與 PK10-OF 的共用關係 ───────────────────────────────
- * 開獎號與彩池都放在 pk10Shared 的 module 級單例：
+ * ── 與 SSC-OF 的共用關係 ────────────────────────────────
+ * 開獎號與彩池都放在 sscShared 的 module 級單例：
  *   prdOpenCode 覆寫後，先啟動的那個 class 產生當日期表，
  *   後啟動的直接拿到「同一個陣列參照」，兩邊的期別／開獎號／倒數必然一致。
- *   抽水一律進 PK10_SHARED.pool，兩個盤口的投注共同養同一個彩池。
+ *   抽水一律進 SSC_SHARED.pool，兩個盤口的投注共同養同一個彩池。
  *
- * ── 與 K3-CD 的差異 ─────────────────────────────────────
- *   開獎是 10 台車的名次表（1 ~ 10 的排列）而非 3 顆骰子，故 randomOpenCode 也要覆寫。
- *   名次必然分得出來、車號互異，因此沒有快3 圍骰那種和局 ——
+ * ── 與 PK10-CD 的差異 ───────────────────────────────────
+ *   開獎是 5 個 0 ~ 9 的號碼（可重複），故 randomOpenCode 也要覆寫。
+ *   信用盤的注項有「龍虎鬥的和」這種獨立注項，判定只有 win／lose ——
  *   `tie` 只在注碼無法辨識時用來退還本金，避免吞掉玩家注金。
- *   其餘（一注一注項、賠率下注時鎖進注單、單期分頁限額）與 K3-CD 完全一致。
+ *   其餘（一注一注項、賠率下注時鎖進注單、單期分頁限額）與 PK10-CD 完全一致。
  */
 
 type BetOrderRow = {
@@ -80,7 +83,7 @@ type UserBetHistory = {
   openCode: string[]
   matchCount: number
   specialMatch: boolean
-  /** tie = 退還本金（PK10 只有注碼無法辨識時會用到） */
+  /** tie = 退還本金（時時彩只有注碼無法辨識時會用到） */
   winStatus: 'pending' | 'win' | 'lose' | 'tie'
   winAmount: number
   odds: number
@@ -93,10 +96,10 @@ type UserRecord = {
   claimableIssues: UserClaimableIssue[]
   updatedAt: number
 }
-type UserStoreLike = { userId?: string; coin?: number; pk10Record?: UserRecord }
+type UserStoreLike = { userId?: string; coin?: number; sscRecord?: UserRecord }
 
 /** 抽水比例：投注額的固定比例撥入共用彩池（賠率派彩由莊家支付） */
-const PK10_RAKE_RATIO = 0.02
+const SSC_RAKE_RATIO = 0.02
 
 /** 取分頁 id：優先每注帶的 selectTabId，其次群組層級，最後由 playId 前綴推回 */
 function _resolveTabId(
@@ -113,7 +116,7 @@ function _resolveTabId(
 
 /**
  * 取一注的注碼
- * PK10 的注項名稱本身就是注碼（"冠軍01"、"冠軍大"、"冠軍龍"、"和3"…），
+ * 時時彩信用盤的注項名稱本身就是注碼（"第一球7"、"總和大"、"龍虎12龍"、"梭哈葫蘆"…），
  * 全部是帶前綴的字串，沒有純數字注項，因此只取 label。
  */
 function _resolveBetCode(play?: { num?: number | string; label?: string | number }): string {
@@ -122,7 +125,7 @@ function _resolveBetCode(play?: { num?: number | string; label?: string | number
   return String(play?.num ?? '').trim()
 }
 
-export default class PK10_CD extends LOTTERY_BASE {
+export default class SSC_CD extends LOTTERY_BASE {
   issueSettledMap: Record<string, boolean>
 
   declare _get: LOTTERY_BASE['_get'] & {
@@ -152,7 +155,7 @@ export default class PK10_CD extends LOTTERY_BASE {
   }
 
   constructor() {
-    super(LOTTERY['PK10-CD'].key, LOTTERY['PK10-CD'].id)
+    super(LOTTERY['SSC-CD'].key, LOTTERY['SSC-CD'].id)
     this.issueSettledMap = {}
 
     Object.assign(this._get, {
@@ -161,20 +164,20 @@ export default class PK10_CD extends LOTTERY_BASE {
     })
 
     Object.assign(this.handle, {
-      // PK10 開獎：10 台車的名次排列，不是 49 取 7
-      randomOpenCode: () => pk10RandomOpenCode(),
+      // 時時彩開獎：5 個 0 ~ 9 的號碼（可重複）
+      randomOpenCode: () => sscRandomOpenCode(),
       /**
-       * 覆寫期表產生：改由 pk10Shared 持有，與 PK10-OF 共用同一份開獎號
+       * 覆寫期表產生：改由 sscShared 持有，與 SSC-OF 共用同一份開獎號
        * ⚠️ 一定要把共用陣列「直接賦值」給 this.recordOpenCode（同一個參照），
        *    複製一份就會失去共用效果
        */
       prdOpenCode: (now = new Date()) => {
         const dateKey = this.timer.formatDateKey(now)
-        this.recordOpenCode = pk10EnsureDraw(dateKey, () => this.handle.buildDayRecords(now))
+        this.recordOpenCode = sscEnsureDraw(dateKey, () => this.handle.buildDayRecords(now))
         this.currentIndex = 0
         this.currentStatus = STATUS_TIME.PREPARE
       },
-      /** 產生當日期表（期別／時間沿用 base 的週期常數，開獎號用 PK10 的名次排列） */
+      /** 產生當日期表（期別／時間沿用 base 的週期常數，開獎號用時時彩的 5 碼） */
       buildDayRecords: (now: Date): OpenCodeRecord[] => {
         const dayStart = this.timer.getStartOfDay(now).getTime()
         const dateKey = this.timer.formatDateKey(now)
@@ -183,7 +186,7 @@ export default class PK10_CD extends LOTTERY_BASE {
           const startAt = dayStart + i * CYCLE_MS
           records.push({
             issue: `${dateKey}${String(i + 1).padStart(3, '0')}`,
-            openCode: pk10RandomOpenCode(),
+            openCode: sscRandomOpenCode(),
             time: { start: new Date(startAt).toISOString(), end: new Date(startAt + CYCLE_MS).toISOString() },
             startAt,
             endAt: startAt + CYCLE_MS
@@ -191,22 +194,22 @@ export default class PK10_CD extends LOTTERY_BASE {
         }
         return records
       },
-      /** 開獎球資料：帶名次（rank）與車號，前端直接照順序畫 10 台車 */
+      /** 開獎球資料：帶球位（1 ~ 5）與號碼，前端直接照順序畫 5 顆號碼球 */
       openCodePlay: (openCode: string[]) => {
-        const cars = pk10CarsOf(openCode)
-        if (!cars) return []
-        return cars.map((car, idx) => ({ num: car, label: String(openCode[idx] ?? car), rank: idx + 1, index: idx }))
+        const digits = sscDigitsOf(openCode)
+        if (!digits) return []
+        return digits.map((digit, idx) => ({ num: digit, label: String(digit), ball: idx + 1, index: idx }))
       },
       ensureUserRecord: (user: UserStoreLike) => {
-        // 與 6hc（record）、快3（k3Record / k3OfRecord）分開存，各彩種的注單紀錄互不干擾
-        if (!user.pk10Record) {
-          user.pk10Record = { balanceChanges: [], betHistory: [], claimableIssues: [], updatedAt: Date.now() }
+        // 與 6hc（record）、快3、PK10 分開存，各彩種的注單紀錄互不干擾
+        if (!user.sscRecord) {
+          user.sscRecord = { balanceChanges: [], betHistory: [], claimableIssues: [], updatedAt: Date.now() }
         }
-        if (!Array.isArray(user.pk10Record.balanceChanges)) user.pk10Record.balanceChanges = []
-        if (!Array.isArray(user.pk10Record.betHistory)) user.pk10Record.betHistory = []
-        if (!Array.isArray(user.pk10Record.claimableIssues)) user.pk10Record.claimableIssues = []
-        user.pk10Record.updatedAt = Date.now()
-        return user.pk10Record
+        if (!Array.isArray(user.sscRecord.balanceChanges)) user.sscRecord.balanceChanges = []
+        if (!Array.isArray(user.sscRecord.betHistory)) user.sscRecord.betHistory = []
+        if (!Array.isArray(user.sscRecord.claimableIssues)) user.sscRecord.claimableIssues = []
+        user.sscRecord.updatedAt = Date.now()
+        return user.sscRecord
       },
       pushBalanceChange: (userId: string, payload: Omit<UserBalanceChange, 'id' | 'createdAt'>) => {
         if (!userId) return
@@ -248,13 +251,13 @@ export default class PK10_CD extends LOTTERY_BASE {
           const playKey = String(group?.playKey || '')
           ;(Array.isArray(group?.playList) ? group.playList : []).forEach((play) => {
             const tabId = _resolveTabId(play, group)
-            const tabName = findPk10Tab(playKey, tabId)?.tabName ?? String(tabId)
+            const tabName = findSscTab(playKey, tabId)?.tabName ?? String(tabId)
             const betCode = _resolveBetCode(play)
             // 注項必須真的存在於該分頁，否則前端亂送也能建單
-            if (!betCode || !pk10HasBetCode(playKey, tabId, betCode)) {
+            if (!betCode || !sscHasBetCode(playKey, tabId, betCode)) {
               this.handle.rejectBet(`${tabName}「${betCode || '(空白)'}」不是有效注項`)
             }
-            const quota = pk10QuotaOf(playKey, tabId)
+            const quota = sscQuotaOf(playKey, tabId)
             const rawCoin = Number(play?.amount ?? play?.coin ?? input.amount)
             const coin = Number.isFinite(rawCoin) && rawCoin > 0 ? rawCoin : Number(input.amount)
             if (coin < quota.item.min) {
@@ -272,11 +275,11 @@ export default class PK10_CD extends LOTTERY_BASE {
           get: { issueTabCoin: (issue: string, userId: string, tabId: number) => number }
         }
         newByTab.forEach(({ playKey, coin: newCoin }, tabId) => {
-          const quota = pk10QuotaOf(playKey, tabId)
+          const quota = sscQuotaOf(playKey, tabId)
           if (!(quota.issue.max > 0)) return
           const used = Number(orders?.get?.issueTabCoin?.(input.issue, input.userId, tabId) ?? 0)
           if (used + newCoin > quota.issue.max) {
-            const tabName = findPk10Tab(playKey, tabId)?.tabName ?? String(tabId)
+            const tabName = findSscTab(playKey, tabId)?.tabName ?? String(tabId)
             this.handle.rejectBet(
               `${tabName} 單期投注上限 ${_money(quota.issue.max)}，本期已投注 ${_money(used)}、本次 ${_money(newCoin)}`
             )
@@ -308,7 +311,7 @@ export default class PK10_CD extends LOTTERY_BASE {
               play_key: playKey,
               play_type_name: playTypeName,
               // 賠率由 helpers 依該分頁 rtp 即時推算後鎖上注單，結算以此值派彩
-              odds: pk10TabOddsOf(playKey, tabId, betCode)
+              odds: sscTabOddsOf(playKey, tabId, betCode)
             })
           })
         })
@@ -349,9 +352,9 @@ export default class PK10_CD extends LOTTERY_BASE {
           const playKey = String(row.playKey ?? '')
           const tabId = Number(row.tabId ?? 0)
           const lockedOdds = Number(row.odds ?? 0)
-          const judged = judgePk10Bet(betCode, codes, coin, lockedOdds, pk10RtpOf(playKey, tabId))
+          const judged = judgeSscBet(betCode, codes, coin, lockedOdds, sscRtpOf(playKey, tabId))
           // 無法辨識的注項視為和局退還本金，避免吞掉玩家注金
-          const result: Pk10BetResult = judged?.result ?? 'tie'
+          const result: SscBetResult = judged?.result ?? 'tie'
           const odds = lockedOdds > 0 ? lockedOdds : Number(judged?.odds ?? 0)
           const payout = result === 'win'
             ? Number((coin * odds).toFixed(2))
@@ -411,7 +414,7 @@ export default class PK10_CD extends LOTTERY_BASE {
         const issue = this.recordOpenCode[this.currentIndex]?.issue ?? ''
         const currentBets = Number(orders.get.members.issue(issue, userId) ?? 0)
         const totalBets = Number(orders.get.members.user(userId) ?? 0)
-        // 與上一期比較的投注變化（文案格式對齊 6hc / k3）
+        // 與上一期比較的投注變化（文案格式對齊 6hc / k3 / pk10）
         const prevIssue = String(Number(issue) - 1)
         const prevBets = Number(orders.get.members.issue(prevIssue, userId) ?? 0)
         let analysis = '尚未投注'
@@ -424,17 +427,17 @@ export default class PK10_CD extends LOTTERY_BASE {
         }
         return { currentBets, totalBets, analysis }
       },
-      /** 共用彩池狀態（與 PK10-OF 讀到同一份） */
+      /** 共用彩池狀態（與 SSC-OF 讀到同一份） */
       poolState: () => {
         const issue = this._get.latestIssue()
-        // 沒有池底（或已被吃到低於頭獎保障門檻）就重骰，兩個盤口共用同一份
-        pk10EnsurePoolBase()
+        // 沒有池底（或已被吃到低於門檻）就重骰，兩個盤口共用同一份
+        sscEnsurePoolBase()
         return {
           issue,
-          base: PK10_SHARED.pool.base,
-          carry: PK10_SHARED.pool.carry,
-          issuePool: pk10IssuePool(issue),
-          distributable: pk10DistributablePool(issue)
+          base: SSC_SHARED.pool.base,
+          carry: SSC_SHARED.pool.carry,
+          issuePool: sscIssuePool(issue),
+          distributable: sscDistributablePool(issue)
         }
       },
       userDialogRecord: (userId: string) => {
@@ -445,10 +448,10 @@ export default class PK10_CD extends LOTTERY_BASE {
           claimableIssues: [...record.claimableIssues]
         }
       },
-      /** 該期開獎的冠亞和（供前端顯示與冷熱分析） */
+      /** 該期開獎的總和（0 ~ 45，供前端顯示與冷熱分析） */
       sumOf: (openCode: string[]) => {
-        const cars = pk10CarsOf(openCode)
-        return cars ? pk10SumOf(cars) : 0
+        const digits = sscDigitsOf(openCode)
+        return digits ? sscSumOf(digits) : 0
       }
     })
 
@@ -456,7 +459,7 @@ export default class PK10_CD extends LOTTERY_BASE {
   }
 
   init() {
-    console.log('TTT---RUN.PK10.信用')
+    console.log('TTT---RUN.SSC.信用')
     this.handle.prdOpenCode()
     Storage.games[this.key] = this
     LOTTERY_BASE.getOrders(this.id, this.key)
@@ -488,8 +491,8 @@ export default class PK10_CD extends LOTTERY_BASE {
     const afterCoin = Number(user?.coin ?? 0)
 
     const rows = this.handle.buildOrderRows({ issue, userId, amount, groups })
-    // 抽水入共用彩池（PK10-CD 與 PK10-OF 共同養同一個池）
-    pk10AddIssuePool(issue, Number((amount * PK10_RAKE_RATIO).toFixed(2)))
+    // 抽水入共用彩池（SSC-CD 與 SSC-OF 共同養同一個池）
+    sscAddIssuePool(issue, Number((amount * SSC_RAKE_RATIO).toFixed(2)))
     this.handle.pushBalanceChange(userId, {
       issue,
       type: 'bet',

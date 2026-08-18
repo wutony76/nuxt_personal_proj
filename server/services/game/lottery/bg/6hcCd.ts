@@ -1,6 +1,8 @@
 import { Storage } from '../../../storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
-import LOTTERY_BASE from './lotteryBase'
+import LOTTERY_BASE from './base'
+// ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
+//    ./base 才是本層的彩票基底（期表／狀態機／訂單）
 import { MEMORY } from '../../../base'
 import {
   buildCreditJackpotShares,

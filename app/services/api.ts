@@ -166,6 +166,69 @@ export type Pk10UserBetHistory = {
   jackpotAmount: number
 }
 
+/** SSC 共用彩池狀態（SSC-CD 與 SSC-OF 讀到同一份，見 server/services/game/lottery/bg/sscShared.ts） */
+export type SscPool = {
+  issue: string
+  base: number
+  carry: number
+  /** 該期已累積的抽水 */
+  issuePool?: number
+  /**
+   * 可發放 = 池底 + 該期抽水 × 0.8 + 累積滾存，再乘 0.55
+   * ⚠️ 時時彩兩個盤口都是固定賠率、沒有吃池的玩法，這個值純粹是看板的門面數字
+   */
+  distributable: number
+}
+
+/**
+ * SSC 當期資訊
+ * ⚠️ openCode 長度固定 5，`openCode[i]` 是第 i+1 顆球（萬／千／百／十／個位），
+ *    號碼 0 ~ 9 且**可重複**（與 pk10 的名次排列不同）
+ */
+export type SscCurrent = {
+  issue: string
+  issueCurrent: string
+  issueLatest: string
+  currentStatus: string
+  countdown: string
+  statusEndAt: number
+  openCode: string[]
+  openingCode: string[]
+  openCodePlay: Array<{ num: number; label: string; ball: number; index: number }>
+  time: { start: string; end: string }
+  startAt: number
+  endAt: number
+  pool: SscPool
+}
+
+/** SSC 玩家紀錄 */
+export type SscUserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: SscUserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+  pool: SscPool
+}
+
+export type SscUserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  betCode: string[]
+  openCode: string[]
+  matchCount: number
+  /** 時時彩沒有真正的和局，tie 只在注碼無法辨識時出現（退還本金） */
+  winStatus: 'pending' | 'win' | 'lose' | 'tie'
+  winAmount: number
+  /** 該注鎖定的賠率（兩個盤口都有，時時彩全是固定賠率） */
+  odds?: number
+  /** 官方盤才有：中獎狀態文案（中獎／和局） */
+  tierName?: string
+  /** 該注所屬分頁 */
+  tabId?: number
+  jackpotAmount: number
+}
+
 /** 信用盤（6hc-cd）獎池狀態：含可發放累積池、發放參數與最近一次爆池紀錄 */
 export type Lottery6hcCdJackpot = {
   issue: string
@@ -357,6 +420,10 @@ export const api = {
           return $fetch<Pk10Current>('/api/lottery/pk10-cd/current')
         case LOTTERY['PK10-OF'].id:
           return $fetch<Pk10Current>('/api/lottery/pk10-of/current')
+        case LOTTERY['SSC-CD'].id:
+          return $fetch<SscCurrent>('/api/lottery/ssc-cd/current')
+        case LOTTERY['SSC-OF'].id:
+          return $fetch<SscCurrent>('/api/lottery/ssc-of/current')
         default:
           return null
       }
@@ -400,6 +467,17 @@ export const api = {
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/pk10-cd/claim', { method: 'POST' }),
     claimOneIssuePk10Of: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/pk10-of/claim', { method: 'POST' }),
+    // ── 時時彩（SSC-CD / SSC-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
+    currentSscCd: () => $fetch<SscCurrent>('/api/lottery/ssc-cd/current'),
+    currentSscOf: () => $fetch<SscCurrent>('/api/lottery/ssc-of/current'),
+    openCodeHistorySscCd: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/ssc-cd/opencode-history'),
+    openCodeHistorySscOf: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/ssc-of/opencode-history'),
+    userRecordSscCd: () => $fetch<SscUserRecordResponse>('/api/lottery/ssc-cd/user-record'),
+    userRecordSscOf: () => $fetch<SscUserRecordResponse>('/api/lottery/ssc-of/user-record'),
+    claimOneIssueSscCd: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/ssc-cd/claim', { method: 'POST' }),
+    claimOneIssueSscOf: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/ssc-of/claim', { method: 'POST' }),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),

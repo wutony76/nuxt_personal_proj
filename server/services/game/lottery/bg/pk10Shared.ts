@@ -1,4 +1,4 @@
-import LOTTERY_BASE, { type OpenCodeRecord } from './lotteryBase'
+import LOTTERY_BASE, { type OpenCodeRecord } from './base'
 import { PK10_CAR_COUNT, pk10CarCode } from '#shared/config/pk10'
 import { PK10_OF_PRIZE_TIERS, PK10_OF_PICK_COUNT } from '#shared/config/pk10-of'
 

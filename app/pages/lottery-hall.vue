@@ -67,6 +67,18 @@ const GAME_META: Record<string, {
       OF: '十碼開局定次序，\n名次分明照規行。\n大小單雙皆有序，\n落定之時見輸贏。',
       CD: '十碼縱橫藏變數，\n排位之間見真章。\n前後名次多變化，\n一局開落定輸贏。',
     },
+  },
+  SSC: {
+    en: 'SSC',
+    ribbon: 'BG · 5 球數字定位',
+    enByMode: {
+      OF: 'SSC [OF]',
+      CD: 'SSC [CD]',
+    },
+    descByMode: {
+      OF: '五球開時定其位，\n數字分明照章行。\n大小單雙皆有序，\n落定之時見輸贏。',
+      CD: '五球縱橫藏變數，\n位次之間見真章。\n組合分明多變化，\n一局開落定輸贏。',
+    },
   }
 }
 
@@ -84,6 +96,8 @@ const ROUTE_DICT: Record<string, string> = {
   'K3-OF': '/lottery/bg/k3-of',
   'PK10-CD': '/lottery/bg/pk10-cd',
   'PK10-OF': '/lottery/bg/pk10-of',
+  'SSC-CD': '/lottery/bg/ssc-cd',
+  'SSC-OF': '/lottery/bg/ssc-of',
 }
 
 const state = reactive({

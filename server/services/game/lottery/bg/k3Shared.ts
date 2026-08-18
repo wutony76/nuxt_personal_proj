@@ -1,4 +1,4 @@
-import LOTTERY_BASE, { type OpenCodeRecord } from './lotteryBase'
+import LOTTERY_BASE, { type OpenCodeRecord } from './base'
 import { K3_DICE_COUNT, K3_DICE_MAX } from '#shared/config/k3-cd'
 import { K3_OF_PRIZE_TIERS } from '#shared/config/k3-of'
 

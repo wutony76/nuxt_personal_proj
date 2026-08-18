@@ -1,7 +1,7 @@
 import { Storage } from '../../../storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import { prdDbId } from './config'
-import LOTTERY_BASE from './lotteryBase'
+import LOTTERY_BASE from './base'
 
 type OpenCodeHistoryItem = {
   issue: string

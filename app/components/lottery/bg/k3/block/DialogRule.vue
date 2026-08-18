@@ -38,7 +38,7 @@ const NAV_ITEMS = [
   { id: 'k3-section-note', label: '特別說明' }
 ]
 
-/** 每期 7 分鐘（與 6hc 共用 server lotteryBase 的 timer.getStatusBySeconds） */
+/** 每期 7 分鐘（與 6hc 共用 server game/lottery/bg/base.ts 的 timer.getStatusBySeconds） */
 const TIMELINE = [
   { range: '0 — 30 秒', status: '準備中', desc: '當期開始，尚未開盤' },
   { range: '30 秒 — 5 分 40 秒', status: '開盤中', desc: '可投注區間（約 5 分 10 秒）' },

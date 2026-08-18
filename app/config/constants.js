@@ -23,6 +23,10 @@ export const LOTTERY = {
   'PK10-OF':{ id: 300101, key: 'PK10-OF', name: 'PK10', sub:'OF', sort: 301 },
 
   'SSC':{ id: 4001, key: 'SSC', name: '時時彩', sort: 4 },
+  // 時時彩的兩個盤口：SSC-CD 與 SSC-OF 共用開獎號與彩池（見 server/services/game/lottery/bg/sscShared.ts），
+  // id 編碼比照 LHC-CD/LHC-OF、K3-CD/K3-OF、PK10-CD/PK10-OF（玩法 id ×100 + 盤口序號）
+  'SSC-CD':{ id: 400100, key: 'SSC-CD', name: '時時彩', sub:'CD', sort: 400 },
+  'SSC-OF':{ id: 400101, key: 'SSC-OF', name: '時時彩', sub:'OF', sort: 401 },
 } 
 
 export const SORT = {
