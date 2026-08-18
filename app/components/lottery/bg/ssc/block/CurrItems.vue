@@ -8,12 +8,13 @@ import { useSsc, type SscSelectItem } from '~/composables/useSsc'
  *   官方盤單選分頁（定位膽）→ 同上
  *   官方盤複式分頁（其餘 10 個）→ 列展開後的每一注，共用同一個投注金額
  *
- * ⚠️ 與 pk10 不同：時時彩官方盤沒有彩池分頁，所有注碼都有固定賠率，賠率欄一律渲染。
+ * ⚠️ 官方盤的後三直選是彩池分頁（ogIsPool），該分頁的 sscOgTabOddsOf 一律回 0，
+ *    賠率欄改標「彩池」——與 pk10 不同的是注碼形狀沒有分岔，只有這一欄要分流。
  */
 const {
   select: mxSelect, state: mxState, isCd,
   selectedCount, currentQuota: mxQuota, actions: mxActions,
-  og: mxOg, ogCombo, ogComboCodes, ogComboHint, ogSelectedCount, ogQuota
+  og: mxOg, ogCombo, ogComboCodes, ogComboHint, ogIsPool, ogSelectedCount, ogQuota
 } = useSsc()
 /** 右上角的注數標籤 */
 const currCountLabel = computed(() => `${isCd.value ? selectedCount.value : ogSelectedCount.value} 注`)
@@ -138,7 +139,7 @@ const click = {
           <template v-else>
             <tr v-for="row in ogRows" :key="row.key">
               <td class="c-code">{{ row.label }}</td>
-              <td class="c-odds">{{ row.odds || '—' }}</td>
+              <td class="c-odds">{{ row.odds || (ogIsPool ? '彩池' : '—') }}</td>
               <td class="c-coin">
                 <input type="number" min="0" :max="ogQuota.item.max" class="coin-input" :value="row.coin || ''"
                   placeholder="0" @input="ogCoinHandlers.input(row, $event)"

@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import Ball from '~/components/lottery/bg/ssc/base/Ball.vue'
 import { STATUS_TIME } from '~/config/constants'
 import { SSC_BALL_COUNT, SSC_BALL_NAMES, SSC_DIGIT_MAX, SSC_SUM_BIG_LINE } from '#shared/config/ssc'
+import { SSC_OF_PICK_COUNT, SSC_OF_PRIZE_TIERS, sscOfMatchCounts } from '#shared/config/ssc-of'
 import { useSsc } from '~/composables/useSsc'
 
 /**
@@ -19,7 +20,7 @@ import { useSsc } from '~/composables/useSsc'
 const emit = defineEmits<{ (event: 'open-opencode-dialog'): void }>()
 
 const {
-  current: mxCurrent, pool: mxPool, time: mxTime,
+  current: mxCurrent, pool: mxPool, creditJackpot: mxJackpot, time: mxTime,
   lotteryMeta, isCd, actions: mxActions
 } = useSsc()
 
@@ -74,25 +75,45 @@ onMounted(() => {
 onBeforeUnmount(_poolAnim.stop)
 
 /**
- * 預估頭獎 = 可發放彩池 × 固定比例
+ * 預估頭獎 = 可發放彩池 × 頭獎那一層的比例
  *
- * ⚠️ 時時彩兩個盤口都是固定賠率，官方盤沒有 pk10/k3 那種彩池分層玩法
- * （見 server/services/game/lottery/bg/sscShared.ts 的說明：彩池純粹是看板的
- * 「總獎金」門面數字，不會真的被派彩吃掉）。這裡沒有分層 ratio 可以讀，
- * 比例改用固定常數（同 6hc-cd 的 CREDIT_JACKPOT.payoutRatio 概念），
- * 數值對齊 pk10/k3 官方盤頭獎那一層的 0.70，純粹讓看板數字好看。
+ * 比例讀 SSC_OF_PRIZE_TIERS 的 match 3（後三直選的頭獎層）而不是寫死 0.7 ——
+ * 調整分層比例時這裡自動跟上。信用盤雖然按賠率派彩，但彩池是兩個盤口共用的，
+ * 所以顯示同一份頭獎預估。
  */
-const SSC_JACKPOT_RATIO = 0.7
-const estimatedJackpot = computed(() => Number((displayPool.value * SSC_JACKPOT_RATIO).toFixed(2)))
+const jackpotRatio = computed(() => {
+  const top = SSC_OF_PRIZE_TIERS.find((tier) => tier.type === 'pool' && tier.match === SSC_OF_PICK_COUNT)
+  return top && top.type === 'pool' ? Number(top.ratio) : 0
+})
+const estimatedJackpot = computed(() => Number((displayPool.value * jackpotRatio.value).toFixed(2)))
 
 /**
- * 中獎機率 = 官方盤「定位膽」單球猜中機率
+ * 中獎機率 = 官方盤後三直選「隨機一注」有中到任一獎項（命中 ≥ 1 位）的機率
  *
- * 定位膽是最單純的核心玩法：五個位置任選一個，猜中該位置的號碼（0~9 共 10 種、機率均等）。
- * 母數讀 SSC_DIGIT_MAX，不寫死 10 ——調整號碼範圍時這裡自動跟上。
+ * 1000 種後三結果全部窮舉，不寫死數字 —— 分層一改這裡自動跟上。
+ * 命中 1 位就有三獎，故門檻是 ≥ 1。
+ * ⚠️ 時時彩號碼可重複，任一注的命中分布都一樣，所以這個值就是精確值。
+ * 常數運算，放模組層算一次，不隨 render 重算。
  */
-const SSC_OF_WIN_RATE = (1 / (SSC_DIGIT_MAX + 1)) * 100
+const SSC_OF_WIN_RATE = (() => {
+  const table = sscOfMatchCounts()
+  const total = table.reduce((sum, count) => sum + count, 0)
+  const win = total - Number(table[0] ?? 0)
+  return total > 0 ? (win / total) * 100 : 0
+})()
 const winRate = computed(() => `${SSC_OF_WIN_RATE.toFixed(2)}%`)
+
+/**
+ * 信用盤爆池（只有信用盤顯示）
+ *
+ * ⚠️ 與上面的「總獎金」是兩個不同的池：那個是兩盤共用、官方盤後三直選分層在吃的；
+ *    這個是信用盤自己抽水養的，開出爆池條件那期一次發放給有份的注單。
+ */
+const jackpotReady = computed(() => isCd.value && Number(mxJackpot.rakeRatio) > 0)
+const jackpotPool = computed(() => Number(mxJackpot.distributable ?? 0))
+const jackpotHitRate = computed(() => `${(Number(mxJackpot.hitRate ?? 0) * 100).toFixed(2)}%`)
+/** 累積池未達門檻時不發放，畫面要講清楚 */
+const jackpotBelowMin = computed(() => jackpotPool.value < Number(mxJackpot.minPool ?? 0))
 
 const issueCurrent = computed(() => String(mxCurrent.runtime?.issueCurrent ?? '—'))
 const issueLatest = computed(() => String(mxCurrent.runtime?.issueLatest ?? '—'))
@@ -218,6 +239,21 @@ const ballLabels = SSC_BALL_NAMES.map((name) => name.replace('球', ''))
           <span class="accent">{{ winRate }}</span>
         </div>
         <p class="pool-note">※ 獎金由 [信用] 與 [官方] 累積</p>
+        <!-- 信用盤專屬的爆池：與上面的共用彩池是兩套帳 -->
+        <div v-if="jackpotReady" class="jackpot-box">
+          <div class="row">
+            <span class="label">爆池</span>
+            <span class="val">{{ money(jackpotPool) }}</span>
+          </div>
+          <p class="jackpot-note">
+            {{ mxJackpot.hitLabel }}（{{ jackpotHitRate }}）時發放 {{ (mxJackpot.payoutRatio * 100).toFixed(0) }}%<template
+              v-if="jackpotBelowMin">，未達 {{ money(mxJackpot.minPool) }} 不發放</template>
+          </p>
+          <p v-if="mxJackpot.lastHit" class="jackpot-note is-hit">
+            上次爆池 第{{ mxJackpot.lastHit.issue }}期 {{ mxJackpot.lastHit.openLabel }}
+            發出 {{ money(mxJackpot.lastHit.payout) }}（{{ mxJackpot.lastHit.orders }} 注 / {{ mxJackpot.lastHit.winners }} 人）
+          </p>
+        </div>
       </div>
     </div>
 
@@ -375,6 +411,29 @@ const ballLabels = SSC_BALL_NAMES.map((name) => name.replace('球', ''))
         margin: 0.25rem 0 0;
         font-size: 11px;
         color: var(--color-red-desc);
+      }
+
+      .jackpot-box {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px dashed rgba(255, 255, 255, .35);
+
+        .val {
+          font-weight: 800;
+          font-variant-numeric: tabular-nums;
+        }
+      }
+
+      .jackpot-note {
+        margin: 2px 0 0;
+        font-size: 11px;
+        line-height: 1.5;
+        opacity: .78;
+
+        &.is-hit {
+          opacity: 1;
+          font-weight: 700;
+        }
       }
     }
   }

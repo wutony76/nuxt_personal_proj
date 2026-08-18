@@ -16,6 +16,7 @@
  *   因此兩面的機率母數是 210（216 − 6 個圍骰）而非 216。
  */
 
+import { type JackpotSettings } from '#shared/config/jackpot'
 import {
   k3AllOutcomes,
   k3CountMap,
@@ -328,6 +329,47 @@ export function judgeK3Bet(
   }
 
   return null
+}
+
+// ── 爆池（信用盤專屬，與官方盤的共用彩池是兩個獨立的池） ──────────
+
+/**
+ * 快3 信用盤的爆池設定
+ *
+ * ── 爆池期怎麼定 ────────────────────────────────────────
+ *   開出**圍骰**（三顆同點）時觸發。選這個條件的理由與 ssc-cd 相同：
+ *     1. 它是看板上真的存在的注項（圍骰／全骰分頁），玩家看得到也押得到
+ *     2. 機率 6/216 ≒ 2.78%，與 6hc-cd 的「特別號開 49」（1/49 ≒ 2.04%）同一個量級
+ *   ⚠️ 圍骰同時也是大小／單雙的和局號 —— 和局注單一樣算「有份」，
+ *      與 6hc-cd「特碼兩面開 49 退本金但參與分配」是同一套語意。
+ *
+ * ⚠️ rakeRatio 是**另外**再撥一份進信用盤自己的爆池，
+ *    與原本進 k3Shared 共用彩池（官方盤分層在吃）的抽水不互相吃。
+ */
+export const K3_CD_JACKPOT: JackpotSettings = {
+  rakeRatio: 0.01,
+  payoutRatio: 0.5,
+  minPool: 1000,
+  weightFallback: 1,
+  hitLabel: '開出圍骰（三顆同點）',
+  hitRate: 6 / 216
+}
+
+/**
+ * 這一期是不是爆池期
+ * @returns true = 圍骰；開獎格式不合回 false
+ */
+export function k3CdJackpotHit(openCode: Array<string | number>): boolean {
+  const dice = k3DiceOf(openCode)
+  if (!dice) return false
+  return k3IsTriple(dice)
+}
+
+/** 爆池期的開獎文字（寫進爆池紀錄，給看板顯示用） */
+export function k3CdJackpotLabel(openCode: Array<string | number>): string {
+  const dice = k3DiceOf(openCode)
+  if (!dice) return ''
+  return `圍${dice.join('')}`
 }
 
 /** 玩法定義（供前端玩法列表與伺端註冊對帳） */

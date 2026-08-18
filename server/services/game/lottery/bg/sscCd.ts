@@ -4,9 +4,23 @@ import LOTTERY_BASE, { CYCLE_MS, TOTAL_ISSUES_PER_DAY, type OpenCodeRecord } fro
 // ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
 //    ./base 才是本層的彩票基底（期表／狀態機／訂單）
 import { MEMORY } from '../../../base'
-import { judgeSscBet, type SscBetResult } from '#shared/config/ssc-cd'
+import {
+  judgeSscBet,
+  sscCdJackpotHit,
+  sscCdJackpotLabel,
+  SSC_CD_JACKPOT,
+  type SscBetResult
+} from '#shared/config/ssc-cd'
+import { buildJackpotShares, type JackpotHitRecord, type JackpotRow } from '#shared/config/jackpot'
 import { sscDigitsOf, sscSumOf } from '#shared/config/ssc'
-import { sscQuotaOf, sscRtpOf, sscTabOddsOf, sscHasBetCode, findSscTab } from '#shared/config/ssccd/helpers'
+import {
+  sscQuotaOf,
+  sscRtpOf,
+  sscTabOddsOf,
+  sscHasBetCode,
+  sscJackpotWeightOf,
+  findSscTab
+} from '#shared/config/ssccd/helpers'
 import {
   SSC_SHARED,
   sscAddIssuePool,
@@ -25,6 +39,12 @@ import {
  *   prdOpenCode 覆寫後，先啟動的那個 class 產生當日期表，
  *   後啟動的直接拿到「同一個陣列參照」，兩邊的期別／開獎號／倒數必然一致。
  *   抽水一律進 SSC_SHARED.pool，兩個盤口的投注共同養同一個彩池。
+ *
+ * ── 爆池（信用盤自己的池，與上面那個共用彩池無關）────────
+ *   每注另抽 SSC_CD_JACKPOT.rakeRatio 進 issueJackpotMap，
+ *   開出「後三豹子」那一期一次發放給該期有份的注單（依注金 × 看板設定的 weight 分配）。
+ *   ⚠️ 一定要與 SSC_SHARED.pool 分開 —— 那個池是官方盤後三直選分層在吃的，
+ *      兩條結算路搶同一個 carry 會互相吃掉對方的滾存。
  *
  * ── 與 PK10-CD 的差異 ───────────────────────────────────
  *   開獎是 5 個 0 ~ 9 的號碼（可重複），故 randomOpenCode 也要覆寫。
@@ -127,6 +147,12 @@ function _resolveBetCode(play?: { num?: number | string; label?: string | number
 
 export default class SSC_CD extends LOTTERY_BASE {
   issueSettledMap: Record<string, boolean>
+  /** 各期爆池抽水累積：issue → 金額（信用盤專屬，與 SSC_SHARED.pool 是兩個池） */
+  issueJackpotMap: Record<string, number>
+  /** 爆池未發放的滾存 */
+  carryJackpot: number
+  /** 最近一次爆池紀錄（供頁首與說明頁展示） */
+  lastJackpotHit: JackpotHitRecord | null
 
   declare _get: LOTTERY_BASE['_get'] & {
     user: (userId: string) => UserStoreLike
@@ -152,11 +178,26 @@ export default class SSC_CD extends LOTTERY_BASE {
       claimableIssues: UserClaimableIssue[]
     }
     sumOf: (openCode: string[]) => number
+    creditJackpot: () => {
+      issue: string
+      currentIssueJackpot: number
+      carryJackpot: number
+      distributable: number
+      rakeRatio: number
+      payoutRatio: number
+      minPool: number
+      hitLabel: string
+      hitRate: number
+      lastHit: JackpotHitRecord | null
+    }
   }
 
   constructor() {
     super(LOTTERY['SSC-CD'].key, LOTTERY['SSC-CD'].id)
     this.issueSettledMap = {}
+    this.issueJackpotMap = {}
+    this.carryJackpot = 0
+    this.lastJackpotHit = null
 
     Object.assign(this._get, {
       user: (userId: string) => Storage.get.user(userId) as UserStoreLike,
@@ -346,6 +387,8 @@ export default class SSC_CD extends LOTTERY_BASE {
         }>
 
         const payoutByUser = new Map<string, number>()
+        /** 爆池分配用的注單列（權重讀該注項的看板設定） */
+        const jackpotRows: JackpotRow[] = []
         issueOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
           const betCode = String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
@@ -377,7 +420,55 @@ export default class SSC_CD extends LOTTERY_BASE {
           if (payout > 0) {
             payoutByUser.set(row.userId, Number((Number(payoutByUser.get(row.userId) ?? 0) + payout).toFixed(2)))
           }
+
+          jackpotRows.push({
+            orderId: String(row.orderId),
+            userId: String(row.userId),
+            coin,
+            // 有份條件：非未中（和局也算有份，與 6hc-cd 同一套語意）
+            eligible: result !== 'lose',
+            // 權重讀該注項所屬群組的看板設定（注項 weight → 群組 weight → 0 不參與）
+            weight: sscJackpotWeightOf(playKey, tabId, betCode)
+          })
         })
+
+        // ── 爆池發放（爆池期：後三開出豹子）──
+        // 可發放累積池 = 當期抽水 + 累積滾存（信用盤自己的池，不碰 SSC_SHARED.pool）
+        const jackpotPool = Number((
+          Number(this.issueJackpotMap[safeIssue] ?? 0) + Number(this.carryJackpot ?? 0)
+        ).toFixed(2))
+        const jackpot = buildJackpotShares(
+          jackpotRows,
+          sscCdJackpotHit(codes),
+          jackpotPool,
+          SSC_CD_JACKPOT
+        )
+        jackpot.shares.forEach((share) => {
+          if (!(share.amount > 0)) return
+          payoutByUser.set(
+            share.userId,
+            Number((Number(payoutByUser.get(share.userId) ?? 0) + share.amount).toFixed(2))
+          )
+          // 記在該注單上，供下注紀錄顯示「爆池加碼」
+          const record = this.handle.ensureUserRecord(this._get.user(share.userId))
+          const idx = record.betHistory.findIndex((item) => String(item.orderId) === share.orderId)
+          const current = record.betHistory[idx]
+          if (idx >= 0 && current) record.betHistory[idx] = { ...current, jackpotAmount: share.amount }
+        })
+        // 未發放的部分（含未觸發時的整池）滾存至下期
+        this.carryJackpot = Number(jackpot.remain.toFixed(2))
+        this.issueJackpotMap[safeIssue] = 0
+        if (jackpot.triggered) {
+          this.lastJackpotHit = {
+            issue: safeIssue,
+            openLabel: sscCdJackpotLabel(codes),
+            pool: jackpot.pool,
+            payout: jackpot.payout,
+            winners: new Set(jackpot.shares.map((share) => share.userId)).size,
+            orders: jackpot.shares.length,
+            createdAt: Date.now()
+          }
+        }
 
         payoutByUser.forEach((amount, userId) => {
           if (amount <= 0) return
@@ -448,6 +539,26 @@ export default class SSC_CD extends LOTTERY_BASE {
           claimableIssues: [...record.claimableIssues]
         }
       },
+      /**
+       * 爆池狀態（信用盤專屬的池，與 poolState() 的共用彩池是兩回事）
+       * ⚠️ 那邊是官方盤後三直選分層在吃的池，這邊只有信用盤爆池會動
+       */
+      creditJackpot: () => {
+        const issue = this._get.latestIssue()
+        const currentIssueJackpot = Number(this.issueJackpotMap[issue] ?? 0)
+        return {
+          issue,
+          currentIssueJackpot,
+          carryJackpot: Number(this.carryJackpot ?? 0),
+          distributable: Number((currentIssueJackpot + Number(this.carryJackpot ?? 0)).toFixed(2)),
+          rakeRatio: SSC_CD_JACKPOT.rakeRatio,
+          payoutRatio: SSC_CD_JACKPOT.payoutRatio,
+          minPool: SSC_CD_JACKPOT.minPool,
+          hitLabel: SSC_CD_JACKPOT.hitLabel,
+          hitRate: SSC_CD_JACKPOT.hitRate,
+          lastHit: this.lastJackpotHit
+        }
+      },
       /** 該期開獎的總和（0 ~ 45，供前端顯示與冷熱分析） */
       sumOf: (openCode: string[]) => {
         const digits = sscDigitsOf(openCode)
@@ -491,8 +602,12 @@ export default class SSC_CD extends LOTTERY_BASE {
     const afterCoin = Number(user?.coin ?? 0)
 
     const rows = this.handle.buildOrderRows({ issue, userId, amount, groups })
-    // 抽水入共用彩池（SSC-CD 與 SSC-OF 共同養同一個池）
+    // 抽水入共用彩池（SSC-CD 與 SSC-OF 共同養同一個池，官方盤後三直選在吃）
     sscAddIssuePool(issue, Number((amount * SSC_RAKE_RATIO).toFixed(2)))
+    // 另外再抽一份進信用盤自己的爆池（兩個池不互相吃）
+    this.issueJackpotMap[issue] = Number((
+      Number(this.issueJackpotMap[issue] ?? 0) + Number((amount * SSC_CD_JACKPOT.rakeRatio).toFixed(2))
+    ).toFixed(2))
     this.handle.pushBalanceChange(userId, {
       issue,
       type: 'bet',

@@ -4,6 +4,7 @@ import {
   api,
   type SscCurrent,
   type SscPool,
+  type CreditJackpotState,
   type SscUserBetHistory,
   type LotteryUserBalanceChange,
   type LotteryClaimableIssue,
@@ -22,11 +23,13 @@ import { judgeSscOgBet, SSC_OG_MAX_COMBO } from '#shared/config/sscog'
 import C_PLAYS from '#shared/config/ssccd/plays'
 import { findSscTab, sscQuotaOf, sscTabOddsOf } from '#shared/config/ssccd/helpers'
 import C_OG_PLAYS from '#shared/config/sscog/plays'
+import { SSC_OF_PRIZE_TIERS } from '#shared/config/ssc-of'
 import {
   findSscOgTab,
   sscOgComboCodes,
   sscOgComboGroups,
   sscOgComboOf,
+  sscOgIsPoolTab,
   sscOgQuotaOf,
   sscOgTabOddsOf,
   type SscOgGroupMode
@@ -99,6 +102,25 @@ const current = reactive({
 })
 
 const pool = reactive<SscPool>({ issue: '', base: 0, carry: 0, issuePool: 0, distributable: 0 })
+
+/**
+ * 信用盤爆池（與上面的 pool 是**兩個不同的池**）
+ *   pool         —— 兩個盤口共用，官方盤後三直選分層在吃
+ *   creditJackpot—— 信用盤自己的池，開出「後三豹子」那期一次發放
+ * ⚠️ 只有信用盤會用到，官方盤不 fetch（省一次請求）。
+ */
+const creditJackpot = reactive<CreditJackpotState>({
+  issue: '',
+  currentIssueJackpot: 0,
+  carryJackpot: 0,
+  distributable: 0,
+  rakeRatio: 0,
+  payoutRatio: 0,
+  minPool: 0,
+  hitLabel: '',
+  hitRate: 0,
+  lastHit: null
+})
 
 const select = reactive({
   items: [] as SscSelectItem[],
@@ -193,6 +215,15 @@ const ogGroups = computed(() => findSscOgTab(og.play, og.tabId)?.tabGroup ?? [])
 const ogCombo = computed(() => sscOgComboOf(og.play, og.tabId))
 /** 複式分頁每個位置可選的號碼／面（digits 與 sides 只會有一邊有值，看 combo.mode） */
 const ogComboGroups = computed(() => sscOgComboGroups(og.play, og.tabId))
+/**
+ * 當前分頁是不是走彩池分層（後三直選）
+ *
+ * 彩池分頁沒有固定賠率（sscOgTabOddsOf 一律回 0），畫面要改顯示分層說明；
+ * 但注碼形狀與複式展開跟其他分頁完全一樣，送單流程不用分岔。
+ */
+const ogIsPool = computed(() => sscOgIsPoolTab(og.play, og.tabId))
+/** 彩池分頁的獎金分層（畫面顯示用） */
+const ofPrizeTiers = computed(() => SSC_OF_PRIZE_TIERS)
 /** 當前分頁限額 */
 const ogQuota = computed(() => sscOgQuotaOf(og.play, og.tabId))
 /** 複式展開後的每一注（注碼字串） */
@@ -628,6 +659,15 @@ const fetch = {
       state.errorMessage = error instanceof Error ? error.message : '取得當期資訊失敗'
     }
   },
+  /** 信用盤爆池狀態（官方盤不需要，直接跳過） */
+  creditJackpot: async () => {
+    if (!isCd.value) return
+    try {
+      Object.assign(creditJackpot, await api.lottery.jackpotSscCd())
+    } catch {
+      // 爆池只是看板附加資訊，取不到就維持舊值，不要蓋掉主要流程的錯誤訊息
+    }
+  },
   userInfo: async () => {
     const { user } = useAuth()
     wallet.userName = String(user.value?.name || 'Guest')
@@ -858,7 +898,9 @@ const fetch = {
   },
   initPageData: async () => {
     state.fetchStatus = 'loading'
-    await Promise.all([fetch.refreshCurrentInfo(), fetch.userInfo(), fetch.openCodeHistoryAll()])
+    await Promise.all([
+      fetch.refreshCurrentInfo(), fetch.userInfo(), fetch.openCodeHistoryAll(), fetch.creditJackpot()
+    ])
     state.fetchStatus = 'success'
   },
   startPolling: () => {
@@ -872,6 +914,7 @@ const fetch = {
           current.detail = []
           fetch.userRecordAll()
           fetch.openCodeHistoryAll()
+          fetch.creditJackpot()
         })
       }, 3000)
     }
@@ -887,6 +930,7 @@ export function useSsc() {
     state,
     current,
     pool,
+    creditJackpot,
     select,
     wallet,
     time,
@@ -917,6 +961,8 @@ export function useSsc() {
     ogRawComboCount,
     ogComboOverflow,
     ogComboHint,
+    ogIsPool,
+    ofPrizeTiers,
     ogQuota,
     ogSelectedCount,
     ogTotalAmount,

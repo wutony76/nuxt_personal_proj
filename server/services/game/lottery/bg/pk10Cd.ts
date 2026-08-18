@@ -4,8 +4,24 @@ import LOTTERY_BASE, { CYCLE_MS, TOTAL_ISSUES_PER_DAY, type OpenCodeRecord } fro
 // ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
 //    ./base 才是本層的彩票基底（期表／狀態機／訂單）
 import { MEMORY } from '../../../base'
-import { judgePk10Bet, pk10CarsOf, pk10SumOf, type Pk10BetResult } from '#shared/config/pk10-cd'
-import { pk10QuotaOf, pk10RtpOf, pk10TabOddsOf, pk10HasBetCode, findPk10Tab } from '#shared/config/pk10cd/helpers'
+import { buildJackpotShares, type JackpotHitRecord, type JackpotRow } from '#shared/config/jackpot'
+import {
+  judgePk10Bet,
+  pk10CarsOf,
+  pk10SumOf,
+  pk10CdJackpotHit,
+  pk10CdJackpotLabel,
+  PK10_CD_JACKPOT,
+  type Pk10BetResult
+} from '#shared/config/pk10-cd'
+import {
+  pk10QuotaOf,
+  pk10RtpOf,
+  pk10TabOddsOf,
+  pk10HasBetCode,
+  pk10JackpotWeightOf,
+  findPk10Tab
+} from '#shared/config/pk10cd/helpers'
 import {
   PK10_SHARED,
   pk10AddIssuePool,
@@ -126,6 +142,12 @@ function _resolveBetCode(play?: { num?: number | string; label?: string | number
 
 export default class PK10_CD extends LOTTERY_BASE {
   issueSettledMap: Record<string, boolean>
+  /** 各期爆池抽水累積：issue → 金額（信用盤專屬，與 PK10_SHARED.pool 是兩個池） */
+  issueJackpotMap: Record<string, number>
+  /** 爆池未發放的滾存 */
+  carryJackpot: number
+  /** 最近一次爆池紀錄（供頁首與說明頁展示） */
+  lastJackpotHit: JackpotHitRecord | null
 
   declare _get: LOTTERY_BASE['_get'] & {
     user: (userId: string) => UserStoreLike
@@ -151,11 +173,26 @@ export default class PK10_CD extends LOTTERY_BASE {
       claimableIssues: UserClaimableIssue[]
     }
     sumOf: (openCode: string[]) => number
+    creditJackpot: () => {
+      issue: string
+      currentIssueJackpot: number
+      carryJackpot: number
+      distributable: number
+      rakeRatio: number
+      payoutRatio: number
+      minPool: number
+      hitLabel: string
+      hitRate: number
+      lastHit: JackpotHitRecord | null
+    }
   }
 
   constructor() {
     super(LOTTERY['PK10-CD'].key, LOTTERY['PK10-CD'].id)
     this.issueSettledMap = {}
+    this.issueJackpotMap = {}
+    this.carryJackpot = 0
+    this.lastJackpotHit = null
 
     Object.assign(this._get, {
       user: (userId: string) => Storage.get.user(userId) as UserStoreLike,
@@ -345,6 +382,8 @@ export default class PK10_CD extends LOTTERY_BASE {
         }>
 
         const payoutByUser = new Map<string, number>()
+        /** 爆池分配用的注單列（權重讀該注項的看板設定） */
+        const jackpotRows: JackpotRow[] = []
         issueOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
           const betCode = String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
@@ -376,7 +415,50 @@ export default class PK10_CD extends LOTTERY_BASE {
           if (payout > 0) {
             payoutByUser.set(row.userId, Number((Number(payoutByUser.get(row.userId) ?? 0) + payout).toFixed(2)))
           }
+
+          jackpotRows.push({
+            orderId: String(row.orderId),
+            userId: String(row.userId),
+            coin,
+            // 有份條件：非未中（和局也算有份，與 6hc-cd 同一套語意）
+            eligible: result !== 'lose',
+            // 權重讀該注項所屬群組的看板設定（注項 weight → 群組 weight → 0 不參與）
+            weight: pk10JackpotWeightOf(playKey, tabId, betCode)
+          })
         })
+
+        // ── 爆池發放 ──
+        // 可發放累積池 = 當期抽水 + 累積滾存（信用盤自己的池，不碰 PK10_SHARED.pool）
+        const jackpotPool = Number((
+          Number(this.issueJackpotMap[safeIssue] ?? 0) + Number(this.carryJackpot ?? 0)
+        ).toFixed(2))
+        const jackpot = buildJackpotShares(jackpotRows, pk10CdJackpotHit(codes), jackpotPool, PK10_CD_JACKPOT)
+        jackpot.shares.forEach((share) => {
+          if (!(share.amount > 0)) return
+          payoutByUser.set(
+            share.userId,
+            Number((Number(payoutByUser.get(share.userId) ?? 0) + share.amount).toFixed(2))
+          )
+          // 記在該注單上，供下注紀錄顯示「爆池加碼」
+          const record = this.handle.ensureUserRecord(this._get.user(share.userId))
+          const idx = record.betHistory.findIndex((item) => String(item.orderId) === share.orderId)
+          const current = record.betHistory[idx]
+          if (idx >= 0 && current) record.betHistory[idx] = { ...current, jackpotAmount: share.amount }
+        })
+        // 未發放的部分（含未觸發時的整池）滾存至下期
+        this.carryJackpot = Number(jackpot.remain.toFixed(2))
+        this.issueJackpotMap[safeIssue] = 0
+        if (jackpot.triggered) {
+          this.lastJackpotHit = {
+            issue: safeIssue,
+            openLabel: pk10CdJackpotLabel(codes),
+            pool: jackpot.pool,
+            payout: jackpot.payout,
+            winners: new Set(jackpot.shares.map((share) => share.userId)).size,
+            orders: jackpot.shares.length,
+            createdAt: Date.now()
+          }
+        }
 
         payoutByUser.forEach((amount, userId) => {
           if (amount <= 0) return
@@ -447,6 +529,26 @@ export default class PK10_CD extends LOTTERY_BASE {
           claimableIssues: [...record.claimableIssues]
         }
       },
+      /**
+       * 爆池狀態（信用盤專屬的池，與 poolState() 的共用彩池是兩回事）
+       * ⚠️ 那邊是官方盤前三直選分層在吃的池，這邊只有信用盤爆池會動
+       */
+      creditJackpot: () => {
+        const issue = this._get.latestIssue()
+        const currentIssueJackpot = Number(this.issueJackpotMap[issue] ?? 0)
+        return {
+          issue,
+          currentIssueJackpot,
+          carryJackpot: Number(this.carryJackpot ?? 0),
+          distributable: Number((currentIssueJackpot + Number(this.carryJackpot ?? 0)).toFixed(2)),
+          rakeRatio: PK10_CD_JACKPOT.rakeRatio,
+          payoutRatio: PK10_CD_JACKPOT.payoutRatio,
+          minPool: PK10_CD_JACKPOT.minPool,
+          hitLabel: PK10_CD_JACKPOT.hitLabel,
+          hitRate: PK10_CD_JACKPOT.hitRate,
+          lastHit: this.lastJackpotHit
+        }
+      },
       /** 該期開獎的冠亞和（供前端顯示與冷熱分析） */
       sumOf: (openCode: string[]) => {
         const cars = pk10CarsOf(openCode)
@@ -492,6 +594,10 @@ export default class PK10_CD extends LOTTERY_BASE {
     const rows = this.handle.buildOrderRows({ issue, userId, amount, groups })
     // 抽水入共用彩池（PK10-CD 與 PK10-OF 共同養同一個池）
     pk10AddIssuePool(issue, Number((amount * PK10_RAKE_RATIO).toFixed(2)))
+    // 另外再抽一份進信用盤自己的爆池（兩個池不互相吃）
+    this.issueJackpotMap[issue] = Number((
+      Number(this.issueJackpotMap[issue] ?? 0) + Number((amount * PK10_CD_JACKPOT.rakeRatio).toFixed(2))
+    ).toFixed(2))
     this.handle.pushBalanceChange(userId, {
       issue,
       type: 'bet',

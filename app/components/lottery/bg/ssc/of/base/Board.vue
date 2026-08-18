@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue'
 import Ball from '~/components/lottery/bg/ssc/base/Ball.vue'
+import { sscOfMatchCounts } from '#shared/config/ssc-of'
 import { useSsc } from '~/composables/useSsc'
 
 /**
@@ -16,8 +17,10 @@ import { useSsc } from '~/composables/useSsc'
  *   注碼在送單前才由 sscOgComboCodes() 展開，所以畫面上沒有「逐項金額」可填，
  *   全部注共用一個投注金額（同 pcv2 的複式）。
  *
- * ⚠️ 與 pk10 最大的不同：時時彩官方盤**沒有彩池分層玩法**，11 個分頁全是固定賠率，
- *    所以這裡沒有 ofPrizeTiers / ogIsPool 那一段。
+ * ⚠️ 兩套派彩並存：後三直選（ogIsPool）吃共用彩池、依命中位數分層，畫面改標分層說明
+ *    而不是賠率（那個分頁的 sscOgTabOddsOf 一律回 0）；其餘 10 個分頁維持固定賠率。
+ *    ⚠️ 彩池分頁的注碼與選號流程跟其他複式分頁完全一樣（時時彩號碼可重複，
+ *       不像 pk10 前三直選要改送 codes 陣列），所以只有這段顯示要分岔。
  * ⚠️ 複式的選號格依 combo.mode 有三種形狀（見 ogComboGroups 的註解）：
  *    direct/group 給 digits（號碼 0~9）、sides 給 sides（大／小／單／雙）；
  *    同一個 group 只會有一邊有值。
@@ -32,6 +35,8 @@ const {
   ogRawComboCount,
   ogComboOverflow,
   ogComboHint,
+  ogIsPool,
+  ofPrizeTiers,
   ogQuota,
   ogSelectedCount,
   ogTotalAmount,
@@ -83,6 +88,31 @@ const singleGroups = computed(() => {
       // 定位膽每個球位的賠率都相同（9.6），直接標一個值
       oddsSummary: oddsList.length === 1 ? `賠率[ ${oddsList[0]} ]` : '',
       rows: _handlers.toRowMatrix(items, columns)
+    }
+  })
+})
+
+/**
+ * 彩池分頁的分層說明（後三直選）
+ *
+ * pool 型標比例、fixed 型標倍數；命中數＝「百十個位猜對幾位」。
+ * 機率不自己算 —— 直接讀 ssc-of.ts 窮舉 1000 種後三結果得到的分布，
+ * 分層或號碼範圍改動時畫面自動跟上。
+ */
+const MATCH_COUNTS = sscOfMatchCounts()
+const POOL_OUTCOMES = MATCH_COUNTS.reduce((sum, count) => sum + count, 0)
+
+const poolTiers = computed(() => {
+  if (!ogIsPool.value) return []
+  return ofPrizeTiers.value.map((tier) => {
+    const ways = Number(MATCH_COUNTS[tier.match] ?? 0)
+    return {
+      name: tier.name,
+      match: tier.match,
+      rate: `${((ways / POOL_OUTCOMES) * 100).toFixed(2)}%`,
+      reward: tier.type === 'pool'
+        ? `獎池 ${(tier.ratio * 100).toFixed(0)}%${tier.minAmount ? `（每單位保底 ${tier.minAmount.toLocaleString('zh-TW')}）` : ''}`
+        : `固定 ${tier.amount} 倍`
     }
   })
 })
@@ -159,6 +189,17 @@ const click = {
             @click="click.pick(group.pos, side)">
             {{ side }}
           </button>
+        </div>
+      </div>
+
+      <!-- 彩池分頁：改標分層說明，該分頁沒有固定賠率 -->
+      <div v-if="ogIsPool" class="pool-tiers">
+        <div class="pool-head">此分頁吃共用彩池，依「百十個位猜對幾位」分層派彩</div>
+        <div v-for="tier in poolTiers" :key="`tier-${tier.match}`" class="pool-row">
+          <span class="tier-name">{{ tier.name }}</span>
+          <span class="tier-match">中 {{ tier.match }} 位</span>
+          <span class="tier-rate">{{ tier.rate }}</span>
+          <span class="tier-reward">{{ tier.reward }}</span>
         </div>
       </div>
 
@@ -371,6 +412,51 @@ const click = {
             background: var(--color-yellow-text);
           }
         }
+      }
+    }
+  }
+
+  /* 彩池分頁的分層說明 */
+  .pool-tiers {
+    border: 1px solid var(--color-yellow-text);
+    border-radius: 6px;
+    background: #fffbea;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+
+    .pool-head {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-red-main);
+      margin-bottom: 5px;
+    }
+
+    .pool-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--color-red-desc);
+      line-height: 1.9;
+
+      .tier-name {
+        min-width: 34px;
+        font-weight: 800;
+        color: var(--color-red-main);
+      }
+
+      .tier-match,
+      .tier-rate {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .tier-rate {
+        min-width: 52px;
+      }
+
+      .tier-reward {
+        color: #15803d;
+        font-weight: 700;
       }
     }
   }

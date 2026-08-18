@@ -91,23 +91,92 @@
 另外：時時彩號碼**可重複**，位置型複式**不濾**重複組合（與 pk10 的名次排列不同）。
 五星直選全選會展開成 100,000 注，`SSC_OG_MAX_COMBO = 2000` 會直接回空拒絕（伺端也擋一次）。
 
-## 官方盤與 PK10 官方盤的差異（照做即可）
+## 彩池機制（2026-08-18 新增，三個信用盤 + SSC 官方盤）
 
-- **沒有彩池分層玩法**：11 個分頁全是固定賠率，所以 `sscOf.ts` 沒有 `PK10_OF_PRIZE_TIERS` 那一段，
-  也不動 `SSC_SHARED.pool.carry`（永遠 0）。彩池只是看板「總獎金」的門面數字。
-- 抽水比例兩盤都是 **0.02**（不是 pk10-of 的 0.6 —— 那個高比例是因為彩池要出獎金）。
-- 注碼全部是字串（沒有 pk10 前三直選那種 `codes` 陣列），複式由前端
-  `sscOgComboCodes()` 展開成一注一碼送單，伺端逐注用 `sscOgHasBetCode()` 驗
-  （複式分頁改驗「前綴符合 + 賠率 > 0」）。
+專案裡有**兩套彼此獨立的池**，改動前先確認在動哪一套：
 
-## 待辦（依序，剩前端）
+| | 共用彩池 | 信用盤爆池 |
+|---|---|---|
+| 狀態放哪 | `sscShared.ts` / `k3Shared.ts` / `pk10Shared.ts` 的 `SHARED.pool` | 各 CD class 的 `issueJackpotMap` / `carryJackpot` |
+| 誰在吃 | **官方盤**的彩池分頁（依命中數分層） | **信用盤**，開出爆池條件那期一次發放 |
+| 抽水 | CD 2%、OF 60% | 另外再抽 1%（`*_CD_JACKPOT.rakeRatio`） |
+| 滾存 | `SHARED.pool.carry` | `class.carryJackpot` |
+| API | `/{game}/current` 的 `pool` | `/{game}-cd/jackpot` |
 
-1. `app/components/lottery/bg/ssc/**`（仿 pk10 的 14 個元件，Car.vue → 號碼球）
-   - 官方盤的選號區要吃 `sscOgComboGroups()`：`digits` 與 `sides` 只會有一邊有值，看 `combo.mode`
-   - 送單前用 `sscOgComboCodes()` 展開成一注一碼，注數就是 `.length`（回空陣列＝規則不合或超過 2000 注）
-2. `app/pages/lottery/bg/ssc-cd.vue`、`ssc-of.vue`（版面 sed 自 k3/pk10 頁面）
-3. `BgAutoPanel.vue` / `useBgAutoActive.ts` 掛上 ssc；`app/assets/style/lhc_ssc.scss`
-4. `lottery-hall.vue` 的 `ROUTE_DICT` 與 `GAME_META` 補 SSC
+⚠️ 兩套帳一定要分開 —— 共用同一個 `carry` 的話，兩條結算路會互相吃掉對方的滾存。
+
+### 一、SSC 官方盤：後三直選吃彩池分層
+
+- `shared/config/ssc-of.ts`：`SSC_OF_PRIZE_TIERS`（3 中頭獎池 70%＋保底 20000／2 中二獎池 20%／1 中三獎固定 2 倍）、
+  `sscOfPicksOf()`、`sscOfMatchCount()`、`sscOfMatchCounts()` 窮舉
+- `sscog/plays.js`：後三直選的 `combo.pool = true`，其餘 10 個分頁明確標 `pool: false`
+- `sscog/helpers.ts`：`sscOgIsPoolTab()`；`sscOgTabOddsOf()` 對彩池分頁一律回 0
+- `sscOf.ts`：兩條結算路（賠率／分層），抽水比例 0.02 → **0.6**（比照 pk10-of）
+- 命中分布（窮舉 1000 種後三）：3 中 1／2 中 27／1 中 243／0 中 729
+
+**選後三直選而不是五星直選的理由**：後三 1/1000 的命中分布（0.10 / 2.70 / 24.30%）
+幾乎等同 pk10 前三直選（0.14 / 2.92 / 23.75%），可直接沿用現成三層比例；
+五星直選 1/100,000 要分到「命中 2 位」才有中獎感，得重新設計四層。
+
+**與 pk10-of 的關鍵差異**：彩池分頁的注碼**仍然是字串**（`後三直選123`）而不是 `codes` 陣列 ——
+時時彩號碼可重複、沒有「同一台車佔兩個名次」要擋，所以前端複式展開（`sscOgComboCodes`）
+與伺端驗證（`sscOgHasBetCode`）完全不必為彩池分頁開特例，只有派彩那一段分流。
+
+### 二、信用盤爆池（SSC-CD／K3-CD／PK10-CD 都補上了）
+
+- `shared/config/jackpot.ts`：泛用分配核心 `buildJackpotShares(rows, triggered, pool, settings)`
+  - 兩件會因彩種而異的事由呼叫端傳：`triggered`（爆池期）與每注 `weight`（看板設定）
+  - ⚠️ 6hc-cd 沿用它自己那一份（`CREDIT_JACKPOT` / `buildCreditJackpotShares`），
+    因為它多了 kind/tier 的權重解析，硬合併只會兩邊都變複雜
+- 各彩種的觸發條件都**綁在看板上真的存在的注項**，機率也對齊 6hc-cd 的 1/49（≒2.04%）：
+
+| 彩種 | 爆池條件 | 機率 | 對應注項 |
+|---|---|---|---|
+| SSC-CD | 後三開出豹子 | 10/1000 = 1.00% | 前中後三分頁的「後三豹子」 |
+| K3-CD | 開出圍骰 | 6/216 ≒ 2.78% | 圍骰／全骰分頁 |
+| PK10-CD | 冠亞和開出 19 | 2/90 ≒ 2.22% | 冠亞和分頁的「和19」 |
+
+- 分配：`payoutRatio` 50%、`minPool` 1000（未達不發）、依「注金 × 權重」比例分配，尾差由最後一筆吸收
+- **權重來源就是看板設定**：`sscJackpotWeightOf` / `k3JackpotWeightOf` / `pk10JackpotWeightOf`
+  （注項 `weight` → 群組 `weight` → 0 不參與）。這三支在這次改動前是**寫好但沒人用**的死碼
+- 有份條件：該期「非未中」的注單（和局也算有份，與 6hc-cd 同語意）
+- 前端：`useSsc`／`useK3`／`usePk10` 的 `creditJackpot` + 各 Header 的爆池區塊（只有信用盤顯示）
+
+⚠️ **PC蛋蛋（EGGS）還沒有爆池** —— 它是信用盤獨立玩法、也沒有共用彩池，要補的話照上表加一組設定即可。
+
+### 四、前端（元件／頁面／大廳，headless 瀏覽器實測無 console 錯誤）
+
+| 檔案 | 內容 |
+|---|---|
+| `app/composables/useSsc.ts` | 兩個盤口共用；複式展開走 `sscOgComboCodes()`，自動下注用 `_widenPicks()` 逐步加寬選號 |
+| `app/components/lottery/bg/ssc/**` | 共用層 12 支 + `cd/base/Board.vue`、`of/base/Board.vue` 與各自的 `block/footer/Auto.vue` |
+| `app/pages/lottery/bg/ssc-cd.vue`、`ssc-of.vue` | 兩個盤口的投注頁 |
+| `BgAutoPanel.vue`／`useBgAutoActive.ts`／`app/assets/style/lhc_ssc.scss` | 自動下注面板與樣式 |
+| `app/pages/lottery-hall.vue` | `ROUTE_DICT` + `GAME_META` 補 SSC 兩張卡 |
+
+## 已知待辦
+
+1. 官方盤還有 **94 個 playType** 未實作，清單見 `openspec/reference/ssc-of-todo.md`
+   （單式 `input`、和值／跨度／包胆 `noFastSelect` 那幾類）
+2. PC蛋蛋（EGGS）還沒有爆池，要補的話照「信用盤爆池」那節加一組設定
+   （`EGGS_CD_JACKPOT` + `eggsCdJackpotHit`，觸發條件建議用「開出豹子」10/1000）
+
+> 先前記的「大廳 SSC-OF 卡片標『獎池分層』與實作不符」已隨後三直選改吃彩池而解決。
+
+## 回歸測試（改動後重跑這幾支）
+
+| 測項 | 內容 | 期望 |
+|---|---|---|
+| `tsc --build --force` ＋ `npx vue-tsc --noEmit -p .nuxt/tsconfig.app.json` | 型別（後者才會檢查 `.vue`） | 無輸出 |
+| sscog helpers 單元測試 | 判定／賠率／複式展開，含 100,000 種開獎窮舉對帳 | 73 passed |
+| config 注項全掃 | 152 個信用注項 + 220 個官方選項都判定得出來、賠率 > 0、屬於自己的分頁 | 372 passed |
+| `_widenPicks` 全掃 | 10 個複式分頁 × 7 種目標注數，不得超過 `SSC_OG_MAX_COMBO` | 280 passed |
+| 下注 E2E | 7 個信用分頁 + 11 個官方分頁各送一單 | 18 passed |
+| 結算對帳 | 用 `sscIsHit`／`sscOgIsHit` 重算，與伺端 `winStatus`／`winAmount`／可領金額比對 | 逐注一致 |
+| 彩池分層 config | `sscOfMatchCount` / 分層 / 旗標，含 100,000 種開獎窮舉 | 31 passed |
+| 爆池核心 | `buildJackpotShares` 分配、門檻、尾差 + 三個彩種觸發條件窮舉 | 30 passed |
+| 彩池分層結算 | 後三直選下 200 注，重算每注命中層與每單位派彩、驗滾存 | 269 passed |
+| 爆池帳務 | 三個信用盤下注 → 等結算 → 驗抽水整筆滾進 carry、不動共用彩池 | 4 passed |
 
 ## 重要慣例（照做即可）
 

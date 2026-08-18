@@ -13,6 +13,11 @@
  *   101161010 五星直選    ← pcv2 五星直选·复式  5 個位置各選一組
  *   101181010 大小單雙後二／101181011 後三／101181012 前二／101181013 前三
  *
+ * ── 兩套派彩並存 ────────────────────────────────────────
+ *   後三直選（combo.pool = true）→ 吃共用彩池，依命中位數分層（SSC_OF_PRIZE_TIERS）
+ *   其餘 10 個分頁                → 固定賠率，由 sscog.ts 依「公平賠率 × rtp」推算
+ *   ⚠️ 後三直選 1/1000 配固定賠率不好看，分層之後猜中 2 位也有獎。
+ *
  * ── 兩種分頁型態 ────────────────────────────────────────
  *   單選分頁（定位膽）—— groupList 就是注項清單，注碼＝name（第一球0…）
  *   複式分頁（其餘 10 個）—— groupList 只是「該位置／該組可選的號碼」，
@@ -149,7 +154,7 @@ export default [
           payout: { rtp: 0.96 },
         },
         // 後二直選12 —— 1/100 = 1.0000%（公平 100.000），odds 96
-        combo: { mode: 'direct', section: '後二', positions: 2, minPick: 1, prefix: '後二直選' },
+        combo: { mode: 'direct', section: '後二', positions: 2, minPick: 1, prefix: '後二直選', pool: false },
         tabGroup: [
           {
             groupName: '十位',
@@ -203,7 +208,7 @@ export default [
           payout: { rtp: 0.96 },
         },
         // 後二組選12 —— 2/100 = 2.0000%（公平 50.000），odds 48
-        combo: { mode: 'group', group: 'group2', minPick: 2, prefix: '後二組選' },
+        combo: { mode: 'group', group: 'group2', minPick: 2, prefix: '後二組選', pool: false },
         tabGroup: [
           {
             groupName: '組選',
@@ -244,8 +249,9 @@ export default [
           },
           payout: { rtp: 0.96 },
         },
-        // 後三直選123 —— 1/1000 = 0.1000%（公平 1000.000），odds 960
-        combo: { mode: 'direct', section: '後三', positions: 3, minPick: 1, prefix: '後三直選' },
+        // ★ 彩池分層：不吃固定賠率，依命中位數從共用彩池分配（SSC_OF_PRIZE_TIERS）
+        //   命中 3 → 1/1000（0.1000%）／命中 2 → 27/1000（2.7000%）／命中 1 → 243/1000（24.3000%）
+        combo: { mode: 'direct', section: '後三', positions: 3, minPick: 1, prefix: '後三直選', pool: true },
         tabGroup: [
           {
             groupName: '百位',
@@ -318,7 +324,7 @@ export default [
           payout: { rtp: 0.96 },
         },
         // 後三組三12 —— 6/1000 = 0.6000%（公平 166.667）（AAB 與 ABB 都算中），odds 160
-        combo: { mode: 'group', group: 'group3', minPick: 2, prefix: '後三組三' },
+        combo: { mode: 'group', group: 'group3', minPick: 2, prefix: '後三組三', pool: false },
         tabGroup: [
           {
             groupName: '組三',
@@ -353,7 +359,7 @@ export default [
           payout: { rtp: 0.96 },
         },
         // 後三組六123 —— 6/1000 = 0.6000%（公平 166.667），odds 160
-        combo: { mode: 'group', group: 'group6', minPick: 3, prefix: '後三組六' },
+        combo: { mode: 'group', group: 'group6', minPick: 3, prefix: '後三組六', pool: false },
         tabGroup: [
           {
             groupName: '組六',
@@ -395,7 +401,7 @@ export default [
           payout: { rtp: 0.96 },
         },
         // 五星直選01234 —— 1/100000 = 0.0010%（公平 100000.000），odds 96000
-        combo: { mode: 'direct', section: '五星', positions: 5, minPick: 1, prefix: '五星直選' },
+        combo: { mode: 'direct', section: '五星', positions: 5, minPick: 1, prefix: '五星直選', pool: false },
         tabGroup: [
           {
             groupName: '萬位',
@@ -513,7 +519,7 @@ export default [
           payout: { rtp: 0.96 },
         },
         // 大小單雙後二大大 —— 25/100 = 25.0000%（公平 4.000），odds 3.84
-        combo: { mode: 'sides', section: '後二', positions: 2, minPick: 1, prefix: '大小單雙後二' },
+        combo: { mode: 'sides', section: '後二', positions: 2, minPick: 1, prefix: '大小單雙後二', pool: false },
         tabGroup: [
           {
             groupName: '十位',
@@ -555,7 +561,7 @@ export default [
           payout: { rtp: 0.96 },
         },
         // 大小單雙後三大大大 —— 125/1000 = 12.5000%（公平 8.000），odds 7.68
-        combo: { mode: 'sides', section: '後三', positions: 3, minPick: 1, prefix: '大小單雙後三' },
+        combo: { mode: 'sides', section: '後三', positions: 3, minPick: 1, prefix: '大小單雙後三', pool: false },
         tabGroup: [
           {
             groupName: '百位',
@@ -610,7 +616,7 @@ export default [
           payout: { rtp: 0.96 },
         },
         // 大小單雙前二大大 —— 25/100 = 25.0000%（公平 4.000），odds 3.84
-        combo: { mode: 'sides', section: '前二', positions: 2, minPick: 1, prefix: '大小單雙前二' },
+        combo: { mode: 'sides', section: '前二', positions: 2, minPick: 1, prefix: '大小單雙前二', pool: false },
         tabGroup: [
           {
             groupName: '萬位',
@@ -652,7 +658,7 @@ export default [
           payout: { rtp: 0.96 },
         },
         // 大小單雙前三大大大 —— 125/1000 = 12.5000%（公平 8.000），odds 7.68
-        combo: { mode: 'sides', section: '前三', positions: 3, minPick: 1, prefix: '大小單雙前三' },
+        combo: { mode: 'sides', section: '前三', positions: 3, minPick: 1, prefix: '大小單雙前三', pool: false },
         tabGroup: [
           {
             groupName: '萬位',

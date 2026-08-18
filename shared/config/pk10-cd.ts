@@ -22,6 +22,7 @@
  *   因此結果只有 win / lose；`tie` 只保留給「注碼無法辨識」時由呼叫端退還本金用。
  */
 
+import { type JackpotSettings } from '#shared/config/jackpot'
 import {
   pk10AllCars,
   pk10AllChampionPairs,
@@ -136,6 +137,49 @@ export function judgePk10Bet(
  * 玩法定義（順序即前端玩法列的顯示順序，需與 pk10cd/plays.ts 一致）
  * 順序照 pcv2_0223 conf_pk10_cd.js 的 sort
  */
+// ── 爆池（信用盤專屬，與官方盤的共用彩池是兩個獨立的池） ──────────
+
+/** 爆池期的冠亞和（19 = 9 + 10，冠亞和的最大值） */
+export const PK10_CD_JACKPOT_SUM = 19
+
+/**
+ * PK10 信用盤的爆池設定
+ *
+ * ── 爆池期怎麼定 ────────────────────────────────────────
+ *   **冠亞和開出 19**（冠亞和的最大值 9+10）時觸發。理由與 k3-cd / ssc-cd 相同：
+ *     1. 它是看板上真的存在的注項（冠亞和分頁的「和19」），玩家看得到也押得到
+ *     2. 冠亞和共 90 種有序組合，19 只有 (9,10) 與 (10,9) 兩種 ——
+ *        2/90 ≒ 2.22%，與 6hc-cd 的「特別號開 49」（1/49 ≒ 2.04%）幾乎一致
+ *
+ * ⚠️ rakeRatio 是**另外**再撥一份進信用盤自己的爆池，
+ *    與原本進 pk10Shared 共用彩池（官方盤前三直選分層在吃）的抽水不互相吃。
+ */
+export const PK10_CD_JACKPOT: JackpotSettings = {
+  rakeRatio: 0.01,
+  payoutRatio: 0.5,
+  minPool: 1000,
+  weightFallback: 1,
+  hitLabel: `冠亞和開出 ${PK10_CD_JACKPOT_SUM}`,
+  hitRate: 2 / 90
+}
+
+/**
+ * 這一期是不是爆池期
+ * @returns true = 冠亞和 19；開獎格式不合回 false
+ */
+export function pk10CdJackpotHit(openCode: Array<string | number>): boolean {
+  const cars = pk10CarsOf(openCode)
+  if (!cars) return false
+  return pk10SumOf(cars) === PK10_CD_JACKPOT_SUM
+}
+
+/** 爆池期的開獎文字（寫進爆池紀錄，給看板顯示用） */
+export function pk10CdJackpotLabel(openCode: Array<string | number>): string {
+  const cars = pk10CarsOf(openCode)
+  if (!cars) return ''
+  return `冠亞和 ${pk10SumOf(cars)}`
+}
+
 export const PK10_PLAY_DEFINITIONS: Array<{ key: string; name: string }> = [
   { key: 'dingwei', name: '定位膽' },
   { key: 'liangmian', name: '兩面' },

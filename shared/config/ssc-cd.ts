@@ -21,6 +21,7 @@
  *   龍虎鬥的「和」是獨立注項（不是退本金），所以本檔沒有 tie ——
  *   結果只有 win / lose，`tie` 保留給呼叫端在注碼無法辨識時退還本金。
  */
+import { type JackpotSettings } from '#shared/config/jackpot'
 import {
   sscBullCounts,
   sscBullOf,
@@ -347,6 +348,55 @@ export function judgeSscBet(
     odds: lockedOdds,
     payout: hit ? Number((safeCoin * lockedOdds).toFixed(2)) : 0
   }
+}
+
+// ── 爆池（信用盤專屬，與官方盤的共用彩池是兩個獨立的池） ──────────
+
+/**
+ * 時時彩信用盤的爆池設定
+ *
+ * ── 爆池期怎麼定 ────────────────────────────────────────
+ *   開獎的**後三（百十個位）開出豹子**（三個號碼相同）時觸發。
+ *   選這個條件的理由：
+ *     1. 它是看板上真的存在的注項（前中後三分頁的「後三豹子」），
+ *        玩家看得到、也押得到，不是另外憑空長出來的規則
+ *     2. 機率 10/1000 = 1%，與 6hc-cd 的「特別號開 49」（1/49 ≒ 2.04%）同一個量級
+ *   ⚠️ 是「後三」不是「前三／中三」—— 與官方盤吃彩池的後三直選看同一段號碼，
+ *      兩個盤口的彩池敘事才對得起來。
+ *
+ * ── 抽水是額外的一份 ────────────────────────────────────
+ *   ⚠️ 信用盤原本就有 2% 抽水進「兩盤共用的彩池」（sscShared，官方盤後三直選在吃）；
+ *      這裡的 rakeRatio 是**另外**再撥一份進信用盤自己的爆池，兩者不互相吃。
+ */
+export const SSC_CD_JACKPOT: JackpotSettings = {
+  rakeRatio: 0.01,
+  payoutRatio: 0.5,
+  /** 以 rakeRatio 1% 換算 ≈ 需累積 10 萬投注額 */
+  minPool: 1000,
+  /** 注單查不到看板設定時的保底權重（設定檔的 weight 幾乎都有值，這裡只是保險） */
+  weightFallback: 1,
+  hitLabel: '後三開出豹子（百十個位三碼相同）',
+  hitRate: 10 / 1000
+}
+
+/**
+ * 這一期是不是爆池期
+ * @returns true = 後三豹子；開獎格式不合回 false
+ */
+export function sscCdJackpotHit(openCode: Array<string | number>): boolean {
+  const digits = sscDigitsOf(openCode)
+  if (!digits) return false
+  const tail = sscSectionOf(digits, '後三')
+  if (!tail) return false
+  return sscTriplePatternOf(tail) === '豹子'
+}
+
+/** 爆池期的開獎文字（寫進爆池紀錄，給看板顯示用） */
+export function sscCdJackpotLabel(openCode: Array<string | number>): string {
+  const digits = sscDigitsOf(openCode)
+  if (!digits) return ''
+  const tail = sscSectionOf(digits, '後三') ?? []
+  return `後三 ${tail.join('')}`
 }
 
 /** 玩法定義（順序即前端玩法列的顯示順序，需與 ssccd/plays.js 一致） */

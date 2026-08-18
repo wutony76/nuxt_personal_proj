@@ -15,8 +15,13 @@
  *   group  組選（後二組選／後三組三／組六）→ 一組號碼取 k 個，不計順序
  *   sides  大小單雙（前二／前三／後二／後三）→ 各位置選一組面，笛卡爾積
  *
+ * ── 兩套派彩並存 ────────────────────────────────────────
+ *   後三直選（combo.pool = true）→ 吃共用彩池，依命中位數分層（見 ssc-of.ts）
+ *   其餘 10 個分頁                → 固定賠率，sscOgTabOddsOf() 推算後鎖進注單
+ *   ⚠️ 彩池分頁的 sscOgTabOddsOf() 一律回 0，但 sscOgHasBetCode() 照常驗 ——
+ *      時時彩彩池分頁的注碼與其他分頁一樣是字串，只有派彩方式不同。
+ *
  * ⚠️ 本檔 import sscog.ts，因此 sscog.ts 不可反向 import 本檔（會形成循環）。
- * ⚠️ 官方盤沒有彩池分頁（pk10 前三直選那種），所有分頁的注碼都是字串。
  */
 import C_PLAYS from '#shared/config/sscog/plays'
 import {
@@ -61,6 +66,8 @@ export type SscOgCombo = {
   positions?: number
   group?: SscOgGroupMode
   minPick: number
+  /** true 代表該分頁走彩池分層（後三直選），不吃 rtp 賠率 */
+  pool?: boolean
 }
 
 type ConfigOption = {
@@ -130,6 +137,17 @@ export function sscOgComboOf(playKey?: string, tabId?: number | string): SscOgCo
   return findSscOgTab(playKey, tabId)?.combo ?? null
 }
 
+/**
+ * 該分頁是否走彩池分層（後三直選）
+ *
+ * ⚠️ 與 pk10 不同的是，彩池分頁的注碼**仍然是字串**（`後三直選123`）——
+ *    時時彩號碼可以重複、沒有「同一台車佔兩個名次」的問題，
+ *    所以複式展開與注碼驗證都不必為彩池分頁開特例，只有派彩方式不一樣。
+ */
+export function sscOgIsPoolTab(playKey?: string, tabId?: number | string): boolean {
+  return sscOgComboOf(playKey, tabId)?.pool === true
+}
+
 /** 取分頁的投注限額 */
 export function sscOgQuotaOf(playKey?: string, tabId?: number | string): SscOgQuota {
   const quota = findSscOgTab(playKey, tabId)?.settings?.quota
@@ -159,11 +177,12 @@ export function sscOgMaxOddsOf(playKey?: string, tabId?: number | string): numbe
  *
  * 一律由 sscog.ts 依「公平賠率 × 該分頁 rtp」推算，而不是讀 config 的 odds ——
  * config 的 odds 只是產生時的快照，改 rtp 就會與實際不符。
- * @returns 賠率；注碼無法辨識或不屬於該分頁回 0
+ * @returns 賠率；注碼無法辨識或不屬於該分頁回 0（彩池分頁一律回 0，那邊不吃賠率）
  */
 export function sscOgTabOddsOf(playKey?: string, tabId?: number | string, betCode?: string | number): number {
   const code = String(betCode ?? '').trim()
   if (!code || !sscOgHasBetCode(playKey, tabId, code)) return 0
+  if (sscOgIsPoolTab(playKey, tabId)) return 0
   const odds = sscOgOddsOf(code, sscOgRtpOf(playKey, tabId))
   if (!(odds > 0)) return 0
   const maxOdds = sscOgMaxOddsOf(playKey, tabId)

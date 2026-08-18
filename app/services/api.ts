@@ -201,6 +201,39 @@ export type SscCurrent = {
   pool: SscPool
 }
 
+/**
+ * 信用盤爆池狀態（SSC-CD／K3-CD／PK10-CD 共用這個形狀）
+ *
+ * ⚠️ 與 `SscPool` 是兩個不同的池：SscPool 是兩個盤口共用、官方盤分層在吃的彩池；
+ *    這個是信用盤自己的爆池，開出設定的爆池號那期一次發放。
+ */
+export type CreditJackpotState = {
+  issue: string
+  /** 該期已累積的爆池抽水 */
+  currentIssueJackpot: number
+  /** 未發放的滾存 */
+  carryJackpot: number
+  /** 可發放 = 該期抽水 + 滾存 */
+  distributable: number
+  rakeRatio: number
+  payoutRatio: number
+  /** 低於此金額不發放 */
+  minPool: number
+  /** 爆池條件的文字說明 */
+  hitLabel: string
+  /** 爆池條件的發生機率（0 ~ 1） */
+  hitRate: number
+  lastHit: {
+    issue: string
+    openLabel: string
+    pool: number
+    payout: number
+    winners: number
+    orders: number
+    createdAt: number
+  } | null
+}
+
 /** SSC 玩家紀錄 */
 export type SscUserRecordResponse = {
   balanceChanges: LotteryUserBalanceChange[]
@@ -503,6 +536,8 @@ export const api = {
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/k3-cd/claim', { method: 'POST' }),
     claimOneIssueK3Of: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/k3-of/claim', { method: 'POST' }),
+    /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
+    jackpotK3Cd: () => $fetch<CreditJackpotState>('/api/lottery/k3-cd/jackpot'),
     // ── PK10（PK10-CD / PK10-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
     currentPk10Cd: () => $fetch<Pk10Current>('/api/lottery/pk10-cd/current'),
     currentPk10Of: () => $fetch<Pk10Current>('/api/lottery/pk10-of/current'),
@@ -514,6 +549,8 @@ export const api = {
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/pk10-cd/claim', { method: 'POST' }),
     claimOneIssuePk10Of: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/pk10-of/claim', { method: 'POST' }),
+    /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
+    jackpotPk10Cd: () => $fetch<CreditJackpotState>('/api/lottery/pk10-cd/jackpot'),
     // ── 時時彩（SSC-CD / SSC-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
     currentSscCd: () => $fetch<SscCurrent>('/api/lottery/ssc-cd/current'),
     currentSscOf: () => $fetch<SscCurrent>('/api/lottery/ssc-of/current'),
@@ -525,6 +562,8 @@ export const api = {
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/ssc-cd/claim', { method: 'POST' }),
     claimOneIssueSscOf: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/ssc-of/claim', { method: 'POST' }),
+    /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
+    jackpotSscCd: () => $fetch<CreditJackpotState>('/api/lottery/ssc-cd/jackpot'),
     // ── PC蛋蛋（只有信用盤，來源本身無官方盤）──
     currentEggs: () => $fetch<EggsCurrent>('/api/lottery/eggs/current'),
     openCodeHistoryEggs: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/eggs/opencode-history'),

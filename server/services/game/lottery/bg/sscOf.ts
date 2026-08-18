@@ -6,8 +6,10 @@ import LOTTERY_BASE, { CYCLE_MS, TOTAL_ISSUES_PER_DAY, type OpenCodeRecord } fro
 import { MEMORY } from '../../../base'
 import { sscDigitsOf, sscSumOf } from '#shared/config/ssc'
 import { judgeSscOgBet, SSC_OG_MAX_COMBO } from '#shared/config/sscog'
+import { sscOfMatchCount, SSC_OF_PRIZE_TIERS } from '#shared/config/ssc-of'
 import {
   sscOgHasBetCode,
+  sscOgIsPoolTab,
   sscOgQuotaOf,
   sscOgTabOddsOf,
   findSscOgTab
@@ -30,11 +32,19 @@ import {
  *           所以同一期的期別、號碼、倒數完全一致。
  *   彩池  ：抽水一律進 SSC_SHARED.pool，兩個盤口共同養同一個池。
  *
- * ── 派彩方式：全部固定賠率 ──────────────────────────────
- *   與 PK10-OF 最大的不同 —— 時時彩官方盤**沒有彩池分層玩法**，
- *   11 個分頁全是「公平賠率 × 分頁 rtp」，下注時把賠率鎖進注單。
- *   因此這裡沒有 PK10_OF_PRIZE_TIERS 那一整段分層邏輯，
- *   SSC_SHARED.pool 只是看板上的「總獎金」門面（carry 永遠是 0，見 sscShared.ts）。
+ * ── 兩套派彩並存（依分頁的 combo.pool 分流）──────────────
+ *   後三直選（101141010）→ 吃共用彩池，依命中位數分層（SSC_OF_PRIZE_TIERS）：
+ *     3 位中 → 頭獎（池 70%，每單位下注有最低保障）
+ *     2 位中 → 二獎（池 20%，純比例）
+ *     1 位中 → 三獎（固定倍數）
+ *     未產生中獎者的 pool 層，該層整塊滾存至下期。
+ *   其餘 10 個分頁      → 固定賠率，下注時把賠率鎖進注單。
+ *
+ *   ⚠️ 與 PK10-OF 的差異：彩池分頁的注碼**仍然是字串**（`後三直選123`），
+ *      不是 codes 陣列 —— 時時彩號碼可以重複，沒有「同一台車佔兩個名次」要擋，
+ *      所以前端複式展開與伺端注碼驗證完全不必為彩池分頁開特例。
+ *   ⚠️ 因為彩池共用，SSC-OF 的結算會動到 SSC-CD 也看得到的 carry ——
+ *      這是刻意的（比照快3 / PK10 的共用設計），不是 bug。
  *
  * ── 複式的注碼從哪來 ────────────────────────────────────
  *   除了定位膽是單選分頁，其餘 10 個分頁都是複式：
@@ -92,7 +102,7 @@ type UserBetHistory = {
   betCode: string[]
   openCode: string[]
   matchCount: number
-  /** 中獎狀態文案（中獎／和局），未中為空字串 */
+  /** 彩池分頁：命中分層名稱（頭獎／二獎／三獎）；賠率分頁：中獎／和局 */
   tierName: string
   /** tie：時時彩官方盤沒有真正的和局，僅在注碼無法辨識時退回本金 */
   winStatus: 'pending' | 'win' | 'lose' | 'tie'
@@ -113,12 +123,13 @@ type UserRecord = {
 type UserStoreLike = { userId?: string; coin?: number; sscOfRecord?: UserRecord }
 
 /**
- * 抽水比例
- *
- * ⚠️ 不比照 PK10-OF 的 0.6 —— 那個高比例是因為彩池玩法的獎金全部來自池；
- *    時時彩官方盤全是固定賠率、由莊家賠付，池只是門面，故沿用信用盤的 2%。
+ * 抽水比例：官方盤把較高比例撥入獎池（彩池分頁的獎金全部來自池，非莊家賠付）
+ * ⚠️ 數值比照 PK10-OF —— 那邊同樣只有一個分頁吃池、其餘走固定賠率。
  */
-const SSC_OF_RAKE_RATIO = 0.02
+const SSC_OF_RAKE_RATIO = 0.6
+
+/** 該筆注單是不是彩池分頁（結算時據此分流到兩條路） */
+const _isPoolRow = (playKey?: string, tabId?: number | string) => sscOgIsPoolTab(playKey, tabId)
 
 /** 取一注的注碼（官方盤的注碼一律是字串：後三直選123、大小單雙後二大單、第一球7…） */
 function _resolveBetCode(play?: { num?: number | string; label?: string | number }): string {
@@ -155,6 +166,7 @@ export default class SSC_OF extends LOTTERY_BASE {
       claimableIssues: UserClaimableIssue[]
     }
     sumOf: (openCode: string[]) => number
+    prizeTiers: () => typeof SSC_OF_PRIZE_TIERS
   }
 
   constructor() {
@@ -371,14 +383,18 @@ export default class SSC_OF extends LOTTERY_BASE {
         }
       },
       /**
-       * 官方盤結算：逐注按注單鎖定的賠率派彩
-       * ⚠️ 沒有彩池分層那條路，所以也不動 SSC_SHARED.pool.carry。
+       * 官方盤結算
+       *
+       * 兩條路並存，依該注所屬分頁的 combo.pool 分流：
+       *   賠率分頁（10 個）→ judgeSscOgBet 逐注判定，賠率取注單鎖的值
+       *   彩池分頁（後三直選）→ 依命中位數分層，從共用獎池按比例分配
+       * ⚠️ 滾存（carry）只由彩池那條計算 —— 賠率分頁的注單不吃池、也不影響滾存。
        */
       settleIssuePrize: (issue: string, openCode: string[]) => {
         const safeIssue = String(issue ?? '')
         if (!safeIssue) return
         const codes = Array.isArray(openCode) ? openCode : []
-        const issueOrders = (this._get.orders().get.orders.currentIssue(safeIssue) ?? []) as Array<{
+        const allOrders = (this._get.orders().get.orders.currentIssue(safeIssue) ?? []) as Array<{
           userId: string
           orderId: string
           coin: number
@@ -388,8 +404,10 @@ export default class SSC_OF extends LOTTERY_BASE {
           odds?: number
         }>
 
+        // ── 賠率分頁：逐注判定 ──
+        const oddsOrders = allOrders.filter((row) => !_isPoolRow(row.playKey, row.tabId))
         const payoutByUser = new Map<string, number>()
-        issueOrders.forEach((row) => {
+        oddsOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
           const betCode = String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
           const lockedOdds = Number(row.odds ?? 0)
@@ -418,9 +436,72 @@ export default class SSC_OF extends LOTTERY_BASE {
           }
         })
 
+        // ── 彩池分頁（後三直選）：依命中位數分層 ──
+        const poolOrders = allOrders.filter((row) => _isPoolRow(row.playKey, row.tabId))
+        // 可發放獎池 = 池底 + 該期抽水 × 0.8 + 累積滾存（與 SSC-CD 共用同一個池）
+        const totalPool = sscDistributablePool(safeIssue)
+        const rows = poolOrders.map((row) => ({
+          ...row,
+          matchCount: sscOfMatchCount(String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? ''), codes) ?? 0,
+          payout: 0,
+          tierName: ''
+        }))
+
+        let carryNext = 0
+        SSC_OF_PRIZE_TIERS.forEach((tier) => {
+          const winners = rows.filter((row) => row.matchCount === tier.match)
+          if (tier.type === 'pool') {
+            const tierPool = Number((totalPool * tier.ratio).toFixed(2))
+            if (winners.length === 0) {
+              // 該層沒人中 → 整塊滾存至下期
+              carryNext = Number((carryNext + tierPool).toFixed(2))
+              return
+            }
+            // 按下注額比例分配；僅頭獎設 minAmount 最低保障（避免下全注套利）
+            const totalWinnerBets = Number(winners.reduce((sum, row) => sum + Number(row.coin ?? 0), 0).toFixed(2))
+            const naturalPerUnit = totalWinnerBets > 0 ? tierPool / totalWinnerBets : 0
+            const prizePerUnit = tier.minAmount !== undefined
+              ? Math.max(naturalPerUnit, tier.minAmount)
+              : naturalPerUnit
+            winners.forEach((row) => {
+              row.payout = Number((row.payout + Number((prizePerUnit * Number(row.coin ?? 1)).toFixed(2))).toFixed(2))
+              row.tierName = tier.name
+            })
+          } else {
+            winners.forEach((row) => {
+              row.payout = Number((row.payout + Number((tier.amount * Number(row.coin ?? 1)).toFixed(2))).toFixed(2))
+              row.tierName = tier.name
+            })
+          }
+        })
+
+        rows.forEach((row) => {
+          const record = this.handle.ensureUserRecord(this._get.user(row.userId))
+          const idx = record.betHistory.findIndex((item) => String(item.orderId) === String(row.orderId))
+          const current = record.betHistory[idx]
+          if (idx >= 0 && current) {
+            record.betHistory[idx] = {
+              ...current,
+              openCode: [...codes],
+              matchCount: row.matchCount,
+              tierName: row.tierName,
+              winStatus: row.payout > 0 ? 'win' : 'lose',
+              winAmount: row.payout
+            }
+          }
+          if (row.payout > 0) {
+            payoutByUser.set(row.userId, Number((Number(payoutByUser.get(row.userId) ?? 0) + row.payout).toFixed(2)))
+          }
+        })
+
         payoutByUser.forEach((amount, userId) => {
           this.handle.pushClaimable(userId, safeIssue, amount, codes)
         })
+
+        // 未派出的 pool 層滾存至下期；該期抽水已用掉，歸零
+        // ⚠️ carry 是與 SSC-CD 共用的，這裡寫回去兩邊都會看到
+        SSC_SHARED.pool.carry = carryNext
+        SSC_SHARED.pool.issueMap[safeIssue] = 0
       }
     })
 
@@ -472,7 +553,9 @@ export default class SSC_OF extends LOTTERY_BASE {
       sumOf: (openCode: string[]) => {
         const digits = sscDigitsOf(openCode)
         return digits ? sscSumOf(digits) : 0
-      }
+      },
+      /** 後三直選的獎金分層（看板與說明頁顯示用） */
+      prizeTiers: () => SSC_OF_PRIZE_TIERS
     })
 
     this.init()

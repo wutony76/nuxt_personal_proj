@@ -1,5 +1,6 @@
 import LOTTERY_BASE, { type OpenCodeRecord } from './base'
 import { SSC_BALL_COUNT, SSC_DIGIT_MAX } from '#shared/config/ssc'
+import { SSC_OF_PICK_COUNT, SSC_OF_PRIZE_TIERS } from '#shared/config/ssc-of'
 
 /**
  * 時時彩的共用狀態：SSC-CD 與 SSC-OF 共用「當日期表（開獎號）」與「彩池」
@@ -50,22 +51,27 @@ export const SSC_SHARED: SscSharedState = {
  * 可發放獎金用與 6hc-of 相同的公式 LOTTERY_BASE.jackpotCalc()：
  *   (池底 + 該期抽水 × 0.8 + 滾存) × 0.55
  *
- * ⚠️ 時時彩兩個盤口**都是固定賠率**（官方盤沒有 pk10 前三直選那種彩池分層玩法），
- *    所以這個池純粹是看板的「總獎金」門面數字，不會真的被派彩吃掉，carry 也永遠是 0。
- *    留著是為了讓四個彩種的 poolState() 形狀一致，前端不必為 SSC 開特例。
- * ⚠️ 池底每期都會重新參與計算（同 6hc 的 jackpotBase），這是 demo 的設定，
- *    不是真實彩券的資金流。
+ * ⚠️ 官方盤的**後三直選**吃這個池（依命中位數分層，見 shared/config/ssc-of.ts），
+ *    未派出的層數會寫回 carry 滾存至下期；其餘 10 個分頁與整個信用盤都是固定賠率，
+ *    只負責抽水養池。
+ * ⚠️ 池底每期都會重新參與計算（同 6hc 的 jackpotBase），等於莊家每期注入
+ *    池底 × 0.55 的獎金 —— 這是 demo 的設定，不是真實彩券的資金流。
+ * ⚠️ 信用盤的「爆池」是**另一個獨立的池**（見 sscCd.ts 的 issueJackpotMap／carryJackpot），
+ *    不與本檔的共用彩池互相吃 —— 否則兩條結算路會搶同一個 carry。
  */
 export const SSC_POOL_BASE_MIN = 120_000
 export const SSC_POOL_BASE_MAX = 480_000
 
 /**
- * 池底重骰門檻：可發放獎金低於此值就重骰
- *
- * k3 / pk10 是拿「頭獎最低保障 ÷ 頭獎分配比例」推的，時時彩沒有彩池分層玩法可推，
- * 故直接給一個門面數字的下限（低於這個值畫面上的總獎金會太寒酸）。
+ * 池底重骰門檻：可發放獎金低到連頭獎的最低保障都撐不起來時重骰
+ * 門檻＝頭獎最低保障 ÷ 頭獎分配比例（例如 20,000 ÷ 0.7 ≒ 28,572）
  */
-export const SSC_POOL_FLOOR = 30_000
+const SSC_TOP_TIER = SSC_OF_PRIZE_TIERS.find(
+  (tier) => tier.type === 'pool' && tier.match === SSC_OF_PICK_COUNT
+)
+export const SSC_POOL_FLOOR = SSC_TOP_TIER && SSC_TOP_TIER.type === 'pool' && SSC_TOP_TIER.minAmount
+  ? Math.ceil(SSC_TOP_TIER.minAmount / SSC_TOP_TIER.ratio)
+  : 0
 
 /**
  * 確保池底存在（沒有或已被吃到低於門檻就重骰）
@@ -129,7 +135,8 @@ export function sscIssuePool(issue: string): number {
  * 可發放獎金 =（池底 + 該期抽水 × 0.8 + 累積滾存）× 0.55
  *
  * 與 6hc-of / k3 / pk10 同一條公式（LOTTERY_BASE.jackpotCalc），差別只在池底範圍。
- * ⚠️ 時時彩沒有吃池的玩法，這個值只給看板顯示用。
+ * ⚠️ 這個值同時是前端顯示的「總獎金」與官方盤後三直選分層派彩的母數 ——
+ *    比照 k3 / pk10 不分「門面值」與「派彩值」兩條，顯示的就是真的發得出來的。
  */
 export function sscDistributablePool(issue: string): number {
   return Number(

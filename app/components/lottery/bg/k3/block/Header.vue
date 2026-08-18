@@ -20,7 +20,7 @@ import { useK3 } from '~/composables/useK3'
 const emit = defineEmits<{ (event: 'open-opencode-dialog'): void }>()
 
 const {
-  current: mxCurrent, pool: mxPool, time: mxTime,
+  current: mxCurrent, pool: mxPool, creditJackpot: mxJackpot, time: mxTime,
   lotteryMeta, isCd, actions: mxActions
 } = useK3()
 
@@ -109,6 +109,18 @@ const K3_OF_WIN_RATE = (() => {
   return total > 0 ? (win / total) * 100 : 0
 })()
 const winRate = computed(() => `${K3_OF_WIN_RATE.toFixed(2)}%`)
+
+/**
+ * 信用盤爆池（只有信用盤顯示）
+ *
+ * ⚠️ 與上面的「總獎金」是兩個不同的池：那個是兩盤共用、官方盤三軍分層在吃的；
+ *    這個是信用盤自己抽水養的，開出爆池條件那期一次發放給有份的注單。
+ */
+const jackpotReady = computed(() => isCd.value && Number(mxJackpot.rakeRatio) > 0)
+const jackpotPool = computed(() => Number(mxJackpot.distributable ?? 0))
+const jackpotHitRate = computed(() => `${(Number(mxJackpot.hitRate ?? 0) * 100).toFixed(2)}%`)
+/** 累積池未達門檻時不發放，畫面要講清楚 */
+const jackpotBelowMin = computed(() => jackpotPool.value < Number(mxJackpot.minPool ?? 0))
 
 const issueCurrent = computed(() => String(mxCurrent.runtime?.issueCurrent ?? '—'))
 const issueLatest = computed(() => String(mxCurrent.runtime?.issueLatest ?? '—'))
@@ -229,6 +241,21 @@ onBeforeUnmount(_anim.stop)
           <span class="accent">{{ winRate }}</span>
         </div>
         <p class="pool-note">※ 獎金由 [信用] 與 [官方] 累積</p>
+        <!-- 信用盤專屬的爆池：與上面的共用彩池是兩套帳 -->
+        <div v-if="jackpotReady" class="jackpot-box">
+          <div class="row">
+            <span class="label">爆池</span>
+            <span class="val">{{ money(jackpotPool) }}</span>
+          </div>
+          <p class="jackpot-note">
+            {{ mxJackpot.hitLabel }}（{{ jackpotHitRate }}）時發放 {{ (mxJackpot.payoutRatio * 100).toFixed(0) }}%<template
+              v-if="jackpotBelowMin">，未達 {{ money(mxJackpot.minPool) }} 不發放</template>
+          </p>
+          <p v-if="mxJackpot.lastHit" class="jackpot-note is-hit">
+            上次爆池 第{{ mxJackpot.lastHit.issue }}期 {{ mxJackpot.lastHit.openLabel }}
+            發出 {{ money(mxJackpot.lastHit.payout) }}（{{ mxJackpot.lastHit.orders }} 注 / {{ mxJackpot.lastHit.winners }} 人）
+          </p>
+        </div>
       </div>
     </div>
 
@@ -385,6 +412,29 @@ onBeforeUnmount(_anim.stop)
         margin: 0.25rem 0 0;
         font-size: 11px;
         color: var(--color-red-desc);
+      }
+
+      .jackpot-box {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px dashed rgba(255, 255, 255, .35);
+
+        .val {
+          font-weight: 800;
+          font-variant-numeric: tabular-nums;
+        }
+      }
+
+      .jackpot-note {
+        margin: 2px 0 0;
+        font-size: 11px;
+        line-height: 1.5;
+        opacity: .78;
+
+        &.is-hit {
+          opacity: 1;
+          font-weight: 700;
+        }
       }
     }
   }

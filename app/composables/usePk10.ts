@@ -4,6 +4,7 @@ import {
   api,
   type Pk10Current,
   type Pk10Pool,
+  type CreditJackpotState,
   type Pk10UserBetHistory,
   type LotteryUserBalanceChange,
   type LotteryClaimableIssue,
@@ -99,6 +100,25 @@ const current = reactive({
 })
 
 const pool = reactive<Pk10Pool>({ issue: '', base: 0, carry: 0, issuePool: 0, distributable: 0 })
+
+/**
+ * 信用盤爆池（與上面的 pool 是**兩個不同的池**）
+ *   pool          —— 兩個盤口共用，官方盤前三直選分層在吃
+ *   creditJackpot —— 信用盤自己的池，開出爆池條件那期一次發放
+ * ⚠️ 只有信用盤會用到，官方盤不 fetch（省一次請求）。
+ */
+const creditJackpot = reactive<CreditJackpotState>({
+  issue: '',
+  currentIssueJackpot: 0,
+  carryJackpot: 0,
+  distributable: 0,
+  rakeRatio: 0,
+  payoutRatio: 0,
+  minPool: 0,
+  hitLabel: '',
+  hitRate: 0,
+  lastHit: null
+})
 
 const select = reactive({
   items: [] as Pk10SelectItem[],
@@ -509,6 +529,15 @@ const _actions = {
 
 // ── Fetch ──────────────────────────────────────────────────────────────────
 const fetch = {
+  /** 信用盤爆池狀態（官方盤不需要，直接跳過） */
+  creditJackpot: async () => {
+    if (!isCd.value) return
+    try {
+      Object.assign(creditJackpot, await api.lottery.jackpotPk10Cd())
+    } catch {
+      // 爆池只是看板附加資訊，取不到就維持舊值，不要蓋掉主要流程的錯誤訊息
+    }
+  },
   refreshCurrentInfo: async () => {
     try {
       const result = isCd.value ? await api.lottery.currentPk10Cd() : await api.lottery.currentPk10Of()
@@ -774,7 +803,9 @@ const fetch = {
   },
   initPageData: async () => {
     state.fetchStatus = 'loading'
-    await Promise.all([fetch.refreshCurrentInfo(), fetch.userInfo(), fetch.openCodeHistoryAll()])
+    await Promise.all([
+      fetch.refreshCurrentInfo(), fetch.userInfo(), fetch.openCodeHistoryAll(), fetch.creditJackpot()
+    ])
     state.fetchStatus = 'success'
   },
   startPolling: () => {
@@ -788,6 +819,7 @@ const fetch = {
           current.detail = []
           fetch.userRecordAll()
           fetch.openCodeHistoryAll()
+          fetch.creditJackpot()
         })
       }, 3000)
     }
@@ -803,6 +835,7 @@ export function usePk10() {
     state,
     current,
     pool,
+    creditJackpot,
     select,
     wallet,
     time,
