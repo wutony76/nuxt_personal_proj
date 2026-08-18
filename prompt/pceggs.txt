@@ -1,0 +1,63 @@
+# EGGS  PC蛋蛋新增
+
+## 1. Project Structure
+
+-services
+game/lottery/bg/
+├── eggs.ts
+
+-pages
+lottery/bg/
+├── egg.vue
+
+UI layout 佈局參考 K3。
+
+---
+
+## 2. Data Source
+
+需要先讀取：
+/Users/tony.wu/SelfCode/Svn/bglottery
+此專案為既有pceggs玩法來源。
+
+禁止直接猜測玩法規則。
+---
+
+## 3. Step 1 - Config Conversion
+
+讀取 bglottery 的 pceggs 玩法設定。
+將其轉換成本專案既有 conf 格式。
+
+如果來源設定缺少資訊：
+
+1.⁠ ⁠找到對應玩法 UI
+2.⁠ ⁠分析 UI 使用的欄位
+3.⁠ ⁠由既有 UI 行為反推出必要 config
+4.⁠ ⁠補齊 conf
+5.⁠ ⁠不可自行發明玩法規則
+
+參考 UI：
+src/components/room/lotteryAll/pceggs/index.vue
+src/components/room/lotteryAll/pceggs/header.vue
+src/components/room/lotteryAll/pceggs/zhengheTraditional/play.vue
+src/components/room/lotteryAll/pceggs/tool_right.vue
+
+
+---
+
+## 4. Step 2 - Betting UI
+
+讀取 Step 1 轉換後的 conf。
+依 conf 完善：
+eggs.vue
+下注區。
+Layout 參考 K3。
+
+---
+
+## 5. Constraints
+•⁠  ⁠優先複用現有 K3 架構
+•⁠  ⁠優先複用既有 lottery config pattern
+•⁠  ⁠不要重新設計整套玩法架構
+•⁠  ⁠不要自行猜測 EGGS 規則
+•⁠  ⁠修改前先閱讀既有實作

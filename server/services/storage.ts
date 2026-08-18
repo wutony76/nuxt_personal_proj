@@ -16,6 +16,7 @@ import Pk10CdClass from './game/lottery/bg/pk10Cd'
 import Pk10OfClass from './game/lottery/bg/pk10Of'
 import SscCdClass from './game/lottery/bg/sscCd'
 import SscOfClass from './game/lottery/bg/sscOf'
+import EggsClass from './game/lottery/bg/eggs'
 import { LOTTERY } from '~/config/constants'
 
 export const verifyPasswordHash = (password: string, storedHash: string): boolean => {
@@ -124,6 +125,8 @@ export class Storage {
       // 與快3 / PK10 一樣，先 new 的那個產生當日期表，後 new 的直接沿用同一份
       new SscCdClass()
       new SscOfClass()
+      // PC蛋蛋：只有信用盤（來源本身無官方盤），不需要跟其他實例共用開獎號
+      new EggsClass()
       // console.log('games.init.success', Storage.games)
       console.log('SUCCESS ---BASE>games.init')
     }

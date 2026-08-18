@@ -229,6 +229,51 @@ export type SscUserBetHistory = {
   jackpotAmount: number
 }
 
+/**
+ * PC蛋蛋（EGGS）當期資訊
+ * ⚠️ 只有信用盤（來源本身無官方盤），不像 K3/SSC 有共用彩池，故沒有 pool 欄位。
+ *    openCode 長度固定 3（0~9，可重複）。
+ */
+export type EggsCurrent = {
+  issue: string
+  issueCurrent: string
+  issueLatest: string
+  currentStatus: string
+  countdown: string
+  statusEndAt: number
+  openCode: string[]
+  openingCode: string[]
+  openCodePlay: Array<{ num: number; label: string; index: number }>
+  time: { start: string; end: string }
+  startAt: number
+  endAt: number
+}
+
+/** PC蛋蛋玩家紀錄 */
+export type EggsUserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: EggsUserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+}
+
+export type EggsUserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  betCode: string[]
+  openCode: string[]
+  matchCount: number
+  /** tie 只在注碼無法辨識時出現（退還本金） */
+  winStatus: 'pending' | 'win' | 'lose' | 'tie'
+  winAmount: number
+  /** 該注鎖定的賠率（含本金） */
+  odds?: number
+  /** 該注所屬分頁 */
+  tabId?: number
+  jackpotAmount: number
+}
+
 /** 信用盤（6hc-cd）獎池狀態：含可發放累積池、發放參數與最近一次爆池紀錄 */
 export type Lottery6hcCdJackpot = {
   issue: string
@@ -424,6 +469,8 @@ export const api = {
           return $fetch<SscCurrent>('/api/lottery/ssc-cd/current')
         case LOTTERY['SSC-OF'].id:
           return $fetch<SscCurrent>('/api/lottery/ssc-of/current')
+        case LOTTERY.EGGS.id:
+          return $fetch<EggsCurrent>('/api/lottery/eggs/current')
         default:
           return null
       }
@@ -478,6 +525,12 @@ export const api = {
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/ssc-cd/claim', { method: 'POST' }),
     claimOneIssueSscOf: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/ssc-of/claim', { method: 'POST' }),
+    // ── PC蛋蛋（只有信用盤，來源本身無官方盤）──
+    currentEggs: () => $fetch<EggsCurrent>('/api/lottery/eggs/current'),
+    openCodeHistoryEggs: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/eggs/opencode-history'),
+    userRecordEggs: () => $fetch<EggsUserRecordResponse>('/api/lottery/eggs/user-record'),
+    claimOneIssueEggs: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/eggs/claim', { method: 'POST' }),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),

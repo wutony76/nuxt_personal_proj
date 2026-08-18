@@ -79,13 +79,31 @@ const GAME_META: Record<string, {
       OF: '五球開時定其位，\n數字分明照章行。\n大小單雙皆有序，\n落定之時見輸贏。',
       CD: '五球縱橫藏變數，\n位次之間見真章。\n組合分明多變化，\n一局開落定輸贏。',
     },
-  }
+  },
+  EGGS: {
+    en: 'EGGS',
+    ribbon: 'BG · 3 球 0~9 組合',
+    desc: '三球輪轉見天機，\n點數分明照式提。\n大小單雙皆有序，\n一局開落定高低。',
+  },
 }
 
 const MODE_META = [
   { suffix: 'OF', theme: 'of', mark: '官', label: '官 方', tag: 'OFFICIAL · MODE', note: '獎池分層 · 正碼命中派彩' },
   { suffix: 'CD', theme: 'cd', mark: '信', label: '信 用', tag: 'CREDIT · MODE', note: '每注獨立 · 賠率即時派彩' },
 ]
+
+/**
+ * 玩法的模式覆寫表：預設每個玩法都有官方／信用兩張卡（走 MODE_META）。
+ *
+ * PC蛋蛋（bglottery 來源）只有信用模式、沒有官方盤 —— 硬套 MODE_META 會多生一張
+ * 「EGGS-OF」卡但 ROUTE_DICT／GAME_META 都沒有對應資料。這裡讓玩法可以指定「只出這幾張卡」，
+ * suffix 留空代表不分盤口（routeKey 直接是玩法 key，不加 "-OF"／"-CD" 後綴）。
+ */
+const GAME_MODES: Record<string, typeof MODE_META> = {
+  EGGS: [
+    { suffix: '', theme: 'cd', mark: '信', label: '信 用', tag: 'CREDIT · MODE', note: '每注獨立 · 賠率即時派彩' },
+  ],
+}
 
 const router = useRouter()
 
@@ -98,6 +116,7 @@ const ROUTE_DICT: Record<string, string> = {
   'PK10-OF': '/lottery/bg/pk10-of',
   'SSC-CD': '/lottery/bg/ssc-cd',
   'SSC-OF': '/lottery/bg/ssc-of',
+  'EGGS': '/lottery/bg/egg',
 }
 
 const state = reactive({
@@ -108,23 +127,28 @@ const state = reactive({
 const _handlers = {
   enterDelay: (base: number, idx: number, step = 0.12) => `${base + idx * step}s`,
   buildCards: (list: LobbyItem[]) =>
-    list.flatMap((item, gameIdx) =>
-      MODE_META.map(mode => ({
-        routeKey: `${item.key}-${mode.suffix}`,
-        theme: mode.theme,
-        mark: mode.mark,
-        label: mode.label,
-        tag: mode.tag,
-        note: mode.note,
-        name: item.name,
-        // 卡片的 en 可依模式覆寫（6HC 分成 LHC [OF] / LHC [CD]）；左側玩法導覽仍用共用的 en
-        en: GAME_META[item.key]?.enByMode?.[mode.suffix] || GAME_META[item.key]?.en || item.key,
-        ribbon: GAME_META[item.key]?.ribbon || '',
-        // 該玩法有指定模式專屬題詩就用它（6HC 官方），否則用玩法層共用的
-        desc: GAME_META[item.key]?.descByMode?.[mode.suffix] || GAME_META[item.key]?.desc || '',
-        serial: `L · ${String(gameIdx + 1).padStart(2, '0')} / ${item.key}-${mode.suffix}`,
-      }))
-    ),
+    list.flatMap((item, gameIdx) => {
+      const modes = GAME_MODES[item.key] ?? MODE_META
+      return modes.map(mode => {
+        // 單一模式的玩法（suffix 留空）：routeKey 直接是玩法 key，不加 "-OF"／"-CD" 後綴
+        const routeKey = mode.suffix ? `${item.key}-${mode.suffix}` : item.key
+        return {
+          routeKey,
+          theme: mode.theme,
+          mark: mode.mark,
+          label: mode.label,
+          tag: mode.tag,
+          note: mode.note,
+          name: item.name,
+          // 卡片的 en 可依模式覆寫（6HC 分成 LHC [OF] / LHC [CD]）；左側玩法導覽仍用共用的 en
+          en: GAME_META[item.key]?.enByMode?.[mode.suffix] || GAME_META[item.key]?.en || item.key,
+          ribbon: GAME_META[item.key]?.ribbon || '',
+          // 該玩法有指定模式專屬題詩就用它（6HC 官方），否則用玩法層共用的
+          desc: GAME_META[item.key]?.descByMode?.[mode.suffix] || GAME_META[item.key]?.desc || '',
+          serial: `L · ${String(gameIdx + 1).padStart(2, '0')} / ${routeKey}`,
+        }
+      })
+    }),
 }
 
 const cards = computed(() => _handlers.buildCards(state.list))

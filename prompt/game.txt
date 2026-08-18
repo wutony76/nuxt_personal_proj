@@ -1,0 +1,77 @@
+# SSC 時時彩新增
+
+## 1. Project Structure
+
+-services
+game/lottery/bg/
+├── sscCd.ts
+└── sscOF.ts
+
+-pages
+lottery/bg/
+├── ssc-cd.vue
+└── ssc-of.vue
+
+UI layout 參考 K3。
+
+---
+
+## 2. Data Source
+
+需要先讀取：
+
+/Users/tony.wu/SelfCode/Svn/bglottery
+
+此專案為既有 SSC 玩法來源。
+
+禁止直接猜測玩法規則。
+
+---
+
+## 3. Step 1 - Config Conversion
+
+讀取 bglottery 的 SSC 玩法設定。
+
+將其轉換成本專案既有 conf 格式。
+
+如果來源設定缺少資訊：
+
+1. 找到對應玩法 UI
+2. 分析 UI 使用的欄位
+3. 由既有 UI 行為反推出必要 config
+4. 補齊 conf
+5. 不可自行發明玩法規則
+
+參考 UI：
+
+src/components/room/lotteryAll/ssc/index.vue
+src/components/room/lotteryAll/ssc/header.vue
+src/components/room/lotteryAll/ssc/official/tabs.vue
+src/components/room/lotteryAll/ssc/official/play.vue
+src/components/room/lotteryAll/ssc/creditTraditional/creditPlay.vue
+
+---
+
+## 4. Step 2 - Betting UI
+
+讀取 Step 1 轉換後的 conf。
+
+依 conf 完成：
+
+ssc-of.vue
+ssc-cd.vue
+
+下注區。
+
+Layout 參考 K3。
+
+---
+
+## 5. Constraints
+
+- 優先複用現有 K3 架構
+- 優先複用既有 lottery config pattern
+- 不要重新設計整套玩法架構
+- 不要自行猜測 SSC 規則
+- 修改前先閱讀既有實作
+- 保持 OF / CD 分離

@@ -10,11 +10,13 @@
         <Pk10OfAuto v-else-if="lotteryType === 'pk10-of'" />
         <SscCdAuto v-else-if="lotteryType === 'ssc-cd'" />
         <SscOfAuto v-else-if="lotteryType === 'ssc-of'" />
+        <EggsAuto v-else-if="lotteryType === 'eggs'" />
         <OfChat v-if="lotteryType === '6hc-of'" />
         <CdChat v-else-if="lotteryType === '6hc-cd'" />
         <K3Chat v-else-if="lotteryType === 'k3-cd' || lotteryType === 'k3-of'" />
         <Pk10Chat v-else-if="lotteryType === 'pk10-cd' || lotteryType === 'pk10-of'" />
         <SscChat v-else-if="lotteryType === 'ssc-cd' || lotteryType === 'ssc-of'" />
+        <EggsChat v-else-if="lotteryType === 'eggs'" />
       </div>
     </div>
   </Transition>
@@ -47,6 +49,10 @@ const Pk10Chat = defineAsyncComponent(() => import('~/components/lottery/bg/pk10
 const SscCdAuto = defineAsyncComponent(() => import('~/components/lottery/bg/ssc/cd/block/footer/Auto.vue'))
 const SscOfAuto = defineAsyncComponent(() => import('~/components/lottery/bg/ssc/of/block/footer/Auto.vue'))
 const SscChat = defineAsyncComponent(() => import('~/components/lottery/bg/ssc/block/footer/Chat.vue'))
+
+// PC蛋蛋只有信用盤，Auto／Chat 各一支
+const EggsAuto = defineAsyncComponent(() => import('~/components/lottery/bg/eggs/block/footer/Auto.vue'))
+const EggsChat = defineAsyncComponent(() => import('~/components/lottery/bg/eggs/block/footer/Chat.vue'))
 </script>
 
 <style lang="scss">

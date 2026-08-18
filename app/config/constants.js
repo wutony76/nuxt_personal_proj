@@ -27,6 +27,11 @@ export const LOTTERY = {
   // id 編碼比照 LHC-CD/LHC-OF、K3-CD/K3-OF、PK10-CD/PK10-OF（玩法 id ×100 + 盤口序號）
   'SSC-CD':{ id: 400100, key: 'SSC-CD', name: '時時彩', sub:'CD', sort: 400 },
   'SSC-OF':{ id: 400101, key: 'SSC-OF', name: '時時彩', sub:'OF', sort: 401 },
+
+  // PC蛋蛋：來源（bglottery pceggs）只有信用模式、沒有官方盤，
+  // 因此只登記單一鍵值（無 sub 欄位），這個鍵同時是大廳分組項與伺端 Storage.games 的實際 key，
+  // 不像其他玩法要另外拆 CD/OF 兩個子項。
+  'EGGS':{ id: 5001, key: 'EGGS', name: 'PC蛋蛋', sort: 5 },
 } 
 
 export const SORT = {
