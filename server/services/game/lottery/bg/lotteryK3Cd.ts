@@ -236,9 +236,9 @@ export default class K3_CD extends LOTTERY_BASE {
         })
         if (record.betHistory.length > 5000) record.betHistory = record.betHistory.slice(-4000)
       },
-      /** 統一的拒單方式（statusMessage 與 message 都帶，前端兩者皆可取） */
+      /** 統一的拒單方式（文案放 message；statusMessage 會被 h3 消毒掉中文，不要用） */
       rejectBet: (message: string): never => {
-        throw createError({ statusCode: 400, statusMessage: message, message })
+        throw createError({ statusCode: 400, message })
       },
       /** 限額與注項合法性驗證：任一注違規就整筆拒絕，且必須在扣款／建單之前呼叫 */
       validateBetQuota: (input: { issue: string; userId: string; amount: number; groups: Group[] }) => {
@@ -473,7 +473,7 @@ export default class K3_CD extends LOTTERY_BASE {
     this.handle.refreshCurrent(new Date())
     if (this.currentStatus !== STATUS_TIME.OPEN) {
       const _msg = `目前為「${this.currentStatus}」，不受理投注`
-      throw createError({ statusCode: 400, statusMessage: _msg, message: _msg })
+      throw createError({ statusCode: 400, message: _msg })
     }
 
     const amount = Number(payload?.amount ?? 0)

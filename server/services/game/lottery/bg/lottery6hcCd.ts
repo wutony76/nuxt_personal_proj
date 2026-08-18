@@ -443,9 +443,9 @@ export default class LHC_CD extends LOTTERY_BASE {
           }
         })
       },
-      // 統一的拒單方式（statusMessage 與 message 都帶，前端兩者皆可取）
+      // 統一的拒單方式（文案放 message；statusMessage 會被 h3 消毒掉中文，不要用）
       rejectBet: (message: string) => {
-        throw createError({ statusCode: 400, statusMessage: message, message })
+        throw createError({ statusCode: 400, message })
       },
       addIssueJackpot: (issue: string, amount: number) => {
         const safeIssue = String(issue ?? '')
@@ -819,8 +819,8 @@ export default class LHC_CD extends LOTTERY_BASE {
     this.handle.refreshCurrent(new Date())
     if (this.currentStatus !== STATUS_TIME.OPEN) {
       const _msg = `目前為「${this.currentStatus}」，不受理投注`
-      // 同時給 message：h3 未來會 sanitize statusMessage，前端兩者皆可取
-      throw createError({ statusCode: 400, statusMessage: _msg, message: _msg })
+      // 文案放 message：statusMessage 是 HTTP reason phrase，h3 會把中文消毒掉
+      throw createError({ statusCode: 400, message: _msg })
     }
 
     const amount = Number(payload?.amount ?? 0)

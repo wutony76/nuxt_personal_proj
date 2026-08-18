@@ -268,7 +268,7 @@ export default class K3_OF extends LOTTERY_BASE {
         if (record.betHistory.length > 5000) record.betHistory = record.betHistory.slice(-4000)
       },
       rejectBet: (message: string): never => {
-        throw createError({ statusCode: 400, statusMessage: message, message })
+        throw createError({ statusCode: 400, message })
       },
       /**
        * 注碼與限額驗證：一注必須是 3 個 1~6 的點數
@@ -571,7 +571,7 @@ export default class K3_OF extends LOTTERY_BASE {
     this.handle.refreshCurrent(new Date())
     if (this.currentStatus !== STATUS_TIME.OPEN) {
       const _msg = `目前為「${this.currentStatus}」，不受理投注`
-      throw createError({ statusCode: 400, statusMessage: _msg, message: _msg })
+      throw createError({ statusCode: 400, message: _msg })
     }
 
     const amount = Number(payload?.amount ?? 0)

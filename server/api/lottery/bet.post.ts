@@ -28,14 +28,14 @@ export default defineEventHandler(async (event) => {
   if (!_login || !_user) throwErrCode(40001)
   const amount = Number(payload.amount)
   if (!Number.isFinite(amount) || amount <= 0) {
-    throw createError({ statusCode: 400, statusMessage: '下注金額格式錯誤', message: '下注金額格式錯誤' })
+    throw createError({ statusCode: 400, message: '下注金額格式錯誤' })
   }
   if (amount > _user.coin) throwErrCode(50001)
 
   const getLottery = payload.lottery
-  if (!getLottery?.key) throw createError({ statusCode: 400, statusMessage: '彩種參數錯誤' })
+  if (!getLottery?.key) throw createError({ statusCode: 400, message: '彩種參數錯誤' })
   const gameClass = (Storage.games as Record<string, { playBets: (payload: BetPayload, user: LoginUser) => BetResult }>)[getLottery.key]
-  if (!gameClass?.playBets) throw createError({ statusCode: 400, statusMessage: '彩種不存在' })
+  if (!gameClass?.playBets) throw createError({ statusCode: 400, message: '彩種不存在' })
   const betResult = gameClass.playBets(payload, _user)
   return {
     message: '下注成功',

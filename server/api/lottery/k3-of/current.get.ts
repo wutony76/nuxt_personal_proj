@@ -19,10 +19,10 @@ type K3Service = {
 
 export default defineEventHandler(() => {
   const game = Storage.games[LOTTERY['K3-OF'].key] as K3Service | undefined
-  if (!game) throw createError({ statusCode: 503, statusMessage: '遊戲服務尚未初始化。' })
+  if (!game) throw createError({ statusCode: 503, message: '遊戲服務尚未初始化。' })
 
   const current = game.get.currentInfo()
-  if (!current) throw createError({ statusCode: 503, statusMessage: '尚無開獎資料。' })
+  if (!current) throw createError({ statusCode: 503, message: '尚無開獎資料。' })
 
   // 彩池為 K3-CD 與 K3-OF 共用（見 server/services/game/lottery/bg/k3Shared.ts），兩支路由回的是同一份
   const pool = game.get.poolState?.() ?? {}

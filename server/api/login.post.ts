@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
 
   if (!email || password.length < 6) {
     const message = '請輸入有效 Email 與至少 6 碼密碼。'
-    throw createError({ statusCode: 400, statusMessage: message, message })
+    throw createError({ statusCode: 400, message })
   }
 
   const user = verifyUser(email, password)

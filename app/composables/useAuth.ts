@@ -37,10 +37,11 @@ export const useAuth = () => {
       return { ok: true, message: '' }
     } catch (error: unknown) {
       const fallbackMessage = '登入失敗，請稍後再試。'
-      const data = (error as { data?: { statusMessage?: string } })?.data
+      // 文案一律讀 message：statusMessage 是 HTTP reason phrase，h3 會把中文消毒成空字串
+      const data = (error as { data?: { message?: string; statusMessage?: string } })?.data
       return {
         ok: false,
-        message: data?.statusMessage || fallbackMessage
+        message: data?.message || data?.statusMessage || fallbackMessage
       }
     }
   }

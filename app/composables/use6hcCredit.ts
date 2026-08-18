@@ -541,8 +541,9 @@ function _shuffleBetItems(list: SelectItem[]): SelectItem[] {
 
 function _getBetErrorMessage(error: unknown): string {
   const err = error as any
-  if (err?.data?.statusMessage) return String(err.data.statusMessage)
+  // message 優先：statusMessage 是 HTTP reason phrase，h3 會把中文消毒掉
   if (err?.data?.message) return String(err.data.message)
+  if (err?.data?.statusMessage) return String(err.data.statusMessage)
   if (error instanceof Error) return error.message
   return '下注失敗，請稍後重試'
 }

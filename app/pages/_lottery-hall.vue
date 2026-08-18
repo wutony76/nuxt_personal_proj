@@ -172,7 +172,7 @@ const _actions = {
       }
       state.numberInput = ''
     } catch (error: any) {
-      state.errorMessage = error?.data?.statusMessage || '下注失敗，請確認輸入內容。'
+      state.errorMessage = error?.data?.message || error?.data?.statusMessage || '下注失敗，請確認輸入內容。'
     } finally {
       state.submitting = false
     }

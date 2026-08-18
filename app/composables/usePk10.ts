@@ -760,7 +760,7 @@ const fetch = {
       state.submitStatus = 'error'
       const err = error as any
       state.errorMessage = String(
-        err?.data?.statusMessage ?? err?.data?.message ?? (error instanceof Error ? error.message : '下注失敗')
+        err?.data?.message ?? err?.data?.statusMessage ?? (error instanceof Error ? error.message : '下注失敗')
       )
       /*
        * 登入失效：與 6hc / k3 一致 —— 標記出來讓呼叫端跳出提示並導回登入頁。

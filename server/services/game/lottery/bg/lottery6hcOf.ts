@@ -516,8 +516,8 @@ export default class LHC_OF extends LOTTERY_BASE {
     this.handle.refreshCurrent(new Date())
     if (this.currentStatus !== STATUS_TIME.OPEN) {
       const _msg = `目前為「${this.currentStatus}」，不受理投注`
-      // 同時給 message：h3 未來會 sanitize statusMessage，前端兩者皆可取
-      throw createError({ statusCode: 400, statusMessage: _msg, message: _msg })
+      // 文案放 message：statusMessage 是 HTTP reason phrase，h3 會把中文消毒掉
+      throw createError({ statusCode: 400, message: _msg })
     }
 
     const amount = Number(payload.amount)

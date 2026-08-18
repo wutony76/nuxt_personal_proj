@@ -19,10 +19,10 @@ type Pk10Service = {
 
 export default defineEventHandler(() => {
   const game = Storage.games[LOTTERY['PK10-OF'].key] as Pk10Service | undefined
-  if (!game) throw createError({ statusCode: 503, statusMessage: '遊戲服務尚未初始化。' })
+  if (!game) throw createError({ statusCode: 503, message: '遊戲服務尚未初始化。' })
 
   const current = game.get.currentInfo()
-  if (!current) throw createError({ statusCode: 503, statusMessage: '尚無開獎資料。' })
+  if (!current) throw createError({ statusCode: 503, message: '尚無開獎資料。' })
 
   // 彩池為 PK10-CD 與 PK10-OF 共用（見 server/services/game/lottery/bg/pk10Shared.ts），兩支路由回的是同一份
   const pool = game.get.poolState?.() ?? {}

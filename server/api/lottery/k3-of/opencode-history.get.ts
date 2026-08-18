@@ -8,7 +8,7 @@ export default defineEventHandler(() => {
     currentIndex?: number
     currentStatus?: string
   } | undefined
-  if (!game) throw createError({ statusCode: 503, statusMessage: '遊戲服務尚未初始化。' })
+  if (!game) throw createError({ statusCode: 503, message: '遊戲服務尚未初始化。' })
 
   const records = Array.isArray(game.recordOpenCode) ? game.recordOpenCode : []
   // 只到「已開獎」的期數為止，未開獎的期別不能把骰子點數提前吐給前端

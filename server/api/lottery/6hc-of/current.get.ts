@@ -26,7 +26,7 @@ export default defineEventHandler(() => {
   if (!game) {
     throw createError({
       statusCode: 503,
-      statusMessage: '遊戲服務尚未初始化。'
+      message: '遊戲服務尚未初始化。'
     })
   }
 
@@ -34,7 +34,7 @@ export default defineEventHandler(() => {
   if (!current) {
     throw createError({
       statusCode: 503,
-      statusMessage: '尚無開獎資料。'
+      message: '尚無開獎資料。'
     })
   }
 
