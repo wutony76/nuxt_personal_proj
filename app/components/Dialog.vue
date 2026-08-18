@@ -2,7 +2,9 @@
   <Teleport to="body">
     <div v-if="state.visible" class="dialog-default dialog-overlay" :class="{ 'dialog-loading': statusLoading }"
       @click.self="dialogClick.close()">
-      <div class="dialog-container">
+      <!-- className：呼叫端可以掛自己的 class 只調整「這一個」彈窗的樣式，
+           不必動到全域的 .btn-dialog（全專案 47 個 $dialog 呼叫點共用這支） -->
+      <div class="dialog-container" :class="options?.className">
         <div v-if="!statusLoading" class="header">
           <h3 class="title">{{ state.title }}</h3>
           <button v-if="!lock" class="close" type="button" @click="click.close()">×</button>
@@ -56,6 +58,8 @@ type DialogOptions = {
   status?: string
   lock?: boolean
   useHtml?: boolean
+  /** 只想調整某一個彈窗時，由呼叫端掛 class（例如登出二次確認的 is-logout） */
+  className?: string
 }
 const options = computed<DialogOptions>(() => (state?.options || {}) as DialogOptions)
 const type = computed(() => options.value?.type || ICON.TIPS)
@@ -164,6 +168,24 @@ const dialogClick = {
     }
 
     .btn-dialog-cancel {
+      background: #fff;
+      color: var(--color-red-main);
+    }
+  }
+
+  /* ── 登出二次確認（呼叫端傳 className: 'is-logout'）──────────
+     只有這一個彈窗把兩顆鈕的主次對調：取消變實心紅底、確認變白底外框。
+     ⚠️ 這裡刻意與全域相反 —— 登出是破壞性動作，讓「取消」比較顯眼比較安全。
+     ⚠️ 全域的 .btn-dialog / .btn-dialog-cancel 一個字都不能動：
+        全專案 47 個 $dialog 呼叫點共用那支，改了會全部一起變。 */
+  &.is-logout .dialog-footer {
+    .btn-dialog-cancel {
+      background: var(--color-red-main);
+      color: #fff;
+    }
+
+    .btn-dialog-ok {
+      border: 1px solid var(--color-red-main);
       background: #fff;
       color: var(--color-red-main);
     }

@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
+import { reactive } from 'vue'
 
 const router = useRouter()
 const { logout } = useAuth()
+const { $dialog } = useNuxtApp()
+const state = reactive({
+  isLoggingOut: false
+})
 const props = withDefaults(defineProps<{
   theme?: 'red' | 'blue'
 }>(), {
@@ -15,9 +20,30 @@ const emit = defineEmits<{
   (event: 'open-rule-dialog'): void
 }>()
 
-const handleLogout = async () => {
-  await logout()
-  router.push('/login')
+const submitLogout = async () => {
+  if (state.isLoggingOut) return
+  state.isLoggingOut = true
+  try {
+    await logout()
+    router.push('/login')
+  } finally {
+    state.isLoggingOut = false
+  }
+}
+
+const handleLogout = () => {
+  $dialog.alert('請問，您確定要登出嗎？', {
+    title: '確認登出嗎？',
+    cb: () => {
+      submitLogout()
+    },
+    options: {
+      cancelButton: true,
+      // 只調整這個彈窗的兩顆鈕（取消實心紅底、確認白底外框），
+      // 其他 $dialog 呼叫點不受影響 —— 樣式定義在 Dialog.vue 的 &.is-logout
+      className: 'is-logout'
+    }
+  })
 }
 </script>
 
@@ -25,14 +51,15 @@ const handleLogout = async () => {
   <section class="top" :class="props.theme">
     <div class="inner">
       <div class="left">
-        <NuxtLink to="/lottery-hall">BACK</NuxtLink>
+        <NuxtLink to="/lottery-hall">返回</NuxtLink>
       </div>
       <div class="right menu">
-        <NuxtLink to="/">HOME</NuxtLink>
-        <button type="button" class="ghost-btn" @click="emit('open-user-dialog')">USER</button>
-        <button type="button" class="ghost-btn" @click="emit('open-opencode-dialog')">OPENCODE</button>
-        <button type="button" class="ghost-btn" @click="emit('open-rule-dialog')">RULE</button>
-        <button type="button" class="logout-btn" @click="handleLogout">LOGOUT</button>
+        <NuxtLink to="/">首頁</NuxtLink>
+        <NuxtLink to="/lottery-hall">大廳</NuxtLink>
+        <button type="button" class="ghost-btn" @click="emit('open-user-dialog')">會員</button>
+        <button type="button" class="ghost-btn" @click="emit('open-opencode-dialog')">開獎</button>
+        <button type="button" class="ghost-btn" @click="emit('open-rule-dialog')">玩法</button>
+        <button type="button" class="logout-btn" @click="handleLogout">登出</button>
       </div>
     </div>
   </section>
