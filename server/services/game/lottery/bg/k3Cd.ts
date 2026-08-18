@@ -4,14 +4,14 @@ import LOTTERY_BASE, { CYCLE_MS, TOTAL_ISSUES_PER_DAY, type OpenCodeRecord } fro
 // ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
 //    ./base 才是本層的彩票基底（期表／狀態機／訂單）
 import { MEMORY } from '../../../base'
-import { buildJackpotShares, type JackpotHitRecord, type JackpotRow } from '#shared/config/jackpot'
+import { type JackpotHitRecord, type JackpotRow } from '#shared/config/jackpot'
 import {
   judgeK3Bet,
   k3SumOf,
   k3DiceOf,
-  k3CdJackpotHit,
-  k3CdJackpotLabel,
-  K3_CD_JACKPOT,
+  k3JackpotHit,
+  k3JackpotLabel,
+  K3_JACKPOT_SETTINGS,
   type K3BetResult
 } from '#shared/config/k3-cd'
 import {
@@ -24,6 +24,11 @@ import {
 } from '#shared/config/k3cd/helpers'
 import {
   K3_SHARED,
+  k3AddIssueJackpot,
+  k3RegisterJackpotBoard,
+  k3SubmitJackpotRows,
+  k3SettleJackpotIfReady,
+  k3JackpotState,
   k3AddIssuePool,
   k3EnsurePoolBase,
   k3IssuePool,
@@ -142,12 +147,6 @@ function _resolveBetCode(play?: { num?: number | string; label?: string | number
 
 export default class K3_CD extends LOTTERY_BASE {
   issueSettledMap: Record<string, boolean>
-  /** 各期爆池抽水累積：issue → 金額（信用盤專屬，與 K3_SHARED.pool 是兩個池） */
-  issueJackpotMap: Record<string, number>
-  /** 爆池未發放的滾存 */
-  carryJackpot: number
-  /** 最近一次爆池紀錄（供頁首與說明頁展示） */
-  lastJackpotHit: JackpotHitRecord | null
 
   declare _get: LOTTERY_BASE['_get'] & {
     user: (userId: string) => UserStoreLike
@@ -190,9 +189,8 @@ export default class K3_CD extends LOTTERY_BASE {
   constructor() {
     super(LOTTERY['K3-CD'].key, LOTTERY['K3-CD'].id)
     this.issueSettledMap = {}
-    this.issueJackpotMap = {}
-    this.carryJackpot = 0
-    this.lastJackpotHit = null
+    // 爆池狀態改放共用層（兩個盤口共吃一池），本 class 只負責交件與寫回自己的 record
+    k3RegisterJackpotBoard('cd')
 
     Object.assign(this._get, {
       user: (userId: string) => Storage.get.user(userId) as UserStoreLike,
@@ -420,6 +418,7 @@ export default class K3_CD extends LOTTERY_BASE {
             orderId: String(row.orderId),
             userId: String(row.userId),
             coin,
+            source: 'cd',
             // 有份條件：非未中（和局也算有份，與 6hc-cd 同一套語意）
             eligible: result !== 'lose',
             // 權重讀該注項所屬群組的看板設定（注項 weight → 群組 weight → 0 不參與）
@@ -427,13 +426,11 @@ export default class K3_CD extends LOTTERY_BASE {
           })
         })
 
-        // ── 爆池發放 ──
-        // 可發放累積池 = 當期抽水 + 累積滾存（信用盤自己的池，不碰 K3_SHARED.pool）
-        const jackpotPool = Number((
-          Number(this.issueJackpotMap[safeIssue] ?? 0) + Number(this.carryJackpot ?? 0)
-        ).toFixed(2))
-        const jackpot = buildJackpotShares(jackpotRows, k3CdJackpotHit(codes), jackpotPool, K3_CD_JACKPOT)
-        jackpot.shares.forEach((share) => {
+        // ── 爆池：交件給共用層，湊齊所有盤口後才分配 ──
+        // ⚠️ 池與滾存都在共用層（兩個盤口共吃一池），本 class 只挑 source === 'cd' 的份寫回自己的 record
+        k3SubmitJackpotRows(safeIssue, 'cd', jackpotRows)
+        const jackpot = k3SettleJackpotIfReady(safeIssue, k3JackpotHit(codes), k3JackpotLabel(codes))
+        jackpot?.shares.filter((share) => share.source === 'cd').forEach((share) => {
           if (!(share.amount > 0)) return
           payoutByUser.set(
             share.userId,
@@ -445,20 +442,6 @@ export default class K3_CD extends LOTTERY_BASE {
           const current = record.betHistory[idx]
           if (idx >= 0 && current) record.betHistory[idx] = { ...current, jackpotAmount: share.amount }
         })
-        // 未發放的部分（含未觸發時的整池）滾存至下期
-        this.carryJackpot = Number(jackpot.remain.toFixed(2))
-        this.issueJackpotMap[safeIssue] = 0
-        if (jackpot.triggered) {
-          this.lastJackpotHit = {
-            issue: safeIssue,
-            openLabel: k3CdJackpotLabel(codes),
-            pool: jackpot.pool,
-            payout: jackpot.payout,
-            winners: new Set(jackpot.shares.map((share) => share.userId)).size,
-            orders: jackpot.shares.length,
-            createdAt: Date.now()
-          }
-        }
 
         payoutByUser.forEach((amount, userId) => {
           if (amount <= 0) return
@@ -534,22 +517,7 @@ export default class K3_CD extends LOTTERY_BASE {
        * 爆池狀態（信用盤專屬的池，與 poolState() 的共用彩池是兩回事）
        * ⚠️ 那邊是官方盤三軍分層在吃的池，這邊只有信用盤爆池會動
        */
-      creditJackpot: () => {
-        const issue = this._get.latestIssue()
-        const currentIssueJackpot = Number(this.issueJackpotMap[issue] ?? 0)
-        return {
-          issue,
-          currentIssueJackpot,
-          carryJackpot: Number(this.carryJackpot ?? 0),
-          distributable: Number((currentIssueJackpot + Number(this.carryJackpot ?? 0)).toFixed(2)),
-          rakeRatio: K3_CD_JACKPOT.rakeRatio,
-          payoutRatio: K3_CD_JACKPOT.payoutRatio,
-          minPool: K3_CD_JACKPOT.minPool,
-          hitLabel: K3_CD_JACKPOT.hitLabel,
-          hitRate: K3_CD_JACKPOT.hitRate,
-          lastHit: this.lastJackpotHit
-        }
-      },
+      creditJackpot: () => k3JackpotState(this._get.latestIssue()),
       /** 該期開獎的和值（供前端顯示與冷熱分析） */
       sumOf: (openCode: string[]) => {
         const dice = k3DiceOf(openCode)
@@ -595,10 +563,8 @@ export default class K3_CD extends LOTTERY_BASE {
     const rows = this.handle.buildOrderRows({ issue, userId, amount, groups })
     // 抽水入共用彩池（K3-CD 與 K3-OF 共同養同一個池）
     k3AddIssuePool(issue, Number((amount * K3_RAKE_RATIO).toFixed(2)))
-    // 另外再抽一份進信用盤自己的爆池（兩個池不互相吃）
-    this.issueJackpotMap[issue] = Number((
-      Number(this.issueJackpotMap[issue] ?? 0) + Number((amount * K3_CD_JACKPOT.rakeRatio).toFixed(2))
-    ).toFixed(2))
+    // 另外再抽一份進爆池（與上面的共用彩池是兩個池，兩個盤口共吃爆池）
+    k3AddIssueJackpot(issue, Number((amount * K3_JACKPOT_SETTINGS.rakeRatio).toFixed(2)))
     this.handle.pushBalanceChange(userId, {
       issue,
       type: 'bet',

@@ -202,10 +202,11 @@ export type SscCurrent = {
 }
 
 /**
- * 信用盤爆池狀態（SSC-CD／K3-CD／PK10-CD 共用這個形狀）
+ * 爆池狀態（快3／PK10／時時彩共用這個形狀）
  *
- * ⚠️ 與 `SscPool` 是兩個不同的池：SscPool 是兩個盤口共用、官方盤分層在吃的彩池；
- *    這個是信用盤自己的爆池，開出設定的爆池號那期一次發放。
+ * ⚠️ 與 `SscPool` 是兩個不同的池：SscPool 是官方盤的彩池分頁分層在吃的；
+ *    這個是爆池，**信用盤與官方盤共吃一池**，開出爆池條件那期一次發放。
+ * ⚠️ 同一個彩種的 `-cd/jackpot` 與 `-of/jackpot` 回的是同一份資料。
  */
 export type CreditJackpotState = {
   issue: string
@@ -538,6 +539,7 @@ export const api = {
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/k3-of/claim', { method: 'POST' }),
     /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
     jackpotK3Cd: () => $fetch<CreditJackpotState>('/api/lottery/k3-cd/jackpot'),
+    jackpotK3Of: () => $fetch<CreditJackpotState>('/api/lottery/k3-of/jackpot'),
     // ── PK10（PK10-CD / PK10-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
     currentPk10Cd: () => $fetch<Pk10Current>('/api/lottery/pk10-cd/current'),
     currentPk10Of: () => $fetch<Pk10Current>('/api/lottery/pk10-of/current'),
@@ -551,6 +553,7 @@ export const api = {
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/pk10-of/claim', { method: 'POST' }),
     /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
     jackpotPk10Cd: () => $fetch<CreditJackpotState>('/api/lottery/pk10-cd/jackpot'),
+    jackpotPk10Of: () => $fetch<CreditJackpotState>('/api/lottery/pk10-of/jackpot'),
     // ── 時時彩（SSC-CD / SSC-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
     currentSscCd: () => $fetch<SscCurrent>('/api/lottery/ssc-cd/current'),
     currentSscOf: () => $fetch<SscCurrent>('/api/lottery/ssc-of/current'),
@@ -564,6 +567,7 @@ export const api = {
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/ssc-of/claim', { method: 'POST' }),
     /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
     jackpotSscCd: () => $fetch<CreditJackpotState>('/api/lottery/ssc-cd/jackpot'),
+    jackpotSscOf: () => $fetch<CreditJackpotState>('/api/lottery/ssc-of/jackpot'),
     // ── PC蛋蛋（只有信用盤，來源本身無官方盤）──
     currentEggs: () => $fetch<EggsCurrent>('/api/lottery/eggs/current'),
     openCodeHistoryEggs: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/eggs/opencode-history'),

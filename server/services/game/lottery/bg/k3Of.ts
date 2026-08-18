@@ -4,12 +4,28 @@ import LOTTERY_BASE, { CYCLE_MS, TOTAL_ISSUES_PER_DAY, type OpenCodeRecord } fro
 // ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
 //    ./base 才是本層的彩票基底（期表／狀態機／訂單）
 import { MEMORY } from '../../../base'
+import { type JackpotRow } from '#shared/config/jackpot'
+import { k3JackpotHit, k3JackpotLabel, K3_JACKPOT_SETTINGS } from '#shared/config/k3-cd'
 import { k3DiceOf, k3SumOf } from '#shared/config/k3'
-import { k3OfMatchCount, k3OfPicksOf, K3_OF_PICK_COUNT, K3_OF_PRIZE_TIERS } from '#shared/config/k3-of'
+import {
+  k3OfMatchCount,
+  k3OfPicksOf,
+  K3_OF_PICK_COUNT,
+  K3_OF_POOL_PLAY_KEY,
+  K3_OF_POOL_PLAY_WEIGHT,
+  K3_OF_PRIZE_TIERS
+} from '#shared/config/k3-of'
 import { judgeK3OgBet } from '#shared/config/k3og'
-import { k3OgHasBetCode, k3OgQuotaOf, k3OgTabOddsOf, findK3OgTab } from '#shared/config/k3og/helpers'
+import { k3OgHasBetCode, k3OgQuotaOf, k3OgTabOddsOf, findK3OgTab,
+  k3OgJackpotWeightOf
+} from '#shared/config/k3og/helpers'
 import {
   K3_SHARED,
+  k3AddIssueJackpot,
+  k3RegisterJackpotBoard,
+  k3SubmitJackpotRows,
+  k3SettleJackpotIfReady,
+  k3JackpotState,
   k3AddIssuePool,
   k3EnsurePoolBase,
   k3DistributablePool,
@@ -118,6 +134,8 @@ const K3_OF_QUOTA = { item: { min: 2, max: 10000 }, issue: { max: 500000 } }
 
 /**
  * 彩池玩法的 playKey
+ * ⚠️ key 由 shared/config/k3-of.ts 提供，不要在這裡再寫一份字串。
+ *
  *
  * 官方盤有兩套派彩並存：
  *   xuanhao —— 選 3 個點數，依命中顆數從共用彩池分層分配（K3_OF_PRIZE_TIERS）
@@ -125,7 +143,7 @@ const K3_OF_QUOTA = { item: { min: 2, max: 10000 }, issue: { max: 500000 } }
  *              賠率由 k3og.ts 依「公平賠率 × 分頁 rtp」推算，下注時鎖進注單
  * 判斷依據就是 playKey，兩條路互不干擾。
  */
-const POOL_PLAY_KEY = 'xuanhao'
+const POOL_PLAY_KEY = K3_OF_POOL_PLAY_KEY
 /** 該筆注單是不是彩池玩法 */
 const _isPoolPlay = (playKey?: string) => String(playKey ?? POOL_PLAY_KEY) === POOL_PLAY_KEY
 
@@ -157,11 +175,14 @@ export default class K3_OF extends LOTTERY_BASE {
       claimableIssues: UserClaimableIssue[]
     }
     prizeTiers: () => typeof K3_OF_PRIZE_TIERS
+    creditJackpot: () => ReturnType<typeof k3JackpotState>
   }
 
   constructor() {
     super(LOTTERY['K3-OF'].key, LOTTERY['K3-OF'].id)
     this.issueSettledMap = {}
+    // 官方盤的注單也參與爆池分配（兩個盤口共吃一池，狀態在 k3Shared.ts）
+    k3RegisterJackpotBoard('of')
 
     Object.assign(this._get, {
       user: (userId: string) => Storage.get.user(userId) as UserStoreLike,
@@ -402,6 +423,8 @@ export default class K3_OF extends LOTTERY_BASE {
         // ── 賠率制玩法：逐注判定 ──
         const oddsOrders = allOrders.filter((row) => !_isPoolPlay(row.playKey))
         const oddsPayoutByUser = new Map<string, number>()
+        /** 爆池分配用的注單列（賠率制與彩池兩種玩法都要收） */
+        const jackpotRows: JackpotRow[] = []
         oddsOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
           const betCode = String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
@@ -432,6 +455,16 @@ export default class K3_OF extends LOTTERY_BASE {
               Number((Number(oddsPayoutByUser.get(row.userId) ?? 0) + payout).toFixed(2))
             )
           }
+
+          jackpotRows.push({
+            orderId: String(row.orderId),
+            userId: String(row.userId),
+            coin,
+            source: 'of',
+            // 有份條件：非未中（和局也算有份，與信用盤同一套語意）
+            eligible: status !== 'lose',
+            weight: k3OgJackpotWeightOf(String(row.playKey ?? ''), Number(row.tabId ?? 0), betCode)
+          })
         })
         oddsPayoutByUser.forEach((amount, userId) => {
           this.handle.pushClaimable(userId, safeIssue, amount, codes)
@@ -494,6 +527,33 @@ export default class K3_OF extends LOTTERY_BASE {
           if (row.payout > 0) {
             payoutByUser.set(row.userId, Number((Number(payoutByUser.get(row.userId) ?? 0) + row.payout).toFixed(2)))
           }
+
+          jackpotRows.push({
+            orderId: String(row.orderId),
+            userId: String(row.userId),
+            coin: Number(row.coin ?? 0),
+            source: 'of',
+            // 彩池玩法沒有和局，命中 ≥ 1（有派彩）才算有份
+            eligible: row.payout > 0,
+            // 三軍選號 不在 k3og 的看板設定裡，權重改用 config 指定值
+            weight: K3_OF_POOL_PLAY_WEIGHT
+          })
+        })
+
+        // ── 爆池：交件給共用層，湊齊所有盤口後才分配 ──
+        // ⚠️ 池與滾存都在共用層（與 K3-CD 共吃一池），本 class 只挑 source === 'of' 的份寫回自己的 record
+        k3SubmitJackpotRows(safeIssue, 'of', jackpotRows)
+        const jackpot = k3SettleJackpotIfReady(safeIssue, k3JackpotHit(codes), k3JackpotLabel(codes))
+        jackpot?.shares.filter((share) => share.source === 'of').forEach((share) => {
+          if (!(share.amount > 0)) return
+          payoutByUser.set(
+            share.userId,
+            Number((Number(payoutByUser.get(share.userId) ?? 0) + share.amount).toFixed(2))
+          )
+          const record = this.handle.ensureUserRecord(this._get.user(share.userId))
+          const idx = record.betHistory.findIndex((item) => String(item.orderId) === share.orderId)
+          const current = record.betHistory[idx]
+          if (idx >= 0 && current) record.betHistory[idx] = { ...current, jackpotAmount: share.amount }
         })
 
         payoutByUser.forEach((amount, userId) => {
@@ -551,7 +611,9 @@ export default class K3_OF extends LOTTERY_BASE {
           claimableIssues: [...record.claimableIssues]
         }
       },
-      prizeTiers: () => K3_OF_PRIZE_TIERS
+      prizeTiers: () => K3_OF_PRIZE_TIERS,
+      /** 爆池狀態（與 K3-CD 共吃一池，兩邊的 /jackpot 回同一份） */
+      creditJackpot: () => k3JackpotState(this._get.latestIssue())
     })
 
     this.init()
@@ -590,6 +652,8 @@ export default class K3_OF extends LOTTERY_BASE {
     const rows = this.handle.buildOrderRows({ issue, userId, amount, groups })
     // 官方盤的獎金全部來自獎池，故抽水比例遠高於信用盤
     k3AddIssuePool(issue, Number((amount * K3_OF_RAKE_RATIO).toFixed(2)))
+    // 另外再抽一份進爆池（與共用彩池是兩個池，兩個盤口共吃爆池）
+    k3AddIssueJackpot(issue, Number((amount * K3_JACKPOT_SETTINGS.rakeRatio).toFixed(2)))
     this.handle.pushBalanceChange(userId, {
       issue,
       type: 'bet',

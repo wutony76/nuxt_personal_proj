@@ -4,6 +4,8 @@ import LOTTERY_BASE, { CYCLE_MS, TOTAL_ISSUES_PER_DAY, type OpenCodeRecord } fro
 // ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
 //    ./base 才是本層的彩票基底（期表／狀態機／訂單）
 import { MEMORY } from '../../../base'
+import { type JackpotRow } from '#shared/config/jackpot'
+import { sscJackpotHit, sscJackpotLabel, SSC_JACKPOT_SETTINGS } from '#shared/config/ssc-cd'
 import { sscDigitsOf, sscSumOf } from '#shared/config/ssc'
 import { judgeSscOgBet, SSC_OG_MAX_COMBO } from '#shared/config/sscog'
 import { sscOfMatchCount, SSC_OF_PRIZE_TIERS } from '#shared/config/ssc-of'
@@ -12,10 +14,16 @@ import {
   sscOgIsPoolTab,
   sscOgQuotaOf,
   sscOgTabOddsOf,
-  findSscOgTab
+  findSscOgTab,
+  sscOgJackpotWeightOf
 } from '#shared/config/sscog/helpers'
 import {
   SSC_SHARED,
+  sscAddIssueJackpot,
+  sscRegisterJackpotBoard,
+  sscSubmitJackpotRows,
+  sscSettleJackpotIfReady,
+  sscJackpotState,
   sscAddIssuePool,
   sscEnsurePoolBase,
   sscDistributablePool,
@@ -167,11 +175,14 @@ export default class SSC_OF extends LOTTERY_BASE {
     }
     sumOf: (openCode: string[]) => number
     prizeTiers: () => typeof SSC_OF_PRIZE_TIERS
+    creditJackpot: () => ReturnType<typeof sscJackpotState>
   }
 
   constructor() {
     super(LOTTERY['SSC-OF'].key, LOTTERY['SSC-OF'].id)
     this.issueSettledMap = {}
+    // 官方盤的注單也參與爆池分配（兩個盤口共吃一池，狀態在 sscShared.ts）
+    sscRegisterJackpotBoard('of')
 
     Object.assign(this._get, {
       user: (userId: string) => Storage.get.user(userId) as UserStoreLike,
@@ -407,6 +418,8 @@ export default class SSC_OF extends LOTTERY_BASE {
         // ── 賠率分頁：逐注判定 ──
         const oddsOrders = allOrders.filter((row) => !_isPoolRow(row.playKey, row.tabId))
         const payoutByUser = new Map<string, number>()
+        /** 爆池分配用的注單列（兩種分頁都要收，權重讀該注項的看板設定） */
+        const jackpotRows: JackpotRow[] = []
         oddsOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
           const betCode = String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
@@ -434,6 +447,16 @@ export default class SSC_OF extends LOTTERY_BASE {
           if (payout > 0) {
             payoutByUser.set(row.userId, Number((Number(payoutByUser.get(row.userId) ?? 0) + payout).toFixed(2)))
           }
+
+          jackpotRows.push({
+            orderId: String(row.orderId),
+            userId: String(row.userId),
+            coin,
+            source: 'of',
+            // 有份條件：非未中（和局也算有份，與信用盤同一套語意）
+            eligible: status !== 'lose',
+            weight: sscOgJackpotWeightOf(String(row.playKey ?? ''), Number(row.tabId ?? 0), betCode)
+          })
         })
 
         // ── 彩池分頁（後三直選）：依命中位數分層 ──
@@ -492,6 +515,35 @@ export default class SSC_OF extends LOTTERY_BASE {
           if (row.payout > 0) {
             payoutByUser.set(row.userId, Number((Number(payoutByUser.get(row.userId) ?? 0) + row.payout).toFixed(2)))
           }
+
+          jackpotRows.push({
+            orderId: String(row.orderId),
+            userId: String(row.userId),
+            coin: Number(row.coin ?? 0),
+            source: 'of',
+            // 彩池分頁沒有和局，命中 ≥ 1 位（有派彩）才算有份
+            eligible: row.payout > 0,
+            weight: sscOgJackpotWeightOf(
+              String(row.playKey ?? ''), Number(row.tabId ?? 0),
+              String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
+            )
+          })
+        })
+
+        // ── 爆池：交件給共用層，湊齊所有盤口後才分配 ──
+        // ⚠️ 池與滾存都在共用層（與 SSC-CD 共吃一池），本 class 只挑 source === 'of' 的份寫回自己的 record
+        sscSubmitJackpotRows(safeIssue, 'of', jackpotRows)
+        const jackpot = sscSettleJackpotIfReady(safeIssue, sscJackpotHit(codes), sscJackpotLabel(codes))
+        jackpot?.shares.filter((share) => share.source === 'of').forEach((share) => {
+          if (!(share.amount > 0)) return
+          payoutByUser.set(
+            share.userId,
+            Number((Number(payoutByUser.get(share.userId) ?? 0) + share.amount).toFixed(2))
+          )
+          const record = this.handle.ensureUserRecord(this._get.user(share.userId))
+          const idx = record.betHistory.findIndex((item) => String(item.orderId) === share.orderId)
+          const current = record.betHistory[idx]
+          if (idx >= 0 && current) record.betHistory[idx] = { ...current, jackpotAmount: share.amount }
         })
 
         payoutByUser.forEach((amount, userId) => {
@@ -555,7 +607,9 @@ export default class SSC_OF extends LOTTERY_BASE {
         return digits ? sscSumOf(digits) : 0
       },
       /** 後三直選的獎金分層（看板與說明頁顯示用） */
-      prizeTiers: () => SSC_OF_PRIZE_TIERS
+      prizeTiers: () => SSC_OF_PRIZE_TIERS,
+      /** 爆池狀態（與 SSC-CD 共吃一池，兩邊的 /jackpot 回同一份） */
+      creditJackpot: () => sscJackpotState(this._get.latestIssue())
     })
 
     this.init()
@@ -594,6 +648,8 @@ export default class SSC_OF extends LOTTERY_BASE {
     const rows = this.handle.buildOrderRows({ issue, userId, amount, groups })
     // 抽水入共用彩池（SSC-CD 與 SSC-OF 共同養同一個池）
     sscAddIssuePool(issue, Number((amount * SSC_OF_RAKE_RATIO).toFixed(2)))
+    // 另外再抽一份進爆池（與共用彩池是兩個池，兩個盤口共吃爆池）
+    sscAddIssueJackpot(issue, Number((amount * SSC_JACKPOT_SETTINGS.rakeRatio).toFixed(2)))
     this.handle.pushBalanceChange(userId, {
       issue,
       type: 'bet',

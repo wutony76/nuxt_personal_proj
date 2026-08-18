@@ -83,9 +83,8 @@ const pool = reactive<K3Pool>({ issue: '', base: 0, carry: 0, issuePool: 0, dist
 
 /**
  * 信用盤爆池（與上面的 pool 是**兩個不同的池**）
- *   pool          —— 兩個盤口共用，官方盤三軍分層在吃
- *   creditJackpot —— 信用盤自己的池，開出爆池條件那期一次發放
- * ⚠️ 只有信用盤會用到，官方盤不 fetch（省一次請求）。
+ *   pool          —— 官方盤的彩池分頁分層在吃
+ *   creditJackpot —— 爆池，兩個盤口共吃一池、也一起分配
  */
 const creditJackpot = reactive<CreditJackpotState>({
   issue: '',
@@ -539,11 +538,12 @@ const _actions = {
 
 // ── Fetch ──────────────────────────────────────────────────────────────────
 const fetch = {
-  /** 信用盤爆池狀態（官方盤不需要，直接跳過） */
+  /** 爆池狀態（兩個盤口共吃一池，兩支路由回同一份） */
   creditJackpot: async () => {
-    if (!isCd.value) return
     try {
-      Object.assign(creditJackpot, await api.lottery.jackpotK3Cd())
+      Object.assign(creditJackpot, isCd.value
+        ? await api.lottery.jackpotK3Cd()
+        : await api.lottery.jackpotK3Of())
     } catch {
       // 爆池只是看板附加資訊，取不到就維持舊值，不要蓋掉主要流程的錯誤訊息
     }

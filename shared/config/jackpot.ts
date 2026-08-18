@@ -1,9 +1,11 @@
 /**
- * 信用盤爆池的泛用核心（快3／PK10／時時彩共用）
+ * 爆池的泛用核心（快3／PK10／時時彩共用）
  *
  * ── 這是什麼 ────────────────────────────────────────────
- * 信用盤按賠率派彩由莊家支付，獎池不參與一般派彩；獎池改由「每注抽水」累積，
+ * 一般派彩（信用盤的固定賠率、官方盤的分層）都不吃這個池；爆池由「每注抽水」累積，
  * 並在**爆池期**一次發放給該期有份的注單，依「注金 × 權重」比例分配。
+ * **信用盤與官方盤共吃同一個爆池**，兩邊的注單一起參與分配
+ * （編排在各彩種的 `*Shared.ts`，見那邊的說明）。
  *
  * ── 與 6hc-cd 的關係 ────────────────────────────────────
  * 概念與 shared/config/6hc-cd.ts 的 CREDIT_JACKPOT / buildCreditJackpotShares 相同，
@@ -16,8 +18,9 @@
  *    硬合併只會讓兩邊都變複雜。要改的話兩邊的分配演算法必須一起動。
  *
  * ── 與官方盤共用彩池的關係 ──────────────────────────────
- * ⚠️ 信用盤爆池是**獨立的池**，不吃 k3Shared / pk10Shared / sscShared 的共用彩池 ——
+ * ⚠️ 爆池是**獨立的池**，不吃共用彩池（`SHARED.pool`）——
  *    那個池是官方盤分層派彩用的，兩條結算路搶同一個 carry 會互相吃掉對方的滾存。
+ *    爆池自己的狀態放在各彩種的 `*Shared.ts`（`*_JACKPOT`），兩個盤口共吃同一池。
  */
 
 /** 爆池設定（各彩種在自己的 *-cd.ts 給一份） */
@@ -30,6 +33,16 @@ export type JackpotSettings = {
   minPool: number
   /** 注單查不到看板設定時的權重保底（0 代表不參與分配） */
   weightFallback: number
+  /**
+   * 盤口係數：該盤口的注單權重再乘上這個值
+   *
+   * ⚠️ 為什麼需要它 —— 信用盤與官方盤的 `weight` 各自是照「**該盤口**玩法的難度」分級的
+   *    （都是 1 ~ 3），兩邊放進同一個鍋裡分錢，等於默認「CD 的難注項 = OF 的難注項」。
+   *    這個等價關係沒有被驗證過，所以留一個係數讓它可以被調整；
+   *    預設兩邊都是 1（即接受該等價假設）。
+   * ⚠️ 改這個值會直接改變兩個盤口分到的比例，動之前先想清楚。
+   */
+  boardWeight: Record<string, number>
   /** 爆池條件的文字說明（給看板／說明頁顯示，不參與運算） */
   hitLabel: string
   /** 爆池條件的發生機率（0 ~ 1，由各彩種窮舉算好；只供顯示） */
@@ -41,6 +54,13 @@ export type JackpotRow = {
   orderId: string
   userId: string
   coin: number
+  /**
+   * 這一注來自哪個盤口（'cd' / 'of'）
+   *
+   * 分配結果會原樣帶回 JackpotShare，讓各 class 只挑自己那半去寫回
+   * 自己的 user record —— 共用層因此不必知道兩種 record 的形狀。
+   */
+  source: string
   /** 該注是否有份：一般取「非未中」（和局也算有份，與 6hc-cd 相同） */
   eligible: boolean
   /**
@@ -54,6 +74,8 @@ export type JackpotShare = {
   orderId: string
   userId: string
   coin: number
+  /** 對應 JackpotRow.source，供呼叫端分流寫回 */
+  source: string
   weight: number
   weighted: number
   amount: number
@@ -106,9 +128,12 @@ export function buildJackpotShares(
       // 權重以注單帶進來的設定值為主；明確給 0 代表「不參與分配」，
       // 只有完全沒帶（舊注單、已下架玩法）才退回 weightFallback
       const configWeight = row?.weight == null ? Number.NaN : Number(row.weight)
-      const weight = Number.isFinite(configWeight) && configWeight >= 0
+      const baseWeight = Number.isFinite(configWeight) && configWeight >= 0
         ? configWeight
         : Number(settings.weightFallback ?? 0)
+      // 盤口係數：沒設定的盤口視為 1（不調整）
+      const board = Number(settings.boardWeight?.[String(row?.source ?? '')] ?? 1)
+      const weight = Number((baseWeight * (Number.isFinite(board) && board >= 0 ? board : 1)).toFixed(4))
       if (!(weight > 0)) return null
       return { row, coin, weight, weighted: coin * weight }
     })
@@ -129,6 +154,7 @@ export function buildJackpotShares(
       orderId: String(item.row.orderId),
       userId: String(item.row.userId),
       coin: item.coin,
+      source: String(item.row.source ?? ''),
       weight: item.weight,
       weighted: item.weighted,
       amount

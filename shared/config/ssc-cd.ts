@@ -350,10 +350,10 @@ export function judgeSscBet(
   }
 }
 
-// ── 爆池（信用盤專屬，與官方盤的共用彩池是兩個獨立的池） ──────────
+// ── 爆池（兩個盤口共吃一池，與官方盤的共用彩池是兩個獨立的池） ──────────
 
 /**
- * 時時彩信用盤的爆池設定
+ * 時時彩的爆池設定（信用盤與官方盤共吃這一池）
  *
  * ── 爆池期怎麼定 ────────────────────────────────────────
  *   開獎的**後三（百十個位）開出豹子**（三個號碼相同）時觸發。
@@ -365,16 +365,21 @@ export function judgeSscBet(
  *      兩個盤口的彩池敘事才對得起來。
  *
  * ── 抽水是額外的一份 ────────────────────────────────────
- *   ⚠️ 信用盤原本就有 2% 抽水進「兩盤共用的彩池」（sscShared，官方盤後三直選在吃）；
- *      這裡的 rakeRatio 是**另外**再撥一份進信用盤自己的爆池，兩者不互相吃。
+ *   ⚠️ 兩個盤口原本就各自抽水進「共用彩池」（sscShared.pool，官方盤後三直選在吃）；
+ *      這裡的 rakeRatio 是**另外**再撥一份進爆池，兩者不互相吃。
  */
-export const SSC_CD_JACKPOT: JackpotSettings = {
+export const SSC_JACKPOT_SETTINGS: JackpotSettings = {
   rakeRatio: 0.01,
   payoutRatio: 0.5,
   /** 以 rakeRatio 1% 換算 ≈ 需累積 10 萬投注額 */
   minPool: 1000,
   /** 注單查不到看板設定時的保底權重（設定檔的 weight 幾乎都有值，這裡只是保險） */
   weightFallback: 1,
+  /**
+   * 盤口係數：信用盤與官方盤的注單放進同一個爆池分配時，各自再乘上這個值
+   * 預設 1:1 —— 即接受「CD 的難注項 ≈ OF 的難注項」這個等價假設
+   */
+  boardWeight: { cd: 1, of: 1 },
   hitLabel: '後三開出豹子（百十個位三碼相同）',
   hitRate: 10 / 1000
 }
@@ -383,7 +388,7 @@ export const SSC_CD_JACKPOT: JackpotSettings = {
  * 這一期是不是爆池期
  * @returns true = 後三豹子；開獎格式不合回 false
  */
-export function sscCdJackpotHit(openCode: Array<string | number>): boolean {
+export function sscJackpotHit(openCode: Array<string | number>): boolean {
   const digits = sscDigitsOf(openCode)
   if (!digits) return false
   const tail = sscSectionOf(digits, '後三')
@@ -392,7 +397,7 @@ export function sscCdJackpotHit(openCode: Array<string | number>): boolean {
 }
 
 /** 爆池期的開獎文字（寫進爆池紀錄，給看板顯示用） */
-export function sscCdJackpotLabel(openCode: Array<string | number>): string {
+export function sscJackpotLabel(openCode: Array<string | number>): string {
   const digits = sscDigitsOf(openCode)
   if (!digits) return ''
   const tail = sscSectionOf(digits, '後三') ?? []

@@ -4,6 +4,8 @@ import LOTTERY_BASE, { CYCLE_MS, TOTAL_ISSUES_PER_DAY, type OpenCodeRecord } fro
 // ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
 //    ./base 才是本層的彩票基底（期表／狀態機／訂單）
 import { MEMORY } from '../../../base'
+import { type JackpotRow } from '#shared/config/jackpot'
+import { pk10JackpotHit, pk10JackpotLabel, PK10_JACKPOT_SETTINGS } from '#shared/config/pk10-cd'
 import { pk10CarsOf, pk10SumOf } from '#shared/config/pk10'
 import {
   pk10OfMatchCount,
@@ -18,10 +20,16 @@ import {
   pk10OgIsPoolTab,
   pk10OgQuotaOf,
   pk10OgTabOddsOf,
-  findPk10OgTab
+  findPk10OgTab,
+  pk10OgJackpotWeightOf
 } from '#shared/config/pk10og/helpers'
 import {
   PK10_SHARED,
+  pk10AddIssueJackpot,
+  pk10RegisterJackpotBoard,
+  pk10SubmitJackpotRows,
+  pk10SettleJackpotIfReady,
+  pk10JackpotState,
   pk10AddIssuePool,
   pk10EnsurePoolBase,
   pk10DistributablePool,
@@ -167,11 +175,14 @@ export default class PK10_OF extends LOTTERY_BASE {
       claimableIssues: UserClaimableIssue[]
     }
     prizeTiers: () => typeof PK10_OF_PRIZE_TIERS
+    creditJackpot: () => ReturnType<typeof pk10JackpotState>
   }
 
   constructor() {
     super(LOTTERY['PK10-OF'].key, LOTTERY['PK10-OF'].id)
     this.issueSettledMap = {}
+    // 官方盤的注單也參與爆池分配（兩個盤口共吃一池，狀態在 pk10Shared.ts）
+    pk10RegisterJackpotBoard('of')
 
     Object.assign(this._get, {
       user: (userId: string) => Storage.get.user(userId) as UserStoreLike,
@@ -432,6 +443,8 @@ export default class PK10_OF extends LOTTERY_BASE {
         // ── 賠率制玩法：逐注判定 ──
         const oddsOrders = allOrders.filter((row) => !_isPoolPlay(row.playKey))
         const oddsPayoutByUser = new Map<string, number>()
+        /** 爆池分配用的注單列（賠率制與彩池兩種玩法都要收） */
+        const jackpotRows: JackpotRow[] = []
         oddsOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
           const betCode = String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
@@ -462,6 +475,16 @@ export default class PK10_OF extends LOTTERY_BASE {
               Number((Number(oddsPayoutByUser.get(row.userId) ?? 0) + payout).toFixed(2))
             )
           }
+
+          jackpotRows.push({
+            orderId: String(row.orderId),
+            userId: String(row.userId),
+            coin,
+            source: 'of',
+            // 有份條件：非未中（和局也算有份，與信用盤同一套語意）
+            eligible: status !== 'lose',
+            weight: pk10OgJackpotWeightOf(String(row.playKey ?? ''), Number(row.tabId ?? 0), betCode)
+          })
         })
         oddsPayoutByUser.forEach((amount, userId) => {
           this.handle.pushClaimable(userId, safeIssue, amount, codes)
@@ -524,6 +547,32 @@ export default class PK10_OF extends LOTTERY_BASE {
           if (row.payout > 0) {
             payoutByUser.set(row.userId, Number((Number(payoutByUser.get(row.userId) ?? 0) + row.payout).toFixed(2)))
           }
+
+          jackpotRows.push({
+            orderId: String(row.orderId),
+            userId: String(row.userId),
+            coin: Number(row.coin ?? 0),
+            source: 'of',
+            // 彩池玩法沒有和局，命中 ≥ 1（有派彩）才算有份
+            eligible: row.payout > 0,
+            weight: pk10OgJackpotWeightOf(String(row.playKey ?? ''), Number(row.tabId ?? 0), String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? ''))
+          })
+        })
+
+        // ── 爆池：交件給共用層，湊齊所有盤口後才分配 ──
+        // ⚠️ 池與滾存都在共用層（與 PK10-CD 共吃一池），本 class 只挑 source === 'of' 的份寫回自己的 record
+        pk10SubmitJackpotRows(safeIssue, 'of', jackpotRows)
+        const jackpot = pk10SettleJackpotIfReady(safeIssue, pk10JackpotHit(codes), pk10JackpotLabel(codes))
+        jackpot?.shares.filter((share) => share.source === 'of').forEach((share) => {
+          if (!(share.amount > 0)) return
+          payoutByUser.set(
+            share.userId,
+            Number((Number(payoutByUser.get(share.userId) ?? 0) + share.amount).toFixed(2))
+          )
+          const record = this.handle.ensureUserRecord(this._get.user(share.userId))
+          const idx = record.betHistory.findIndex((item) => String(item.orderId) === share.orderId)
+          const current = record.betHistory[idx]
+          if (idx >= 0 && current) record.betHistory[idx] = { ...current, jackpotAmount: share.amount }
         })
 
         payoutByUser.forEach((amount, userId) => {
@@ -581,7 +630,9 @@ export default class PK10_OF extends LOTTERY_BASE {
           claimableIssues: [...record.claimableIssues]
         }
       },
-      prizeTiers: () => PK10_OF_PRIZE_TIERS
+      prizeTiers: () => PK10_OF_PRIZE_TIERS,
+      /** 爆池狀態（與 PK10-CD 共吃一池，兩邊的 /jackpot 回同一份） */
+      creditJackpot: () => pk10JackpotState(this._get.latestIssue())
     })
 
     this.init()
@@ -620,6 +671,8 @@ export default class PK10_OF extends LOTTERY_BASE {
     const rows = this.handle.buildOrderRows({ issue, userId, amount, groups })
     // 官方盤彩池玩法的獎金全部來自獎池，故抽水比例遠高於信用盤
     pk10AddIssuePool(issue, Number((amount * PK10_OF_RAKE_RATIO).toFixed(2)))
+    // 另外再抽一份進爆池（與共用彩池是兩個池，兩個盤口共吃爆池）
+    pk10AddIssueJackpot(issue, Number((amount * PK10_JACKPOT_SETTINGS.rakeRatio).toFixed(2)))
     this.handle.pushBalanceChange(userId, {
       issue,
       type: 'bet',

@@ -104,12 +104,12 @@ const SSC_OF_WIN_RATE = (() => {
 const winRate = computed(() => `${SSC_OF_WIN_RATE.toFixed(2)}%`)
 
 /**
- * 信用盤爆池（只有信用盤顯示）
+ * 爆池（兩個盤口共吃一池，所以兩邊都顯示同一個數字）
  *
- * ⚠️ 與上面的「總獎金」是兩個不同的池：那個是兩盤共用、官方盤後三直選分層在吃的；
- *    這個是信用盤自己抽水養的，開出爆池條件那期一次發放給有份的注單。
+ * ⚠️ 與上面的「總獎金」是兩個不同的池：那個是官方盤的彩池分頁分層在吃的；
+ *    這個是爆池，開出爆池條件那期一次發放給**兩個盤口**該期有份的注單。
  */
-const jackpotReady = computed(() => isCd.value && Number(mxJackpot.rakeRatio) > 0)
+const jackpotReady = computed(() => Number(mxJackpot.rakeRatio) > 0)
 const jackpotPool = computed(() => Number(mxJackpot.distributable ?? 0))
 const jackpotHitRate = computed(() => `${(Number(mxJackpot.hitRate ?? 0) * 100).toFixed(2)}%`)
 /** 累積池未達門檻時不發放，畫面要講清楚 */
@@ -239,7 +239,7 @@ const ballLabels = SSC_BALL_NAMES.map((name) => name.replace('球', ''))
           <span class="accent">{{ winRate }}</span>
         </div>
         <p class="pool-note">※ 獎金由 [信用] 與 [官方] 累積</p>
-        <!-- 信用盤專屬的爆池：與上面的共用彩池是兩套帳 -->
+<!-- 爆池：兩個盤口共吃一池，與上面的共用彩池是兩套帳 -->
         <div v-if="jackpotReady" class="jackpot-box">
           <div class="row">
             <span class="label">爆池</span>

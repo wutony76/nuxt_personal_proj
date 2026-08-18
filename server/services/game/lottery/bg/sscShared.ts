@@ -1,4 +1,11 @@
 import LOTTERY_BASE, { type OpenCodeRecord } from './base'
+import {
+  buildJackpotShares,
+  type JackpotHitRecord,
+  type JackpotResult,
+  type JackpotRow
+} from '#shared/config/jackpot'
+import { SSC_JACKPOT_SETTINGS } from '#shared/config/ssc-cd'
 import { SSC_BALL_COUNT, SSC_DIGIT_MAX } from '#shared/config/ssc'
 import { SSC_OF_PICK_COUNT, SSC_OF_PRIZE_TIERS } from '#shared/config/ssc-of'
 
@@ -142,4 +149,161 @@ export function sscDistributablePool(issue: string): number {
   return Number(
     LOTTERY_BASE.jackpotCalc(SSC_SHARED.pool.base, sscIssuePool(issue), SSC_SHARED.pool.carry).toFixed(2)
   )
+}
+
+// ── 爆池（兩個盤口共吃同一池） ───────────────────────────────────────────────
+
+/**
+ * 時時彩爆池的共用狀態
+ *
+ * ── 為什麼收在共用層 ────────────────────────────────────
+ *   爆池原本掛在 SSC_CD class 上，只有信用盤的注單分得到。改成兩盤共吃一池後，
+ *   狀態必須放在兩個 class 都看得到的地方，而且**只能結算一次** ——
+ *   兩個 class 的 circle() 是同一個 tick 依序跑的（見 server/plugins/init.ts），
+ *   各自都會對同一期呼叫 settleIssuePrize。
+ *
+ * ── 怎麼保證只結算一次、又能等到兩邊的注單 ────────────────
+ *   `submitRows` 讓每個盤口在自己的結算流程裡「交件」（自己判定自己的注單），
+ *   等到**所有已註冊的盤口都交件**才真的計算分配（`settleIfReady`）。
+ *   因此誰先跑到都無所謂，不依賴 Storage.games 的註冊順序。
+ *
+ * ── 為什麼要 apply 回呼 ──────────────────────────────────
+ *   分配結果要寫回 `jackpotAmount` 與可領金額，但信用盤的注單在 `user.sscRecord`、
+ *   官方盤在 `user.sscOfRecord` —— 兩種 record 形狀不同。
+ *   共用層不去理解那兩種形狀，改讓每個盤口註冊一個 apply，各自處理自己那半
+ *   （靠 JackpotShare.source 分流）。
+ *
+ * ⚠️ 與 SSC_SHARED.pool 是**兩個不同的池**：那個是官方盤分層派彩用的，
+ *    本節這個是爆池。兩者的 carry 分開記，不會互相吃。
+ */
+
+/** 盤口代號（同時是 JackpotRow.source 與 SSC_JACKPOT_SETTINGS.boardWeight 的 key） */
+export type SSCJackpotBoard = 'cd' | 'of'
+
+type SSCJackpotState = {
+  /** 各期爆池抽水累積：issue → 金額 */
+  issueMap: Record<string, number>
+  /** 未發放的滾存 */
+  carry: number
+  /** 最近一次爆池紀錄 */
+  lastHit: JackpotHitRecord | null
+  /** 已結算過的期別（保證一期只分配一次） */
+  settledMap: Record<string, boolean>
+  /** 各盤口交件的注單：issue → board → rows */
+  pending: Record<string, Partial<Record<SSCJackpotBoard, JackpotRow[]>>>
+  /** 該期的分配結果（兩個盤口各自取用自己那半） */
+  results: Record<string, JackpotResult>
+}
+
+export const SSC_JACKPOT: SSCJackpotState = {
+  issueMap: {},
+  carry: 0,
+  lastHit: null,
+  settledMap: {},
+  pending: {},
+  results: {}
+}
+
+/** 已註冊的盤口（class 在 constructor 註冊；決定「要等幾份交件」） */
+const _boards = new Set<SSCJackpotBoard>()
+
+/**
+ * 註冊一個盤口會參與爆池
+ * ⚠️ 註冊了就一定要在自己的結算流程裡 submitRows，否則該期永遠湊不齊、不會發放。
+ */
+export function sscRegisterJackpotBoard(board: SSCJackpotBoard): void {
+  _boards.add(board)
+}
+
+/** 累加某期的爆池抽水（兩個盤口都往同一個池加） */
+export function sscAddIssueJackpot(issue: string, amount: number): void {
+  const key = String(issue ?? '')
+  const add = Number(amount)
+  if (!key || !Number.isFinite(add) || add <= 0) return
+  SSC_JACKPOT.issueMap[key] = Number((Number(SSC_JACKPOT.issueMap[key] ?? 0) + add).toFixed(2))
+}
+
+/** 可發放爆池 = 該期抽水 + 累積滾存 */
+export function sscJackpotPool(issue: string): number {
+  const key = String(issue ?? '')
+  return Number((Number(SSC_JACKPOT.issueMap[key] ?? 0) + Number(SSC_JACKPOT.carry ?? 0)).toFixed(2))
+}
+
+/** 某盤口交件：把自己判定好的注單列交給共用層 */
+export function sscSubmitJackpotRows(issue: string, board: SSCJackpotBoard, rows: JackpotRow[]): void {
+  const key = String(issue ?? '')
+  if (!key) return
+  if (!SSC_JACKPOT.pending[key]) SSC_JACKPOT.pending[key] = {}
+  SSC_JACKPOT.pending[key][board] = Array.isArray(rows) ? rows : []
+}
+
+/**
+ * 所有註冊的盤口都交件後才真的計算分配
+ *
+ * @param triggered 這一期是不是爆池期（由呼叫端用該彩種的 *JackpotHit() 判定）
+ * @param openLabel 爆池期的開獎文字（寫進紀錄）
+ * @returns 該期的分配結果；還沒湊齊回 null。**重複呼叫會回同一份結果**（不會重算）
+ */
+export function sscSettleJackpotIfReady(
+  issue: string,
+  triggered: boolean,
+  openLabel: string
+): JackpotResult | null {
+  const key = String(issue ?? '')
+  if (!key) return null
+  if (SSC_JACKPOT.settledMap[key]) return SSC_JACKPOT.results[key] ?? null
+
+  const pending = SSC_JACKPOT.pending[key] ?? {}
+  // 等所有註冊的盤口都交件；少一份就先不發，等下一個 class 跑到
+  for (const board of _boards) {
+    if (!Array.isArray(pending[board])) return null
+  }
+
+  const rows = Array.from(_boards).flatMap((board) => pending[board] ?? [])
+  const pool = sscJackpotPool(key)
+  const result = buildJackpotShares(rows, triggered, pool, SSC_JACKPOT_SETTINGS)
+
+  // 未發放的部分（含未觸發時的整池）滾存至下期
+  SSC_JACKPOT.carry = Number(result.remain.toFixed(2))
+  SSC_JACKPOT.issueMap[key] = 0
+  SSC_JACKPOT.settledMap[key] = true
+  SSC_JACKPOT.results[key] = result
+  delete SSC_JACKPOT.pending[key]
+  if (result.triggered) {
+    SSC_JACKPOT.lastHit = {
+      issue: key,
+      openLabel: String(openLabel ?? ''),
+      pool: result.pool,
+      payout: result.payout,
+      winners: new Set(result.shares.map((share) => share.userId)).size,
+      orders: result.shares.length,
+      createdAt: Date.now()
+    }
+  }
+  return result
+}
+
+/**
+ * 取某期已算好的分配結果（給「後跑到的那個 class」拿自己那半用）
+ * @returns 尚未結算回 null
+ */
+export function sscJackpotResultOf(issue: string): JackpotResult | null {
+  return SSC_JACKPOT.results[String(issue ?? '')] ?? null
+}
+
+/** 爆池狀態（兩個盤口的 /jackpot 路由回同一份） */
+export function sscJackpotState(issue: string) {
+  const key = String(issue ?? '')
+  return {
+    issue: key,
+    currentIssueJackpot: Number(SSC_JACKPOT.issueMap[key] ?? 0),
+    carryJackpot: Number(SSC_JACKPOT.carry ?? 0),
+    distributable: sscJackpotPool(key),
+    rakeRatio: SSC_JACKPOT_SETTINGS.rakeRatio,
+    payoutRatio: SSC_JACKPOT_SETTINGS.payoutRatio,
+    minPool: SSC_JACKPOT_SETTINGS.minPool,
+    hitLabel: SSC_JACKPOT_SETTINGS.hitLabel,
+    hitRate: SSC_JACKPOT_SETTINGS.hitRate,
+    lastHit: SSC_JACKPOT.lastHit
+  }
 }

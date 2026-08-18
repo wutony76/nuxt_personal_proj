@@ -31,6 +31,23 @@ export type K3OfPrizeTier =
   | { match: number; type: 'pool'; ratio: number; minAmount?: number; name: string }
   | { match: number; type: 'fixed'; amount: number; name: string }
 
+/**
+ * 走彩池分層的玩法 key（伺端據此把注單分流到兩條結算路）
+ *
+ * ⚠️ 這個玩法**不在 k3og/plays.ts 裡** —— 選號（3 個點數）是前端自己一條送單路，
+ *    沒有對應的看板分頁，所以 k3OgJackpotWeightOf() 查不到它的爆池權重。
+ */
+export const K3_OF_POOL_PLAY_KEY = 'xuanhao'
+
+/**
+ * 選號玩法的爆池分配權重（查不到看板設定時的指定值）
+ *
+ * k3og 其餘玩法的 weight 落在 1 ~ 3（依「理論賠率 = 1/命中機率」分級），
+ * 選號的頭獎是 1/56、比多數注項難，故取最高的 3；
+ * 對照 pk10 前三直選與 ssc 後三直選這兩個彩池分頁在 config 裡是 2。
+ */
+export const K3_OF_POOL_PLAY_WEIGHT = 3
+
 export const K3_OF_PRIZE_TIERS: K3OfPrizeTier[] = [
   { match: 3, type: 'pool', ratio: 0.70, minAmount: 20000, name: '頭獎' },
   { match: 2, type: 'pool', ratio: 0.20, name: '二獎' },
