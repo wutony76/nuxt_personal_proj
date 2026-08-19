@@ -15,17 +15,17 @@
  *
  * ── 兩套派彩並存 ────────────────────────────────────────
  *   後三直選（combo.pool = true）→ 吃共用彩池，依命中位數分層（SSC_OF_PRIZE_TIERS）
- *   其餘 10 個分頁                → 固定賠率，由 sscog.ts 依「公平賠率 × rtp」推算
+ *   其餘 10 個分頁                → 固定賠率，由 sscof.ts 依「公平賠率 × rtp」推算
  *   ⚠️ 後三直選 1/1000 配固定賠率不好看，分層之後猜中 2 位也有獎。
  *
  * ── 兩種分頁型態 ────────────────────────────────────────
  *   單選分頁（定位膽）—— groupList 就是注項清單，注碼＝name（第一球0…）
  *   複式分頁（其餘 10 個）—— groupList 只是「該位置／該組可選的號碼」，
- *                          注碼由 sscog/helpers.ts 的 sscOgComboCodes() 展開，
- *                          清單裡找不到，所以驗證改走 combo 規則（見 sscOgHasBetCode）
+ *                          注碼由 sscof/helpers.ts 的 sscOfComboCodes() 展開，
+ *                          清單裡找不到，所以驗證改走 combo 規則（見 sscOfHasBetCode）
  *
- * ⚠️ 五星直選全選會展開成 100,000 注，SSC_OG_MAX_COMBO（2000）會直接擋掉整筆。
- * ⚠️ 賠率一律由 sscog.ts 依「公平賠率 × rtp」推算，本檔的 odds／註解只是產生時的快照。
+ * ⚠️ 五星直選全選會展開成 100,000 注，SSC_OF_MAX_COMBO（2000）會直接擋掉整筆。
+ * ⚠️ 賠率一律由 sscof.ts 依「公平賠率 × rtp」推算，本檔的 odds／註解只是產生時的快照。
  * ⚠️ 設定檔一律用 .js（不 import 任何東西）——
  *    Nitro 對 shared 下的檔案走 Node 原生 ESM 解析、不認得 `#shared` 別名。
  * ⚠️ pcv2 的「單式」（貼注碼字串）、和值／跨度／包胆本專案未實作，只做「複式」。

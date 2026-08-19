@@ -7,8 +7,8 @@
  * ── 與 k3 / pk10 的分工一致 ──────────────────────────────
  *   本檔                      骰子／車號那一層的對應物：號碼運算 + 注碼判定 + 機率
  *   shared/config/ssc-cd.ts   信用盤：判定包裝 + 賠率推導
- *   shared/config/sscog.ts    官方盤：同上，rtp 預設值自己一份
- *   shared/config/ssccd|sscog 看板設定（注項、限額），由 helpers 讀取
+ *   shared/config/sscof.ts    官方盤：同上，rtp 預設值自己一份
+ *   shared/config/ssccd|sscof 看板設定（注項、限額），由 helpers 讀取
  *
  * ── 為什麼機率用「取樣空間」而不是整體窮舉 ───────────────
  *   多數注項只看某幾個位置（單球 1/10、兩面 5/10、龍虎 100 組），

@@ -14,15 +14,15 @@ import {
   PK10_OF_POOL_PLAY_KEY,
   PK10_OF_PRIZE_TIERS
 } from '#shared/config/pk10-of'
-import { judgePk10OgBet } from '#shared/config/pk10og'
+import { judgePk10OfBet } from '#shared/config/pk10of'
 import {
-  pk10OgHasBetCode,
-  pk10OgIsPoolTab,
-  pk10OgQuotaOf,
-  pk10OgTabOddsOf,
-  findPk10OgTab,
-  pk10OgJackpotWeightOf
-} from '#shared/config/pk10og/helpers'
+  pk10OfHasBetCode,
+  pk10OfIsPoolTab,
+  pk10OfQuotaOf,
+  pk10OfTabOddsOf,
+  findPk10OfTab,
+  pk10OfJackpotWeightOf
+} from '#shared/config/pk10of/helpers'
 import {
   PK10_SHARED,
   pk10AddIssueJackpot,
@@ -138,7 +138,7 @@ const PK10_OF_RAKE_RATIO = 0.6
  *
  * 官方盤有兩套派彩並存（玩法與分頁全部照 pcv2 的 conf_pk10_og.js）：
  *   qiansan —— 前三直選：依序猜冠／亞／季軍，依命中名次數從共用彩池分層分配
- *   其餘     —— 前一直選／前二直選／定位膽，賠率由 pk10og.ts 依
+ *   其餘     —— 前一直選／前二直選／定位膽，賠率由 pk10of.ts 依
  *              「公平賠率 × 分頁 rtp」推算，下注時鎖進注單
  * 判斷依據就是 playKey，兩條路互不干擾。
  * ⚠️ key 由 shared/config/pk10-of.ts 提供，不要在這裡再寫一份字串。
@@ -310,15 +310,15 @@ export default class PK10_OF extends LOTTERY_BASE {
         ;(Array.isArray(input.groups) ? input.groups : []).forEach((group) => {
           const playKey = String(group?.playKey || POOL_PLAY_KEY)
           const tabId = Number(group?.selectTabId ?? 0)
-          const tab = findPk10OgTab(playKey, tabId)
+          const tab = findPk10OfTab(playKey, tabId)
           if (!tab) this.handle.rejectBet(`玩法或分頁不存在（${playKey} / ${tabId}）`)
           const safeTabId = Number(tab!.tabId)
           const tabName = String(tab!.tabName ?? safeTabId)
           const isPool = _isPoolPlay(playKey)
           // 彩池分頁也有自己的 quota（config 的 141121011），不再寫死
-          const quota = pk10OgQuotaOf(playKey, safeTabId)
+          const quota = pk10OfQuotaOf(playKey, safeTabId)
           // playKey 說是彩池、config 卻不是彩池分頁（或反過來）→ 前端送錯，直接擋
-          if (isPool !== pk10OgIsPoolTab(playKey, safeTabId)) {
+          if (isPool !== pk10OfIsPoolTab(playKey, safeTabId)) {
             this.handle.rejectBet(`${tabName} 的派彩方式與玩法不符（${playKey}）`)
           }
           ;(Array.isArray(group?.playList) ? group.playList : []).forEach((play) => {
@@ -332,7 +332,7 @@ export default class PK10_OF extends LOTTERY_BASE {
             } else {
               // 賠率制：注碼一律用伺端的設定檔驗，不信任前端送的注數與賠率
               label = String(play?.label ?? play?.num ?? '').trim()
-              if (!pk10OgHasBetCode(playKey, safeTabId, label)) {
+              if (!pk10OfHasBetCode(playKey, safeTabId, label)) {
                 this.handle.rejectBet(`${tabName}「${label || '(空)'}」不在該分頁的注項內`)
               }
             }
@@ -353,11 +353,11 @@ export default class PK10_OF extends LOTTERY_BASE {
           get: { issueTabCoin: (issue: string, userId: string, tabId: number) => number }
         }
         newByTab.forEach(({ playKey, coin: newCoin }, tabId) => {
-          const quota = pk10OgQuotaOf(playKey, tabId)
+          const quota = pk10OfQuotaOf(playKey, tabId)
           if (!(quota.issue.max > 0)) return
           const used = Number(orders?.get?.issueTabCoin?.(input.issue, input.userId, tabId) ?? 0)
           if (used + newCoin > quota.issue.max) {
-            const tabName = findPk10OgTab(playKey, tabId)?.tabName ?? String(tabId)
+            const tabName = findPk10OfTab(playKey, tabId)?.tabName ?? String(tabId)
             this.handle.rejectBet(
               `${tabName} 單期投注上限 ${_money(quota.issue.max)}，本期已投注 ${_money(used)}、本次 ${_money(newCoin)}`
             )
@@ -371,7 +371,7 @@ export default class PK10_OF extends LOTTERY_BASE {
           const playKey = String(group?.playKey || POOL_PLAY_KEY)
           // 分頁 id 一律以 config 為準（前端沒帶就回該玩法第一個分頁），
           // 結算與單期限額都靠它，不能直接信前端送的數字
-          const tabId = Number(findPk10OgTab(playKey, group?.selectTabId)?.tabId ?? 0)
+          const tabId = Number(findPk10OfTab(playKey, group?.selectTabId)?.tabId ?? 0)
           const isPool = _isPoolPlay(playKey)
           const playList = Array.isArray(group?.playList) ? group.playList : []
           const total = playList.length
@@ -400,7 +400,7 @@ export default class PK10_OF extends LOTTERY_BASE {
             const label = String(play?.label ?? play?.num ?? '').trim()
             if (!label) return
             // 賠率鎖進注單：之後改 rtp 或設定也不會影響已成立的注單
-            rows.push({ ...base, bet_code: [label], odds: pk10OgTabOddsOf(playKey, tabId, label), tab_id: tabId })
+            rows.push({ ...base, bet_code: [label], odds: pk10OfTabOddsOf(playKey, tabId, label), tab_id: tabId })
           })
         })
         return rows
@@ -422,7 +422,7 @@ export default class PK10_OF extends LOTTERY_BASE {
        * 官方盤結算
        *
        * 兩條路並存，依 playKey 分流：
-       *   賠率制玩法（pk10og）→ judgePk10OgBet 逐注判定，賠率取注單鎖的值
+       *   賠率制玩法（pk10of）→ judgePk10OfBet 逐注判定，賠率取注單鎖的值
        *   彩池玩法（qiansan） → 依命中名次數分層，從共用獎池按比例分配
        * ⚠️ 滾存（carry）只由彩池玩法那條計算 —— 賠率制的注單不吃池、也不影響滾存。
        */
@@ -449,7 +449,7 @@ export default class PK10_OF extends LOTTERY_BASE {
           const coin = Number(row.coin ?? 0)
           const betCode = String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
           const lockedOdds = Number(row.odds ?? 0)
-          const judged = judgePk10OgBet(betCode, codes, coin, lockedOdds)
+          const judged = judgePk10OfBet(betCode, codes, coin, lockedOdds)
           // 無法辨識的注碼視為和局退還本金，不吞玩家注金
           const status = judged?.status ?? 'tie'
           const odds = judged?.odds ?? lockedOdds
@@ -483,7 +483,7 @@ export default class PK10_OF extends LOTTERY_BASE {
             source: 'of',
             // 有份條件：非未中（和局也算有份，與信用盤同一套語意）
             eligible: status !== 'lose',
-            weight: pk10OgJackpotWeightOf(String(row.playKey ?? ''), Number(row.tabId ?? 0), betCode)
+            weight: pk10OfJackpotWeightOf(String(row.playKey ?? ''), Number(row.tabId ?? 0), betCode)
           })
         })
         oddsPayoutByUser.forEach((amount, userId) => {
@@ -555,7 +555,7 @@ export default class PK10_OF extends LOTTERY_BASE {
             source: 'of',
             // 彩池玩法沒有和局，命中 ≥ 1（有派彩）才算有份
             eligible: row.payout > 0,
-            weight: pk10OgJackpotWeightOf(String(row.playKey ?? ''), Number(row.tabId ?? 0), String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? ''))
+            weight: pk10OfJackpotWeightOf(String(row.playKey ?? ''), Number(row.tabId ?? 0), String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? ''))
           })
         })
 

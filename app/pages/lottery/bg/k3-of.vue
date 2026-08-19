@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
 import K3Header from '~/components/lottery/bg/k3/block/Header.vue'
-import K3OgBoard from '~/components/lottery/bg/k3/of/base/Board.vue'
+import K3OfBoard from '~/components/lottery/bg/k3/of/base/Board.vue'
 import CurrItems from '~/components/lottery/bg/k3/block/CurrItems.vue'
 import Controls from '~/components/lottery/bg/k3/block/Controls.vue'
 import Report from '~/components/lottery/bg/k3/block/Report.vue'
@@ -27,25 +27,25 @@ const {
   wallet: mxWallet,
   pool: mxPool,
   ofPicked,
-  og: mxOg,
-  ogPlayList,
-  ogCombo,
-  ogSelectedCount,
-  ogTotalAmount,
-  isOgPool,
+  of: mxOf,
+  ofPlayList,
+  ofCombo,
+  ofSelectedCount,
+  ofTotalAmount,
+  isOfPool,
   actions: mxActions,
   fetch: mxFetch
 } = useK3()
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
-const currentOgPlayName = computed(() =>
-  ogPlayList.value.find((play) => play.key === mxOg.play)?.name ?? '官方玩法'
+const currentOfPlayName = computed(() =>
+  ofPlayList.value.find((play) => play.key === mxOf.play)?.name ?? '官方玩法'
 )
 /** 標題列的操作提示：彩池玩法固定選 3 顆，組合玩法看 pick，其餘是逐項選 */
 const headHint = computed(() => {
-  if (isOgPool.value) return '請選 3 個點數（獎池分層派彩）'
-  const combo = ogCombo.value
+  if (isOfPool.value) return '請選 3 個點數（獎池分層派彩）'
+  const combo = ofCombo.value
   if (!combo) return '請選擇注項'
   return combo.mode === 'dantuo'
     ? `請選膽碼與拖碼（一注 ${combo.pick} 個點數）`
@@ -62,16 +62,16 @@ const state = reactive({ randomCount: 5 })
 
 const click = {
   /**
-   * 機選：語意依分頁型態不同（詳見 useK3 的 randomOgSelect）——
+   * 機選：語意依分頁型態不同（詳見 useK3 的 randomOfSelect）——
    * 單選正好 N 注、組合至少 N 注、彩池固定 1 注
    */
   random: () => {
-    const picked = mxActions.randomOgSelect(state.randomCount)
+    const picked = mxActions.randomOfSelect(state.randomCount)
     if (picked <= 0) $dialog.alert('此分頁無法隨機選號')
   },
   clear: () => {
-    if (isOgPool.value) mxActions.clearOfPicks()
-    else mxActions.clearOg()
+    if (isOfPool.value) mxActions.clearOfPicks()
+    else mxActions.clearOf()
   }
 }
 
@@ -143,10 +143,10 @@ onBeforeUnmount(() => {
       </section>
 
       <section class="play-warp">
-        <!-- 玩法分頁：k3og 的 6 個賠率玩法 + 原本的彩池玩法（結構參照 pcv2 的 conf_k3_og.js） -->
+        <!-- 玩法分頁：k3of 的 6 個賠率玩法 + 原本的彩池玩法（結構參照 pcv2 的 conf_k3_og.js） -->
         <div class="play-tabs">
-          <button v-for="play in ogPlayList" :key="play.key" type="button" class="play-tab"
-            :class="{ active: mxOg.play === play.key }" @click="mxActions.setOgPlay(play.key)">
+          <button v-for="play in ofPlayList" :key="play.key" type="button" class="play-tab"
+            :class="{ active: mxOf.play === play.key }" @click="mxActions.setOfPlay(play.key)">
             {{ play.name }}
           </button>
           <div class="auto-select">
@@ -164,12 +164,12 @@ onBeforeUnmount(() => {
         <div class="selector-warp">
           <div class="selector">
             <div class="head">
-              <span>[ {{ currentOgPlayName }}{{ mxOg.tabName ? ` · ${mxOg.tabName}` : '' }} ] {{ headHint }}</span>
-              <span v-if="isOgPool">{{ ofPicked ? '已選滿' : '未選滿' }}</span>
-              <span v-else>已選 {{ ogSelectedCount }} 注 · 共 {{ money(ogTotalAmount) }}</span>
+              <span>[ {{ currentOfPlayName }}{{ mxOf.tabName ? ` · ${mxOf.tabName}` : '' }} ] {{ headHint }}</span>
+              <span v-if="isOfPool">{{ ofPicked ? '已選滿' : '未選滿' }}</span>
+              <span v-else>已選 {{ ofSelectedCount }} 注 · 共 {{ money(ofTotalAmount) }}</span>
             </div>
             <div class="body">
-              <K3OgBoard />
+              <K3OfBoard />
             </div>
           </div>
           <aside class="selector-side">

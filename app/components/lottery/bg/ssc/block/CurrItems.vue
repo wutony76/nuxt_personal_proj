@@ -8,45 +8,45 @@ import { useSsc, type SscSelectItem } from '~/composables/useSsc'
  *   官方盤單選分頁（定位膽）→ 同上
  *   官方盤複式分頁（其餘 10 個）→ 列展開後的每一注，共用同一個投注金額
  *
- * ⚠️ 官方盤的後三直選是彩池分頁（ogIsPool），該分頁的 sscOgTabOddsOf 一律回 0，
+ * ⚠️ 官方盤的後三直選是彩池分頁（ofIsPool），該分頁的 sscOfTabOddsOf 一律回 0，
  *    賠率欄改標「彩池」——與 pk10 不同的是注碼形狀沒有分岔，只有這一欄要分流。
  */
 const {
   select: mxSelect, state: mxState, isCd,
   selectedCount, currentQuota: mxQuota, actions: mxActions,
-  og: mxOg, ogCombo, ogComboCodes, ogComboHint, ogIsPool, ogSelectedCount, ogQuota
+  of: mxOf, ofCombo, ofComboCodes, ofComboHint, ofIsPool, ofSelectedCount, ofQuota
 } = useSsc()
 /** 右上角的注數標籤 */
-const currCountLabel = computed(() => `${isCd.value ? selectedCount.value : ogSelectedCount.value} 注`)
+const currCountLabel = computed(() => `${isCd.value ? selectedCount.value : ofSelectedCount.value} 注`)
 
 /**
  * 官方盤的注項列
  *   單選分頁 → 逐項（注碼／賠率／各自金額）
  *   複式分頁 → 展開後的每一注，金額共用 state.amount
  * ⚠️ 複式展開可能上千注（上限 2000），這裡只列前 50 列，否則 DOM 會爆掉；
- *    總注數與總額仍以 ogSelectedCount / ogTotalAmount 為準。
+ *    總注數與總額仍以 ofSelectedCount / ofTotalAmount 為準。
  */
-const OG_ROW_LIMIT = 50
-const ogRows = computed(() => {
-  if (ogCombo.value) {
+const OF_ROW_LIMIT = 50
+const ofRows = computed(() => {
+  if (ofCombo.value) {
     const coin = Number(mxState.amount) || 0
-    // sscOgComboCodes() 直接吐完整注碼字串，不像 pk10 還要再接一次前綴
-    return ogComboCodes.value.slice(0, OG_ROW_LIMIT).map((code) => ({
+    // sscOfComboCodes() 直接吐完整注碼字串，不像 pk10 還要再接一次前綴
+    return ofComboCodes.value.slice(0, OF_ROW_LIMIT).map((code) => ({
       key: code,
       label: code,
-      odds: mxActions.ogOddsOf(code),
+      odds: mxActions.ofOddsOf(code),
       coin,
       shared: true
     }))
   }
-  return mxOg.items
+  return mxOf.items
     .filter((item) => Number(item.coin) > 0)
-    .slice(0, OG_ROW_LIMIT)
+    .slice(0, OF_ROW_LIMIT)
     .map((item) => ({ key: item.code, label: item.code, odds: item.odds, coin: item.coin, shared: false }))
 })
-const ogHiddenCount = computed(() => Math.max(0, ogSelectedCount.value - ogRows.value.length))
+const ofHiddenCount = computed(() => Math.max(0, ofSelectedCount.value - ofRows.value.length))
 
-const ogCoinHandlers = {
+const ofCoinHandlers = {
   /**
    * 官方盤的金額輸入
    *
@@ -56,21 +56,21 @@ const ogCoinHandlers = {
    */
   input: (row: { label: string; shared: boolean }, event: Event) => {
     const target = event.target as HTMLInputElement
-    const coin = Math.min(ogQuota.value.item.max, Math.max(0, Math.trunc(Number(target.value) || 0)))
+    const coin = Math.min(ofQuota.value.item.max, Math.max(0, Math.trunc(Number(target.value) || 0)))
     if (row.shared) mxState.amount = coin
-    else mxActions.setOgItemCoin(row.label, coin)
+    else mxActions.setOfItemCoin(row.label, coin)
     target.value = coin > 0 ? String(coin) : ''
   },
   /** 離開欄位夾回 [min, max]，不讓它留在 0（0 會被伺端拒單） */
   blur: (row: { label: string; shared: boolean }, event: Event) => {
     const target = event.target as HTMLInputElement
-    const quota = ogQuota.value.item
+    const quota = ofQuota.value.item
     const raw = row.shared
       ? Number(mxState.amount)
-      : Number(mxOg.items.find((item) => item.code === row.label)?.coin ?? 0)
+      : Number(mxOf.items.find((item) => item.code === row.label)?.coin ?? 0)
     const coin = Math.min(quota.max, Math.max(quota.min, Math.trunc(raw || 0)))
     if (row.shared) mxState.amount = coin
-    else mxActions.setOgItemCoin(row.label, coin)
+    else mxActions.setOfItemCoin(row.label, coin)
     target.value = String(coin)
   }
 }
@@ -137,21 +137,21 @@ const click = {
           </template>
           <!-- 官方盤（單選與複式共用同一組列，差別只在金額是否共用） -->
           <template v-else>
-            <tr v-for="row in ogRows" :key="row.key">
+            <tr v-for="row in ofRows" :key="row.key">
               <td class="c-code">{{ row.label }}</td>
-              <td class="c-odds">{{ row.odds || (ogIsPool ? '彩池' : '—') }}</td>
+              <td class="c-odds">{{ row.odds || (ofIsPool ? '彩池' : '—') }}</td>
               <td class="c-coin">
-                <input type="number" min="0" :max="ogQuota.item.max" class="coin-input" :value="row.coin || ''"
-                  placeholder="0" @input="ogCoinHandlers.input(row, $event)"
-                  @blur="ogCoinHandlers.blur(row, $event)" />
+                <input type="number" min="0" :max="ofQuota.item.max" class="coin-input" :value="row.coin || ''"
+                  placeholder="0" @input="ofCoinHandlers.input(row, $event)"
+                  @blur="ofCoinHandlers.blur(row, $event)" />
               </td>
             </tr>
             <!-- 複式展開太多時只列前 50 注，剩下的用一列說明（總額仍是全部注數算的） -->
-            <tr v-if="ogHiddenCount > 0">
-              <td colspan="3" class="c-empty">…另有 {{ ogHiddenCount }} 注（金額相同）</td>
+            <tr v-if="ofHiddenCount > 0">
+              <td colspan="3" class="c-empty">…另有 {{ ofHiddenCount }} 注（金額相同）</td>
             </tr>
-            <tr v-if="ogRows.length === 0">
-              <td colspan="3" class="c-empty">{{ ogComboHint || '尚未選擇注項' }}</td>
+            <tr v-if="ofRows.length === 0">
+              <td colspan="3" class="c-empty">{{ ofComboHint || '尚未選擇注項' }}</td>
             </tr>
           </template>
         </tbody>
@@ -160,8 +160,8 @@ const click = {
 
     <button v-if="isCd && mxSelect.items.length > 0" type="button" class="clear-btn"
       @click="mxActions.clearSelect()">清空</button>
-    <button v-else-if="!isCd && ogSelectedCount > 0" type="button" class="clear-btn"
-      @click="mxActions.clearOg()">清空</button>
+    <button v-else-if="!isCd && ofSelectedCount > 0" type="button" class="clear-btn"
+      @click="mxActions.clearOf()">清空</button>
   </section>
 </template>
 

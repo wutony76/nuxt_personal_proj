@@ -25,16 +25,16 @@ import {
 } from '#shared/config/pk10-of'
 import C_PLAYS from '#shared/config/pk10cd/plays'
 import { findPk10Tab, pk10QuotaOf, pk10TabOddsOf } from '#shared/config/pk10cd/helpers'
-import C_OG_PLAYS from '#shared/config/pk10og/plays'
+import C_OF_PLAYS from '#shared/config/pk10of/plays'
 import {
-  findPk10OgTab,
-  pk10OgComboGroups,
-  pk10OgComboOf,
-  pk10OgExpandCombo,
-  pk10OgIsPoolTab,
-  pk10OgQuotaOf,
-  pk10OgTabOddsOf
-} from '#shared/config/pk10og/helpers'
+  findPk10OfTab,
+  pk10OfComboGroups,
+  pk10OfComboOf,
+  pk10OfExpandCombo,
+  pk10OfIsPoolTab,
+  pk10OfQuotaOf,
+  pk10OfTabOddsOf
+} from '#shared/config/pk10of/helpers'
 
 /**
  * PK10 前端狀態（PK10-CD 信用盤 / PK10-OF 官方盤共用一支）
@@ -44,10 +44,10 @@ import {
  *   （server/services/game/lottery/bg/pk10Shared.ts），前端沒有理由拆成兩份互相打架。
  *   差異只有「注項怎麼選」與「怎麼派彩」：
  *     mode = 'cd' → 讀 shared/config/pk10cd 的注項，按賠率派彩
- *     mode = 'of' → 讀 shared/config/pk10og，前三直選走彩池分層、其餘走賠率
+ *     mode = 'of' → 讀 shared/config/pk10of，前三直選走彩池分層、其餘走賠率
  *
  * ── 投注區完全由 config 驅動 ────────────────────────────
- *   玩法列、分頁列、群組、注項、限額、賠率全部從 shared/config/pk10cd|pk10og 讀，
+ *   玩法列、分頁列、群組、注項、限額、賠率全部從 shared/config/pk10cd|pk10of 讀，
  *   看板元件只負責畫 groupList，不寫死任何玩法 —— 這樣改 config 就等於改畫面。
  *   （設定內容照 pcv2_0223 的 conf_pk10_cd.js / conf_pk10_og.js 提取）
  *
@@ -75,7 +75,7 @@ export type Pk10SelectItem = {
 type ConfigPlay = { key?: string; name?: string; list?: any[] }
 
 const cdPlays = C_PLAYS as ConfigPlay[]
-const ogPlays = C_OG_PLAYS as ConfigPlay[]
+const ofPlays = C_OF_PLAYS as ConfigPlay[]
 
 // ── Module-level singletons ────────────────────────────────────────────────
 const state = reactive({
@@ -127,16 +127,16 @@ const select = reactive({
 })
 
 /**
- * 官方盤（pk10og）的選號狀態
+ * 官方盤（pk10of）的選號狀態
  *
  * 兩種分頁型態：
  *   單選分頁（前一直選／定位膽）→ items：注碼 → 金額
  *   複式分頁（前二／前三直選）  → picks：每個名次選了哪些車號，送單前才展開
  */
-const og = reactive({
-  play: String(ogPlays[0]?.key ?? ''),
-  tabId: Number(ogPlays[0]?.list?.[0]?.tabId ?? 0),
-  tabName: String(ogPlays[0]?.list?.[0]?.tabName ?? ''),
+const of = reactive({
+  play: String(ofPlays[0]?.key ?? ''),
+  tabId: Number(ofPlays[0]?.list?.[0]?.tabId ?? 0),
+  tabName: String(ofPlays[0]?.list?.[0]?.tabName ?? ''),
   /** 單選分頁已選注項 */
   items: [] as Array<{ code: string; odds: number; coin: number }>,
   /** 複式分頁：picks[pos] = 該名次選的車號 */
@@ -195,39 +195,39 @@ const canSubmit = computed(() =>
 
 // ── Computed：官方盤 ───────────────────────────────────────────────────────
 /** 玩法清單（含「這個玩法走不走彩池」，畫面用來標記前三直選） */
-const ogPlayList = computed(() => ogPlays.map((play) => ({
+const ofPlayList = computed(() => ofPlays.map((play) => ({
   key: String(play.key ?? ''),
   name: String(play.name ?? ''),
   isPool: Boolean(play.list?.[0]?.combo?.pool)
 })))
 /** 當前玩法的分頁清單 */
-const ogTabList = computed(() => ogPlays.find((play) => play.key === og.play)?.list ?? [])
+const ofTabList = computed(() => ofPlays.find((play) => play.key === of.play)?.list ?? [])
 /** 當前分頁的群組（單選分頁＝注項清單） */
-const ogGroups = computed(() => findPk10OgTab(og.play, og.tabId)?.tabGroup ?? [])
+const ofGroups = computed(() => findPk10OfTab(of.play, of.tabId)?.tabGroup ?? [])
 /** 當前分頁的複式規則；單選分頁回 null */
-const ogCombo = computed(() => pk10OgComboOf(og.play, og.tabId))
+const ofCombo = computed(() => pk10OfComboOf(of.play, of.tabId))
 /** 複式分頁每個名次可選的車號（看板畫選號格用） */
-const ogComboGroups = computed(() => pk10OgComboGroups(og.play, og.tabId))
+const ofComboGroups = computed(() => pk10OfComboGroups(of.play, of.tabId))
 /** 當前分頁是不是走彩池分層（前三直選） */
-const ogIsPool = computed(() => pk10OgIsPoolTab(og.play, og.tabId))
+const ofIsPool = computed(() => pk10OfIsPoolTab(of.play, of.tabId))
 /** 當前分頁限額 */
-const ogQuota = computed(() => pk10OgQuotaOf(og.play, og.tabId))
+const ofQuota = computed(() => pk10OfQuotaOf(of.play, of.tabId))
 /** 複式展開後的每一注（車號陣列，順序即名次） */
-const ogComboBets = computed(() => {
-  if (!ogCombo.value) return [] as number[][]
-  return pk10OgExpandCombo(og.play, og.tabId, og.picks)
+const ofComboBets = computed(() => {
+  if (!ofCombo.value) return [] as number[][]
+  return pk10OfExpandCombo(of.play, of.tabId, of.picks)
 })
 /** 已選注數：單選＝有金額的注項數、複式＝展開後的注數 */
-const ogSelectedCount = computed(() =>
-  ogCombo.value ? ogComboBets.value.length : og.items.filter((item) => Number(item.coin) > 0).length
+const ofSelectedCount = computed(() =>
+  ofCombo.value ? ofComboBets.value.length : of.items.filter((item) => Number(item.coin) > 0).length
 )
 /** 總投注額：複式的每一注都用同一個金額（state.amount） */
-const ogTotalAmount = computed(() => {
-  if (ogCombo.value) return Number((ogComboBets.value.length * Number(state.amount || 0)).toFixed(2))
-  return Number(og.items.reduce((sum, item) => sum + Number(item.coin ?? 0), 0).toFixed(2))
+const ofTotalAmount = computed(() => {
+  if (ofCombo.value) return Number((ofComboBets.value.length * Number(state.amount || 0)).toFixed(2))
+  return Number(of.items.reduce((sum, item) => sum + Number(item.coin ?? 0), 0).toFixed(2))
 })
-const canSubmitOg = computed(() =>
-  isOpen.value && state.submitStatus !== 'loading' && ogSelectedCount.value > 0 && ogTotalAmount.value > 0
+const canSubmitOf = computed(() =>
+  isOpen.value && state.submitStatus !== 'loading' && ofSelectedCount.value > 0 && ofTotalAmount.value > 0
 )
 /** 前三直選的分層規則（命中幾個名次要開獎後才知道，這裡只顯示規則） */
 const ofPrizeTiers = computed(() => PK10_OF_PRIZE_TIERS)
@@ -235,13 +235,13 @@ const ofPrizeTiers = computed(() => PK10_OF_PRIZE_TIERS)
  * 官方盤自動投注的注碼池
  * 單選分頁 → 該分頁所有注碼；複式分頁 → 用「全選」展開後的注數當上限
  */
-const ogAutoCodes = computed(() => {
-  if (ogCombo.value) {
+const ofAutoCodes = computed(() => {
+  if (ofCombo.value) {
     const all = Array.from({ length: PK10_CAR_COUNT }, (_, i) => i + 1)
-    return pk10OgExpandCombo(og.play, og.tabId, Array.from({ length: ogCombo.value.positions }, () => all))
+    return pk10OfExpandCombo(of.play, of.tabId, Array.from({ length: ofCombo.value.positions }, () => all))
       .map((cars) => cars.join(','))
   }
-  return (ogGroups.value as any[])
+  return (ofGroups.value as any[])
     .flatMap((group) => (group.groupList ?? []).map((option: any) => String(option?.name ?? '')))
     .filter((code) => code.length > 0)
 })
@@ -277,9 +277,9 @@ function _syncSelectItems() {
 }
 
 /** 把複式的 picks 重設成「每個名次一個空陣列」 */
-function _resetOgPicks() {
-  const positions = Number(pk10OgComboOf(og.play, og.tabId)?.positions ?? 0)
-  og.picks = Array.from({ length: positions }, () => [])
+function _resetOfPicks() {
+  const positions = Number(pk10OfComboOf(of.play, of.tabId)?.positions ?? 0)
+  of.picks = Array.from({ length: positions }, () => [])
 }
 
 function _shuffle<T>(list: T[]): T[] {
@@ -323,7 +323,7 @@ const _actions = {
     if (state.mode === mode) return
     state.mode = mode
     _actions.clearSelect()
-    _actions.clearOg()
+    _actions.clearOf()
     /*
      * 切盤口要把上一盤的資料清掉。
      *
@@ -404,53 +404,53 @@ const _actions = {
 
   // ── 官方盤 ──────────────────────────────────────────────────────────────
   /** 切換玩法：分頁指回第一個並清掉選取 */
-  setOgPlay: (playKey: string) => {
-    if (og.play === playKey) return
-    og.play = playKey
-    const firstTab = ogPlays.find((play) => play.key === playKey)?.list?.[0]
-    og.tabId = Number(firstTab?.tabId ?? 0)
-    og.tabName = String(firstTab?.tabName ?? '')
-    _actions.clearOg()
+  setOfPlay: (playKey: string) => {
+    if (of.play === playKey) return
+    of.play = playKey
+    const firstTab = ofPlays.find((play) => play.key === playKey)?.list?.[0]
+    of.tabId = Number(firstTab?.tabId ?? 0)
+    of.tabName = String(firstTab?.tabName ?? '')
+    _actions.clearOf()
   },
-  setOgTab: (tabId: number | string) => {
-    const tab = findPk10OgTab(og.play, tabId)
+  setOfTab: (tabId: number | string) => {
+    const tab = findPk10OfTab(of.play, tabId)
     if (!tab) return
-    og.tabId = Number(tab.tabId)
-    og.tabName = String(tab.tabName ?? '')
-    _actions.clearOg()
+    of.tabId = Number(tab.tabId)
+    of.tabName = String(tab.tabName ?? '')
+    _actions.clearOf()
   },
   /** 單選分頁：點注項切換選取，選取時套用投注金額 */
-  toggleOgItem: (code: string) => {
+  toggleOfItem: (code: string) => {
     const key = String(code ?? '').trim()
     if (!key) return
-    const idx = og.items.findIndex((item) => item.code === key)
+    const idx = of.items.findIndex((item) => item.code === key)
     if (idx >= 0) {
-      og.items.splice(idx, 1)
+      of.items.splice(idx, 1)
       return
     }
-    const quota = pk10OgQuotaOf(og.play, og.tabId).item
-    og.items.push({
+    const quota = pk10OfQuotaOf(of.play, of.tabId).item
+    of.items.push({
       code: key,
-      odds: pk10OgTabOddsOf(og.play, og.tabId, key),
+      odds: pk10OfTabOddsOf(of.play, of.tabId, key),
       coin: Math.min(quota.max, Math.max(quota.min, Math.trunc(Number(state.amount) || 0)))
     })
   },
   /** 單選分頁：逐項改金額（0 視為取消該注） */
-  setOgItemCoin: (code: string, coin: number) => {
-    const item = og.items.find((row) => row.code === String(code))
+  setOfItemCoin: (code: string, coin: number) => {
+    const item = of.items.find((row) => row.code === String(code))
     if (!item) return
-    const quota = pk10OgQuotaOf(og.play, og.tabId).item
+    const quota = pk10OfQuotaOf(of.play, of.tabId).item
     item.coin = Math.min(quota.max, Math.max(0, Math.trunc(Number(coin) || 0)))
   },
   /** 複式分頁：切換第 pos 個名次的某個車號 */
-  toggleOgPick: (pos: number, car: number) => {
-    const positions = Number(pk10OgComboOf(og.play, og.tabId)?.positions ?? 0)
+  toggleOfPick: (pos: number, car: number) => {
+    const positions = Number(pk10OfComboOf(of.play, of.tabId)?.positions ?? 0)
     const idx = Math.trunc(Number(pos))
     const value = Math.trunc(Number(car) || 0)
     if (!(idx >= 0 && idx < positions)) return
     if (!(value >= 1 && value <= PK10_CAR_COUNT)) return
-    if (og.picks.length !== positions) _resetOgPicks()
-    const list = og.picks[idx] as number[]
+    if (of.picks.length !== positions) _resetOfPicks()
+    const list = of.picks[idx] as number[]
     const at = list.indexOf(value)
     if (at >= 0) list.splice(at, 1)
     else {
@@ -459,14 +459,14 @@ const _actions = {
     }
   },
   /** 複式分頁：某個名次全選 / 全清 */
-  toggleOgPickAll: (pos: number) => {
-    const positions = Number(pk10OgComboOf(og.play, og.tabId)?.positions ?? 0)
+  toggleOfPickAll: (pos: number) => {
+    const positions = Number(pk10OfComboOf(of.play, of.tabId)?.positions ?? 0)
     const idx = Math.trunc(Number(pos))
     if (!(idx >= 0 && idx < positions)) return
-    if (og.picks.length !== positions) _resetOgPicks()
-    const cars = ogComboGroups.value.find((group) => group.pos === idx)?.cars ?? []
-    const list = og.picks[idx] as number[]
-    og.picks[idx] = list.length === cars.length ? [] : [...cars]
+    if (of.picks.length !== positions) _resetOfPicks()
+    const cars = ofComboGroups.value.find((group) => group.pos === idx)?.cars ?? []
+    const list = of.picks[idx] as number[]
+    of.picks[idx] = list.length === cars.length ? [] : [...cars]
   },
   /**
    * 官方盤隨機選號（count 一律當「目標注數」）
@@ -476,32 +476,32 @@ const _actions = {
    *    所以是「至少 count 注」。實際注數由看板與當前注項顯示。
    * @returns 實際選出的注數
    */
-  randomOgSelect: (count: number) => {
+  randomOfSelect: (count: number) => {
     const size = Math.max(1, Math.trunc(Number(count) || 1))
-    _actions.clearOg()
-    const combo = pk10OgComboOf(og.play, og.tabId)
+    _actions.clearOf()
+    const combo = pk10OfComboOf(of.play, of.tabId)
     if (!combo) {
-      const codes = (ogGroups.value as any[])
+      const codes = (ofGroups.value as any[])
         .flatMap((group) => (group.groupList ?? []).map((option: any) => String(option?.name ?? '')))
         .filter((code) => code.length > 0)
-      _shuffle(codes).slice(0, Math.min(size, codes.length)).forEach((code) => _actions.toggleOgItem(code))
-      return og.items.length
+      _shuffle(codes).slice(0, Math.min(size, codes.length)).forEach((code) => _actions.toggleOfItem(code))
+      return of.items.length
     }
     // 每個名次各準備一份洗好的車號，然後一輪一輪加寬
     const shuffled = Array.from({ length: combo.positions }, () => _shuffle(
       Array.from({ length: PK10_CAR_COUNT }, (_, i) => i + 1)
     ))
     for (let take = 1; take <= PK10_CAR_COUNT; take++) {
-      og.picks = shuffled.map((list) => list.slice(0, take).sort((a, b) => a - b))
-      if (pk10OgExpandCombo(og.play, og.tabId, og.picks).length >= size) break
+      of.picks = shuffled.map((list) => list.slice(0, take).sort((a, b) => a - b))
+      if (pk10OfExpandCombo(of.play, of.tabId, of.picks).length >= size) break
     }
-    return pk10OgExpandCombo(og.play, og.tabId, og.picks).length
+    return pk10OfExpandCombo(of.play, of.tabId, of.picks).length
   },
   /** 取注碼賠率（依當前玩法／分頁的 rtp 即時推算，看板顯示用；彩池分頁回 0） */
-  ogOddsOf: (code: string) => pk10OgTabOddsOf(og.play, og.tabId, String(code ?? '')),
-  clearOg: () => {
-    og.items = []
-    _resetOgPicks()
+  ofOddsOf: (code: string) => pk10OfTabOddsOf(of.play, of.tabId, String(code ?? '')),
+  clearOf: () => {
+    of.items = []
+    _resetOfPicks()
   },
 
   // ── 顯示輔助 ────────────────────────────────────────────────────────────
@@ -663,12 +663,12 @@ const fetch = {
    * ⚠️ 注碼與賠率伺端都會重新驗一次，前端送的只是意圖。
    */
   betsOf: async () => {
-    const combo = pk10OgComboOf(og.play, og.tabId)
-    const quota = pk10OgQuotaOf(og.play, og.tabId).item
+    const combo = pk10OfComboOf(of.play, of.tabId)
+    const quota = pk10OfQuotaOf(of.play, of.tabId).item
     const playList: Array<Record<string, unknown>> = []
 
     if (combo) {
-      const bets = pk10OgExpandCombo(og.play, og.tabId, og.picks)
+      const bets = pk10OfExpandCombo(of.play, of.tabId, of.picks)
       if (bets.length === 0) {
         state.message = `請為每個名次都至少選一個車號（共 ${combo.positions} 個名次）`
         return { ok: false, message: state.message }
@@ -684,7 +684,7 @@ const fetch = {
         if (code) playList.push({ label: code, amount: coin })
       })
     } else {
-      og.items.filter((item) => Number(item.coin) > 0).forEach((item) => {
+      of.items.filter((item) => Number(item.coin) > 0).forEach((item) => {
         playList.push({ label: item.code, amount: Number(item.coin) })
       })
       if (playList.length === 0) {
@@ -695,10 +695,10 @@ const fetch = {
 
     const total = Number(playList.reduce((sum, row) => sum + Number(row.amount ?? 0), 0).toFixed(2))
     const result = await fetch.submit(
-      [{ playKey: og.play, playTypeName: og.tabName, selectTabId: og.tabId, playList }],
+      [{ playKey: of.play, playTypeName: of.tabName, selectTabId: of.tabId, playList }],
       total
     )
-    if (result.ok) _actions.clearOg()
+    if (result.ok) _actions.clearOf()
     return result
   },
   /**
@@ -712,7 +712,7 @@ const fetch = {
     const coin = Math.max(0, Math.trunc(Number(amount) || 0))
     if (!(coin > 0)) return { ok: false, message: '請填入投注金額', count: 0, amount: 0 }
     const size = Math.max(1, Math.trunc(Number(count) || 1))
-    const combo = pk10OgComboOf(og.play, og.tabId)
+    const combo = pk10OfComboOf(of.play, of.tabId)
     const playList: Array<Record<string, unknown>> = []
 
     if (combo) {
@@ -721,7 +721,7 @@ const fetch = {
       ))
       let bets: number[][] = []
       for (let take = 1; take <= PK10_CAR_COUNT; take++) {
-        bets = pk10OgExpandCombo(og.play, og.tabId, shuffled.map((list) => list.slice(0, take)))
+        bets = pk10OfExpandCombo(of.play, of.tabId, shuffled.map((list) => list.slice(0, take)))
         if (bets.length >= size) break
       }
       if (bets.length === 0) return { ok: false, message: '此分頁無法自動選號', count: 0, amount: 0 }
@@ -734,7 +734,7 @@ const fetch = {
         if (code) playList.push({ label: code, amount: coin })
       })
     } else {
-      const codes = (ogGroups.value as any[])
+      const codes = (ofGroups.value as any[])
         .flatMap((group) => (group.groupList ?? []).map((option: any) => String(option?.name ?? '')))
         .filter((code) => code.length > 0)
       if (codes.length === 0) return { ok: false, message: '注項尚未載入', count: 0, amount: 0 }
@@ -745,7 +745,7 @@ const fetch = {
 
     const total = Number((playList.length * coin).toFixed(2))
     const result = await fetch.submit(
-      [{ playKey: og.play, playTypeName: og.tabName, selectTabId: og.tabId, playList }],
+      [{ playKey: of.play, playTypeName: of.tabName, selectTabId: of.tabId, playList }],
       total
     )
     return { ...result, count: playList.length, amount: total }
@@ -777,7 +777,7 @@ const fetch = {
         })
       })
       if (isCd.value) _actions.clearSelect()
-      else _actions.clearOg()
+      else _actions.clearOf()
       select.resetToken += 1
       /*
        * 送單成功一律刷新餘額與注單（手動與自動下注兩條路都涵蓋）——
@@ -856,19 +856,19 @@ export function usePk10() {
     canSubmit,
 
     /** 官方盤 */
-    og,
-    ogPlayList,
-    ogTabList,
-    ogGroups,
-    ogCombo,
-    ogComboGroups,
-    ogComboBets,
-    ogIsPool,
-    ogQuota,
-    ogSelectedCount,
-    ogTotalAmount,
-    ogAutoCodes,
-    canSubmitOg,
+    of,
+    ofPlayList,
+    ofTabList,
+    ofGroups,
+    ofCombo,
+    ofComboGroups,
+    ofComboBets,
+    ofIsPool,
+    ofQuota,
+    ofSelectedCount,
+    ofTotalAmount,
+    ofAutoCodes,
+    canSubmitOf,
     ofPrizeTiers,
     ofPickCount: PK10_OF_PICK_COUNT,
 

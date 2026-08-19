@@ -15,14 +15,14 @@ import { k3OfPicksOf, K3_OF_PICK_COUNT, K3_OF_PRIZE_TIERS } from '#shared/config
 import { K3_DICE_MAX, k3SumOf } from '#shared/config/k3'
 import C_PLAYS from '#shared/config/k3cd/plays'
 import { findK3Tab, k3QuotaOf, k3TabOddsOf } from '#shared/config/k3cd/helpers'
-import C_OG_PLAYS from '#shared/config/k3og/plays'
+import C_OF_PLAYS from '#shared/config/k3of/plays'
 import {
-  findK3OgTab,
-  k3OgComboOf,
-  k3OgExpandCombo,
-  k3OgQuotaOf,
-  k3OgTabOddsOf
-} from '#shared/config/k3og/helpers'
+  findK3OfTab,
+  k3OfComboOf,
+  k3OfExpandCombo,
+  k3OfQuotaOf,
+  k3OfTabOddsOf
+} from '#shared/config/k3of/helpers'
 
 /**
  * 快3 前端狀態（K3-CD 信用盤 / K3-OF 官方盤共用一支）
@@ -110,21 +110,21 @@ const select = reactive({
 const ofPicks = reactive({ list: [0, 0, 0] as number[] })
 
 /**
- * 官方盤賠率玩法（k3og）的選號狀態
+ * 官方盤賠率玩法（k3of）的選號狀態
  *
  * 官方盤有兩套派彩並存：
  *   彩池玩法（playKey = POOL_PLAY_KEY）→ 選 3 個點數，走 ofPicks 與 fetch.betsOf()
- *   賠率玩法（k3og 的 6 個）           → 走這一組與 fetch.betsOg()
+ *   賠率玩法（k3of 的 6 個）           → 走這一組與 fetch.betsOfTab()
  * 單選分頁把注項收在 items（一注一項）；組合分頁（三不同號／二不同號）只記使用者
- * 點了哪些點數，注碼在送單前才用 k3OgExpandCombo() 展開。
+ * 點了哪些點數，注碼在送單前才用 k3OfExpandCombo() 展開。
  */
-const OG_POOL_PLAY_KEY = 'xuanhao'
-const ogPlays = C_OG_PLAYS as Array<{ key?: string; name?: string; list?: any[] }>
-const og = reactive({
-  /** 當前玩法 key；OG_POOL_PLAY_KEY 代表切到彩池玩法 */
-  play: String(ogPlays[0]?.key ?? ''),
-  tabId: Number(ogPlays[0]?.list?.[0]?.tabId ?? 0),
-  tabName: String(ogPlays[0]?.list?.[0]?.tabName ?? ''),
+const OF_POOL_PLAY_KEY = 'xuanhao'
+const ofPlays = C_OF_PLAYS as Array<{ key?: string; name?: string; list?: any[] }>
+const of = reactive({
+  /** 當前玩法 key；OF_POOL_PLAY_KEY 代表切到彩池玩法 */
+  play: String(ofPlays[0]?.key ?? ''),
+  tabId: Number(ofPlays[0]?.list?.[0]?.tabId ?? 0),
+  tabName: String(ofPlays[0]?.list?.[0]?.tabName ?? ''),
   /** 單選分頁已選注項：注碼 → 金額 */
   items: [] as Array<{ code: string; odds: number; coin: number }>,
   /** 組合分頁：標準選的點數 */
@@ -182,38 +182,38 @@ const canSubmit = computed(() =>
 /** 官方盤：3 欄都選了才成一注 */
 const ofPicked = computed(() => ofPicks.list.every((num) => num >= 1 && num <= K3_DICE_MAX))
 
-// ── 官方盤賠率玩法（k3og）───────────────────────────────────────────────────
+// ── 官方盤賠率玩法（k3of）───────────────────────────────────────────────────
 /** 玩法清單（含最後一個彩池玩法，讓兩套派彩共用同一排分頁） */
-const ogPlayList = computed(() => [
-  ...ogPlays.map((play) => ({ key: String(play.key ?? ''), name: String(play.name ?? ''), isPool: false })),
-  { key: OG_POOL_PLAY_KEY, name: '選號（彩池）', isPool: true }
+const ofPlayList = computed(() => [
+  ...ofPlays.map((play) => ({ key: String(play.key ?? ''), name: String(play.name ?? ''), isPool: false })),
+  { key: OF_POOL_PLAY_KEY, name: '選號（彩池）', isPool: true }
 ])
 /** 是否切在彩池玩法 */
-const isOgPool = computed(() => og.play === OG_POOL_PLAY_KEY)
+const isOfPool = computed(() => of.play === OF_POOL_PLAY_KEY)
 /** 當前玩法的分頁清單 */
-const ogTabList = computed(() => (isOgPool.value ? [] : ogPlays.find((play) => play.key === og.play)?.list ?? []))
+const ofTabList = computed(() => (isOfPool.value ? [] : ofPlays.find((play) => play.key === of.play)?.list ?? []))
 /** 當前分頁的群組（單選分頁＝注項、組合分頁＝可選點數） */
-const ogGroups = computed(() => findK3OgTab(og.play, og.tabId)?.tabGroup ?? [])
+const ofGroups = computed(() => findK3OfTab(of.play, of.tabId)?.tabGroup ?? [])
 /** 當前分頁的組合規則；單選分頁回 null */
-const ogCombo = computed(() => (isOgPool.value ? null : k3OgComboOf(og.play, og.tabId)))
+const ofCombo = computed(() => (isOfPool.value ? null : k3OfComboOf(of.play, of.tabId)))
 /** 當前分頁限額 */
-const ogQuota = computed(() => k3OgQuotaOf(og.play, og.tabId))
+const ofQuota = computed(() => k3OfQuotaOf(of.play, of.tabId))
 /**
  * 組合分頁展開後的注碼（一注一碼）
  * 標準：C(選的點數, pick)；膽拖：C(拖碼, pick − 膽碼)
  */
-const ogComboCodes = computed(() => {
-  if (!ogCombo.value) return []
-  return k3OgExpandCombo(og.play, og.tabId, { nums: og.nums, dan: og.dan, tuo: og.tuo })
+const ofComboCodes = computed(() => {
+  if (!ofCombo.value) return []
+  return k3OfExpandCombo(of.play, of.tabId, { nums: of.nums, dan: of.dan, tuo: of.tuo })
 })
 /** 已選注數：單選＝有金額的注項數、組合＝展開後的注數 */
-const ogSelectedCount = computed(() =>
-  ogCombo.value ? ogComboCodes.value.length : og.items.filter((item) => Number(item.coin) > 0).length
+const ofSelectedCount = computed(() =>
+  ofCombo.value ? ofComboCodes.value.length : of.items.filter((item) => Number(item.coin) > 0).length
 )
 /** 總投注額：組合玩法每一注都用同一個金額（state.amount） */
-const ogTotalAmount = computed(() => {
-  if (ogCombo.value) return Number((ogComboCodes.value.length * Number(state.amount || 0)).toFixed(2))
-  return Number(og.items.reduce((sum, item) => sum + Number(item.coin ?? 0), 0).toFixed(2))
+const ofTotalAmount = computed(() => {
+  if (ofCombo.value) return Number((ofComboCodes.value.length * Number(state.amount || 0)).toFixed(2))
+  return Number(of.items.reduce((sum, item) => sum + Number(item.coin ?? 0), 0).toFixed(2))
 })
 /**
  * 官方盤自動投注的注碼池
@@ -221,18 +221,18 @@ const ogTotalAmount = computed(() => {
  * 單選分頁 → 該分頁所有注碼；組合分頁 → 全選 1~6 展開後的所有組合；彩池 → 只有 1 注。
  * Auto 元件用它算注數上限，也用來判斷「玩法載入了沒」。
  */
-const ogAutoCodes = computed(() => {
-  if (isOgPool.value) return ['選號']
-  const combo = k3OgComboOf(og.play, og.tabId)
-  if (combo) return k3OgExpandCombo(og.play, og.tabId, { nums: [1, 2, 3, 4, 5, 6], dan: [], tuo: [] })
-  return ((findK3OgTab(og.play, og.tabId)?.tabGroup ?? []) as any[])
+const ofAutoCodes = computed(() => {
+  if (isOfPool.value) return ['選號']
+  const combo = k3OfComboOf(of.play, of.tabId)
+  if (combo) return k3OfExpandCombo(of.play, of.tabId, { nums: [1, 2, 3, 4, 5, 6], dan: [], tuo: [] })
+  return ((findK3OfTab(of.play, of.tabId)?.tabGroup ?? []) as any[])
     .flatMap((group) => (group.groupList ?? []).map((option: any) => String(option?.name ?? '')))
     .filter((code) => code.length > 0)
 })
 
 /** 賠率玩法可否送單 */
-const canSubmitOg = computed(() =>
-  isOpen.value && state.submitStatus !== 'loading' && ogSelectedCount.value > 0 && ogTotalAmount.value > 0
+const canSubmitOf = computed(() =>
+  isOpen.value && state.submitStatus !== 'loading' && ofSelectedCount.value > 0 && ofTotalAmount.value > 0
 )
 /** 官方盤預估：命中顆數要開獎後才知道，這裡只顯示分層規則 */
 const ofPrizeTiers = computed(() => K3_OF_PRIZE_TIERS)
@@ -297,7 +297,7 @@ const _actions = {
     if (state.mode === mode) return
     state.mode = mode
     _actions.clearSelect()
-    _actions.clearOg()
+    _actions.clearOf()
     ofPicks.list = [0, 0, 0]
     /*
      * 切盤口要把上一盤的資料清掉。
@@ -344,61 +344,61 @@ const _actions = {
   syncSelectItems: () => { _syncSelectItems() },
   // ── 官方盤賠率玩法 ────────────────────────────────────────────────────────
   /** 切換玩法：兩套派彩語意不同，一律先清掉選取 */
-  setOgPlay: (playKey: string) => {
-    if (og.play === playKey) return
-    og.play = playKey
-    const firstTab = ogPlays.find((play) => play.key === playKey)?.list?.[0]
-    og.tabId = Number(firstTab?.tabId ?? 0)
-    og.tabName = String(firstTab?.tabName ?? '')
-    _actions.clearOg()
+  setOfPlay: (playKey: string) => {
+    if (of.play === playKey) return
+    of.play = playKey
+    const firstTab = ofPlays.find((play) => play.key === playKey)?.list?.[0]
+    of.tabId = Number(firstTab?.tabId ?? 0)
+    of.tabName = String(firstTab?.tabName ?? '')
+    _actions.clearOf()
   },
   /** 切換分頁（標準 ↔ 膽拖也走這裡） */
-  setOgTab: (tabId: number | string) => {
-    const tab = findK3OgTab(og.play, tabId)
+  setOfTab: (tabId: number | string) => {
+    const tab = findK3OfTab(of.play, tabId)
     if (!tab) return
-    og.tabId = Number(tab.tabId)
-    og.tabName = String(tab.tabName ?? '')
-    _actions.clearOg()
+    of.tabId = Number(tab.tabId)
+    of.tabName = String(tab.tabName ?? '')
+    _actions.clearOf()
   },
   /** 單選分頁：點注項切換選取，選取時套用投注金額 */
-  toggleOgItem: (code: string) => {
+  toggleOfItem: (code: string) => {
     const key = String(code ?? '').trim()
     if (!key) return
-    const idx = og.items.findIndex((item) => item.code === key)
+    const idx = of.items.findIndex((item) => item.code === key)
     if (idx >= 0) {
-      og.items.splice(idx, 1)
+      of.items.splice(idx, 1)
       return
     }
-    const quota = k3OgQuotaOf(og.play, og.tabId).item
-    og.items.push({
+    const quota = k3OfQuotaOf(of.play, of.tabId).item
+    of.items.push({
       code: key,
-      odds: k3OgTabOddsOf(og.play, og.tabId, key),
+      odds: k3OfTabOddsOf(of.play, of.tabId, key),
       coin: Math.min(quota.max, Math.max(quota.min, Math.trunc(Number(state.amount) || 0)))
     })
   },
   /** 單選分頁：逐項改金額（0 視為取消該注） */
-  setOgItemCoin: (code: string, coin: number) => {
-    const item = og.items.find((row) => row.code === String(code))
+  setOfItemCoin: (code: string, coin: number) => {
+    const item = of.items.find((row) => row.code === String(code))
     if (!item) return
-    const quota = k3OgQuotaOf(og.play, og.tabId).item
+    const quota = k3OfQuotaOf(of.play, of.tabId).item
     item.coin = Math.min(quota.max, Math.max(0, Math.trunc(Number(coin) || 0)))
   },
   /** 組合分頁：切換點數（bucket 決定是標準的 nums 還是膽拖的 dan／tuo） */
-  toggleOgPoint: (bucket: 'nums' | 'dan' | 'tuo', point: number) => {
+  toggleOfPoint: (bucket: 'nums' | 'dan' | 'tuo', point: number) => {
     const num = Math.trunc(Number(point) || 0)
     if (!(num >= 1 && num <= K3_DICE_MAX)) return
-    const list = og[bucket]
+    const list = of[bucket]
     const idx = list.indexOf(num)
     if (idx >= 0) {
       list.splice(idx, 1)
       return
     }
     // 膽碼有上限（至少要留一個拖碼），超過就不再加
-    const combo = k3OgComboOf(og.play, og.tabId)
+    const combo = k3OfComboOf(of.play, of.tabId)
     if (bucket === 'dan' && combo?.maxDan && list.length >= combo.maxDan) return
     // 同一個點數不能同時是膽碼與拖碼
-    if (bucket === 'dan') og.tuo = og.tuo.filter((item) => item !== num)
-    if (bucket === 'tuo') og.dan = og.dan.filter((item) => item !== num)
+    if (bucket === 'dan') of.tuo = of.tuo.filter((item) => item !== num)
+    if (bucket === 'tuo') of.dan = of.dan.filter((item) => item !== num)
     list.push(num)
     list.sort((a, b) => a - b)
   },
@@ -414,8 +414,8 @@ const _actions = {
    *    所以是「至少 count 注」。實際注數由看板與當前注項顯示。
    * @returns 實際選出的注數
    */
-  randomOgSelect: (count: number) => {
-    if (og.play === OG_POOL_PLAY_KEY) {
+  randomOfSelect: (count: number) => {
+    if (of.play === OF_POOL_PLAY_KEY) {
       _actions.randomOfPicks()
       return 1
     }
@@ -430,42 +430,42 @@ const _actions = {
       }
       return pool
     }
-    _actions.clearOg()
+    _actions.clearOf()
 
-    const combo = k3OgComboOf(og.play, og.tabId)
+    const combo = k3OfComboOf(of.play, of.tabId)
     if (!combo) {
-      const codes = ((findK3OgTab(og.play, og.tabId)?.tabGroup ?? []) as any[])
+      const codes = ((findK3OfTab(of.play, of.tabId)?.tabGroup ?? []) as any[])
         .flatMap((group) => (group.groupList ?? []).map((option: any) => String(option?.name ?? '')))
         .filter((code) => code.length > 0)
-      shuffle(codes).slice(0, Math.min(size, codes.length)).forEach((code) => _actions.toggleOgItem(code))
-      return og.items.length
+      shuffle(codes).slice(0, Math.min(size, codes.length)).forEach((code) => _actions.toggleOfItem(code))
+      return of.items.length
     }
 
     const points = shuffle([1, 2, 3, 4, 5, 6])
-    const expanded = () => k3OgExpandCombo(og.play, og.tabId, { nums: og.nums, dan: og.dan, tuo: og.tuo }).length
+    const expanded = () => k3OfExpandCombo(of.play, of.tabId, { nums: of.nums, dan: of.dan, tuo: of.tuo }).length
     if (combo.mode === 'standard') {
       for (let take = combo.pick; take <= points.length; take++) {
-        og.nums = points.slice(0, take).sort((a, b) => a - b)
+        of.nums = points.slice(0, take).sort((a, b) => a - b)
         if (expanded() >= size) break
       }
     } else {
       const danCount = Math.min(combo.maxDan ?? combo.pick - 1, 1)
-      og.dan = points.slice(0, danCount).sort((a, b) => a - b)
+      of.dan = points.slice(0, danCount).sort((a, b) => a - b)
       for (let take = combo.pick - danCount; danCount + take <= points.length; take++) {
-        og.tuo = points.slice(danCount, danCount + take).sort((a, b) => a - b)
+        of.tuo = points.slice(danCount, danCount + take).sort((a, b) => a - b)
         if (expanded() >= size) break
       }
     }
     return expanded()
   },
   /** 取注碼賠率（依當前玩法／分頁的 rtp 即時推算，看板顯示用） */
-  ogOddsOf: (code: string) => k3OgTabOddsOf(og.play, og.tabId, String(code ?? '')),
+  ofOddsOf: (code: string) => k3OfTabOddsOf(of.play, of.tabId, String(code ?? '')),
   /** 清空賠率玩法的選取 */
-  clearOg: () => {
-    og.items = []
-    og.nums = []
-    og.dan = []
-    og.tuo = []
+  clearOf: () => {
+    of.items = []
+    of.nums = []
+    of.dan = []
+    of.tuo = []
   },
   /** 點注項：切換選取，選取時套用投注金額（同 6hc-cd 的 click.toggle） */
   toggleItem: (playId: string | number) => {
@@ -679,15 +679,15 @@ const fetch = {
    *
    * 單選分頁：每個有金額的注項各一注。
    * 組合分頁：展開後的每一注都用同一個金額（state.amount）。
-   * ⚠️ 注碼與賠率伺端都會重新驗一次（k3OgHasBetCode / k3OgTabOddsOf），前端送的只是意圖。
+   * ⚠️ 注碼與賠率伺端都會重新驗一次（k3OfHasBetCode / k3OfTabOddsOf），前端送的只是意圖。
    */
-  betsOg: async () => {
-    const combo = k3OgComboOf(og.play, og.tabId)
-    const quota = k3OgQuotaOf(og.play, og.tabId).item
+  betsOfTab: async () => {
+    const combo = k3OfComboOf(of.play, of.tabId)
+    const quota = k3OfQuotaOf(of.play, of.tabId).item
     const playList: Array<{ label: string; amount: number }> = []
 
     if (combo) {
-      const codes = k3OgExpandCombo(og.play, og.tabId, { nums: og.nums, dan: og.dan, tuo: og.tuo })
+      const codes = k3OfExpandCombo(of.play, of.tabId, { nums: of.nums, dan: of.dan, tuo: of.tuo })
       if (codes.length === 0) {
         state.message = combo.mode === 'dantuo'
           ? `膽碼 1 ~ ${combo.maxDan ?? combo.pick - 1} 個，加上拖碼要能組成 ${combo.pick} 個點數`
@@ -697,7 +697,7 @@ const fetch = {
       const coin = Math.min(quota.max, Math.max(quota.min, Math.trunc(Number(state.amount) || 0)))
       codes.forEach((code) => playList.push({ label: code, amount: coin }))
     } else {
-      og.items.filter((item) => Number(item.coin) > 0).forEach((item) => {
+      of.items.filter((item) => Number(item.coin) > 0).forEach((item) => {
         playList.push({ label: item.code, amount: Number(item.coin) })
       })
       if (playList.length === 0) {
@@ -708,10 +708,10 @@ const fetch = {
 
     const total = Number(playList.reduce((sum, row) => sum + row.amount, 0).toFixed(2))
     const result = await fetch.submit(
-      [{ playKey: og.play, playTypeName: og.tabName, selectTabId: og.tabId, playList }],
+      [{ playKey: of.play, playTypeName: of.tabName, selectTabId: of.tabId, playList }],
       total
     )
-    if (result.ok) _actions.clearOg()
+    if (result.ok) _actions.clearOf()
     return result
   },
   /**
@@ -724,7 +724,7 @@ const fetch = {
    *   單選分頁 → 從該分頁注碼隨機取 count 個
    * ⚠️ 送單成功後 submit 會清空選取（與手動下注一致）。
    */
-  autoBetsOg: async ({ count, amount }: { count: number; amount: number }) => {
+  autoBetsOf: async ({ count, amount }: { count: number; amount: number }) => {
     const coin = Math.max(0, Math.trunc(Number(amount) || 0))
     if (!(coin > 0)) return { ok: false, message: '請填入投注金額', count: 0, amount: 0 }
     const size = Math.max(1, Math.trunc(Number(count) || 1))
@@ -740,7 +740,7 @@ const fetch = {
     }
 
     // 彩池玩法：一注 = 3 個點數
-    if (isOgPool.value) {
+    if (isOfPool.value) {
       const picks = Array.from({ length: K3_OF_PICK_COUNT }, () => 1 + Math.floor(Math.random() * K3_DICE_MAX))
       const result = await fetch.submit(
         [{
@@ -753,24 +753,24 @@ const fetch = {
       return { ...result, count: 1, amount: coin }
     }
 
-    const combo = k3OgComboOf(og.play, og.tabId)
+    const combo = k3OfComboOf(of.play, of.tabId)
     let codes: string[] = []
     if (combo) {
       const points = shuffle([1, 2, 3, 4, 5, 6])
       for (let take = combo.pick; take <= points.length; take++) {
-        codes = k3OgExpandCombo(og.play, og.tabId, { nums: points.slice(0, take) })
+        codes = k3OfExpandCombo(of.play, of.tabId, { nums: points.slice(0, take) })
         if (codes.length >= size) break
       }
     } else {
-      codes = shuffle(ogAutoCodes.value).slice(0, Math.min(size, ogAutoCodes.value.length))
+      codes = shuffle(ofAutoCodes.value).slice(0, Math.min(size, ofAutoCodes.value.length))
     }
     if (codes.length === 0) return { ok: false, message: '此分頁無法自動選號', count: 0, amount: 0 }
 
     const result = await fetch.submit(
       [{
-        playKey: og.play,
-        playTypeName: og.tabName,
-        selectTabId: og.tabId,
+        playKey: of.play,
+        playTypeName: of.tabName,
+        selectTabId: of.tabId,
         playList: codes.map((code) => ({ label: code, amount: coin }))
       }],
       Number((codes.length * coin).toFixed(2))
@@ -909,19 +909,19 @@ export function useK3() {
     ofPicked,
     ofPrizeTiers,
 
-    /** 官方盤賠率玩法（k3og） */
-    og,
-    ogPlayList,
-    ogTabList,
-    ogGroups,
-    ogCombo,
-    ogQuota,
-    ogComboCodes,
-    ogSelectedCount,
-    ogTotalAmount,
-    ogAutoCodes,
-    canSubmitOg,
-    isOgPool,
+    /** 官方盤賠率玩法（k3of） */
+    of,
+    ofPlayList,
+    ofTabList,
+    ofGroups,
+    ofCombo,
+    ofQuota,
+    ofComboCodes,
+    ofSelectedCount,
+    ofTotalAmount,
+    ofAutoCodes,
+    canSubmitOf,
+    isOfPool,
 
     actions: _actions,
     fetch,

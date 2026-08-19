@@ -3,10 +3,10 @@ import { computed } from 'vue'
 import DialogShell from '~/components/lottery/bg/ssc/block/DialogShell.vue'
 import { SSC_SUM_BIG_LINE } from '#shared/config/ssc-cd'
 import { SSC_BALL_COUNT, SSC_DIGIT_MAX, sscSumCounts, SSC_TOTAL_OUTCOMES } from '#shared/config/ssc'
-import { sscOgChanceOf, SSC_OG_MAX_COMBO } from '#shared/config/sscog'
+import { sscOfChanceOf, SSC_OF_MAX_COMBO } from '#shared/config/sscof'
 import C_PLAYS from '#shared/config/ssccd/plays'
 import { sscRtpOf, sscTabOddsOf } from '#shared/config/ssccd/helpers'
-import { sscOgPlays, sscOgRtpOf, sscOgTabOddsOf, sscOgComboOf } from '#shared/config/sscog/helpers'
+import { sscOfPlays, sscOfRtpOf, sscOfTabOddsOf, sscOfComboOf } from '#shared/config/sscof/helpers'
 import { useSsc } from '~/composables/useSsc'
 
 /**
@@ -108,18 +108,18 @@ const cdPlayTables = computed(() =>
  *   單選分頁（定位膽）—— 與信用盤同一種緊湊版面
  *   複式分頁（其餘 10 個）—— 沒有固定注項清單，改列選號規則 + 樣本注碼的賠率／機率
  */
-const ogPlayTables = computed(() =>
-  sscOgPlays().map((play) => ({
+const ofPlayTables = computed(() =>
+  sscOfPlays().map((play) => ({
     key: String(play.key ?? ''),
     name: String(play.name ?? ''),
     tabs: (play.list ?? []).map((tab: any) => {
       const tabId = Number(tab.tabId)
-      const combo = sscOgComboOf(play.key, tabId)
-      const rtp = sscOgRtpOf(play.key, tabId)
+      const combo = sscOfComboOf(play.key, tabId)
+      const rtp = sscOfRtpOf(play.key, tabId)
       if (combo) {
         const sample = _ogSample(combo)
-        const odds = sscOgTabOddsOf(play.key, tabId, sample)
-        const chance = sscOgChanceOf(sample)
+        const odds = sscOfTabOddsOf(play.key, tabId, sample)
+        const chance = sscOfChanceOf(sample)
         return {
           tabId,
           tabName: String(tab.tabName ?? ''),
@@ -144,7 +144,7 @@ const ogPlayTables = computed(() =>
           groupName: String(group.groupName ?? ''),
           items: (group.groupList ?? []).map((item: any) => ({
             name: String(item.name ?? ''),
-            odds: sscOgTabOddsOf(play.key, tabId, String(item.name))
+            odds: sscOfTabOddsOf(play.key, tabId, String(item.name))
           })).filter((item: { odds: number }) => item.odds > 0)
         })).filter((group: { items: unknown[] }) => group.items.length > 0)
       }
@@ -233,8 +233,8 @@ const click = {
 
     <!-- ── 官方盤：11 個分頁，10 個是複式 ── -->
     <template v-else>
-      <section v-for="play in ogPlayTables" :key="`og-${play.key}`" class="rule-block">
-        <div v-for="tab in play.tabs" :key="`og-${play.key}-${tab.tabId}`">
+      <section v-for="play in ofPlayTables" :key="`of-${play.key}`" class="rule-block">
+        <div v-for="tab in play.tabs" :key="`of-${play.key}-${tab.tabId}`">
           <p class="rule-group-title">
             {{ play.name }} · {{ tab.tabName }}
             <span class="rule-tag">回報率 {{ tab.rtp }}</span>
@@ -311,7 +311,7 @@ const click = {
           <strong>沒牛不屬於任何一面</strong>（大小單雙都不算中）。</li>
         <li>號碼<strong>可以重複</strong>，複式的位置型玩法（五星／後三直選／後二直選等）不像 pk10 名次排列那樣濾掉重複組合。</li>
         <li v-if="!isCd">五星直選若每個位置都全選會展開成 100,000 注，系統設有上限
-          <strong>{{ SSC_OG_MAX_COMBO.toLocaleString('zh-TW') }} 注</strong> —— 超過會整筆拒絕，請縮小選號範圍。</li>
+          <strong>{{ SSC_OF_MAX_COMBO.toLocaleString('zh-TW') }} 注</strong> —— 超過會整筆拒絕，請縮小選號範圍。</li>
         <li>單注與單期限額都是<strong>依分頁獨立計算</strong>，超限會整筆拒單（伺端與畫面讀同一份設定）。</li>
         <li>投注只在「開盤中」受理；封盤後送單會被伺端擋下。</li>
       </ul>

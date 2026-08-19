@@ -3,7 +3,7 @@
  *
  * ── 為什麼是後三直選吃彩池 ──────────────────────────────
  *   官方盤 11 個分頁裡，只有後三直選改吃共用彩池，其餘維持固定賠率
- *   （注碼與賠率走 shared/config/sscog.ts）。理由與 pk10 前三直選相同：
+ *   （注碼與賠率走 shared/config/sscof.ts）。理由與 pk10 前三直選相同：
  *   1/1000 的機率配固定賠率不好看，分層之後「猜中 2 位」也有獎，畫面上才有東西可拿。
  *
  *   ⚠️ 五星直選（1/100,000）雖然更極端，但要分到「命中 2 位」才有中獎感、
@@ -13,8 +13,8 @@
  * ── 與 pk10-of 的關鍵差異：注碼仍然是字串 ────────────────
  *   pk10 前三直選的注單存的是 `codes` 陣列（3 個車號），因為那邊要擋「同一台車佔兩個名次」；
  *   時時彩的號碼**可以重複**，沒有這個限制，所以彩池分頁沿用一般的字串注碼
- *   （`後三直選123`），前端的複式展開（sscOgComboCodes）完全不用改，
- *   伺端驗證也照走 sscOgHasBetCode。命中數由本檔的 sscOfMatchCount() 從字串解析。
+ *   （`後三直選123`），前端的複式展開（sscOfComboCodes）完全不用改，
+ *   伺端驗證也照走 sscOfHasBetCode。命中數由本檔的 sscOfMatchCount() 從字串解析。
  *
  * ── 命中數的定義：逐位比對 ──────────────────────────────
  *   後三 = 百位／十位／個位（開獎的第 3 ~ 5 球），逐位比對：
@@ -32,12 +32,12 @@
  *   本檔只負責「一注怎麼判、命中幾個屬哪一層」，不碰狀態。
  */
 import { sscDigitsOf, SSC_DIGIT_MAX } from '#shared/config/ssc'
-import { SSC_OG_SECTIONS } from '#shared/config/sscog'
+import { SSC_OF_SECTIONS } from '#shared/config/sscof'
 
 /** 後三直選要猜幾個位置（百／十／個） */
 export const SSC_OF_PICK_COUNT = 3
 
-/** 彩池分頁的注碼前綴（與 sscog.ts 的 DIRECT_PREFIX、sscog/plays.js 的 combo.prefix 同一個字串） */
+/** 彩池分頁的注碼前綴（與 sscof.ts 的 DIRECT_PREFIX、sscof/plays.js 的 combo.prefix 同一個字串） */
 export const SSC_OF_POOL_PREFIX = '後三直選'
 
 /** 走彩池分層的玩法 key 與分頁 id（伺端據此把注單分流到兩條結算路） */
@@ -106,7 +106,7 @@ export function sscOfMatchCount(
   const picks = sscOfPicksOf(betCode)
   const digits = sscDigitsOf(openCode)
   if (!picks || !digits) return null
-  const tail = SSC_OG_SECTIONS['後三'].map((idx) => Number(digits[idx]))
+  const tail = SSC_OF_SECTIONS['後三'].map((idx) => Number(digits[idx]))
   return picks.filter((digit, idx) => digit === tail[idx]).length
 }
 
@@ -138,7 +138,7 @@ export function sscOfMatchCounts(picks: number[] = [1, 2, 3]): number[] {
 }
 
 /**
- * 官方盤玩法定義（順序即前端玩法列的顯示順序，需與 sscog/plays.js 一致）
+ * 官方盤玩法定義（順序即前端玩法列的顯示順序，需與 sscof/plays.js 一致）
  * `pool: true` 代表該玩法**有**走彩池分層的分頁（housan 底下只有後三直選那一頁吃池）
  */
 export const SSC_OF_PLAY_DEFINITIONS: Array<{ key: string; name: string; pool: boolean }> = [

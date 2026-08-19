@@ -16,24 +16,24 @@ import { useK3 } from '~/composables/useK3'
  *   膽拖　—— 膽碼必含、拖碼補滿 pick 個，注碼由 C(拖, pick−膽) 展開
  *   彩池　—— 切到「選號（彩池）」時直接用 of/block/Picker.vue（獎池分層派彩）
  *
- * ⚠️ 賠率一律用 k3OgTabOddsOf 依該分頁 rtp 即時推算，不讀 config 的 odds 快照。
+ * ⚠️ 賠率一律用 k3OfTabOddsOf 依該分頁 rtp 即時推算，不讀 config 的 odds 快照。
  */
 const {
   state: mxState,
-  og: mxOg,
-  ogTabList,
-  ogGroups,
-  ogCombo,
-  ogQuota,
-  ogComboCodes,
-  isOgPool,
+  of: mxOf,
+  ofTabList,
+  ofGroups,
+  ofCombo,
+  ofQuota,
+  ofComboCodes,
+  isOfPool,
   actions: mxActions
 } = useK3()
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
-const minCoin = computed(() => ogQuota.value.item.min)
-const maxCoin = computed(() => ogQuota.value.item.max)
+const minCoin = computed(() => ofQuota.value.item.min)
+const maxCoin = computed(() => ofQuota.value.item.max)
 
 /**
  * 組合分頁的每注賠率
@@ -43,14 +43,14 @@ const maxCoin = computed(() => ogQuota.value.item.max)
  * 所以任一組合的賠率都能代表整個分頁。
  */
 const comboOdds = computed(() => {
-  const combo = ogCombo.value
+  const combo = ofCombo.value
   if (!combo) return 0
   const sample = Array.from({ length: combo.pick }, (_, idx) => idx + 1).join('')
-  return mxActions.ogOddsOf(`${combo.prefix}${sample}`)
+  return mxActions.ofOddsOf(`${combo.prefix}${sample}`)
 })
 
 /** 單選分頁：把群組整理成 .play-table 要的矩陣（一列 columns 組） */
-const tableGroups = computed(() => (ogGroups.value as any[]).map((group) => {
+const tableGroups = computed(() => (ofGroups.value as any[]).map((group) => {
   const list = (group.groupList ?? []) as Array<{ playId?: string; name?: string; nums?: number[] }>
   const columns = Number(group.columns) > 0 ? Number(group.columns) : Math.min(6, Math.max(1, list.length))
   const rows = Array.from({ length: Math.ceil(list.length / columns) }, (_, row) =>
@@ -58,9 +58,9 @@ const tableGroups = computed(() => (ogGroups.value as any[]).map((group) => {
   )
   // 組合分頁的 groupList 是「可選點數」不是注碼，賠率要拿一組樣本注碼去問
   // （同一個組合分頁的每一注賠率都一樣）
-  const odds = ogCombo.value
+  const odds = ofCombo.value
     ? [comboOdds.value].filter((value) => value > 0)
-    : list.map((item) => mxActions.ogOddsOf(String(item?.name ?? ''))).filter((value) => value > 0)
+    : list.map((item) => mxActions.ofOddsOf(String(item?.name ?? ''))).filter((value) => value > 0)
   const distinct = Array.from(new Set(odds))
   return {
     groupName: String(group.groupName ?? ''),
@@ -79,61 +79,61 @@ const tableGroups = computed(() => (ogGroups.value as any[]).map((group) => {
 
 const _handlers = {
   /** 該注碼已選的金額（未選回 0） */
-  coinOf: (code: string) => Number(mxOg.items.find((item) => item.code === code)?.coin ?? 0),
-  isSelected: (code: string) => mxOg.items.some((item) => item.code === code),
+  coinOf: (code: string) => Number(mxOf.items.find((item) => item.code === code)?.coin ?? 0),
+  isSelected: (code: string) => mxOf.items.some((item) => item.code === code),
   /** 組合分頁：該點數是否已選（依 bucket） */
-  isPicked: (bucket: 'nums' | 'dan' | 'tuo', point: number) => mxOg[bucket].includes(point),
+  isPicked: (bucket: 'nums' | 'dan' | 'tuo', point: number) => mxOf[bucket].includes(point),
   /** 注項名稱要不要畫骰子（三同號／二同號的 nums 是骰子點） */
   diceOf: (item: { nums?: number[] } | null) => (item?.nums?.length ? item.nums : null)
 }
 
 const click = {
-  toggleItem: (code: string) => mxActions.toggleOgItem(code),
+  toggleItem: (code: string) => mxActions.toggleOfItem(code),
   coinInput: (code: string, event: Event) => {
     const target = event.target as HTMLInputElement
     const coin = Math.min(maxCoin.value, Math.max(0, Math.trunc(Number(target.value) || 0)))
-    mxActions.setOgItemCoin(code, coin)
+    mxActions.setOfItemCoin(code, coin)
     target.value = coin > 0 ? String(coin) : ''
   },
-  point: (bucket: 'nums' | 'dan' | 'tuo', point: number) => mxActions.toggleOgPoint(bucket, point)
+  point: (bucket: 'nums' | 'dan' | 'tuo', point: number) => mxActions.toggleOfPoint(bucket, point)
 }
 
 /** 組合分頁的提示文字（幾注、規則） */
 const comboHint = computed(() => {
-  const combo = ogCombo.value
+  const combo = ofCombo.value
   if (!combo) return ''
-  const count = ogComboCodes.value.length
+  const count = ofComboCodes.value.length
   if (combo.mode === 'dantuo') {
-    return `膽碼 ${mxOg.dan.length}／${combo.maxDan ?? combo.pick - 1} 個 · 拖碼 ${mxOg.tuo.length} 個 → ${count} 注`
+    return `膽碼 ${mxOf.dan.length}／${combo.maxDan ?? combo.pick - 1} 個 · 拖碼 ${mxOf.tuo.length} 個 → ${count} 注`
   }
-  return `已選 ${mxOg.nums.length} 個點數（至少 ${combo.pick} 個）→ ${count} 注`
+  return `已選 ${mxOf.nums.length} 個點數（至少 ${combo.pick} 個）→ ${count} 注`
 })
 </script>
 
 <template>
   <!-- 彩池玩法：沿用原本的選號器（獎池分層派彩） -->
-  <Picker v-if="isOgPool" />
+  <Picker v-if="isOfPool" />
 
-  <div v-else class="k3-og-board">
+  <div v-else class="k3-of-board">
     <!-- 分頁（通選／單選、標準／膽拖）；只有一個分頁時不顯示 -->
-    <div v-if="ogTabList.length > 1" class="og-tabs">
-      <button v-for="tab in ogTabList" :key="tab.tabId" type="button" class="og-tab"
-        :class="{ active: Number(mxOg.tabId) === Number(tab.tabId) }" @click="mxActions.setOgTab(Number(tab.tabId))">
+    <div v-if="ofTabList.length > 1" class="of-tabs">
+      <button v-for="tab in ofTabList" :key="tab.tabId" type="button" class="of-tab"
+        :class="{ active: Number(mxOf.tabId) === Number(tab.tabId) }" @click="mxActions.setOfTab(Number(tab.tabId))">
         {{ tab.tabName }}
       </button>
     </div>
 
     <div class="quota-bar">
       <span class="quota-item">單注 {{ money(minCoin) }} — {{ money(maxCoin) }}</span>
-      <span v-if="ogQuota.issue.max > 0" class="quota-item">單期上限 {{ money(ogQuota.issue.max) }}</span>
+      <span v-if="ofQuota.issue.max > 0" class="quota-item">單期上限 {{ money(ofQuota.issue.max) }}</span>
       <span class="quota-note">
-        {{ ogCombo ? '※ 選點數後自動組成注碼，每注套用投注金額' : '※ 點注項即選取並套用投注金額，也可逐項改金額' }}
+        {{ ofCombo ? '※ 選點數後自動組成注碼，每注套用投注金額' : '※ 點注項即選取並套用投注金額，也可逐項改金額' }}
       </span>
     </div>
 
     <!-- ── 組合分頁：從 1~6 選點數 ── -->
-    <template v-if="ogCombo">
-      <div v-for="group in tableGroups" :key="`og-combo-${group.groupName}`" class="play-group">
+    <template v-if="ofCombo">
+      <div v-for="group in tableGroups" :key="`of-combo-${group.groupName}`" class="play-group">
         <div class="group-title">
           {{ group.groupName }}
           <span v-if="group.oddsSummary" class="group-odds">{{ group.oddsSummary }}</span>
@@ -149,12 +149,12 @@ const comboHint = computed(() => {
 
       <div class="combo-foot">
         <span class="combo-hint">{{ comboHint }}</span>
-        <span v-if="ogComboCodes.length > 0" class="combo-codes">{{ ogComboCodes.join('、') }}</span>
+        <span v-if="ofComboCodes.length > 0" class="combo-codes">{{ ofComboCodes.join('、') }}</span>
       </div>
     </template>
 
     <!-- ── 單選分頁：一格一注碼 ── -->
-    <div v-for="group in tableGroups" v-else :key="`og-${group.groupName}`" class="play-group">
+    <div v-for="group in tableGroups" v-else :key="`of-${group.groupName}`" class="play-group">
       <div class="group-title">
         {{ group.groupName }}
         <span v-if="group.oddsSummary" class="group-odds">{{ group.oddsSummary }}</span>
@@ -204,16 +204,16 @@ const comboHint = computed(() => {
 
 <style scoped lang="scss">
 /* 表格與選項樣式沿用 6hc-cd 的 .play-table（同 K3Board） */
-.k3-og-board {
+.k3-of-board {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 
-  .og-tabs {
+  .of-tabs {
     display: inline-flex;
     gap: 4px;
 
-    .og-tab {
+    .of-tab {
       border: 1px solid var(--color-red-content);
       border-radius: 4px;
       background: #fff;

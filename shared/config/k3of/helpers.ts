@@ -4,13 +4,13 @@
  * 結構與 shared/config/k3cd/helpers.ts 一致：賠率與限額都以「分頁（tabId）設定」為主，
  * 取不到才退回全域預設；前端顯示 / clamp、伺端驗證 / 派彩全部走這裡。
  *
- * ⚠️ 本檔 import k3og.ts，因此 k3og.ts 不可反向 import 本檔（會形成循環）。
- *    k3og.ts 的判定需要設定值時一律由呼叫端傳入。
+ * ⚠️ 本檔 import k3of.ts，因此 k3of.ts 不可反向 import 本檔（會形成循環）。
+ *    k3of.ts 的判定需要設定值時一律由呼叫端傳入。
  */
-import C_PLAYS from '#shared/config/k3og/plays'
-import { k3OgOddsOf, k3OgComboCodes, K3OG_RTP_FALLBACK } from '#shared/config/k3og'
+import C_PLAYS from '#shared/config/k3of/plays'
+import { k3OfOddsOf, k3OfComboCodes, K3OF_RTP_FALLBACK } from '#shared/config/k3of'
 
-export type K3OgQuota = {
+export type K3OfQuota = {
   /** 單注投注額 */
   item: { min: number; max: number }
   /** 單期投注額（同一玩家、同一期、同一分頁累計；max = 0 視為不限） */
@@ -18,13 +18,13 @@ export type K3OgQuota = {
 }
 
 /** 分頁未設定 quota 時的預設值 */
-export const K3OG_QUOTA_FALLBACK: K3OgQuota = {
+export const K3OF_QUOTA_FALLBACK: K3OfQuota = {
   item: { min: 2, max: 10000 },
   issue: { max: 0 }
 }
 
 /** 組合玩法的選號規則（標準 / 膽拖） */
-export type K3OgCombo = {
+export type K3OfCombo = {
   mode: 'standard' | 'dantuo'
   /** 一注幾個點數 */
   pick: number
@@ -56,10 +56,10 @@ type ConfigTab = {
   tabId?: number
   tabName?: string
   settings?: {
-    quota?: Partial<K3OgQuota>
+    quota?: Partial<K3OfQuota>
     payout?: { rtp?: number; maxOdds?: number }
   }
-  combo?: K3OgCombo
+  combo?: K3OfCombo
   tabGroup?: ConfigGroup[]
 }
 type ConfigPlay = { key?: string; name?: string; list?: ConfigTab[] }
@@ -72,20 +72,20 @@ const _num = (value: unknown, fallback: number): number => {
 }
 
 /** 玩法清單（給前端的分頁列用） */
-export function k3OgPlays(): ConfigPlay[] {
+export function k3OfPlays(): ConfigPlay[] {
   return _plays
 }
 
 /** 取玩法設定（hezhi / santong…） */
-export function findK3OgPlay(playKey?: string): ConfigPlay | null {
+export function findK3OfPlay(playKey?: string): ConfigPlay | null {
   const key = String(playKey ?? '')
   if (!key) return null
   return _plays.find((play) => play.key === key) ?? null
 }
 
 /** 取分頁設定；tabId 給不出來時回該玩法第一個分頁 */
-export function findK3OgTab(playKey?: string, tabId?: number | string): ConfigTab | null {
-  const play = findK3OgPlay(playKey)
+export function findK3OfTab(playKey?: string, tabId?: number | string): ConfigTab | null {
+  const play = findK3OfPlay(playKey)
   if (!play?.list?.length) return null
   const id = Number(tabId)
   if (!Number.isFinite(id) || id <= 0) return play.list[0] ?? null
@@ -93,47 +93,47 @@ export function findK3OgTab(playKey?: string, tabId?: number | string): ConfigTa
 }
 
 /** 該分頁的組合選號規則；非組合玩法回 null */
-export function k3OgComboOf(playKey?: string, tabId?: number | string): K3OgCombo | null {
-  return findK3OgTab(playKey, tabId)?.combo ?? null
+export function k3OfComboOf(playKey?: string, tabId?: number | string): K3OfCombo | null {
+  return findK3OfTab(playKey, tabId)?.combo ?? null
 }
 
 /** 取分頁的投注限額 */
-export function k3OgQuotaOf(playKey?: string, tabId?: number | string): K3OgQuota {
-  const quota = findK3OgTab(playKey, tabId)?.settings?.quota
+export function k3OfQuotaOf(playKey?: string, tabId?: number | string): K3OfQuota {
+  const quota = findK3OfTab(playKey, tabId)?.settings?.quota
   return {
     item: {
-      min: _num(quota?.item?.min, K3OG_QUOTA_FALLBACK.item.min),
-      max: _num(quota?.item?.max, K3OG_QUOTA_FALLBACK.item.max)
+      min: _num(quota?.item?.min, K3OF_QUOTA_FALLBACK.item.min),
+      max: _num(quota?.item?.max, K3OF_QUOTA_FALLBACK.item.max)
     },
-    issue: { max: _num(quota?.issue?.max, K3OG_QUOTA_FALLBACK.issue.max) }
+    issue: { max: _num(quota?.issue?.max, K3OF_QUOTA_FALLBACK.issue.max) }
   }
 }
 
 /** 取分頁設定的回報率 */
-export function k3OgRtpOf(playKey?: string, tabId?: number | string): number {
-  const rtp = Number(findK3OgTab(playKey, tabId)?.settings?.payout?.rtp)
-  return Number.isFinite(rtp) && rtp > 0 ? rtp : K3OG_RTP_FALLBACK
+export function k3OfRtpOf(playKey?: string, tabId?: number | string): number {
+  const rtp = Number(findK3OfTab(playKey, tabId)?.settings?.payout?.rtp)
+  return Number.isFinite(rtp) && rtp > 0 ? rtp : K3OF_RTP_FALLBACK
 }
 
 /** 取分頁設定的賠率上限（未設定回 0 表示不封頂） */
-export function k3OgMaxOddsOf(playKey?: string, tabId?: number | string): number {
-  const maxOdds = Number(findK3OgTab(playKey, tabId)?.settings?.payout?.maxOdds)
+export function k3OfMaxOddsOf(playKey?: string, tabId?: number | string): number {
+  const maxOdds = Number(findK3OfTab(playKey, tabId)?.settings?.payout?.maxOdds)
   return Number.isFinite(maxOdds) && maxOdds > 0 ? maxOdds : 0
 }
 
 /**
  * 取注碼賠率（含本金）
  *
- * 一律由 k3og.ts 依「公平賠率 × 該分頁 rtp」推算，而不是讀 config 的 odds ——
+ * 一律由 k3of.ts 依「公平賠率 × 該分頁 rtp」推算，而不是讀 config 的 odds ——
  * config 的 odds 只是產生時的快照，改 rtp 就會與實際不符。
  * @returns 賠率；注碼無法辨識回 0
  */
-export function k3OgTabOddsOf(playKey?: string, tabId?: number | string, betCode?: string | number): number {
+export function k3OfTabOddsOf(playKey?: string, tabId?: number | string, betCode?: string | number): number {
   const code = String(betCode ?? '').trim()
   if (!code) return 0
-  const odds = k3OgOddsOf(code, k3OgRtpOf(playKey, tabId))
+  const odds = k3OfOddsOf(code, k3OfRtpOf(playKey, tabId))
   if (!(odds > 0)) return 0
-  const maxOdds = k3OgMaxOddsOf(playKey, tabId)
+  const maxOdds = k3OfMaxOddsOf(playKey, tabId)
   return maxOdds > 0 ? Math.min(odds, maxOdds) : odds
 }
 
@@ -142,12 +142,12 @@ export function k3OgTabOddsOf(playKey?: string, tabId?: number | string, betCode
  *
  * 單選分頁：注碼要在 groupList 內。
  * 組合分頁：注碼由前端展開，清單裡沒有 —— 改驗「前綴與點數個數符合該分頁的 combo 規則」，
- *          並且該注碼要能被 k3og.ts 判定（k3OgTabOddsOf > 0 即代表格式合法）。
+ *          並且該注碼要能被 k3of.ts 判定（k3OfTabOddsOf > 0 即代表格式合法）。
  */
-export function k3OgHasBetCode(playKey?: string, tabId?: number | string, betCode?: string | number): boolean {
+export function k3OfHasBetCode(playKey?: string, tabId?: number | string, betCode?: string | number): boolean {
   const code = String(betCode ?? '').trim()
   if (!code) return false
-  const tab = findK3OgTab(playKey, tabId)
+  const tab = findK3OfTab(playKey, tabId)
   if (!tab) return false
 
   const combo = tab.combo
@@ -155,7 +155,7 @@ export function k3OgHasBetCode(playKey?: string, tabId?: number | string, betCod
     if (!code.startsWith(combo.prefix)) return false
     const digits = code.slice(combo.prefix.length)
     if (digits.length !== combo.pick) return false
-    return k3OgOddsOf(code, k3OgRtpOf(playKey, tabId)) > 0
+    return k3OfOddsOf(code, k3OfRtpOf(playKey, tabId)) > 0
   }
 
   const groups = Array.isArray(tab.tabGroup) ? tab.tabGroup : []
@@ -169,9 +169,9 @@ export function k3OgHasBetCode(playKey?: string, tabId?: number | string, betCod
  * 取注項的爆池權重
  * 順序：注項 weight → 群組 weight → 0（不參與分配）
  */
-export function k3OgJackpotWeightOf(playKey?: string, tabId?: number | string, betCode?: string | number): number {
+export function k3OfJackpotWeightOf(playKey?: string, tabId?: number | string, betCode?: string | number): number {
   const code = String(betCode ?? '').trim()
-  const tab = findK3OgTab(playKey, tabId)
+  const tab = findK3OfTab(playKey, tabId)
   if (!tab) return 0
   const groups = Array.isArray(tab.tabGroup) ? tab.tabGroup : []
   for (const group of groups) {
@@ -193,14 +193,14 @@ export function k3OgJackpotWeightOf(playKey?: string, tabId?: number | string, b
  * 展開組合分頁的注碼（前端送單前呼叫；伺端也用它驗證注數）
  * @returns 一注一碼的清單；規則不合（膽碼過多、選不滿）回空陣列
  */
-export function k3OgExpandCombo(
+export function k3OfExpandCombo(
   playKey: string,
   tabId: number | string,
   picks: { nums?: number[]; dan?: number[]; tuo?: number[] }
 ): string[] {
-  const combo = k3OgComboOf(playKey, tabId)
+  const combo = k3OfComboOf(playKey, tabId)
   if (!combo) return []
-  return k3OgComboCodes({
+  return k3OfComboCodes({
     prefix: combo.prefix,
     pick: combo.pick,
     nums: combo.mode === 'standard' ? picks.nums : undefined,

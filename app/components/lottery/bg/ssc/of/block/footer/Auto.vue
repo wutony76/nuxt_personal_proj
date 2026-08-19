@@ -20,14 +20,14 @@ import { useSsc } from '~/composables/useSsc'
  */
 const {
   current: mxCurrent, wallet: mxWallet, fetch: mxFetch,
-  og: mxOg, ogPlayList, ogQuota, ogAutoMaxCount, ogCombo
+  of: mxOf, ofPlayList, ofQuota, ofAutoMaxCount, ofCombo
 } = useSsc()
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
-/** 每注金額限額依當前分頁的 sscog settings.quota，超限伺端會整筆拒單 */
-const minAmount = computed(() => ogQuota.value.item.min)
-const maxAmount = computed(() => ogQuota.value.item.max)
+/** 每注金額限額依當前分頁的 sscof settings.quota，超限伺端會整筆拒單 */
+const minAmount = computed(() => ofQuota.value.item.min)
+const maxAmount = computed(() => ofQuota.value.item.max)
 
 const state = reactive({
   enabled: false,
@@ -45,15 +45,15 @@ const isOpen = computed(() => String(mxCurrent.runtime?.currentStatus ?? '') ===
 /** 當前期別狀態（待命文字要寫出來，讓人知道是還沒開盤而不是壞了） */
 const currentStatusText = computed(() => String(mxCurrent.runtime?.currentStatus ?? '—'))
 /**
- * 注數上限＝該分頁全選能組出幾注（複式再夾 SSC_OG_MAX_COMBO）
+ * 注數上限＝該分頁全選能組出幾注（複式再夾 SSC_OF_MAX_COMBO）
  * ⚠️ 不能用「目前已選展開的注數」—— 自動下注時使用者根本沒選號，那個值是 0。
  */
-const maxCount = computed(() => Math.max(1, ogAutoMaxCount.value || 1))
+const maxCount = computed(() => Math.max(1, ofAutoMaxCount.value || 1))
 const totalCost = computed(() => state.betCount * state.betAmount)
 const playInfo = computed(() => {
-  const play = ogPlayList.value.find((item) => item.key === mxOg.play)?.name || '-'
-  const tab = mxOg.tabName || '-'
-  if (ogCombo.value) {
+  const play = ofPlayList.value.find((item) => item.key === mxOf.play)?.name || '-'
+  const tab = mxOf.tabName || '-'
+  if (ofCombo.value) {
     return `${play} / ${tab}：隨機選號組成 ${state.betCount} 注以上（上限 ${maxCount.value} 注）`
   }
   return `${play} / ${tab}：隨機 ${state.betCount} 注（上限 ${maxCount.value} 注）`
@@ -97,7 +97,7 @@ const _actions = {
   },
   autoBet: async (issue: string) => {
     if (state.isRunning) return
-    if (ogAutoMaxCount.value === 0) {
+    if (ofAutoMaxCount.value === 0) {
       _handlers.setStatus('玩法未載入，跳過本期', 'low')
       return
     }
@@ -149,7 +149,7 @@ watch(maxCount, () => {
   state.betCount = _handlers.normalizeCount(state.betCount)
 }, { immediate: true })
 // 換玩法／分頁視為新設定，允許本期重新投注一次（否則要等下一期）
-watch([() => mxOg.play, () => mxOg.tabId], () => {
+watch([() => mxOf.play, () => mxOf.tabId], () => {
   state.lastIssue = ''
 })
 </script>

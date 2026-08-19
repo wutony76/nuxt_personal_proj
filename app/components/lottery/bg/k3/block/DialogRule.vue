@@ -6,8 +6,8 @@ import { K3_DICE_COUNT, K3_DICE_MAX } from '#shared/config/k3'
 import { K3_OF_PRIZE_TIERS, K3_OF_PICK_COUNT } from '#shared/config/k3-of'
 import C_PLAYS from '#shared/config/k3cd/plays'
 import { k3RtpOf, k3TabOddsOf } from '#shared/config/k3cd/helpers'
-import { k3OgOddsOf, K3OG_TWO_SIDE_TOTAL } from '#shared/config/k3og'
-import { k3OgPlays, k3OgRtpOf, k3OgTabOddsOf, k3OgComboOf } from '#shared/config/k3og/helpers'
+import { k3OfOddsOf, K3OF_TWO_SIDE_TOTAL } from '#shared/config/k3of'
+import { k3OfPlays, k3OfRtpOf, k3OfTabOddsOf, k3OfComboOf } from '#shared/config/k3of/helpers'
 import { useK3 } from '~/composables/useK3'
 
 /**
@@ -56,22 +56,22 @@ const click = {
 }
 
 /**
- * 官方盤賠率玩法的注項表（k3og）
+ * 官方盤賠率玩法的注項表（k3of）
  *
  * 與信用盤那張表同一個算法：賠率讀 helpers、命中機率由公平賠率反推。
  * 組合分頁（三不同號／二不同號）沒有固定注項清單，改列一組樣本注碼與規則。
  */
-const OG_PLAY_ROWS = computed(() =>
-  k3OgPlays().map((play) => ({
+const OF_PLAY_ROWS = computed(() =>
+  k3OfPlays().map((play) => ({
     key: String(play.key ?? ''),
     name: String(play.name ?? ''),
     tabs: (play.list ?? []).map((tab: any) => {
-      const combo = k3OgComboOf(play.key, tab.tabId)
-      const rtp = k3OgRtpOf(play.key, tab.tabId)
+      const combo = k3OfComboOf(play.key, tab.tabId)
+      const rtp = k3OfRtpOf(play.key, tab.tabId)
       if (combo) {
         const sample = `${combo.prefix}${Array.from({ length: combo.pick }, (_, i) => i + 1).join('')}`
-        const odds = k3OgTabOddsOf(play.key, tab.tabId, sample)
-        const fair = k3OgOddsOf(sample, 1)
+        const odds = k3OfTabOddsOf(play.key, tab.tabId, sample)
+        const fair = k3OfOddsOf(sample, 1)
         return {
           tabName: String(tab.tabName ?? ''),
           rtp,
@@ -94,8 +94,8 @@ const OG_PLAY_ROWS = computed(() =>
           groupName: String(group.groupName ?? ''),
           items: (group.groupList ?? []).map((item: any) => {
             const name = String(item?.name ?? '')
-            const odds = k3OgTabOddsOf(play.key, tab.tabId, name)
-            const fair = k3OgOddsOf(name, 1)
+            const odds = k3OfTabOddsOf(play.key, tab.tabId, name)
+            const fair = k3OfOddsOf(name, 1)
             return { name, odds, percent: fair > 0 ? (100 / fair).toFixed(4) : '—' }
           })
         }))
@@ -222,7 +222,7 @@ const sumRows = computed(() =>
       </div>
     </section>
 
-    <section v-for="play in (isCd ? [] : OG_PLAY_ROWS)" :key="`og-${play.key}`" class="rule-sec">
+    <section v-for="play in (isCd ? [] : OF_PLAY_ROWS)" :key="`of-${play.key}`" class="rule-sec">
       <h4>{{ play.name }}</h4>
       <div v-for="tab in play.tabs" :key="tab.tabName">
         <p class="rule-note">{{ tab.tabName }} · 回報率 {{ (tab.rtp * 100).toFixed(0) }}%</p>
@@ -260,7 +260,7 @@ const sumRows = computed(() =>
       <ul>
         <li>每注獨立結算：<strong>派彩 = 下注金額 × 賠率</strong>（賠率含本金，中獎即依此金額入可領獎金）。</li>
         <li>賠率 = <strong>公平賠率 × 該分頁回報率</strong>，公平賠率 = {{ K3_TOTAL_OUTCOMES }} ÷ 該注項命中的結果數
-          （兩面玩法的母數是 {{ K3OG_TWO_SIDE_TOTAL }}）。</li>
+          （兩面玩法的母數是 {{ K3OF_TWO_SIDE_TOTAL }}）。</li>
         <li>兩面玩法開出圍骰為<strong>和局</strong>，退還本金、不計輸贏。</li>
         <li>信用玩法的投注會抽水進共用彩池（見「獎池滾存」），但<strong>不從彩池派彩</strong>。</li>
       </ul>
@@ -319,7 +319,7 @@ const sumRows = computed(() =>
       <h4>特別說明</h4>
       <ul>
         <li><strong>圍骰（三顆同點）在兩面判定為和局</strong>，退還本金 —— 大小單雙的機率母數因此是
-          {{ K3OG_TWO_SIDE_TOTAL }} 而不是 {{ K3_TOTAL_OUTCOMES }}。</li>
+          {{ K3OF_TWO_SIDE_TOTAL }} 而不是 {{ K3_TOTAL_OUTCOMES }}。</li>
         <li>官方玩法的<strong>二不同號</strong>採「兩個點數都出現即中」（含其中一個成對的情況），
           與信用玩法的長牌同一個定義。</li>
         <li>官方玩法的<strong>二同號複選</strong>是「該對子<strong>恰好</strong>出現兩顆」——

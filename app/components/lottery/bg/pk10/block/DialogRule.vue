@@ -12,7 +12,7 @@ import {
 import { PK10_OF_PRIZE_TIERS, PK10_OF_PICK_COUNT, pk10OfMatchCounts } from '#shared/config/pk10-of'
 import C_PLAYS from '#shared/config/pk10cd/plays'
 import { pk10RtpOf, pk10TabOddsOf } from '#shared/config/pk10cd/helpers'
-import { pk10OgPlays, pk10OgRtpOf, pk10OgTabOddsOf, pk10OgComboOf } from '#shared/config/pk10og/helpers'
+import { pk10OfPlays, pk10OfRtpOf, pk10OfTabOddsOf, pk10OfComboOf } from '#shared/config/pk10of/helpers'
 import { usePk10 } from '~/composables/usePk10'
 
 /**
@@ -69,14 +69,14 @@ const sumRows = computed(() =>
  * 複式分頁沒有固定注項清單，改標選號規則。
  */
 const playTables = computed(() => {
-  const plays = (isCd.value ? C_PLAYS : pk10OgPlays()) as Array<any>
+  const plays = (isCd.value ? C_PLAYS : pk10OfPlays()) as Array<any>
   return plays.map((play) => ({
     key: String(play.key ?? ''),
     name: String(play.name ?? ''),
     tabs: (play.list ?? []).map((tab: any) => {
       const tabId = Number(tab.tabId)
-      const combo = isCd.value ? null : pk10OgComboOf(play.key, tabId)
-      const rtp = isCd.value ? pk10RtpOf(play.key, tabId) : pk10OgRtpOf(play.key, tabId)
+      const combo = isCd.value ? null : pk10OfComboOf(play.key, tabId)
+      const rtp = isCd.value ? pk10RtpOf(play.key, tabId) : pk10OfRtpOf(play.key, tabId)
       return {
         tabId,
         tabName: String(tab.tabName ?? ''),
@@ -90,7 +90,7 @@ const playTables = computed(() => {
               name: String(item.name ?? ''),
               odds: isCd.value
                 ? pk10TabOddsOf(play.key, tabId, String(item.name))
-                : pk10OgTabOddsOf(play.key, tabId, String(item.name))
+                : pk10OfTabOddsOf(play.key, tabId, String(item.name))
             }))
             // 複式分頁的 groupList 是「可選車號」而不是注碼，沒有賠率就不列
             .filter((item: { odds: number }) => item.odds > 0)

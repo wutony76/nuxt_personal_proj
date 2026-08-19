@@ -7,7 +7,7 @@
  *   前三直選  選冠軍 + 亞軍 + 季軍（有序）  ★ 彩池分層（母數 720）
  *   定位膽    10 個名次各選車號            賠率制（母數 10）
  *
- *   前一／前二／定位膽的注碼與賠率走 shared/config/pk10og.ts（判定共用 pk10.ts）；
+ *   前一／前二／定位膽的注碼與賠率走 shared/config/pk10of.ts（判定共用 pk10.ts）；
  *   只有前三直選改吃共用彩池，因為 1/720 的機率配固定賠率不好看 ——
  *   分層之後「猜中 2 個名次」也有獎，畫面上才有東西可拿。
  *
@@ -175,7 +175,7 @@ export function pk10FirstCode(car: number | string): string {
 }
 
 /**
- * 官方盤玩法定義（順序即前端玩法列的顯示順序，需與 pk10og/plays.ts 一致）
+ * 官方盤玩法定義（順序即前端玩法列的顯示順序，需與 pk10of/plays.ts 一致）
  * `pool: true` 代表該玩法走彩池分層而不是固定賠率
  */
 export const PK10_OF_PLAY_DEFINITIONS: Array<{ key: string; name: string; pool: boolean }> = [

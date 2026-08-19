@@ -21,9 +21,9 @@
 | `shared/config/ssc-cd.ts` | 信用盤判定與賠率。注碼收斂成單一 descriptor（9 種 kind） |
 | `shared/config/ssccd/plays.js` | 由 pcv2 `conf_sc_cd.js` 轉出，7 分頁 **152 注項**，與 pcv2 逐項對帳一致 |
 | `shared/config/ssccd/helpers.ts` | 設定讀取層（仿 pk10cd/helpers.ts） |
-| `shared/config/sscog.ts` | 官方盤判定、賠率、複式展開（19 項測試通過） |
-| `shared/config/sscog/plays.js` | 由 pcv2 `conf_sc_og.js` 轉出核心 **11 個 playType**（5 玩法 / 11 分頁 / 220 個選項） |
-| `shared/config/sscog/helpers.ts` | 官方盤設定讀取層 + 複式展開 `sscOgComboCodes()`（仿 pk10og/helpers.ts） |
+| `shared/config/sscof.ts` | 官方盤判定、賠率、複式展開（19 項測試通過） |
+| `shared/config/sscof/plays.js` | 由 pcv2 `conf_sc_og.js` 轉出核心 **11 個 playType**（5 玩法 / 11 分頁 / 220 個選項） |
+| `shared/config/sscof/helpers.ts` | 官方盤設定讀取層 + 複式展開 `sscOfComboCodes()`（仿 pk10of/helpers.ts） |
 | `openspec/reference/ssc-of-todo.md` | 官方盤未實作玩法清單 |
 
 ### 二、伺服層（dev server 實測通過）
@@ -42,13 +42,13 @@
 | 檔案 | 內容 |
 |---|---|
 | `app/services/api.ts` | `SscPool` / `SscCurrent` / `SscUserRecordResponse` / `SscUserBetHistory` 型別 + 8 支 API，`currentInfo()` 也補上兩個 case |
-| `app/composables/useSsc.ts` | CD/OF 共用一支（仿 `usePk10.ts`）。官方盤複式的三種選號形狀都收在 `og.picks`，展開走 `sscOgComboCodes()` |
+| `app/composables/useSsc.ts` | CD/OF 共用一支（仿 `usePk10.ts`）。官方盤複式的三種選號形狀都收在 `of.picks`，展開走 `sscOfComboCodes()` |
 
-`useSsc` 與 `usePk10` 的差別：沒有 `ogIsPool` / `ofPrizeTiers`（時時彩官方盤沒有彩池玩法），
-多了 `ogRawComboCount` / `ogComboOverflow` —— 因為 `sscOgComboCodes()` 超過上限也是回空陣列，
+`useSsc` 與 `usePk10` 的差別：沒有 `isOfPool` / `ofPrizeTiers`（時時彩官方盤沒有彩池玩法），
+多了 `ofRawComboCount` / `ofComboOverflow` —— 因為 `sscOfComboCodes()` 超過上限也是回空陣列，
 畫面得靠這兩個才分得出「還沒選滿」與「選太多」。
 
-`og.picks` 依 `combo.mode` 有三種形狀：
+`of.picks` 依 `combo.mode` 有三種形狀：
 `direct` 每個位置選號碼／`sides` 每個位置選面／`group` 只用 `picks[0]` 那一組取 k 個。
 
 ### 修過的坑
@@ -61,7 +61,7 @@
 ### 伺服層實測涵蓋（2026-08-18）
 
 18 個分頁（信用盤 7 + 官方盤 11）**各下過一注**，走完「下注 → 開獎 → 結算 → 派彩」，
-伺端結算結果與 `sscIsHit` / `sscOgIsHit` 逐注對照一致；其中 5 注實際中獎，驗到派彩 = 注額 × 鎖定賠率。
+伺端結算結果與 `sscIsHit` / `sscOfIsHit` 逐注對照一致；其中 5 注實際中獎，驗到派彩 = 注額 × 鎖定賠率。
 拒單案例也擋到：非遞增組六注碼、跨分頁注碼、超過五星單注上限(100)、不存在的注項。
 
 ### 驗證數據（可重跑對帳用）
@@ -89,7 +89,7 @@
 3. **龍虎的「和」是獨立注項**（不是退本金），判定只有 win／lose
 
 另外：時時彩號碼**可重複**，位置型複式**不濾**重複組合（與 pk10 的名次排列不同）。
-五星直選全選會展開成 100,000 注，`SSC_OG_MAX_COMBO = 2000` 會直接回空拒絕（伺端也擋一次）。
+五星直選全選會展開成 100,000 注，`SSC_OF_MAX_COMBO = 2000` 會直接回空拒絕（伺端也擋一次）。
 
 ## 彩池機制（2026-08-18 新增：SSC 官方盤分層 + 三個彩種的跨盤口爆池）
 
@@ -109,8 +109,8 @@
 
 - `shared/config/ssc-of.ts`：`SSC_OF_PRIZE_TIERS`（3 中頭獎池 70%＋保底 20000／2 中二獎池 20%／1 中三獎固定 2 倍）、
   `sscOfPicksOf()`、`sscOfMatchCount()`、`sscOfMatchCounts()` 窮舉
-- `sscog/plays.js`：後三直選的 `combo.pool = true`，其餘 10 個分頁明確標 `pool: false`
-- `sscog/helpers.ts`：`sscOgIsPoolTab()`；`sscOgTabOddsOf()` 對彩池分頁一律回 0
+- `sscof/plays.js`：後三直選的 `combo.pool = true`，其餘 10 個分頁明確標 `pool: false`
+- `sscof/helpers.ts`：`sscOfIsPoolTab()`；`sscOfTabOddsOf()` 對彩池分頁一律回 0
 - `sscOf.ts`：兩條結算路（賠率／分層），抽水比例 0.02 → **0.6**（比照 pk10-of）
 - 命中分布（窮舉 1000 種後三）：3 中 1／2 中 27／1 中 243／0 中 729
 
@@ -119,8 +119,8 @@
 五星直選 1/100,000 要分到「命中 2 位」才有中獎感，得重新設計四層。
 
 **與 pk10-of 的關鍵差異**：彩池分頁的注碼**仍然是字串**（`後三直選123`）而不是 `codes` 陣列 ——
-時時彩號碼可重複、沒有「同一台車佔兩個名次」要擋，所以前端複式展開（`sscOgComboCodes`）
-與伺端驗證（`sscOgHasBetCode`）完全不必為彩池分頁開特例，只有派彩那一段分流。
+時時彩號碼可重複、沒有「同一台車佔兩個名次」要擋，所以前端複式展開（`sscOfComboCodes`）
+與伺端驗證（`sscOfHasBetCode`）完全不必為彩池分頁開特例，只有派彩那一段分流。
 
 ### 二、爆池（信用盤與官方盤**共吃一池**，三個彩種都有）
 
@@ -153,9 +153,9 @@
 | PK10 | 冠亞和開出 19 | 2/90 ≒ 2.22% | 冠亞和分頁的「和19」 |
 
 - 分配：`payoutRatio` 50%、`minPool` 1000（未達不發）、依「注金 × 權重 × 盤口係數」比例分配，尾差由最後一筆吸收
-- **權重來源就是看板設定**：CD 走 `*JackpotWeightOf`、OF 走 `*OgJackpotWeightOf`
+- **權重來源就是看板設定**：CD 走 `*JackpotWeightOf`、OF 走 `*OfJackpotWeightOf`
   （注項 `weight` → 群組 `weight` → 0 不參與）。這六支在改動前全是**寫好但沒人用**的死碼
-  - ⚠️ 例外：K3-OF 的選號（`xuanhao`）不在 `k3og/plays.ts` 裡（前端自己一條送單路），
+  - ⚠️ 例外：K3-OF 的選號（`xuanhao`）不在 `k3of/plays.ts` 裡（前端自己一條送單路），
     權重改讀 `K3_OF_POOL_PLAY_WEIGHT`（= 3，見 `shared/config/k3-of.ts`）
 - 有份條件：該期「非未中」的注單。賠率玩法 `status !== 'lose'`（和局也有份）、
   彩池玩法 `payout > 0`（沒有和局）
@@ -190,11 +190,11 @@
 | 測項 | 內容 | 期望 |
 |---|---|---|
 | `tsc --build --force` ＋ `npx vue-tsc --noEmit -p .nuxt/tsconfig.app.json` | 型別（後者才會檢查 `.vue`） | 無輸出 |
-| sscog helpers 單元測試 | 判定／賠率／複式展開，含 100,000 種開獎窮舉對帳 | 73 passed |
+| sscof helpers 單元測試 | 判定／賠率／複式展開，含 100,000 種開獎窮舉對帳 | 73 passed |
 | config 注項全掃 | 152 個信用注項 + 220 個官方選項都判定得出來、賠率 > 0、屬於自己的分頁 | 372 passed |
-| `_widenPicks` 全掃 | 10 個複式分頁 × 7 種目標注數，不得超過 `SSC_OG_MAX_COMBO` | 280 passed |
+| `_widenPicks` 全掃 | 10 個複式分頁 × 7 種目標注數，不得超過 `SSC_OF_MAX_COMBO` | 280 passed |
 | 下注 E2E | 7 個信用分頁 + 11 個官方分頁各送一單 | 18 passed |
-| 結算對帳 | 用 `sscIsHit`／`sscOgIsHit` 重算，與伺端 `winStatus`／`winAmount`／可領金額比對 | 逐注一致 |
+| 結算對帳 | 用 `sscIsHit`／`sscOfIsHit` 重算，與伺端 `winStatus`／`winAmount`／可領金額比對 | 逐注一致 |
 | 彩池分層 config | `sscOfMatchCount` / 分層 / 旗標，含 100,000 種開獎窮舉 | 31 passed |
 | 爆池核心 | `buildJackpotShares` 分配、門檻、尾差、`source` 帶回、盤口係數 + 三個彩種觸發條件窮舉 | 38 passed |
 | 爆池編排 | 兩盤交件 → 只結算一次 → 各取自己那半（臨時 dev 路由驗，測完刪除） | 逐項一致 |

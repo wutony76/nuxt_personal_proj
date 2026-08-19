@@ -17,23 +17,23 @@ import { useBgAutoActive } from '~/composables/useBgAutoActive'
 /**
  * 時時彩官方玩法（SSC-OF）
  *
- * 版面與 ssc-cd／pk10-of 同一套。玩法列讀 shared/config/sscog 的設定檔：
+ * 版面與 ssc-cd／pk10-of 同一套。玩法列讀 shared/config/sscof 的設定檔：
  * 定位膽／二星／後三／五星／大小單雙（前二·前三·後二·後三）。
  *   單選分頁（定位膽）→ 逐項填金額，按賠率派彩
  *   複式分頁（其餘 10 個）→ 每個位置／每組選號，送單前展開成注碼
  * ⚠️ 與 pk10-of 不同：時時彩官方盤**沒有彩池分層玩法**，11 個分頁全是固定賠率，
- *    所以沒有 ogIsPool、玩法列也不用標「彩池」小標籤。
+ *    所以沒有 ofIsPool、玩法列也不用標「彩池」小標籤。
  * 期別／倒數／開獎號／彩池與信用盤共用（server/services/game/lottery/bg/sscShared.ts）。
  */
 const {
   state: mxState,
   wallet: mxWallet,
-  og: mxOg,
-  ogPlayList,
-  ogTabList,
-  ogCombo,
-  ogSelectedCount,
-  ogTotalAmount,
+  of: mxOf,
+  ofPlayList,
+  ofTabList,
+  ofCombo,
+  ofSelectedCount,
+  ofTotalAmount,
   actions: mxActions,
   fetch: mxFetch
 } = useSsc()
@@ -45,21 +45,21 @@ const { activate: activateAutoPanel, deactivate: deactivateAutoPanel } = useBgAu
 const state = reactive({ randomCount: 5 })
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
-const currentOgPlayName = computed(() =>
-  ogPlayList.value.find((play) => play.key === mxOg.play)?.name ?? ''
+const currentOfPlayName = computed(() =>
+  ofPlayList.value.find((play) => play.key === mxOf.play)?.name ?? ''
 )
 /** 標題右邊的提示文案依分頁型態切換 */
 const headHint = computed(() => {
-  if (!ogCombo.value) return '請選擇注項'
-  return `請為 ${ogCombo.value.positions} 個位置各選號碼`
+  if (!ofCombo.value) return '請選擇注項'
+  return `請為 ${ofCombo.value.positions} 個位置各選號碼`
 })
 
 const click = {
   random: () => {
-    const applied = mxActions.randomOgSelect(state.randomCount)
+    const applied = mxActions.randomOfSelect(state.randomCount)
     if (applied === 0) $dialog.alert('目前分頁無法自動選號')
   },
-  clear: () => mxActions.clearOg()
+  clear: () => mxActions.clearOf()
 }
 
 /** 三個彈窗由 LotteryBgBaseTop 的 USER / OPENCODE / RULE 觸發 */
@@ -126,10 +126,10 @@ onBeforeUnmount(() => {
       </section>
 
       <section class="play-warp">
-        <!-- 玩法列：定位膽／二星／後三／五星／大小單雙（結構照 shared/config/sscog） -->
+        <!-- 玩法列：定位膽／二星／後三／五星／大小單雙（結構照 shared/config/sscof） -->
         <div class="play-tabs">
-          <button v-for="play in ogPlayList" :key="play.key" type="button" class="play-tab"
-            :class="{ active: mxOg.play === play.key }" @click="mxActions.setOgPlay(play.key)">
+          <button v-for="play in ofPlayList" :key="play.key" type="button" class="play-tab"
+            :class="{ active: mxOf.play === play.key }" @click="mxActions.setOfPlay(play.key)">
             {{ play.name }}
           </button>
           <div class="auto-select">
@@ -144,11 +144,11 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- 分頁列：目前每個玩法都只有一個分頁，多分頁時才渲染（同 ssc-cd） -->
-        <div v-if="ogTabList.length > 1" class="tabs-warp">
+        <div v-if="ofTabList.length > 1" class="tabs-warp">
           <div class="bar-tabs">
-            <button v-for="tab in ogTabList" :key="tab.tabId" type="button" class="bar-tabs-btn"
-              :class="{ active: Number(mxOg.tabId) === Number(tab.tabId) }"
-              @click="mxActions.setOgTab(Number(tab.tabId))">
+            <button v-for="tab in ofTabList" :key="tab.tabId" type="button" class="bar-tabs-btn"
+              :class="{ active: Number(mxOf.tabId) === Number(tab.tabId) }"
+              @click="mxActions.setOfTab(Number(tab.tabId))">
               {{ tab.tabName }}
             </button>
           </div>
@@ -158,8 +158,8 @@ onBeforeUnmount(() => {
         <div class="selector-warp">
           <div class="selector">
             <div class="head">
-              <span>[ {{ currentOgPlayName }}{{ mxOg.tabName ? ` · ${mxOg.tabName}` : '' }} ] {{ headHint }}</span>
-              <span>已選 {{ ogSelectedCount }} 注 · 共 {{ money(ogTotalAmount) }}</span>
+              <span>[ {{ currentOfPlayName }}{{ mxOf.tabName ? ` · ${mxOf.tabName}` : '' }} ] {{ headHint }}</span>
+              <span>已選 {{ ofSelectedCount }} 注 · 共 {{ money(ofTotalAmount) }}</span>
             </div>
             <div class="body">
               <SscOfBoard />

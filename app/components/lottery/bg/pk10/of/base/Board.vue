@@ -21,15 +21,15 @@ import { PK10_RANK_NAMES } from '#shared/config/pk10'
  */
 const {
   state: mxState,
-  og,
-  ogGroups,
-  ogCombo,
-  ogComboGroups,
-  ogComboBets,
-  ogIsPool,
-  ogQuota,
-  ogSelectedCount,
-  ogTotalAmount,
+  of,
+  ofGroups,
+  ofCombo,
+  ofComboGroups,
+  ofComboBets,
+  ofIsPool,
+  ofQuota,
+  ofSelectedCount,
+  ofTotalAmount,
   ofPrizeTiers,
   actions: mxActions
 } = usePk10()
@@ -58,11 +58,11 @@ const _handlers = {
     return text
   },
   /** 該注碼目前填了多少（單選分頁） */
-  coinOf: (code: string) => Number(og.items.find((item) => item.code === String(code))?.coin ?? 0),
+  coinOf: (code: string) => Number(of.items.find((item) => item.code === String(code))?.coin ?? 0),
   /** 該注碼是否已選（單選分頁） */
-  isPicked: (code: string) => og.items.some((item) => item.code === String(code) && Number(item.coin) > 0),
+  isPicked: (code: string) => of.items.some((item) => item.code === String(code) && Number(item.coin) > 0),
   /** 該名次是否選了這個車號（複式分頁） */
-  isCarPicked: (pos: number, car: number) => (og.picks[pos] ?? []).includes(Number(car)),
+  isCarPicked: (pos: number, car: number) => (of.picks[pos] ?? []).includes(Number(car)),
   /** 橫向矩陣（依 config 順序橫向填，車號才不會跳號） */
   toRowMatrix: <T,>(list: T[], columns: number) => {
     const rows = Math.ceil(list.length / columns)
@@ -73,13 +73,13 @@ const _handlers = {
 }
 
 // --- COMPUTED ---
-const minCoin = computed(() => ogQuota.value.item.min)
-const maxCoin = computed(() => ogQuota.value.item.max)
+const minCoin = computed(() => ofQuota.value.item.min)
+const maxCoin = computed(() => ofQuota.value.item.max)
 
 /** 單選分頁的群組（含即時賠率與欄數，全部讀 config） */
 const singleGroups = computed(() => {
-  if (ogCombo.value) return []
-  return (ogGroups.value as any[]).map((group) => {
+  if (ofCombo.value) return []
+  return (ofGroups.value as any[]).map((group) => {
     const groupName = String(group.groupName ?? '')
     const list = (group.groupList ?? []) as any[]
     const columns = Number(group.columns) > 0 ? Number(group.columns) : Math.max(1, Math.min(5, list.length))
@@ -88,7 +88,7 @@ const singleGroups = computed(() => {
       name: String(item.name ?? ''),
       car: Number(item.car ?? 0),
       short: _handlers.shortOf(String(item.name ?? ''), groupName),
-      odds: mxActions.ogOddsOf(String(item.name ?? ''))
+      odds: mxActions.ofOddsOf(String(item.name ?? ''))
     }))
     const oddsList = Array.from(new Set(items.map((item) => item.odds).filter((odds) => odds > 0)))
     return {
@@ -104,7 +104,7 @@ const singleGroups = computed(() => {
 
 /** 複式分頁展開後的注數與前幾注預覽 */
 const comboPreview = computed(() => {
-  const bets = ogComboBets.value
+  const bets = ofComboBets.value
   return {
     count: bets.length,
     // 只預覽前 12 注，全部列出來（前三全選有 720 注）會把畫面撐爆
@@ -114,27 +114,27 @@ const comboPreview = computed(() => {
 })
 
 /** 每個名次選了幾個車號（顯示在該列標題） */
-const pickedCountOf = (pos: number) => (og.picks[pos] ?? []).length
+const pickedCountOf = (pos: number) => (of.picks[pos] ?? []).length
 
 const click = {
   /** 單選分頁：點注項切換選取 */
   cell: (code: string) => {
     if (!code) return
-    mxActions.toggleOgItem(code)
+    mxActions.toggleOfItem(code)
   },
   coinInput: (code: string, event: Event) => {
     const target = event.target as HTMLInputElement
     const coin = Math.min(maxCoin.value, Math.max(0, Math.trunc(Number(target.value) || 0)))
     // 還沒選過就先建立一筆，再寫金額（0 視為取消）
-    if (!og.items.some((item) => item.code === code)) mxActions.toggleOgItem(code)
-    mxActions.setOgItemCoin(code, coin)
+    if (!of.items.some((item) => item.code === code)) mxActions.toggleOfItem(code)
+    mxActions.setOfItemCoin(code, coin)
     target.value = coin > 0 ? String(coin) : ''
   },
   hoverEnter: (key: string) => { state.hoverKey = key },
   hoverLeave: () => { state.hoverKey = '' },
   /** 複式分頁：切換某名次的某個車號 */
-  car: (pos: number, car: number) => mxActions.toggleOgPick(pos, car),
-  carAll: (pos: number) => mxActions.toggleOgPickAll(pos)
+  car: (pos: number, car: number) => mxActions.toggleOfPick(pos, car),
+  carAll: (pos: number) => mxActions.toggleOfPickAll(pos)
 }
 </script>
 
@@ -143,16 +143,16 @@ const click = {
     <!-- 該分頁限額（伺端以同一份 settings.quota 驗證） -->
     <div class="quota-bar">
       <span class="quota-item">單注 {{ money(minCoin) }} — {{ money(maxCoin) }}</span>
-      <span v-if="ogQuota.issue.max > 0" class="quota-item">單期上限 {{ money(ogQuota.issue.max) }}</span>
-      <span v-if="ogIsPool" class="quota-tag is-pool">彩池分層派彩</span>
+      <span v-if="ofQuota.issue.max > 0" class="quota-item">單期上限 {{ money(ofQuota.issue.max) }}</span>
+      <span v-if="ofIsPool" class="quota-tag is-pool">彩池分層派彩</span>
       <span class="quota-note">
-        {{ ogCombo ? '※ 每個名次至少選一個車號，注數 = 各名次選數相乘' : '※ 點注項即選取並套用投注金額，也可逐項改金額' }}
+        {{ ofCombo ? '※ 每個名次至少選一個車號，注數 = 各名次選數相乘' : '※ 點注項即選取並套用投注金額，也可逐項改金額' }}
       </span>
     </div>
 
     <!-- ── 複式分頁（前二／前三直選）──────────────────────── -->
-    <template v-if="ogCombo">
-      <div v-for="group in ogComboGroups" :key="`pk10-of-pos-${group.pos}`" class="pick-row">
+    <template v-if="ofCombo">
+      <div v-for="group in ofComboGroups" :key="`pk10-of-pos-${group.pos}`" class="pick-row">
         <div class="pick-head">
           <span class="pick-label">{{ group.label }}</span>
           <span class="pick-count">已選 {{ pickedCountOf(group.pos) }}</span>
@@ -173,17 +173,17 @@ const click = {
         <div class="combo-line">
           <span>展開 <b>{{ comboPreview.count }}</b> 注</span>
           <span>× 每注 <b>{{ money(Number(mxState.amount) || 0) }}</b></span>
-          <span>= 共 <b class="is-total">{{ money(ogTotalAmount) }}</b></span>
+          <span>= 共 <b class="is-total">{{ money(ofTotalAmount) }}</b></span>
         </div>
         <div v-if="comboPreview.sample.length" class="combo-sample">
           <span v-for="(code, idx) in comboPreview.sample" :key="`sample-${idx}`" class="sample-tag">{{ code }}</span>
           <span v-if="comboPreview.more > 0" class="sample-more">…等 {{ comboPreview.more }} 注</span>
         </div>
-        <p v-else class="combo-empty">尚未選滿 {{ ogCombo.positions }} 個名次</p>
+        <p v-else class="combo-empty">尚未選滿 {{ ofCombo.positions }} 個名次</p>
       </div>
 
       <!-- 彩池分頁：沒有固定賠率，改標分層規則 -->
-      <div v-if="ogIsPool" class="tier-note">
+      <div v-if="ofIsPool" class="tier-note">
         <span class="tier-title">獎金分層</span>
         <span v-for="tier in ofPrizeTiers" :key="`tier-${tier.match}`" class="tier-item">
           命中 {{ tier.match }} 個名次 · {{ tier.name }}
@@ -250,7 +250,7 @@ const click = {
       </div>
 
       <div class="single-sum">
-        已選 <b>{{ ogSelectedCount }}</b> 注 · 共 <b class="is-total">{{ money(ogTotalAmount) }}</b>
+        已選 <b>{{ ofSelectedCount }}</b> 注 · 共 <b class="is-total">{{ money(ofTotalAmount) }}</b>
       </div>
     </template>
   </div>

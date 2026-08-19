@@ -7,16 +7,16 @@ import { MEMORY } from '../../../base'
 import { type JackpotRow } from '#shared/config/jackpot'
 import { sscJackpotHit, sscJackpotLabel, SSC_JACKPOT_SETTINGS } from '#shared/config/ssc-cd'
 import { sscDigitsOf, sscSumOf } from '#shared/config/ssc'
-import { judgeSscOgBet, SSC_OG_MAX_COMBO } from '#shared/config/sscog'
+import { judgeSscOfBet, SSC_OF_MAX_COMBO } from '#shared/config/sscof'
 import { sscOfMatchCount, SSC_OF_PRIZE_TIERS } from '#shared/config/ssc-of'
 import {
-  sscOgHasBetCode,
-  sscOgIsPoolTab,
-  sscOgQuotaOf,
-  sscOgTabOddsOf,
-  findSscOgTab,
-  sscOgJackpotWeightOf
-} from '#shared/config/sscog/helpers'
+  sscOfHasBetCode,
+  sscOfIsPoolTab,
+  sscOfQuotaOf,
+  sscOfTabOddsOf,
+  findSscOfTab,
+  sscOfJackpotWeightOf
+} from '#shared/config/sscof/helpers'
 import {
   SSC_SHARED,
   sscAddIssueJackpot,
@@ -56,9 +56,9 @@ import {
  *
  * ── 複式的注碼從哪來 ────────────────────────────────────
  *   除了定位膽是單選分頁，其餘 10 個分頁都是複式：
- *   前端用 sscOgComboCodes() 把選號展開成一注一碼後送上來，
- *   伺端逐注用 sscOgHasBetCode() 驗（複式分頁改驗「前綴符合 + 可判定」）。
- *   ⚠️ 伺端不信任前端的注數，一個群組超過 SSC_OG_MAX_COMBO 注就整筆拒絕。
+ *   前端用 sscOfComboCodes() 把選號展開成一注一碼後送上來，
+ *   伺端逐注用 sscOfHasBetCode() 驗（複式分頁改驗「前綴符合 + 可判定」）。
+ *   ⚠️ 伺端不信任前端的注數，一個群組超過 SSC_OF_MAX_COMBO 注就整筆拒絕。
  */
 
 type BetOrderRow = {
@@ -137,7 +137,7 @@ type UserStoreLike = { userId?: string; coin?: number; sscOfRecord?: UserRecord 
 const SSC_OF_RAKE_RATIO = 0.6
 
 /** 該筆注單是不是彩池分頁（結算時據此分流到兩條路） */
-const _isPoolRow = (playKey?: string, tabId?: number | string) => sscOgIsPoolTab(playKey, tabId)
+const _isPoolRow = (playKey?: string, tabId?: number | string) => sscOfIsPoolTab(playKey, tabId)
 
 /** 取一注的注碼（官方盤的注碼一律是字串：後三直選123、大小單雙後二大單、第一球7…） */
 function _resolveBetCode(play?: { num?: number | string; label?: string | number }): string {
@@ -295,7 +295,7 @@ export default class SSC_OF extends LOTTERY_BASE {
        *
        * 官方盤只有一種注碼形狀（字串），所以比 PK10-OF 少一整條彩池分支：
        *   單選分頁（定位膽）→ 注碼要在 groupList 內
-       *   複式分頁          → 前綴符合該分頁的 combo 規則且能被 sscog.ts 判定
+       *   複式分頁          → 前綴符合該分頁的 combo 規則且能被 sscof.ts 判定
        * 限額一律讀該分頁的 config，伺端不信任前端送的注數與金額。
        */
       validateBetQuota: (input: { issue: string; userId: string; amount: number; groups: Group[] }) => {
@@ -304,19 +304,19 @@ export default class SSC_OF extends LOTTERY_BASE {
         const newByTab = new Map<number, { playKey: string; coin: number }>()
         ;(Array.isArray(input.groups) ? input.groups : []).forEach((group) => {
           const playKey = String(group?.playKey || '')
-          const tab = findSscOgTab(playKey, group?.selectTabId)
+          const tab = findSscOfTab(playKey, group?.selectTabId)
           if (!tab) this.handle.rejectBet(`玩法或分頁不存在（${playKey} / ${group?.selectTabId ?? ''}）`)
           const safeTabId = Number(tab!.tabId)
           const tabName = String(tab!.tabName ?? safeTabId)
-          const quota = sscOgQuotaOf(playKey, safeTabId)
+          const quota = sscOfQuotaOf(playKey, safeTabId)
           const playList = Array.isArray(group?.playList) ? group.playList : []
-          // 複式展開的上限：前端的 sscOgComboCodes() 已擋過一次，這裡是伺端的第二道
-          if (playList.length > SSC_OG_MAX_COMBO) {
-            this.handle.rejectBet(`${tabName} 單次最多 ${_money(SSC_OG_MAX_COMBO)} 注，本次 ${_money(playList.length)} 注`)
+          // 複式展開的上限：前端的 sscOfComboCodes() 已擋過一次，這裡是伺端的第二道
+          if (playList.length > SSC_OF_MAX_COMBO) {
+            this.handle.rejectBet(`${tabName} 單次最多 ${_money(SSC_OF_MAX_COMBO)} 注，本次 ${_money(playList.length)} 注`)
           }
           playList.forEach((play) => {
             const betCode = _resolveBetCode(play)
-            if (!betCode || !sscOgHasBetCode(playKey, safeTabId, betCode)) {
+            if (!betCode || !sscOfHasBetCode(playKey, safeTabId, betCode)) {
               this.handle.rejectBet(`${tabName}「${betCode || '(空白)'}」不在該分頁的注項內`)
             }
             const rawCoin = Number(play?.amount ?? play?.coin ?? input.amount)
@@ -336,11 +336,11 @@ export default class SSC_OF extends LOTTERY_BASE {
           get: { issueTabCoin: (issue: string, userId: string, tabId: number) => number }
         }
         newByTab.forEach(({ playKey, coin: newCoin }, tabId) => {
-          const quota = sscOgQuotaOf(playKey, tabId)
+          const quota = sscOfQuotaOf(playKey, tabId)
           if (!(quota.issue.max > 0)) return
           const used = Number(orders?.get?.issueTabCoin?.(input.issue, input.userId, tabId) ?? 0)
           if (used + newCoin > quota.issue.max) {
-            const tabName = findSscOgTab(playKey, tabId)?.tabName ?? String(tabId)
+            const tabName = findSscOfTab(playKey, tabId)?.tabName ?? String(tabId)
             this.handle.rejectBet(
               `${tabName} 單期投注上限 ${_money(quota.issue.max)}，本期已投注 ${_money(used)}、本次 ${_money(newCoin)}`
             )
@@ -354,7 +354,7 @@ export default class SSC_OF extends LOTTERY_BASE {
           const playKey = String(group?.playKey || '')
           // 分頁 id 一律以 config 為準（前端沒帶就回該玩法第一個分頁），
           // 結算與單期限額都靠它，不能直接信前端送的數字
-          const tabId = Number(findSscOgTab(playKey, group?.selectTabId)?.tabId ?? 0)
+          const tabId = Number(findSscOfTab(playKey, group?.selectTabId)?.tabId ?? 0)
           const playList = Array.isArray(group?.playList) ? group.playList : []
           const total = playList.length
           playList.forEach((play, index) => {
@@ -373,7 +373,7 @@ export default class SSC_OF extends LOTTERY_BASE {
               play_key: playKey,
               play_type_name: playTypeName,
               // 賠率鎖進注單：之後改 rtp 或設定也不會影響已成立的注單
-              odds: sscOgTabOddsOf(playKey, tabId, betCode),
+              odds: sscOfTabOddsOf(playKey, tabId, betCode),
               tab_id: tabId
             })
           })
@@ -397,7 +397,7 @@ export default class SSC_OF extends LOTTERY_BASE {
        * 官方盤結算
        *
        * 兩條路並存，依該注所屬分頁的 combo.pool 分流：
-       *   賠率分頁（10 個）→ judgeSscOgBet 逐注判定，賠率取注單鎖的值
+       *   賠率分頁（10 個）→ judgeSscOfBet 逐注判定，賠率取注單鎖的值
        *   彩池分頁（後三直選）→ 依命中位數分層，從共用獎池按比例分配
        * ⚠️ 滾存（carry）只由彩池那條計算 —— 賠率分頁的注單不吃池、也不影響滾存。
        */
@@ -424,7 +424,7 @@ export default class SSC_OF extends LOTTERY_BASE {
           const coin = Number(row.coin ?? 0)
           const betCode = String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
           const lockedOdds = Number(row.odds ?? 0)
-          const judged = judgeSscOgBet(betCode, codes, coin, lockedOdds)
+          const judged = judgeSscOfBet(betCode, codes, coin, lockedOdds)
           // 無法辨識的注碼視為和局退還本金，不吞玩家注金
           const status = judged?.status ?? 'tie'
           const odds = judged?.odds ?? lockedOdds
@@ -455,7 +455,7 @@ export default class SSC_OF extends LOTTERY_BASE {
             source: 'of',
             // 有份條件：非未中（和局也算有份，與信用盤同一套語意）
             eligible: status !== 'lose',
-            weight: sscOgJackpotWeightOf(String(row.playKey ?? ''), Number(row.tabId ?? 0), betCode)
+            weight: sscOfJackpotWeightOf(String(row.playKey ?? ''), Number(row.tabId ?? 0), betCode)
           })
         })
 
@@ -523,7 +523,7 @@ export default class SSC_OF extends LOTTERY_BASE {
             source: 'of',
             // 彩池分頁沒有和局，命中 ≥ 1 位（有派彩）才算有份
             eligible: row.payout > 0,
-            weight: sscOgJackpotWeightOf(
+            weight: sscOfJackpotWeightOf(
               String(row.playKey ?? ''), Number(row.tabId ?? 0),
               String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
             )

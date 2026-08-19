@@ -6,7 +6,7 @@ import { useK3, type K3SelectItem } from '~/composables/useK3'
 const {
   select: mxSelect, state: mxState, isCd, ofPicks, ofPicked,
   totalAmount, selectedCount, currentQuota: mxQuota, actions: mxActions,
-  og: mxOg, ogCombo, ogComboCodes, ogSelectedCount, ogQuota, isOgPool
+  of: mxOf, ofCombo, ofComboCodes, ofSelectedCount, ofQuota, isOfPool
 } = useK3()
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
@@ -20,7 +20,7 @@ const ofLabel = computed(() => ofPicks.list.filter((n) => n > 0).join('、'))
 /** 右上角的注數標籤 */
 const currCountLabel = computed(() => {
   if (isCd.value) return `${selectedCount.value} 注`
-  if (!isOgPool.value) return `${ogSelectedCount.value} 注`
+  if (!isOfPool.value) return `${ofSelectedCount.value} 注`
   return ofPicked.value ? '1 注' : '未選滿'
 })
 
@@ -31,35 +31,35 @@ const currCountLabel = computed(() => {
  * 組合分頁／彩池 —— 每一注都用同一個「投注金額」，所以改任一列等於改 mxState.amount，
  *                  畫面上其他列會一起變（它們本來就是同一個值）。
  */
-const ogCoinHandlers = {
+const ofCoinHandlers = {
   input: (row: { code: string }, event: Event) => {
     const target = event.target as HTMLInputElement
-    const coin = Math.min(ogQuota.value.item.max, Math.max(0, Math.trunc(Number(target.value) || 0)))
-    if (ogCombo.value || isOgPool.value) mxState.amount = coin
-    else mxActions.setOgItemCoin(row.code, coin)
+    const coin = Math.min(ofQuota.value.item.max, Math.max(0, Math.trunc(Number(target.value) || 0)))
+    if (ofCombo.value || isOfPool.value) mxState.amount = coin
+    else mxActions.setOfItemCoin(row.code, coin)
     target.value = coin > 0 ? String(coin) : ''
   },
   /** 離開欄位夾回 [min, max]，不讓它留在 0（0 會被伺端拒單） */
   blur: (row: { code: string }, event: Event) => {
     const target = event.target as HTMLInputElement
-    const quota = ogQuota.value.item
-    const raw = ogCombo.value || isOgPool.value
+    const quota = ofQuota.value.item
+    const raw = ofCombo.value || isOfPool.value
       ? Number(mxState.amount)
-      : Number(mxOg.items.find((item) => item.code === row.code)?.coin ?? 0)
+      : Number(mxOf.items.find((item) => item.code === row.code)?.coin ?? 0)
     const coin = Math.min(quota.max, Math.max(quota.min, Math.trunc(raw || 0)))
-    if (ogCombo.value || isOgPool.value) mxState.amount = coin
-    else mxActions.setOgItemCoin(row.code, coin)
+    if (ofCombo.value || isOfPool.value) mxState.amount = coin
+    else mxActions.setOfItemCoin(row.code, coin)
     target.value = String(coin)
   }
 }
 
-const ogRows = computed(() => {
-  if (isOgPool.value) return []
-  if (ogCombo.value) {
+const ofRows = computed(() => {
+  if (isOfPool.value) return []
+  if (ofCombo.value) {
     const coin = Number(mxState.amount) || 0
-    return ogComboCodes.value.map((code) => ({ code, odds: mxActions.ogOddsOf(code), coin }))
+    return ofComboCodes.value.map((code) => ({ code, odds: mxActions.ofOddsOf(code), coin }))
   }
-  return mxOg.items.filter((item) => Number(item.coin) > 0)
+  return mxOf.items.filter((item) => Number(item.coin) > 0)
 })
 
 const click = {
@@ -103,7 +103,7 @@ const click = {
           <!-- th 的 class 與對應 td 共用同一組對齊規則，標題才會與內容對齊 -->
           <tr>
             <th class="c-code">投注號碼</th>
-            <th v-if="isCd || !isOgPool" class="c-odds">賠率</th>
+            <th v-if="isCd || !isOfPool" class="c-odds">賠率</th>
             <th class="c-coin">金額</th>
           </tr>
         </thead>
@@ -121,28 +121,28 @@ const click = {
             <tr v-if="mxSelect.items.length === 0"><td colspan="3" class="c-empty">尚未選擇注項</td></tr>
           </template>
           <!-- 官方盤：彩池玩法 -->
-          <template v-else-if="isOgPool">
+          <template v-else-if="isOfPool">
             <tr v-if="ofPicked">
               <td class="c-code">{{ ofLabel }}</td>
               <td class="c-coin">
-                <input type="number" min="0" :max="ogQuota.item.max" class="coin-input" :value="mxState.amount || ''"
-                  placeholder="0" @input="ogCoinHandlers.input({ code: '' }, $event)"
-                  @blur="ogCoinHandlers.blur({ code: '' }, $event)" />
+                <input type="number" min="0" :max="ofQuota.item.max" class="coin-input" :value="mxState.amount || ''"
+                  placeholder="0" @input="ofCoinHandlers.input({ code: '' }, $event)"
+                  @blur="ofCoinHandlers.blur({ code: '' }, $event)" />
               </td>
             </tr>
             <tr v-else><td colspan="2" class="c-empty">請選滿 3 個點數</td></tr>
           </template>
           <!-- 官方盤：賠率玩法（組合分頁展開後一注一列） -->
           <template v-else>
-            <tr v-for="row in ogRows" :key="row.code">
+            <tr v-for="row in ofRows" :key="row.code">
               <td class="c-code">{{ row.code }}</td>
               <td class="c-odds">{{ row.odds }}</td>
               <td class="c-coin">
-                <input type="number" min="0" :max="ogQuota.item.max" class="coin-input" :value="row.coin || ''"
-                  placeholder="0" @input="ogCoinHandlers.input(row, $event)" @blur="ogCoinHandlers.blur(row, $event)" />
+                <input type="number" min="0" :max="ofQuota.item.max" class="coin-input" :value="row.coin || ''"
+                  placeholder="0" @input="ofCoinHandlers.input(row, $event)" @blur="ofCoinHandlers.blur(row, $event)" />
               </td>
             </tr>
-            <tr v-if="ogRows.length === 0"><td colspan="3" class="c-empty">尚未選擇注項</td></tr>
+            <tr v-if="ofRows.length === 0"><td colspan="3" class="c-empty">尚未選擇注項</td></tr>
           </template>
         </tbody>
       </table>
@@ -150,8 +150,8 @@ const click = {
 
     <button v-if="isCd && mxSelect.items.length > 0" type="button" class="clear-btn"
       @click="mxActions.clearSelect()">清空</button>
-    <button v-else-if="!isCd && !isOgPool && ogRows.length > 0" type="button" class="clear-btn"
-      @click="mxActions.clearOg()">清空</button>
+    <button v-else-if="!isCd && !isOfPool && ofRows.length > 0" type="button" class="clear-btn"
+      @click="mxActions.clearOf()">清空</button>
   </section>
 </template>
 

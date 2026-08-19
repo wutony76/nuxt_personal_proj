@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
 import Pk10Header from '~/components/lottery/bg/pk10/block/Header.vue'
-import Pk10OgBoard from '~/components/lottery/bg/pk10/of/base/Board.vue'
+import Pk10OfBoard from '~/components/lottery/bg/pk10/of/base/Board.vue'
 import CurrItems from '~/components/lottery/bg/pk10/block/CurrItems.vue'
 import Controls from '~/components/lottery/bg/pk10/block/Controls.vue'
 import Report from '~/components/lottery/bg/pk10/block/Report.vue'
@@ -17,7 +17,7 @@ import { useBgAutoActive } from '~/composables/useBgAutoActive'
 /**
  * PK10 官方玩法（PK10-OF）
  *
- * 版面與 pk10-cd／k3-of 同一套。玩法列讀 shared/config/pk10og 的設定檔
+ * 版面與 pk10-cd／k3-of 同一套。玩法列讀 shared/config/pk10of 的設定檔
  * （內容照 pcv2_0223 的 conf_pk10_og.js 提取）：前一直選／前二直選／前三直選／定位膽。
  *   單選分頁（前一／定位膽）→ 逐項填金額，按賠率派彩
  *   複式分頁（前二／前三）  → 每個名次選車號，送單時展開；前三直選走共用彩池分層
@@ -26,13 +26,13 @@ import { useBgAutoActive } from '~/composables/useBgAutoActive'
 const {
   state: mxState,
   wallet: mxWallet,
-  og: mxOg,
-  ogPlayList,
-  ogTabList,
-  ogCombo,
-  ogIsPool,
-  ogSelectedCount,
-  ogTotalAmount,
+  of: mxOf,
+  ofPlayList,
+  ofTabList,
+  ofCombo,
+  ofIsPool,
+  ofSelectedCount,
+  ofTotalAmount,
   actions: mxActions,
   fetch: mxFetch
 } = usePk10()
@@ -44,21 +44,21 @@ const { activate: activateAutoPanel, deactivate: deactivateAutoPanel } = useBgAu
 const state = reactive({ randomCount: 5 })
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
-const currentOgPlayName = computed(() =>
-  ogPlayList.value.find((play) => play.key === mxOg.play)?.name ?? ''
+const currentOfPlayName = computed(() =>
+  ofPlayList.value.find((play) => play.key === mxOf.play)?.name ?? ''
 )
 /** 標題右邊的提示文案依分頁型態切換 */
 const headHint = computed(() => {
-  if (!ogCombo.value) return '請選擇注項'
-  return `請為 ${ogCombo.value.positions} 個名次各選車號`
+  if (!ofCombo.value) return '請選擇注項'
+  return `請為 ${ofCombo.value.positions} 個名次各選車號`
 })
 
 const click = {
   random: () => {
-    const applied = mxActions.randomOgSelect(state.randomCount)
+    const applied = mxActions.randomOfSelect(state.randomCount)
     if (applied === 0) $dialog.alert('目前分頁無法自動選號')
   },
-  clear: () => mxActions.clearOg()
+  clear: () => mxActions.clearOf()
 }
 
 /** 三個彈窗由 LotteryBgBaseTop 的 USER / OPENCODE / RULE 觸發 */
@@ -127,8 +127,8 @@ onBeforeUnmount(() => {
       <section class="play-warp">
         <!-- 玩法列：前一／前二／前三直選＋定位膽（結構照 pcv2 的 conf_pk10_og.js） -->
         <div class="play-tabs">
-          <button v-for="play in ogPlayList" :key="play.key" type="button" class="play-tab"
-            :class="{ active: mxOg.play === play.key }" @click="mxActions.setOgPlay(play.key)">
+          <button v-for="play in ofPlayList" :key="play.key" type="button" class="play-tab"
+            :class="{ active: mxOf.play === play.key }" @click="mxActions.setOfPlay(play.key)">
             {{ play.name }}
             <!-- 走彩池分層的玩法標一下，玩家才知道那個沒有固定賠率 -->
             <em v-if="play.isPool" class="play-tag">彩池</em>
@@ -145,11 +145,11 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- 分頁列：目前每個玩法都只有一個分頁，多分頁時才渲染（同 pk10-cd） -->
-        <div v-if="ogTabList.length > 1" class="tabs-warp">
+        <div v-if="ofTabList.length > 1" class="tabs-warp">
           <div class="bar-tabs">
-            <button v-for="tab in ogTabList" :key="tab.tabId" type="button" class="bar-tabs-btn"
-              :class="{ active: Number(mxOg.tabId) === Number(tab.tabId) }"
-              @click="mxActions.setOgTab(Number(tab.tabId))">
+            <button v-for="tab in ofTabList" :key="tab.tabId" type="button" class="bar-tabs-btn"
+              :class="{ active: Number(mxOf.tabId) === Number(tab.tabId) }"
+              @click="mxActions.setOfTab(Number(tab.tabId))">
               {{ tab.tabName }}
             </button>
           </div>
@@ -159,14 +159,14 @@ onBeforeUnmount(() => {
         <div class="selector-warp">
           <div class="selector">
             <div class="head">
-              <span>[ {{ currentOgPlayName }}{{ mxOg.tabName ? ` · ${mxOg.tabName}` : '' }} ] {{ headHint }}</span>
+              <span>[ {{ currentOfPlayName }}{{ mxOf.tabName ? ` · ${mxOf.tabName}` : '' }} ] {{ headHint }}</span>
               <span>
-                已選 {{ ogSelectedCount }} 注 · 共 {{ money(ogTotalAmount) }}
-                <em v-if="ogIsPool" class="head-tag">彩池分層</em>
+                已選 {{ ofSelectedCount }} 注 · 共 {{ money(ofTotalAmount) }}
+                <em v-if="ofIsPool" class="head-tag">彩池分層</em>
               </span>
             </div>
             <div class="body">
-              <Pk10OgBoard />
+              <Pk10OfBoard />
             </div>
           </div>
           <aside class="selector-side">

@@ -15,10 +15,10 @@ import {
   K3_OF_POOL_PLAY_WEIGHT,
   K3_OF_PRIZE_TIERS
 } from '#shared/config/k3-of'
-import { judgeK3OgBet } from '#shared/config/k3og'
-import { k3OgHasBetCode, k3OgQuotaOf, k3OgTabOddsOf, findK3OgTab,
-  k3OgJackpotWeightOf
-} from '#shared/config/k3og/helpers'
+import { judgeK3OfBet } from '#shared/config/k3of'
+import { k3OfHasBetCode, k3OfQuotaOf, k3OfTabOddsOf, findK3OfTab,
+  k3OfJackpotWeightOf
+} from '#shared/config/k3of/helpers'
 import {
   K3_SHARED,
   k3AddIssueJackpot,
@@ -139,8 +139,8 @@ const K3_OF_QUOTA = { item: { min: 2, max: 10000 }, issue: { max: 500000 } }
  *
  * 官方盤有兩套派彩並存：
  *   xuanhao —— 選 3 個點數，依命中顆數從共用彩池分層分配（K3_OF_PRIZE_TIERS）
- *   其餘     —— k3og 的 6 個賠率玩法（和值／三同號／三不同號／三連號／二同號／二不同號），
- *              賠率由 k3og.ts 依「公平賠率 × 分頁 rtp」推算，下注時鎖進注單
+ *   其餘     —— k3of 的 6 個賠率玩法（和值／三同號／三不同號／三連號／二同號／二不同號），
+ *              賠率由 k3of.ts 依「公平賠率 × 分頁 rtp」推算，下注時鎖進注單
  * 判斷依據就是 playKey，兩條路互不干擾。
  */
 const POOL_PLAY_KEY = K3_OF_POOL_PLAY_KEY
@@ -305,8 +305,8 @@ export default class K3_OF extends LOTTERY_BASE {
           const tabId = Number(group?.selectTabId ?? 0)
           const isPool = _isPoolPlay(playKey)
           // 賠率制玩法讀該分頁的 quota；彩池玩法用伺端的 K3_OF_QUOTA
-          const quota = isPool ? K3_OF_QUOTA : k3OgQuotaOf(playKey, tabId)
-          if (!isPool && !findK3OgTab(playKey, tabId)) {
+          const quota = isPool ? K3_OF_QUOTA : k3OfQuotaOf(playKey, tabId)
+          if (!isPool && !findK3OfTab(playKey, tabId)) {
             this.handle.rejectBet(`玩法或分頁不存在（${playKey} / ${tabId}）`)
           }
           ;(Array.isArray(group?.playList) ? group.playList : []).forEach((play) => {
@@ -320,7 +320,7 @@ export default class K3_OF extends LOTTERY_BASE {
             } else {
               // 賠率制：注碼一律用伺端的設定檔驗，不信任前端送的注數與賠率
               label = String(play?.label ?? play?.num ?? '').trim()
-              if (!k3OgHasBetCode(playKey, tabId, label)) {
+              if (!k3OfHasBetCode(playKey, tabId, label)) {
                 this.handle.rejectBet(`「${label || '(空)'}」不在該分頁的注項內`)
               }
             }
@@ -380,7 +380,7 @@ export default class K3_OF extends LOTTERY_BASE {
             const label = String(play?.label ?? play?.num ?? '').trim()
             if (!label) return
             // 賠率鎖進注單：之後改 rtp 或設定也不會影響已成立的注單
-            rows.push({ ...base, bet_code: [label], odds: k3OgTabOddsOf(playKey, tabId, label), tab_id: tabId })
+            rows.push({ ...base, bet_code: [label], odds: k3OfTabOddsOf(playKey, tabId, label), tab_id: tabId })
           })
         })
         return rows
@@ -402,7 +402,7 @@ export default class K3_OF extends LOTTERY_BASE {
        * 官方盤結算
        *
        * 兩條路並存，依 playKey 分流：
-       *   賠率制玩法（k3og 的 6 個）→ judgeK3OgBet 逐注判定，賠率取注單鎖的值
+       *   賠率制玩法（k3of 的 6 個）→ judgeK3OfBet 逐注判定，賠率取注單鎖的值
        *   彩池玩法（xuanhao）      → 依命中顆數分層，從共用獎池按比例分配
        * ⚠️ 滾存（carry）只由彩池玩法那條計算 —— 賠率制的注單不吃池、也不影響滾存。
        */
@@ -429,7 +429,7 @@ export default class K3_OF extends LOTTERY_BASE {
           const coin = Number(row.coin ?? 0)
           const betCode = String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
           const lockedOdds = Number(row.odds ?? 0)
-          const judged = judgeK3OgBet(betCode, codes, coin, lockedOdds)
+          const judged = judgeK3OfBet(betCode, codes, coin, lockedOdds)
           // 無法辨識的注碼視為和局退還本金，不吞玩家注金
           const status = judged?.status ?? 'tie'
           const odds = judged?.odds ?? lockedOdds
@@ -463,7 +463,7 @@ export default class K3_OF extends LOTTERY_BASE {
             source: 'of',
             // 有份條件：非未中（和局也算有份，與信用盤同一套語意）
             eligible: status !== 'lose',
-            weight: k3OgJackpotWeightOf(String(row.playKey ?? ''), Number(row.tabId ?? 0), betCode)
+            weight: k3OfJackpotWeightOf(String(row.playKey ?? ''), Number(row.tabId ?? 0), betCode)
           })
         })
         oddsPayoutByUser.forEach((amount, userId) => {
@@ -535,7 +535,7 @@ export default class K3_OF extends LOTTERY_BASE {
             source: 'of',
             // 彩池玩法沒有和局，命中 ≥ 1（有派彩）才算有份
             eligible: row.payout > 0,
-            // 三軍選號 不在 k3og 的看板設定裡，權重改用 config 指定值
+            // 三軍選號 不在 k3of 的看板設定裡，權重改用 config 指定值
             weight: K3_OF_POOL_PLAY_WEIGHT
           })
         })

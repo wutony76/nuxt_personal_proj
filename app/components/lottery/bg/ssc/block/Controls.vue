@@ -9,7 +9,7 @@ import { useSsc } from '~/composables/useSsc'
 const {
   state: mxState, currentQuota, canSubmit, isOpen, isCd,
   selectedCount, totalAmount, actions: mxActions, fetch: mxFetch,
-  ogQuota, ogSelectedCount, ogTotalAmount, canSubmitOg
+  ofQuota, ofSelectedCount, ofTotalAmount, canSubmitOf
 } = useSsc()
 
 const { $dialog } = useNuxtApp()
@@ -23,14 +23,14 @@ const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
  *    所以這裡不需要像早期 k3 那樣手抄一份彩池玩法的限額。
  */
 const range = computed(() => {
-  const quota = isCd.value ? currentQuota.value : ogQuota.value
+  const quota = isCd.value ? currentQuota.value : ofQuota.value
   return { min: quota.item.min, max: quota.item.max }
 })
 
-const canBet = computed(() => (isCd.value ? canSubmit.value : canSubmitOg.value))
-const betCount = computed(() => (isCd.value ? selectedCount.value : ogSelectedCount.value))
+const canBet = computed(() => (isCd.value ? canSubmit.value : canSubmitOf.value))
+const betCount = computed(() => (isCd.value ? selectedCount.value : ofSelectedCount.value))
 /** 總下注額度 */
-const totalBetAmount = computed(() => (isCd.value ? totalAmount.value : ogTotalAmount.value))
+const totalBetAmount = computed(() => (isCd.value ? totalAmount.value : ofTotalAmount.value))
 const betLabel = computed(() =>
   betCount.value > 0 ? `（${betCount.value} 注 / ${money(totalBetAmount.value)}）` : ''
 )

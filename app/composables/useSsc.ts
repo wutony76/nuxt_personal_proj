@@ -19,21 +19,21 @@ import {
   SSC_DIGIT_MAX,
   SSC_PLACE_NAMES
 } from '#shared/config/ssc'
-import { judgeSscOgBet, SSC_OG_MAX_COMBO } from '#shared/config/sscog'
+import { judgeSscOfBet, SSC_OF_MAX_COMBO } from '#shared/config/sscof'
 import C_PLAYS from '#shared/config/ssccd/plays'
 import { findSscTab, sscQuotaOf, sscTabOddsOf } from '#shared/config/ssccd/helpers'
-import C_OG_PLAYS from '#shared/config/sscog/plays'
+import C_OF_PLAYS from '#shared/config/sscof/plays'
 import { SSC_OF_PRIZE_TIERS } from '#shared/config/ssc-of'
 import {
-  findSscOgTab,
-  sscOgComboCodes,
-  sscOgComboGroups,
-  sscOgComboOf,
-  sscOgIsPoolTab,
-  sscOgQuotaOf,
-  sscOgTabOddsOf,
-  type SscOgGroupMode
-} from '#shared/config/sscog/helpers'
+  findSscOfTab,
+  sscOfComboCodes,
+  sscOfComboGroups,
+  sscOfComboOf,
+  sscOfIsPoolTab,
+  sscOfQuotaOf,
+  sscOfTabOddsOf,
+  type SscOfGroupMode
+} from '#shared/config/sscof/helpers'
 
 /**
  * 時時彩前端狀態（SSC-CD 信用盤 / SSC-OF 官方盤共用一支）
@@ -43,12 +43,12 @@ import {
  *   （server/services/game/lottery/bg/sscShared.ts），前端沒有理由拆成兩份互相打架。
  *   差異只有「注項怎麼選」：
  *     mode = 'cd' → 讀 shared/config/ssccd 的注項（7 分頁 152 注項）
- *     mode = 'of' → 讀 shared/config/sscog（11 分頁，10 個是複式）
+ *     mode = 'of' → 讀 shared/config/sscof（11 分頁，10 個是複式）
  *
  * ── 與 usePk10 的差異 ───────────────────────────────────
  *   1. 官方盤**沒有彩池分層玩法** —— 11 個分頁全是固定賠率，
- *      所以沒有 ogIsPool / ofPrizeTiers，注碼也一律是字串（不送 codes 陣列）。
- *   2. 複式有三種形狀（見 og.picks 的註解），展開一律走 sscOgComboCodes()，
+ *      所以沒有 ofIsPool / ofPrizeTiers，注碼也一律是字串（不送 codes 陣列）。
+ *   2. 複式有三種形狀（見 of.picks 的註解），展開一律走 sscOfComboCodes()，
  *      它直接吐注碼字串，不像 pk10 還要再轉一次。
  *   3. 開獎是 5 個 0 ~ 9 的號碼且**可重複**，位置型複式不濾重複組合。
  *
@@ -74,7 +74,7 @@ export type SscSelectItem = {
 type ConfigPlay = { key?: string; name?: string; list?: any[] }
 
 const cdPlays = C_PLAYS as ConfigPlay[]
-const ogPlays = C_OG_PLAYS as ConfigPlay[]
+const ofPlays = C_OF_PLAYS as ConfigPlay[]
 
 /** 大小單雙分頁可選的四個面（順序即看板顯示順序） */
 const SIDE_OPTIONS = ['大', '小', '單', '雙'] as const
@@ -129,21 +129,21 @@ const select = reactive({
 })
 
 /**
- * 官方盤（sscog）的選號狀態
+ * 官方盤（sscof）的選號狀態
  *
  * 兩種分頁型態：
  *   單選分頁（定位膽）→ items：注碼 → 金額
- *   複式分頁（其餘 10 個）→ picks，送單前才用 sscOgComboCodes() 展開
+ *   複式分頁（其餘 10 個）→ picks，送單前才用 sscOfComboCodes() 展開
  *
  * picks 依 combo.mode 有三種形狀：
  *   direct（後二／後三／五星直選）→ picks[pos] = 該位置選的號碼
  *   sides （大小單雙）            → picks[pos] = 該位置選的面（大／小／單／雙）
  *   group （組選／組三／組六）    → 只用 picks[0]，那一組號碼取 k 個
  */
-const og = reactive({
-  play: String(ogPlays[0]?.key ?? ''),
-  tabId: Number(ogPlays[0]?.list?.[0]?.tabId ?? 0),
-  tabName: String(ogPlays[0]?.list?.[0]?.tabName ?? ''),
+const of = reactive({
+  play: String(ofPlays[0]?.key ?? ''),
+  tabId: Number(ofPlays[0]?.list?.[0]?.tabId ?? 0),
+  tabName: String(ofPlays[0]?.list?.[0]?.tabName ?? ''),
   /** 單選分頁已選注項 */
   items: [] as Array<{ code: string; odds: number; coin: number }>,
   /** 複式分頁的選號（形狀見上方註解） */
@@ -202,33 +202,33 @@ const canSubmit = computed(() =>
 
 // ── Computed：官方盤 ───────────────────────────────────────────────────────
 /** 玩法清單 */
-const ogPlayList = computed(() => ogPlays.map((play) => ({
+const ofPlayList = computed(() => ofPlays.map((play) => ({
   key: String(play.key ?? ''),
   name: String(play.name ?? '')
 })))
 /** 當前玩法的分頁清單 */
-const ogTabList = computed(() => ogPlays.find((play) => play.key === og.play)?.list ?? [])
+const ofTabList = computed(() => ofPlays.find((play) => play.key === of.play)?.list ?? [])
 /** 當前分頁的群組（單選分頁＝注項清單） */
-const ogGroups = computed(() => findSscOgTab(og.play, og.tabId)?.tabGroup ?? [])
+const ofGroups = computed(() => findSscOfTab(of.play, of.tabId)?.tabGroup ?? [])
 /** 當前分頁的複式規則；單選分頁（定位膽）回 null */
-const ogCombo = computed(() => sscOgComboOf(og.play, og.tabId))
+const ofCombo = computed(() => sscOfComboOf(of.play, of.tabId))
 /** 複式分頁每個位置可選的號碼／面（digits 與 sides 只會有一邊有值，看 combo.mode） */
-const ogComboGroups = computed(() => sscOgComboGroups(og.play, og.tabId))
+const ofComboGroups = computed(() => sscOfComboGroups(of.play, of.tabId))
 /**
  * 當前分頁是不是走彩池分層（後三直選）
  *
- * 彩池分頁沒有固定賠率（sscOgTabOddsOf 一律回 0），畫面要改顯示分層說明；
+ * 彩池分頁沒有固定賠率（sscOfTabOddsOf 一律回 0），畫面要改顯示分層說明；
  * 但注碼形狀與複式展開跟其他分頁完全一樣，送單流程不用分岔。
  */
-const ogIsPool = computed(() => sscOgIsPoolTab(og.play, og.tabId))
+const ofIsPool = computed(() => sscOfIsPoolTab(of.play, of.tabId))
 /** 彩池分頁的獎金分層（畫面顯示用） */
 const ofPrizeTiers = computed(() => SSC_OF_PRIZE_TIERS)
 /** 當前分頁限額 */
-const ogQuota = computed(() => sscOgQuotaOf(og.play, og.tabId))
+const ofQuota = computed(() => sscOfQuotaOf(of.play, of.tabId))
 /** 複式展開後的每一注（注碼字串） */
-const ogComboCodes = computed(() => {
-  if (!ogCombo.value) return [] as string[]
-  return sscOgComboCodes(og.play, og.tabId, og.picks)
+const ofComboCodes = computed(() => {
+  if (!ofCombo.value) return [] as string[]
+  return sscOfComboCodes(of.play, of.tabId, of.picks)
 })
 /** C(n, k) —— 組選分頁的注數是組合數 */
 function _combinations(n: number, k: number): number {
@@ -239,80 +239,80 @@ function _combinations(n: number, k: number): number {
 }
 
 /** 組選分頁一注要幾碼（組六 3 碼、組三與後二組選 2 碼） */
-function _groupPickSize(combo: { group?: SscOgGroupMode } | null): number {
+function _groupPickSize(combo: { group?: SscOfGroupMode } | null): number {
   return combo?.group === 'group6' ? 3 : 2
 }
 
 /**
  * 展開前的注數（不管有沒有超過上限都算得出來）
  *
- * sscOgComboCodes() 超過 SSC_OG_MAX_COMBO 會回空陣列，畫面沒辦法從空陣列分辨
+ * sscOfComboCodes() 超過 SSC_OF_MAX_COMBO 會回空陣列，畫面沒辦法從空陣列分辨
  * 「還沒選滿」與「選太多」—— 所以這裡自己算一份原始注數給提示用。
  */
-const ogRawComboCount = computed(() => {
-  const combo = ogCombo.value
+const ofRawComboCount = computed(() => {
+  const combo = ofCombo.value
   if (!combo) return 0
-  const sets = og.picks.map((list) => new Set((Array.isArray(list) ? list : []).map(String)).size)
+  const sets = of.picks.map((list) => new Set((Array.isArray(list) ? list : []).map(String)).size)
   if (combo.mode === 'group') return _combinations(sets[0] ?? 0, _groupPickSize(combo))
   const positions = Number(combo.positions ?? 0)
   if (sets.length !== positions || sets.some((n) => n === 0)) return 0
   return sets.reduce((acc, n) => acc * n, 1)
 })
 /** 是否因為超過上限而展不出注碼（畫面要顯示「請縮小選號範圍」而不是「請選滿」） */
-const ogComboOverflow = computed(() => ogRawComboCount.value > SSC_OG_MAX_COMBO)
+const ofComboOverflow = computed(() => ofRawComboCount.value > SSC_OF_MAX_COMBO)
 /**
  * 複式還不能送單時的提示文案（三種 mode + 超過上限共用一份）
  *
- * ⚠️ sscOgComboCodes() 不管是「沒選滿」還是「超過上限」都回空陣列，
+ * ⚠️ sscOfComboCodes() 不管是「沒選滿」還是「超過上限」都回空陣列，
  *    所以看板／當前注項／投注鈕不能各自猜原因 —— 一律讀這裡。
  * @returns 可以送單時回空字串
  */
-const ogComboHint = computed(() => {
-  const combo = ogCombo.value
+const ofComboHint = computed(() => {
+  const combo = ofCombo.value
   if (!combo) return ''
-  if (ogComboOverflow.value) return `展開後超過 ${SSC_OG_MAX_COMBO} 注，請縮小選號範圍`
-  if (ogComboCodes.value.length > 0) return ''
+  if (ofComboOverflow.value) return `展開後超過 ${SSC_OF_MAX_COMBO} 注，請縮小選號範圍`
+  if (ofComboCodes.value.length > 0) return ''
   return combo.mode === 'group'
     ? `請至少選 ${combo.minPick} 個號碼`
     : `請為每一個位置都至少選一個號碼（共 ${combo.positions} 個位置）`
 })
 /** 已選注數：單選＝有金額的注項數、複式＝展開後的注數 */
-const ogSelectedCount = computed(() =>
-  ogCombo.value ? ogComboCodes.value.length : og.items.filter((item) => Number(item.coin) > 0).length
+const ofSelectedCount = computed(() =>
+  ofCombo.value ? ofComboCodes.value.length : of.items.filter((item) => Number(item.coin) > 0).length
 )
 /** 總投注額：複式的每一注都用同一個金額（state.amount） */
-const ogTotalAmount = computed(() => {
-  if (ogCombo.value) return Number((ogComboCodes.value.length * Number(state.amount || 0)).toFixed(2))
-  return Number(og.items.reduce((sum, item) => sum + Number(item.coin ?? 0), 0).toFixed(2))
+const ofTotalAmount = computed(() => {
+  if (ofCombo.value) return Number((ofComboCodes.value.length * Number(state.amount || 0)).toFixed(2))
+  return Number(of.items.reduce((sum, item) => sum + Number(item.coin ?? 0), 0).toFixed(2))
 })
-const canSubmitOg = computed(() =>
-  isOpen.value && state.submitStatus !== 'loading' && ogSelectedCount.value > 0 && ogTotalAmount.value > 0
+const canSubmitOf = computed(() =>
+  isOpen.value && state.submitStatus !== 'loading' && ofSelectedCount.value > 0 && ofTotalAmount.value > 0
 )
 /** 單選分頁（定位膽）的注碼清單；複式分頁回空陣列（那邊的注碼是展開出來的） */
-const ogAutoCodes = computed(() => {
-  if (ogCombo.value) return [] as string[]
-  return (ogGroups.value as any[])
+const ofAutoCodes = computed(() => {
+  if (ofCombo.value) return [] as string[]
+  return (ofGroups.value as any[])
     .flatMap((group) => (group.groupList ?? []).map((option: any) => String(option?.name ?? '')))
     .filter((code) => code.length > 0)
 })
 /**
  * 自動下注的注數上限
  *   單選分頁 → 該分頁的注碼數
- *   複式分頁 → **全選**展開的注數，再夾到 SSC_OG_MAX_COMBO
+ *   複式分頁 → **全選**展開的注數，再夾到 SSC_OF_MAX_COMBO
  *
- * ⚠️ 不能拿 ogComboCodes.length 當上限 —— 那是「使用者目前選了多少」，
+ * ⚠️ 不能拿 ofComboCodes.length 當上限 —— 那是「使用者目前選了多少」，
  *    自動下注根本還沒選號，會一路算成 0 → 上限變成 1 注。
  * ⚠️ 五星直選全選是 100,000 注，一定要夾上限，否則面板會讓人填一個送不出去的數字。
  */
-const ogAutoMaxCount = computed(() => {
-  const combo = ogCombo.value
-  if (!combo) return ogAutoCodes.value.length
-  const groups = ogComboGroups.value
+const ofAutoMaxCount = computed(() => {
+  const combo = ofCombo.value
+  if (!combo) return ofAutoCodes.value.length
+  const groups = ofComboGroups.value
   if (groups.length === 0) return 0
   const total = combo.mode === 'group'
     ? _combinations(groups[0]?.digits.length ?? 0, _groupPickSize(combo))
     : groups.reduce((acc, group) => acc * Math.max(group.digits.length, group.sides.length), 1)
-  return Math.max(0, Math.min(total, SSC_OG_MAX_COMBO))
+  return Math.max(0, Math.min(total, SSC_OF_MAX_COMBO))
 })
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -347,19 +347,19 @@ function _syncSelectItems() {
 
 /** 該分頁的複式有幾組選號格（group 模式只有一組） */
 function _ogPickSlots(): number {
-  const combo = sscOgComboOf(og.play, og.tabId)
+  const combo = sscOfComboOf(of.play, of.tabId)
   if (!combo) return 0
   return combo.mode === 'group' ? 1 : Number(combo.positions ?? 0)
 }
 
 /** 把複式的 picks 重設成「每個位置一個空陣列」 */
-function _resetOgPicks() {
-  og.picks = Array.from({ length: _ogPickSlots() }, () => [] as Array<number | string>)
+function _resetOfPicks() {
+  of.picks = Array.from({ length: _ogPickSlots() }, () => [] as Array<number | string>)
 }
 
 /** 某個選號格可選的值（號碼或面） */
 function _ogPickOptions(pos: number): Array<number | string> {
-  const group = sscOgComboGroups(og.play, og.tabId).find((item) => item.pos === Number(pos))
+  const group = sscOfComboGroups(of.play, of.tabId).find((item) => item.pos === Number(pos))
   if (!group) return []
   return group.sides.length > 0 ? [...group.sides] : [...group.digits]
 }
@@ -378,19 +378,19 @@ function _shuffle<T>(list: T[]): T[] {
 /**
  * 逐步加寬每個選號格，直到展開注數 ≥ size
  *
- * ⚠️ 加太寬會超過 SSC_OG_MAX_COMBO（sscOgComboCodes 會回空陣列），
+ * ⚠️ 加太寬會超過 SSC_OF_MAX_COMBO（sscOfComboCodes 會回空陣列），
  *    所以一旦展不出來就停在上一組還展得出來的選擇 —— 寧可少於 size，也不要整筆被伺端拒單。
  * @returns 可用的 picks；完全展不出來回 null
  */
 function _widenPicks(pools: Array<Array<number | string>>, size: number): Array<Array<number | string>> | null {
-  const combo = sscOgComboOf(og.play, og.tabId)
+  const combo = sscOfComboOf(of.play, of.tabId)
   if (!combo) return null
   const start = Math.max(1, Number(combo.minPick ?? 1))
   const maxTake = Math.max(...pools.map((list) => list.length), 0)
   let best: Array<Array<number | string>> | null = null
   for (let take = start; take <= maxTake; take++) {
     const picks = pools.map((list) => list.slice(0, take))
-    const codes = sscOgComboCodes(og.play, og.tabId, picks)
+    const codes = sscOfComboCodes(of.play, of.tabId, picks)
     if (codes.length === 0) break
     best = picks
     if (codes.length >= size) break
@@ -404,9 +404,9 @@ watch(() => [state.select, state.selectTabId], () => {
   state.amount = Math.min(quota.item.max, Math.max(quota.item.min, Math.trunc(Number(state.amount) || 0)))
 })
 // 官方盤同理：五星直選的單注上限只有 100，切過去要把金額夾下來
-watch(() => [og.play, og.tabId], () => {
+watch(() => [of.play, of.tabId], () => {
   if (isCd.value) return
-  const quota = ogQuota.value
+  const quota = ofQuota.value
   state.amount = Math.min(quota.item.max, Math.max(quota.item.min, Math.trunc(Number(state.amount) || 0)))
 })
 
@@ -434,7 +434,7 @@ const _actions = {
     if (state.mode === mode) return
     state.mode = mode
     _actions.clearSelect()
-    _actions.clearOg()
+    _actions.clearOf()
     /*
      * 切盤口要把上一盤的資料清掉。
      *
@@ -515,57 +515,57 @@ const _actions = {
 
   // ── 官方盤 ──────────────────────────────────────────────────────────────
   /** 切換玩法：分頁指回第一個並清掉選取 */
-  setOgPlay: (playKey: string) => {
-    if (og.play === playKey) return
-    og.play = playKey
-    const firstTab = ogPlays.find((play) => play.key === playKey)?.list?.[0]
-    og.tabId = Number(firstTab?.tabId ?? 0)
-    og.tabName = String(firstTab?.tabName ?? '')
-    _actions.clearOg()
+  setOfPlay: (playKey: string) => {
+    if (of.play === playKey) return
+    of.play = playKey
+    const firstTab = ofPlays.find((play) => play.key === playKey)?.list?.[0]
+    of.tabId = Number(firstTab?.tabId ?? 0)
+    of.tabName = String(firstTab?.tabName ?? '')
+    _actions.clearOf()
   },
-  setOgTab: (tabId: number | string) => {
-    const tab = findSscOgTab(og.play, tabId)
+  setOfTab: (tabId: number | string) => {
+    const tab = findSscOfTab(of.play, tabId)
     if (!tab) return
-    og.tabId = Number(tab.tabId)
-    og.tabName = String(tab.tabName ?? '')
-    _actions.clearOg()
+    of.tabId = Number(tab.tabId)
+    of.tabName = String(tab.tabName ?? '')
+    _actions.clearOf()
   },
   /** 單選分頁（定位膽）：點注項切換選取，選取時套用投注金額 */
-  toggleOgItem: (code: string) => {
+  toggleOfItem: (code: string) => {
     const key = String(code ?? '').trim()
     if (!key) return
-    const idx = og.items.findIndex((item) => item.code === key)
+    const idx = of.items.findIndex((item) => item.code === key)
     if (idx >= 0) {
-      og.items.splice(idx, 1)
+      of.items.splice(idx, 1)
       return
     }
-    const quota = sscOgQuotaOf(og.play, og.tabId).item
-    og.items.push({
+    const quota = sscOfQuotaOf(of.play, of.tabId).item
+    of.items.push({
       code: key,
-      odds: sscOgTabOddsOf(og.play, og.tabId, key),
+      odds: sscOfTabOddsOf(of.play, of.tabId, key),
       coin: Math.min(quota.max, Math.max(quota.min, Math.trunc(Number(state.amount) || 0)))
     })
   },
   /** 單選分頁：逐項改金額（0 視為取消該注） */
-  setOgItemCoin: (code: string, coin: number) => {
-    const item = og.items.find((row) => row.code === String(code))
+  setOfItemCoin: (code: string, coin: number) => {
+    const item = of.items.find((row) => row.code === String(code))
     if (!item) return
-    const quota = sscOgQuotaOf(og.play, og.tabId).item
+    const quota = sscOfQuotaOf(of.play, of.tabId).item
     item.coin = Math.min(quota.max, Math.max(0, Math.trunc(Number(coin) || 0)))
   },
   /**
    * 複式分頁：切換第 pos 格的某個號碼／面
    * @param value direct/group 傳號碼（0 ~ 9）、sides 傳面（大／小／單／雙）
    */
-  toggleOgPick: (pos: number, value: number | string) => {
+  toggleOfPick: (pos: number, value: number | string) => {
     const slots = _ogPickSlots()
     const idx = Math.trunc(Number(pos))
     if (!(idx >= 0 && idx < slots)) return
-    if (og.picks.length !== slots) _resetOgPicks()
+    if (of.picks.length !== slots) _resetOfPicks()
     const options = _ogPickOptions(idx).map(String)
     const key = String(value)
     if (!options.includes(key)) return
-    const list = og.picks[idx] as Array<number | string>
+    const list = of.picks[idx] as Array<number | string>
     const at = list.findIndex((item) => String(item) === key)
     if (at >= 0) { list.splice(at, 1); return }
     list.push(typeof value === 'number' ? value : key)
@@ -573,56 +573,56 @@ const _actions = {
     list.sort((a, b) => options.indexOf(String(a)) - options.indexOf(String(b)))
   },
   /** 複式分頁：某一格全選 / 全清 */
-  toggleOgPickAll: (pos: number) => {
+  toggleOfPickAll: (pos: number) => {
     const slots = _ogPickSlots()
     const idx = Math.trunc(Number(pos))
     if (!(idx >= 0 && idx < slots)) return
-    if (og.picks.length !== slots) _resetOgPicks()
+    if (of.picks.length !== slots) _resetOfPicks()
     const options = _ogPickOptions(idx)
-    const list = og.picks[idx] as Array<number | string>
-    og.picks[idx] = list.length === options.length ? [] : [...options]
+    const list = of.picks[idx] as Array<number | string>
+    of.picks[idx] = list.length === options.length ? [] : [...options]
   },
   /**
    * 官方盤隨機選號（count 一律當「目標注數」）
    *   單選分頁 —— 從該分頁所有注項隨機挑 count 個（正好 count 注）
    *   複式分頁 —— 每格逐步多挑一個，挑到展開後注數 ≥ count 為止
    * ⚠️ 複式的注數是乘積／組合數，不見得剛好等於 count；
-   *    也不會為了湊 count 而衝破 SSC_OG_MAX_COMBO（見 _widenPicks）。
+   *    也不會為了湊 count 而衝破 SSC_OF_MAX_COMBO（見 _widenPicks）。
    * @returns 實際選出的注數
    */
-  randomOgSelect: (count: number) => {
+  randomOfSelect: (count: number) => {
     const size = Math.max(1, Math.trunc(Number(count) || 1))
-    _actions.clearOg()
-    const combo = sscOgComboOf(og.play, og.tabId)
+    _actions.clearOf()
+    const combo = sscOfComboOf(of.play, of.tabId)
     if (!combo) {
-      const codes = (ogGroups.value as any[])
+      const codes = (ofGroups.value as any[])
         .flatMap((group) => (group.groupList ?? []).map((option: any) => String(option?.name ?? '')))
         .filter((code) => code.length > 0)
-      _shuffle(codes).slice(0, Math.min(size, codes.length)).forEach((code) => _actions.toggleOgItem(code))
-      return og.items.length
+      _shuffle(codes).slice(0, Math.min(size, codes.length)).forEach((code) => _actions.toggleOfItem(code))
+      return of.items.length
     }
     const pools = Array.from({ length: _ogPickSlots() }, (_, pos) => _shuffle(_ogPickOptions(pos)))
     const picks = _widenPicks(pools, size)
     if (!picks) return 0
     // 每格各自排回選項順序（組選的注碼要遞增）
-    og.picks = picks.map((list, pos) => {
+    of.picks = picks.map((list, pos) => {
       const options = _ogPickOptions(pos).map(String)
       return [...list].sort((a, b) => options.indexOf(String(a)) - options.indexOf(String(b)))
     })
-    return sscOgComboCodes(og.play, og.tabId, og.picks).length
+    return sscOfComboCodes(of.play, of.tabId, of.picks).length
   },
   /** 取注碼賠率（依當前玩法／分頁的 rtp 即時推算，看板顯示用） */
-  ogOddsOf: (code: string) => sscOgTabOddsOf(og.play, og.tabId, String(code ?? '')),
-  clearOg: () => {
-    og.items = []
-    _resetOgPicks()
+  ofOddsOf: (code: string) => sscOfTabOddsOf(of.play, of.tabId, String(code ?? '')),
+  clearOf: () => {
+    of.items = []
+    _resetOfPicks()
   },
 
   // ── 顯示輔助 ────────────────────────────────────────────────────────────
   /** 信用盤注項照某組開獎會不會中（畫面標示用，與結算共用同一支判定） */
   judgeItem: (betCode: string, openCode: string[], odds = 0) => judgeSscBet(betCode, openCode, 1, odds),
   /** 官方盤注碼照某組開獎會不會中 */
-  judgeOgItem: (betCode: string, openCode: string[], odds = 0) => judgeSscOgBet(betCode, openCode, 1, odds),
+  judgeOfItem: (betCode: string, openCode: string[], odds = 0) => judgeSscOfBet(betCode, openCode, 1, odds),
   /** 該期開獎的總和（0 ~ 45） */
   sumOf: (openCode: string[]) => {
     const digits = sscDigitsOf(openCode)
@@ -774,24 +774,24 @@ const fetch = {
    *
    * 兩種分頁形狀，但注碼一律是字串（不像 pk10 前三直選要送 codes 陣列）：
    *   單選分頁（定位膽）→ playList: [{ label: 注碼, amount }]
-   *   複式分頁          → sscOgComboCodes() 展開後一注一碼
+   *   複式分頁          → sscOfComboCodes() 展開後一注一碼
    * ⚠️ 注碼與賠率伺端都會重新驗一次，前端送的只是意圖。
    */
   betsOf: async () => {
-    const combo = sscOgComboOf(og.play, og.tabId)
-    const quota = sscOgQuotaOf(og.play, og.tabId).item
+    const combo = sscOfComboOf(of.play, of.tabId)
+    const quota = sscOfQuotaOf(of.play, of.tabId).item
     const playList: Array<Record<string, unknown>> = []
 
     if (combo) {
-      const codes = sscOgComboCodes(og.play, og.tabId, og.picks)
+      const codes = sscOfComboCodes(of.play, of.tabId, of.picks)
       if (codes.length === 0) {
-        state.message = ogComboHint.value
+        state.message = ofComboHint.value
         return { ok: false, message: state.message }
       }
       const coin = Math.min(quota.max, Math.max(quota.min, Math.trunc(Number(state.amount) || 0)))
       codes.forEach((code) => playList.push({ label: code, amount: coin }))
     } else {
-      og.items.filter((item) => Number(item.coin) > 0).forEach((item) => {
+      of.items.filter((item) => Number(item.coin) > 0).forEach((item) => {
         playList.push({ label: item.code, amount: Number(item.coin) })
       })
       if (playList.length === 0) {
@@ -802,10 +802,10 @@ const fetch = {
 
     const total = Number(playList.reduce((sum, row) => sum + Number(row.amount ?? 0), 0).toFixed(2))
     const result = await fetch.submit(
-      [{ playKey: og.play, playTypeName: og.tabName, selectTabId: og.tabId, playList }],
+      [{ playKey: of.play, playTypeName: of.tabName, selectTabId: of.tabId, playList }],
       total
     )
-    if (result.ok) _actions.clearOg()
+    if (result.ok) _actions.clearOf()
     return result
   },
   /**
@@ -813,23 +813,23 @@ const fetch = {
    *
    * 與信用盤的 autoBets 同一個原則：直接組 payload 送單，不動使用者手動選的注項。
    *   單選分頁 → 從該分頁注碼隨機取 count 個
-   *   複式分頁 → 每格隨機挑，展開到注數 ≥ count（不衝破 SSC_OG_MAX_COMBO）
+   *   複式分頁 → 每格隨機挑，展開到注數 ≥ count（不衝破 SSC_OF_MAX_COMBO）
    */
   autoBetsOf: async ({ count, amount }: { count: number; amount: number }) => {
     const coin = Math.max(0, Math.trunc(Number(amount) || 0))
     if (!(coin > 0)) return { ok: false, message: '請填入投注金額', count: 0, amount: 0 }
     const size = Math.max(1, Math.trunc(Number(count) || 1))
-    const combo = sscOgComboOf(og.play, og.tabId)
+    const combo = sscOfComboOf(of.play, of.tabId)
     const playList: Array<Record<string, unknown>> = []
 
     if (combo) {
       const pools = Array.from({ length: _ogPickSlots() }, (_, pos) => _shuffle(_ogPickOptions(pos)))
       const picks = _widenPicks(pools, size)
-      const codes = picks ? sscOgComboCodes(og.play, og.tabId, picks) : []
+      const codes = picks ? sscOfComboCodes(of.play, of.tabId, picks) : []
       if (codes.length === 0) return { ok: false, message: '此分頁無法自動選號', count: 0, amount: 0 }
       codes.forEach((code) => playList.push({ label: code, amount: coin }))
     } else {
-      const codes = (ogGroups.value as any[])
+      const codes = (ofGroups.value as any[])
         .flatMap((group) => (group.groupList ?? []).map((option: any) => String(option?.name ?? '')))
         .filter((code) => code.length > 0)
       if (codes.length === 0) return { ok: false, message: '注項尚未載入', count: 0, amount: 0 }
@@ -840,7 +840,7 @@ const fetch = {
 
     const total = Number((playList.length * coin).toFixed(2))
     const result = await fetch.submit(
-      [{ playKey: og.play, playTypeName: og.tabName, selectTabId: og.tabId, playList }],
+      [{ playKey: of.play, playTypeName: of.tabName, selectTabId: of.tabId, playList }],
       total
     )
     return { ...result, count: playList.length, amount: total }
@@ -872,7 +872,7 @@ const fetch = {
         })
       })
       if (isCd.value) _actions.clearSelect()
-      else _actions.clearOg()
+      else _actions.clearOf()
       select.resetToken += 1
       /*
        * 送單成功一律刷新餘額與注單（手動與自動下注兩條路都涵蓋）——
@@ -951,25 +951,25 @@ export function useSsc() {
     canSubmit,
 
     /** 官方盤 */
-    og,
-    ogPlayList,
-    ogTabList,
-    ogGroups,
-    ogCombo,
-    ogComboGroups,
-    ogComboCodes,
-    ogRawComboCount,
-    ogComboOverflow,
-    ogComboHint,
-    ogIsPool,
+    of,
+    ofPlayList,
+    ofTabList,
+    ofGroups,
+    ofCombo,
+    ofComboGroups,
+    ofComboCodes,
+    ofRawComboCount,
+    ofComboOverflow,
+    ofComboHint,
+    ofIsPool,
     ofPrizeTiers,
-    ogQuota,
-    ogSelectedCount,
-    ogTotalAmount,
-    ogAutoCodes,
-    ogAutoMaxCount,
-    canSubmitOg,
-    ogMaxCombo: SSC_OG_MAX_COMBO,
+    ofQuota,
+    ofSelectedCount,
+    ofTotalAmount,
+    ofAutoCodes,
+    ofAutoMaxCount,
+    canSubmitOf,
+    ofMaxCombo: SSC_OF_MAX_COMBO,
 
     actions: _actions,
     fetch,

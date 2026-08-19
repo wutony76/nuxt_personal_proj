@@ -20,14 +20,14 @@ import { usePk10 } from '~/composables/usePk10'
  */
 const {
   current: mxCurrent, wallet: mxWallet, fetch: mxFetch,
-  og: mxOg, ogPlayList, ogQuota, ogAutoCodes, ogCombo
+  of: mxOf, ofPlayList, ofQuota, ofAutoCodes, ofCombo
 } = usePk10()
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
-/** 每注金額限額依當前分頁的 pk10og settings.quota，超限伺端會整筆拒單 */
-const minAmount = computed(() => ogQuota.value.item.min)
-const maxAmount = computed(() => ogQuota.value.item.max)
+/** 每注金額限額依當前分頁的 pk10of settings.quota，超限伺端會整筆拒單 */
+const minAmount = computed(() => ofQuota.value.item.min)
+const maxAmount = computed(() => ofQuota.value.item.max)
 
 const state = reactive({
   enabled: false,
@@ -45,7 +45,7 @@ const isOpen = computed(() => String(mxCurrent.runtime?.currentStatus ?? '') ===
 /** 當前期別狀態（待命文字要寫出來，讓人知道是還沒開盤而不是壞了） */
 const currentStatusText = computed(() => String(mxCurrent.runtime?.currentStatus ?? '—'))
 /** 可投注的注碼數（該分頁能組出幾注） */
-const poolSize = computed(() => ogAutoCodes.value.length)
+const poolSize = computed(() => ofAutoCodes.value.length)
 /**
  * 注數上限＝該分頁能組出幾注
  * ⚠️ 前三直選（彩池）也是複式，全選展開有 720 注 —— 與 k3 的彩池玩法不同，
@@ -54,9 +54,9 @@ const poolSize = computed(() => ogAutoCodes.value.length)
 const maxCount = computed(() => Math.max(1, poolSize.value || 1))
 const totalCost = computed(() => state.betCount * state.betAmount)
 const playInfo = computed(() => {
-  const play = ogPlayList.value.find((item) => item.key === mxOg.play)?.name || '-'
-  const tab = mxOg.tabName || '-'
-  if (ogCombo.value) {
+  const play = ofPlayList.value.find((item) => item.key === mxOf.play)?.name || '-'
+  const tab = mxOf.tabName || '-'
+  if (ofCombo.value) {
     return `${play} / ${tab}：隨機挑車號組成 ${state.betCount} 注以上（上限 ${maxCount.value} 注）`
   }
   return `${play} / ${tab}：隨機 ${state.betCount} 注（上限 ${maxCount.value} 注）`
@@ -152,7 +152,7 @@ watch(maxCount, () => {
   state.betCount = _handlers.normalizeCount(state.betCount)
 }, { immediate: true })
 // 換玩法／分頁視為新設定，允許本期重新投注一次（否則要等下一期）
-watch([() => mxOg.play, () => mxOg.tabId], () => {
+watch([() => mxOf.play, () => mxOf.tabId], () => {
   state.lastIssue = ''
 })
 </script>

@@ -9,12 +9,12 @@
  *    只要設定檔內出現 `#shared/...` 的 import，伺端一載入就會炸。
  *    本檔是 .ts 因為它需要 import 各個設定檔。
  */
-import C_HEZHI from '#shared/config/k3og/c_hezhi'
-import C_SANTONG from '#shared/config/k3og/c_santong'
-import C_SANBUTONG from '#shared/config/k3og/c_sanbutong'
-import C_SANLIAN from '#shared/config/k3og/c_sanlian'
-import C_ERTONG from '#shared/config/k3og/c_ertong'
-import C_ERBUTONG from '#shared/config/k3og/c_erbutong'
+import C_HEZHI from '#shared/config/k3of/c_hezhi'
+import C_SANTONG from '#shared/config/k3of/c_santong'
+import C_SANBUTONG from '#shared/config/k3of/c_sanbutong'
+import C_SANLIAN from '#shared/config/k3of/c_sanlian'
+import C_ERTONG from '#shared/config/k3of/c_ertong'
+import C_ERBUTONG from '#shared/config/k3of/c_erbutong'
 
 export default [
   ...C_HEZHI,

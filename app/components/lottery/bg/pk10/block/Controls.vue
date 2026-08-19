@@ -9,7 +9,7 @@ import { usePk10 } from '~/composables/usePk10'
 const {
   state: mxState, currentQuota, canSubmit, isOpen, isCd,
   selectedCount, totalAmount, actions: mxActions, fetch: mxFetch,
-  ogQuota, ogSelectedCount, ogTotalAmount, canSubmitOg, ogCombo
+  ofQuota, ofSelectedCount, ofTotalAmount, canSubmitOf, ofCombo
 } = usePk10()
 
 const { $dialog } = useNuxtApp()
@@ -23,14 +23,14 @@ const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
  *    所以這裡不需要像早期 k3 那樣手抄一份彩池玩法的限額。
  */
 const range = computed(() => {
-  const quota = isCd.value ? currentQuota.value : ogQuota.value
+  const quota = isCd.value ? currentQuota.value : ofQuota.value
   return { min: quota.item.min, max: quota.item.max }
 })
 
-const canBet = computed(() => (isCd.value ? canSubmit.value : canSubmitOg.value))
-const betCount = computed(() => (isCd.value ? selectedCount.value : ogSelectedCount.value))
+const canBet = computed(() => (isCd.value ? canSubmit.value : canSubmitOf.value))
+const betCount = computed(() => (isCd.value ? selectedCount.value : ofSelectedCount.value))
 /** 總下注額度 */
-const totalBetAmount = computed(() => (isCd.value ? totalAmount.value : ogTotalAmount.value))
+const totalBetAmount = computed(() => (isCd.value ? totalAmount.value : ofTotalAmount.value))
 const betLabel = computed(() =>
   betCount.value > 0 ? `（${betCount.value} 注 / ${money(totalBetAmount.value)}）` : ''
 )
@@ -63,8 +63,8 @@ const click = {
   clear: () => { mxState.amount = range.value.min },
   submit: async () => {
     if (!isOpen.value) return $dialog.alert('目前非開盤中，無法投注')
-    if (!isCd.value && ogCombo.value && ogSelectedCount.value === 0) {
-      return $dialog.alert(`請為每個名次都選一個車號（共 ${ogCombo.value.positions} 個名次）`)
+    if (!isCd.value && ofCombo.value && ofSelectedCount.value === 0) {
+      return $dialog.alert(`請為每個名次都選一個車號（共 ${ofCombo.value.positions} 個名次）`)
     }
     const result = isCd.value ? await mxFetch.bets() : await mxFetch.betsOf()
     // 登入失效：提示後導回登入頁

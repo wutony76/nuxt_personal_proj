@@ -1,5 +1,5 @@
 /**
- * 快3 官方盤的「賠率制」玩法（K3-OG）
+ * 快3 官方盤的「賠率制」玩法（K3-OF）
  *
  * 玩法結構參照 pcv2_0223 的 app/config/bg/conf_k3_og.js：
  *   和值 / 三同號 / 三不同號 / 三連號 / 二同號 / 二不同號
@@ -22,22 +22,22 @@
  *   二不同號  二不同12（兩個遞增數字）
  *   ⚠️ 判定一律看注碼字串，不看 config 的 odds（那只是產生時的快照）。
  *
- * ⚠️ 本檔不可 import k3og/helpers.ts（helpers 會 import 本檔，會形成循環）。
+ * ⚠️ 本檔不可 import k3of/helpers.ts（helpers 會 import 本檔，會形成循環）。
  */
 import { k3AllOutcomes, k3DiceOf, k3IsTriple, k3SumOf, K3_DICE_MAX, K3_TOTAL_OUTCOMES } from '#shared/config/k3'
 
 /** 兩面（大小單雙）的母數：扣掉 6 種圍骰（和局） */
-export const K3OG_TWO_SIDE_TOTAL = K3_TOTAL_OUTCOMES - K3_DICE_MAX
+export const K3OF_TWO_SIDE_TOTAL = K3_TOTAL_OUTCOMES - K3_DICE_MAX
 /** 大小分界：和值 ≥ 11 為大 */
-export const K3OG_BIG_LINE = 11
+export const K3OF_BIG_LINE = 11
 /** 取不到分頁 rtp 時的預設回報率 */
-export const K3OG_RTP_FALLBACK = 0.97
+export const K3OF_RTP_FALLBACK = 0.97
 
 /** 三連號通選的三組連號（不含 456 以外的環狀組合） */
-export const K3OG_RUNS: readonly (readonly number[])[] = [[1, 2, 3], [2, 3, 4], [3, 4, 5], [4, 5, 6]]
+export const K3OF_RUNS: readonly (readonly number[])[] = [[1, 2, 3], [2, 3, 4], [3, 4, 5], [4, 5, 6]]
 
 /** 判定結果：和局（tie）不派彩也不算輸，退回本金 */
-export type K3OgBetResult = { status: 'win' | 'lose' | 'tie'; odds: number; payout: number }
+export type K3OfBetResult = { status: 'win' | 'lose' | 'tie'; odds: number; payout: number }
 
 const _int = (value: unknown): number => {
   const num = Number(value)
@@ -98,7 +98,7 @@ const _parseTwoDiff = (code: string): number[] | null => {
  * 注碼是否命中（判定的唯一入口，賠率與結算都靠它）
  * @returns true 命中／false 未命中／null 注碼無法辨識
  */
-export function k3OgIsHit(betCode: string, openCode: Array<string | number>): boolean | null {
+export function k3OfIsHit(betCode: string, openCode: Array<string | number>): boolean | null {
   const dice = k3DiceOf(openCode)
   if (!dice) return null
   const code = String(betCode ?? '').trim()
@@ -111,8 +111,8 @@ export function k3OgIsHit(betCode: string, openCode: Array<string | number>): bo
   const sumCode = _parseSum(code)
   if (sumCode !== null) return sum === sumCode
   // ── 兩面：圍骰為和局，這裡先回 false，和局由 judge 另外判 ──
-  if (code === '大') return !triple && sum >= K3OG_BIG_LINE
-  if (code === '小') return !triple && sum < K3OG_BIG_LINE
+  if (code === '大') return !triple && sum >= K3OF_BIG_LINE
+  if (code === '小') return !triple && sum < K3OF_BIG_LINE
   if (code === '單') return !triple && sum % 2 === 1
   if (code === '雙') return !triple && sum % 2 === 0
 
@@ -127,7 +127,7 @@ export function k3OgIsHit(betCode: string, openCode: Array<string | number>): bo
 
   // ── 三連號通選：三顆不同且構成連號 ──
   if (code === '三連通選') {
-    return distinct === 3 && K3OG_RUNS.some((run) => run.every((num) => dice.includes(num)))
+    return distinct === 3 && K3OF_RUNS.some((run) => run.every((num) => dice.includes(num)))
   }
 
   // ── 二同號 ──
@@ -144,34 +144,34 @@ export function k3OgIsHit(betCode: string, openCode: Array<string | number>): bo
 }
 
 /** 該注碼是否為兩面玩法（圍骰要判和局） */
-export function k3OgIsTwoSide(betCode: string): boolean {
+export function k3OfIsTwoSide(betCode: string): boolean {
   return ['大', '小', '單', '雙'].includes(String(betCode ?? '').trim())
 }
 
 /**
  * 命中數（216 種結果窮舉）
  *
- * 兩面玩法的母數是 210（扣掉圍骰），其餘為 216 —— 由 k3OgTotalOf 決定。
+ * 兩面玩法的母數是 210（扣掉圍骰），其餘為 216 —— 由 k3OfTotalOf 決定。
  * @returns 命中的結果數；注碼無法辨識回 0
  */
-export function k3OgHitCount(betCode: string): number {
-  return k3AllOutcomes().filter((dice) => k3OgIsHit(betCode, dice) === true).length
+export function k3OfHitCount(betCode: string): number {
+  return k3AllOutcomes().filter((dice) => k3OfIsHit(betCode, dice) === true).length
 }
 
 /** 該注碼的機率母數：兩面扣掉圍骰（和局不算樣本），其餘 216 */
-export function k3OgTotalOf(betCode: string): number {
-  return k3OgIsTwoSide(betCode) ? K3OG_TWO_SIDE_TOTAL : K3_TOTAL_OUTCOMES
+export function k3OfTotalOf(betCode: string): number {
+  return k3OfIsTwoSide(betCode) ? K3OF_TWO_SIDE_TOTAL : K3_TOTAL_OUTCOMES
 }
 
 /**
  * 注碼賠率（含本金）＝ 公平賠率 × rtp
  * @returns 賠率，取到小數 2 位；注碼無法辨識或機率為 0 回 0
  */
-export function k3OgOddsOf(betCode: string, rtp: number = K3OG_RTP_FALLBACK): number {
-  const hit = k3OgHitCount(betCode)
+export function k3OfOddsOf(betCode: string, rtp: number = K3OF_RTP_FALLBACK): number {
+  const hit = k3OfHitCount(betCode)
   if (!(hit > 0)) return 0
-  const fair = k3OgTotalOf(betCode) / hit
-  const safeRtp = Number.isFinite(rtp) && rtp > 0 ? rtp : K3OG_RTP_FALLBACK
+  const fair = k3OfTotalOf(betCode) / hit
+  const safeRtp = Number.isFinite(rtp) && rtp > 0 ? rtp : K3OF_RTP_FALLBACK
   return Number((fair * safeRtp).toFixed(2))
 }
 
@@ -180,22 +180,22 @@ export function k3OgOddsOf(betCode: string, rtp: number = K3OG_RTP_FALLBACK): nu
  *
  * @param lockedOdds 下注時鎖進注單的賠率；> 0 就以它為準（避免改設定後回頭影響已成立的注單）
  */
-export function judgeK3OgBet(
+export function judgeK3OfBet(
   betCode: string,
   openCode: Array<string | number>,
   coin = 1,
   lockedOdds = 0
-): K3OgBetResult | null {
-  const hit = k3OgIsHit(betCode, openCode)
+): K3OfBetResult | null {
+  const hit = k3OfIsHit(betCode, openCode)
   if (hit === null) return null
   const dice = k3DiceOf(openCode)
   if (!dice) return null
 
-  const odds = lockedOdds > 0 ? Number(lockedOdds) : k3OgOddsOf(betCode)
+  const odds = lockedOdds > 0 ? Number(lockedOdds) : k3OfOddsOf(betCode)
   const bet = Math.max(0, Number(coin) || 0)
 
   // 兩面遇圍骰＝和局：退回本金
-  if (k3OgIsTwoSide(betCode) && k3IsTriple(dice)) {
+  if (k3OfIsTwoSide(betCode) && k3IsTriple(dice)) {
     return { status: 'tie', odds, payout: Number(bet.toFixed(2)) }
   }
   if (!hit) return { status: 'lose', odds, payout: 0 }
@@ -216,7 +216,7 @@ export function judgeK3OgBet(
  * @param dan    膽碼（膽拖玩法用；給了就走膽拖）
  * @param tuo    拖碼
  */
-export function k3OgComboCodes(options: {
+export function k3OfComboCodes(options: {
   prefix: '三不同' | '二不同'
   pick: number
   nums?: number[]

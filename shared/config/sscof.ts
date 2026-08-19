@@ -1,5 +1,5 @@
 /**
- * 時時彩官方盤（SSC-OG）判定與賠率核心
+ * 時時彩官方盤（SSC-OF）判定與賠率核心
  *
  * ── 玩法（本輪核心組，對照 pcv2_0223 的 conf_sc_og.js）────
  *   定位膽      第一球0 ~ 第五球9（注碼與信用盤共用）      母數 10
@@ -14,9 +14,9 @@
  * ── 複式 ────────────────────────────────────────────────
  *   位置型（五星／後三直選／後二直選／大小單雙）→ 各位置選一組，笛卡爾積展開
  *   組選型（組三／組六／後二組選）→ 從一組號碼取 k 個，組合展開
- *   ⚠️ 五星直選全選會展開成 100,000 注 —— 一定要有上限保護，見 SSC_OG_MAX_COMBO。
+ *   ⚠️ 五星直選全選會展開成 100,000 注 —— 一定要有上限保護，見 SSC_OF_MAX_COMBO。
  *
- * ⚠️ 本檔不可 import sscog/helpers.ts（helpers 會 import 本檔，會形成循環）。
+ * ⚠️ 本檔不可 import sscof/helpers.ts（helpers 會 import 本檔，會形成循環）。
  */
 import {
   sscDigitsOf,
@@ -28,7 +28,7 @@ import {
 } from '#shared/config/ssc'
 
 /** 取不到分頁 rtp 時的預設回報率（官方盤抽得比信用盤兇一點） */
-export const SSCOG_RTP_FALLBACK = 0.96
+export const SSCOF_RTP_FALLBACK = 0.96
 
 /**
  * 複式展開的注數上限
@@ -36,30 +36,30 @@ export const SSCOG_RTP_FALLBACK = 0.96
  * 五星直選 5 個位置各全選就是 10⁵ = 100,000 注，前端畫不動、伺端也不該收 ——
  * 超過這個數就整筆拒絕，讓玩家自己縮小選號範圍。
  */
-export const SSC_OG_MAX_COMBO = 2000
+export const SSC_OF_MAX_COMBO = 2000
 
 /** 判定結果：官方盤沒有和局，tie 只保留給無法辨識的注碼 */
-export type SscOgBetResult = { status: 'win' | 'lose' | 'tie'; odds: number; payout: number }
+export type SscOfBetResult = { status: 'win' | 'lose' | 'tie'; odds: number; payout: number }
 
 /** 兩面 */
 const SIDE_NAMES = ['大', '小', '單', '雙'] as const
 type SscSide = (typeof SIDE_NAMES)[number]
 
 /** 各玩法看的球位（0 起算）：後三 = 百十個、後二 = 十個 */
-export const SSC_OG_SECTIONS = {
+export const SSC_OF_SECTIONS = {
   五星: [0, 1, 2, 3, 4],
   前三: [0, 1, 2],
   後三: [2, 3, 4],
   前二: [0, 1],
   後二: [3, 4]
 } as const
-export type SscOgSection = keyof typeof SSC_OG_SECTIONS
+export type SscOfSection = keyof typeof SSC_OF_SECTIONS
 
-type SscOgBet =
+type SscOfBet =
   /** 定位膽：第一球0（與信用盤同一套注碼） */
   | { kind: 'ballDigit'; ball: number; digit: number }
   /** 位置直選：五星直選01234 / 後三直選123 / 後二直選12 */
-  | { kind: 'direct'; section: SscOgSection; digits: number[] }
+  | { kind: 'direct'; section: SscOfSection; digits: number[] }
   /** 組三：後三組三12（{1,1,2} 不計順序） */
   | { kind: 'group3'; pair: [number, number] }
   /** 組六：後三組六123（三碼互異、不計順序） */
@@ -67,9 +67,9 @@ type SscOgBet =
   /** 後二組選：後二組選12（兩碼互異、不計順序） */
   | { kind: 'group2'; digits: [number, number] }
   /** 大小單雙：大小單雙後二大小（每個位置一個面） */
-  | { kind: 'sides'; section: SscOgSection; sides: SscSide[] }
+  | { kind: 'sides'; section: SscOfSection; sides: SscSide[] }
 
-const DIRECT_PREFIX: Record<string, SscOgSection> = {
+const DIRECT_PREFIX: Record<string, SscOfSection> = {
   五星直選: '五星',
   後三直選: '後三',
   後二直選: '後二'
@@ -81,18 +81,18 @@ function _digitsOf(text: string, expect: number): number[] | null {
   return text.split('').map(Number)
 }
 
-function _parseBet(betCode: string | number): SscOgBet | null {
+function _parseBet(betCode: string | number): SscOfBet | null {
   const code = String(betCode ?? '').trim()
   if (!code) return null
 
   // ── 大小單雙：大小單雙後二大小 ──
   if (code.startsWith('大小單雙')) {
     const rest = code.slice(4)
-    const section = (Object.keys(SSC_OG_SECTIONS) as SscOgSection[])
+    const section = (Object.keys(SSC_OF_SECTIONS) as SscOfSection[])
       .find((s) => rest.startsWith(s) && s !== '五星')
     if (!section) return null
     const tail = rest.slice(section.length)
-    const size = SSC_OG_SECTIONS[section].length
+    const size = SSC_OF_SECTIONS[section].length
     if (tail.length !== size) return null
     const sides = tail.split('').map((ch) => SIDE_NAMES.find((s) => s === ch))
     if (sides.some((s) => !s)) return null
@@ -102,7 +102,7 @@ function _parseBet(betCode: string | number): SscOgBet | null {
   // ── 位置直選 ──
   for (const [prefix, section] of Object.entries(DIRECT_PREFIX)) {
     if (!code.startsWith(prefix)) continue
-    const digits = _digitsOf(code.slice(prefix.length), SSC_OG_SECTIONS[section].length)
+    const digits = _digitsOf(code.slice(prefix.length), SSC_OF_SECTIONS[section].length)
     return digits ? { kind: 'direct', section, digits } : null
   }
 
@@ -146,7 +146,7 @@ const _sideHit = (side: SscSide, value: number): boolean => {
  * 注碼的樣本空間
  * @returns { hit, total }；注碼無法辨識回 null
  */
-export function sscOgChanceOf(betCode: string | number): SscChance | null {
+export function sscOfChanceOf(betCode: string | number): SscChance | null {
   const bet = _parseBet(betCode)
   if (!bet) return null
   const D = SSC_DIGIT_MAX + 1
@@ -155,7 +155,7 @@ export function sscOgChanceOf(betCode: string | number): SscChance | null {
       return { hit: 1, total: D }
     // n 個位置全中
     case 'direct':
-      return { hit: 1, total: D ** SSC_OG_SECTIONS[bet.section].length }
+      return { hit: 1, total: D ** SSC_OF_SECTIONS[bet.section].length }
     // 組三：AAB 的排列有 3 種（AAB/ABA/BAA），且 A、B 可互換角色 → 3 × 2 = 6
     case 'group3':
       return { hit: 6, total: D ** 3 }
@@ -175,13 +175,13 @@ export function sscOgChanceOf(betCode: string | number): SscChance | null {
  * 注碼是否命中
  * @returns true／false／null（注碼或開獎格式不合）
  */
-export function sscOgIsHit(betCode: string | number, openCode: Array<string | number>): boolean | null {
+export function sscOfIsHit(betCode: string | number, openCode: Array<string | number>): boolean | null {
   const digits = sscDigitsOf(openCode)
   if (!digits) return null
   const bet = _parseBet(betCode)
   if (!bet) return null
 
-  const pick = (section: SscOgSection) => SSC_OG_SECTIONS[section].map((i) => Number(digits[i]))
+  const pick = (section: SscOfSection) => SSC_OF_SECTIONS[section].map((i) => Number(digits[i]))
 
   switch (bet.kind) {
     case 'ballDigit':
@@ -210,7 +210,7 @@ export function sscOgIsHit(betCode: string | number, openCode: Array<string | nu
 }
 
 /** 注碼種類；無法辨識回 null */
-export function sscOgKindOf(betCode: string | number): SscOgBet['kind'] | null {
+export function sscOfKindOf(betCode: string | number): SscOfBet['kind'] | null {
   return _parseBet(betCode)?.kind ?? null
 }
 
@@ -218,10 +218,10 @@ export function sscOgKindOf(betCode: string | number): SscOgBet['kind'] | null {
  * 注碼賠率（含本金）＝ 公平賠率 × rtp
  * @returns 賠率，取到小數 2 位；注碼無法辨識回 0
  */
-export function sscOgOddsOf(betCode: string, rtp: number = SSCOG_RTP_FALLBACK): number {
-  const chance = sscOgChanceOf(betCode)
+export function sscOfOddsOf(betCode: string, rtp: number = SSCOF_RTP_FALLBACK): number {
+  const chance = sscOfChanceOf(betCode)
   if (!chance || !(chance.hit > 0) || !(chance.total > 0)) return 0
-  const safeRtp = Number.isFinite(rtp) && rtp > 0 ? rtp : SSCOG_RTP_FALLBACK
+  const safeRtp = Number.isFinite(rtp) && rtp > 0 ? rtp : SSCOF_RTP_FALLBACK
   return Number(((chance.total / chance.hit) * safeRtp).toFixed(2))
 }
 
@@ -229,15 +229,15 @@ export function sscOgOddsOf(betCode: string, rtp: number = SSCOG_RTP_FALLBACK): 
  * 判定一注
  * @param lockedOdds 下注時鎖進注單的賠率；> 0 就以它為準
  */
-export function judgeSscOgBet(
+export function judgeSscOfBet(
   betCode: string,
   openCode: Array<string | number>,
   coin = 1,
   lockedOdds = 0
-): SscOgBetResult | null {
-  const hit = sscOgIsHit(betCode, openCode)
+): SscOfBetResult | null {
+  const hit = sscOfIsHit(betCode, openCode)
   if (hit === null) return null
-  const odds = lockedOdds > 0 ? Number(lockedOdds) : sscOgOddsOf(betCode)
+  const odds = lockedOdds > 0 ? Number(lockedOdds) : sscOfOddsOf(betCode)
   const bet = Math.max(0, Number(coin) || 0)
   if (!hit) return { status: 'lose', odds, payout: 0 }
   return { status: 'win', odds, payout: Number((bet * odds).toFixed(2)) }
@@ -267,7 +267,7 @@ export function sscDirectCombos(sets: Array<Array<number | string>>): number[][]
   const lists = _normalizeSets(sets)
   if (!lists) return []
   const size = lists.reduce((acc, l) => acc * l.length, 1)
-  if (size > SSC_OG_MAX_COMBO) return []
+  if (size > SSC_OF_MAX_COMBO) return []
   let combos: number[][] = [[]]
   lists.forEach((list) => {
     const next: number[][] = []
@@ -310,11 +310,11 @@ export function sscGroupCombos(digits: Array<number | string>, mode: 'group3' | 
     for (let i = start; i < pool.length; i++) walk(i + 1, [...acc, pool[i]!])
   }
   walk(0, [])
-  return out.length > SSC_OG_MAX_COMBO ? [] : out
+  return out.length > SSC_OF_MAX_COMBO ? [] : out
 }
 
-/** 玩法定義（順序即前端玩法列的顯示順序，需與 sscog/plays.js 一致） */
-export const SSC_OG_PLAY_DEFINITIONS: Array<{ key: string; name: string }> = [
+/** 玩法定義（順序即前端玩法列的顯示順序，需與 sscof/plays.js 一致） */
+export const SSC_OF_PLAY_DEFINITIONS: Array<{ key: string; name: string }> = [
   { key: 'dingwei', name: '定位膽' },
   { key: 'erxing', name: '二星' },
   { key: 'housan', name: '後三' },

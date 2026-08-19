@@ -9,7 +9,7 @@ import { useK3 } from '~/composables/useK3'
 const {
   state: mxState, currentQuota, canSubmit, isOpen, isCd,
   selectedCount, totalAmount, ofPicked, ofPicks, actions: mxActions, fetch: mxFetch,
-  ogQuota, ogSelectedCount, ogTotalAmount, canSubmitOg, isOgPool
+  ofQuota, ofSelectedCount, ofTotalAmount, canSubmitOf, isOfPool
 } = useK3()
 
 const { $dialog } = useNuxtApp()
@@ -20,23 +20,23 @@ const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 /**
  * 單注限額
  *   信用盤          → 該分頁 settings.quota
- *   官方盤賠率玩法  → k3og 該分頁 settings.quota
+ *   官方盤賠率玩法  → k3of 該分頁 settings.quota
  *   官方盤彩池玩法  → 伺端 K3_OF_QUOTA（⚠️ 這組值是手抄的，改伺端要一起改）
  */
 const range = computed(() => {
   if (isCd.value) return { min: currentQuota.value.item.min, max: currentQuota.value.item.max }
-  if (!isOgPool.value) return { min: ogQuota.value.item.min, max: ogQuota.value.item.max }
+  if (!isOfPool.value) return { min: ofQuota.value.item.min, max: ofQuota.value.item.max }
   return { min: 2, max: 10000 }
 })
 
 const canBet = computed(() => {
   if (isCd.value) return canSubmit.value
-  return isOgPool.value ? isOpen.value && ofPicked.value : canSubmitOg.value
+  return isOfPool.value ? isOpen.value && ofPicked.value : canSubmitOf.value
 })
 const betLabel = computed(() => {
   if (isCd.value) return selectedCount.value > 0 ? `（${selectedCount.value} 注 / ${money(totalAmount.value)}）` : ''
-  if (!isOgPool.value) {
-    return ogSelectedCount.value > 0 ? `（${ogSelectedCount.value} 注 / ${money(ogTotalAmount.value)}）` : ''
+  if (!isOfPool.value) {
+    return ofSelectedCount.value > 0 ? `（${ofSelectedCount.value} 注 / ${money(ofTotalAmount.value)}）` : ''
   }
   return ofPicked.value ? `（${ofPicks.list.join('、')}）` : ''
 })
@@ -44,7 +44,7 @@ const betLabel = computed(() => {
 /** 總下注額度：信用盤／官方盤賠率玩法都是合計，彩池玩法是單注金額 */
 const totalBetAmount = computed(() => {
   if (isCd.value) return totalAmount.value
-  if (!isOgPool.value) return ogTotalAmount.value
+  if (!isOfPool.value) return ofTotalAmount.value
   return ofPicked.value ? Number(mxState.amount) : 0
 })
 
@@ -78,10 +78,10 @@ const click = {
   },
   submit: async () => {
     if (!isOpen.value) return $dialog.alert('目前非開盤中，無法投注')
-    if (!isCd.value && isOgPool.value && !ofPicked.value) return $dialog.alert('請選滿 3 個點數')
+    if (!isCd.value && isOfPool.value && !ofPicked.value) return $dialog.alert('請選滿 3 個點數')
     const result = isCd.value
       ? await mxFetch.bets()
-      : isOgPool.value ? await mxFetch.betsOf() : await mxFetch.betsOg()
+      : isOfPool.value ? await mxFetch.betsOf() : await mxFetch.betsOfTab()
     // 登入失效：提示後導回登入頁（與 6hc-of 的 Coin.vue 一致）
     if ((result as { loginExpired?: boolean }).loginExpired) {
       return $dialog.alert(result.message, { cb: () => router.push('/login') })

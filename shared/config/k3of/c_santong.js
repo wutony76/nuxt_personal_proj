@@ -3,12 +3,12 @@
  *
  * 分頁與玩法結構參照 pcv2_0223 的 conf_k3_og.js，文案改繁體。
  *
- * ⚠️ 賠率一律由 k3og.ts 依「公平賠率 × rtp」推算，本檔的 odds 只是產生時的快照，
+ * ⚠️ 賠率一律由 k3of.ts 依「公平賠率 × rtp」推算，本檔的 odds 只是產生時的快照，
  *    判定與結算以 helpers 讀出的值為準。216 種結果可窮舉，機率為精確值。
  * ⚠️ 設定檔一律用 .js（不 import 任何東西）——
  *    Nitro 對 shared 下的檔案走 Node 原生 ESM 解析、不認得 `#shared` 別名。
  * ⚠️ combo 分頁（三不同號／二不同號）沒有固定注項清單：注碼由使用者選的點數
- *    在前端用 k3OgComboCodes() 展開，這裡只描述選號規則。
+ *    在前端用 k3OfComboCodes() 展開，這裡只描述選號規則。
  */
 export default [
   {

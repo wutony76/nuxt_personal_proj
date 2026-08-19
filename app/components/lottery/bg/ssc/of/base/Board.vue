@@ -14,32 +14,32 @@ import { useSsc } from '~/composables/useSsc'
  *
  * ── 為什麼複式要另一種版面 ──────────────────────────────
  *   複式的一注是「跨位置的組合」，不是清單裡的某一項 ——
- *   注碼在送單前才由 sscOgComboCodes() 展開，所以畫面上沒有「逐項金額」可填，
+ *   注碼在送單前才由 sscOfComboCodes() 展開，所以畫面上沒有「逐項金額」可填，
  *   全部注共用一個投注金額（同 pcv2 的複式）。
  *
- * ⚠️ 兩套派彩並存：後三直選（ogIsPool）吃共用彩池、依命中位數分層，畫面改標分層說明
- *    而不是賠率（那個分頁的 sscOgTabOddsOf 一律回 0）；其餘 10 個分頁維持固定賠率。
+ * ⚠️ 兩套派彩並存：後三直選（ofIsPool）吃共用彩池、依命中位數分層，畫面改標分層說明
+ *    而不是賠率（那個分頁的 sscOfTabOddsOf 一律回 0）；其餘 10 個分頁維持固定賠率。
  *    ⚠️ 彩池分頁的注碼與選號流程跟其他複式分頁完全一樣（時時彩號碼可重複，
  *       不像 pk10 前三直選要改送 codes 陣列），所以只有這段顯示要分岔。
- * ⚠️ 複式的選號格依 combo.mode 有三種形狀（見 ogComboGroups 的註解）：
+ * ⚠️ 複式的選號格依 combo.mode 有三種形狀（見 ofComboGroups 的註解）：
  *    direct/group 給 digits（號碼 0~9）、sides 給 sides（大／小／單／雙）；
  *    同一個 group 只會有一邊有值。
  */
 const {
   state: mxState,
-  og,
-  ogGroups,
-  ogCombo,
-  ogComboGroups,
-  ogComboCodes,
-  ogRawComboCount,
-  ogComboOverflow,
-  ogComboHint,
-  ogIsPool,
+  of,
+  ofGroups,
+  ofCombo,
+  ofComboGroups,
+  ofComboCodes,
+  ofRawComboCount,
+  ofComboOverflow,
+  ofComboHint,
+  ofIsPool,
   ofPrizeTiers,
-  ogQuota,
-  ogSelectedCount,
-  ogTotalAmount,
+  ofQuota,
+  ofSelectedCount,
+  ofTotalAmount,
   actions: mxActions
 } = useSsc()
 
@@ -48,12 +48,12 @@ const state = reactive({ hoverKey: '' as string })
 
 const _handlers = {
   /** 該注碼是否已選（單選分頁） */
-  isPicked: (code: string) => og.items.some((item) => item.code === String(code)),
+  isPicked: (code: string) => of.items.some((item) => item.code === String(code)),
   /** 該注碼目前填了多少（單選分頁） */
-  coinOf: (code: string) => Number(og.items.find((item) => item.code === String(code))?.coin ?? 0),
+  coinOf: (code: string) => Number(of.items.find((item) => item.code === String(code))?.coin ?? 0),
   /** 該格是否已選（複式分頁；value 可能是號碼或面） */
-  isPickedAt: (pos: number, value: number | string) => (og.picks[pos] ?? []).includes(value as never)
-    || (og.picks[pos] ?? []).some((item) => String(item) === String(value)),
+  isPickedAt: (pos: number, value: number | string) => (of.picks[pos] ?? []).includes(value as never)
+    || (of.picks[pos] ?? []).some((item) => String(item) === String(value)),
   /** 橫向矩陣（依 config 順序橫向填，號碼才不會跳號） */
   toRowMatrix: <T,>(list: T[], columns: number) => {
     const rows = Math.ceil(list.length / columns)
@@ -64,13 +64,13 @@ const _handlers = {
 }
 
 // --- COMPUTED ---
-const minCoin = computed(() => ogQuota.value.item.min)
-const maxCoin = computed(() => ogQuota.value.item.max)
+const minCoin = computed(() => ofQuota.value.item.min)
+const maxCoin = computed(() => ofQuota.value.item.max)
 
 /** 單選分頁（定位膽）的群組：5 個球位各 10 個號碼，全部是號碼球 */
 const singleGroups = computed(() => {
-  if (ogCombo.value) return []
-  return (ogGroups.value as any[]).map((group) => {
+  if (ofCombo.value) return []
+  return (ofGroups.value as any[]).map((group) => {
     const groupName = String(group.groupName ?? '')
     const list = (group.groupList ?? []) as any[]
     const columns = Number(group.columns) > 0 ? Number(group.columns) : Math.max(1, Math.min(5, list.length))
@@ -78,7 +78,7 @@ const singleGroups = computed(() => {
       playId: String(item.playId ?? ''),
       name: String(item.name ?? ''),
       digit: Number(item.digit ?? -1),
-      odds: mxActions.ogOddsOf(String(item.name ?? ''))
+      odds: mxActions.ofOddsOf(String(item.name ?? ''))
     }))
     const oddsList = Array.from(new Set(items.map((item) => item.odds).filter((odds) => odds > 0)))
     return {
@@ -103,7 +103,7 @@ const MATCH_COUNTS = sscOfMatchCounts()
 const POOL_OUTCOMES = MATCH_COUNTS.reduce((sum, count) => sum + count, 0)
 
 const poolTiers = computed(() => {
-  if (!ogIsPool.value) return []
+  if (!ofIsPool.value) return []
   return ofPrizeTiers.value.map((tier) => {
     const ways = Number(MATCH_COUNTS[tier.match] ?? 0)
     return {
@@ -119,9 +119,9 @@ const poolTiers = computed(() => {
 
 /** 複式分頁：展開後的注數（含超過上限時的原始注數）與前幾注預覽 */
 const comboPreview = computed(() => {
-  const codes = ogComboCodes.value
+  const codes = ofComboCodes.value
   return {
-    count: ogRawComboCount.value,
+    count: ofRawComboCount.value,
     // 只預覽前 12 注，全部列出來（五星直選全選會有上千注）會把畫面撐爆
     sample: codes.slice(0, 12),
     more: Math.max(0, codes.length - 12)
@@ -129,27 +129,27 @@ const comboPreview = computed(() => {
 })
 
 /** 每個位置／每組已選幾個值（顯示在該列標題） */
-const pickedCountOf = (pos: number) => (og.picks[pos] ?? []).length
+const pickedCountOf = (pos: number) => (of.picks[pos] ?? []).length
 
 const click = {
   /** 單選分頁：點注項切換選取 */
   cell: (code: string) => {
     if (!code) return
-    mxActions.toggleOgItem(code)
+    mxActions.toggleOfItem(code)
   },
   coinInput: (code: string, event: Event) => {
     const target = event.target as HTMLInputElement
     const coin = Math.min(maxCoin.value, Math.max(0, Math.trunc(Number(target.value) || 0)))
     // 還沒選過就先建立一筆，再寫金額（0 視為取消）
-    if (!og.items.some((item) => item.code === code)) mxActions.toggleOgItem(code)
-    mxActions.setOgItemCoin(code, coin)
+    if (!of.items.some((item) => item.code === code)) mxActions.toggleOfItem(code)
+    mxActions.setOfItemCoin(code, coin)
     target.value = coin > 0 ? String(coin) : ''
   },
   hoverEnter: (key: string) => { state.hoverKey = key },
   hoverLeave: () => { state.hoverKey = '' },
   /** 複式分頁：切換某位置／某組的某個值（號碼或面） */
-  pick: (pos: number, value: number | string) => mxActions.toggleOgPick(pos, value),
-  pickAll: (pos: number) => mxActions.toggleOgPickAll(pos)
+  pick: (pos: number, value: number | string) => mxActions.toggleOfPick(pos, value),
+  pickAll: (pos: number) => mxActions.toggleOfPickAll(pos)
 }
 </script>
 
@@ -158,15 +158,15 @@ const click = {
     <!-- 該分頁限額（伺端以同一份 settings.quota 驗證） -->
     <div class="quota-bar">
       <span class="quota-item">單注 {{ money(minCoin) }} — {{ money(maxCoin) }}</span>
-      <span v-if="ogQuota.issue.max > 0" class="quota-item">單期上限 {{ money(ogQuota.issue.max) }}</span>
+      <span v-if="ofQuota.issue.max > 0" class="quota-item">單期上限 {{ money(ofQuota.issue.max) }}</span>
       <span class="quota-note">
-        {{ ogCombo ? '※ 選號後自動組成注碼，每注套用投注金額' : '※ 點注項即選取並套用投注金額，也可逐項改金額' }}
+        {{ ofCombo ? '※ 選號後自動組成注碼，每注套用投注金額' : '※ 點注項即選取並套用投注金額，也可逐項改金額' }}
       </span>
     </div>
 
     <!-- ── 複式分頁（後二／後三／五星／大小單雙等 10 個）──────── -->
-    <template v-if="ogCombo">
-      <div v-for="group in ogComboGroups" :key="`ssc-of-pos-${group.pos}`" class="pick-row">
+    <template v-if="ofCombo">
+      <div v-for="group in ofComboGroups" :key="`ssc-of-pos-${group.pos}`" class="pick-row">
         <div class="pick-head">
           <span class="pick-label">{{ group.label }}</span>
           <span class="pick-count">已選 {{ pickedCountOf(group.pos) }}</span>
@@ -193,7 +193,7 @@ const click = {
       </div>
 
       <!-- 彩池分頁：改標分層說明，該分頁沒有固定賠率 -->
-      <div v-if="ogIsPool" class="pool-tiers">
+      <div v-if="ofIsPool" class="pool-tiers">
         <div class="pool-head">此分頁吃共用彩池，依「百十個位猜對幾位」分層派彩</div>
         <div v-for="tier in poolTiers" :key="`tier-${tier.match}`" class="pool-row">
           <span class="tier-name">{{ tier.name }}</span>
@@ -206,15 +206,15 @@ const click = {
       <!-- 展開結果：注數 × 金額，以及前幾注的預覽 -->
       <div class="combo-sum">
         <div class="combo-line">
-          <span>{{ ogComboOverflow ? '選號共' : '展開' }} <b>{{ comboPreview.count }}</b> 注</span>
+          <span>{{ ofComboOverflow ? '選號共' : '展開' }} <b>{{ comboPreview.count }}</b> 注</span>
           <span>× 每注 <b>{{ money(Number(mxState.amount) || 0) }}</b></span>
-          <span>= 共 <b class="is-total">{{ money(ogTotalAmount) }}</b></span>
+          <span>= 共 <b class="is-total">{{ money(ofTotalAmount) }}</b></span>
         </div>
         <div v-if="comboPreview.sample.length" class="combo-sample">
           <span v-for="(code, idx) in comboPreview.sample" :key="`sample-${idx}`" class="sample-tag">{{ code }}</span>
           <span v-if="comboPreview.more > 0" class="sample-more">…等 {{ comboPreview.more }} 注</span>
         </div>
-        <p v-else class="combo-empty">{{ ogComboHint }}</p>
+        <p v-else class="combo-empty">{{ ofComboHint }}</p>
       </div>
     </template>
 
@@ -275,7 +275,7 @@ const click = {
       </div>
 
       <div class="single-sum">
-        已選 <b>{{ ogSelectedCount }}</b> 注 · 共 <b class="is-total">{{ money(ogTotalAmount) }}</b>
+        已選 <b>{{ ofSelectedCount }}</b> 注 · 共 <b class="is-total">{{ money(ofTotalAmount) }}</b>
       </div>
     </template>
   </div>
