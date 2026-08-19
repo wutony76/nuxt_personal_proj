@@ -84,9 +84,11 @@ const GAME_META: Record<string, {
     en: 'X5',
     ribbon: 'BG · 11 選 5 不重複',
     enByMode: {
+      OF: 'X5 [OF]',
       CD: 'X5 [CD]',
     },
     descByMode: {
+      OF: '十一開五定其位，\n直組任選照章行。\n膽拖不定皆有序，\n落定之時見輸贏。',
       CD: '十一藏機開五碼，\n號無重複見真章。\n大小單雙皆有序，\n一局落定判高低。',
     },
   },
@@ -110,14 +112,6 @@ const MODE_META = [
  * suffix 留空代表不分盤口（routeKey 直接是玩法 key，不加 "-OF"／"-CD" 後綴）。
  */
 const GAME_MODES: Record<string, typeof MODE_META> = {
-  /**
-   * 11選5：來源同時有官方與信用兩個盤口，但**階段 1 只實作了信用盤** ——
-   * 走預設的 MODE_META 會生出一張 X5-OF 卡，點下去是不存在的路由。
-   * ⚠️ 階段 2 補上 11x5-of.vue 後，把這一項整段刪掉即可（回到預設的兩張卡）。
-   */
-  X5: [
-    { suffix: 'CD', theme: 'cd', mark: '信', label: '信 用', tag: 'CREDIT · MODE', note: '每注獨立 · 賠率即時派彩' },
-  ],
   EGGS: [
     { suffix: '', theme: 'cd', mark: '信', label: '信 用', tag: 'CREDIT · MODE', note: '每注獨立 · 賠率即時派彩' },
   ],
@@ -135,6 +129,7 @@ const ROUTE_DICT: Record<string, string> = {
   'SSC-CD': '/lottery/bg/ssc-cd',
   'SSC-OF': '/lottery/bg/ssc-of',
   'X5-CD': '/lottery/bg/11x5-cd',
+  'X5-OF': '/lottery/bg/11x5-of',
   'EGGS': '/lottery/bg/egg',
 }
 

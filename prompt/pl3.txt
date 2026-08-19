@@ -1,0 +1,181 @@
+# PL3  排列3新增
+
+## 0. 命名慣例
+
+「pl3」開頭是英文字母，可以直接當 JS/TS 常數／型別／函式名稱前綴，不需要另外取代稱。
+
+大小寫慣例比照 `SSC`（時時彩，玩法結構最接近的先例）：
+- 常數：`PL3_xxx`
+- 型別／函式：`Pl3Xxx` / `pl3xxx`
+- composable：`usePl3`
+- 檔名比照 `ssc.ts` / `ssc-of.ts` / `sscof/plays.js`：`pl3.ts`、`pl3-of.ts`、`pl3of/plays.js`
+
+---
+
+## 1. Project Structure
+
+排列3**只有官方盤玩法結構（固定賠率：定位膽／直選／組選／不定位／大小單雙），沒有信用盤**
+（bglottery 來源 `pl3/` 資料夾裡只有 `official/`，沒有 `creditTraditional/`——
+`index_script.js` 也證實只呼叫過 `playTabMode: 1`（官方），從沒呼叫過 `2`（信用））。
+
+這跟 11x5／ssc／pk10／k3／x5 的「雙盤口」不同，也跟 kl8／kl10／pceggs 的「信用盤單盤口」不同：
+**pl3 是「官方盤單盤口」**——跟 FC3D（福彩3D）是同一種形狀，實作方式幾乎一致，需要組合兩套既有架構：
+
+- 盤口內部的玩法判定／賠率／複式展開：比照 **SSC-OF**（`shared/config/ssc-of.ts` / `sscof.ts` /
+  `sscof/plays.js` / `sscof/helpers.ts`），只是位數從 5 位（萬/千/百/十/個）縮減成 3 位（百/十/個），
+  因此沒有「五星」這個分類，pl3 的「三星」等同 SSC 的「後三」。
+- 單一盤口不需要三檔切分（不用 xxxShared/xxxCd/xxxOf）：比照 **EGGS**（PC蛋蛋）的檔案佈局
+  （`eggs.ts` / `useEggs.ts` / `egg.vue`）。
+
+-shared/config
+├── pl3.ts             共用（開獎號解析、位數/號碼範圍等純函式），比照 `ssc.ts`
+├── pl3-of.ts          玩法判定與賠率核心（定位膽/前二/後二/三星 直選組選和值/不定位/大小單雙），
+│                       比照 `ssc-of.ts`
+└── pl3of/
+    ├── plays.js         注項設定（.js，禁止 import，比照 `sscof/plays.js`）
+    └── helpers.ts       比照 `sscof/helpers.ts`
+
+-server/services/game/lottery/bg
+└── pl3.ts             單一盤口邏輯，比照 `eggs.ts`（不需要 xxxShared/xxxCd/xxxOf 三檔切分；
+                        內部判定/複式展開邏輯可抄 `sscOf.ts` 的寫法，但期別/開獎不必等 CD 交件）
+
+-server/api/lottery
+└── pl3/                 current.get.ts / claim.post.ts / opencode-history.get.ts / user-record.get.ts
+                          （是否需要 `jackpot.get.ts` 見第 6 節，**預設先不建**）
+
+-app/composables
+└── usePl3.ts          比照 `useEggs.ts`
+
+-app/components/lottery/bg/pl3/
+├── base/              Board（百/十/個位選號盤、複式/單式切換），比照 `ssc/of/base/Board.vue`
+└── block/             Header、Report、History、Road、Dialog*、footer/Auto、footer/Chat
+                        （比照 `ssc/of/block`／`eggs/block`）
+
+-app/pages/lottery/bg/
+└── pl3.vue            下注頁，比照 `egg.vue` 單頁（不需要拆 cd/of 兩頁）
+
+UI layout 佈局：整體頁面骨架（單頁、無 cd/of 切換）參考 EGGS；
+下注看板（三層選單 + 選號盤 + 複式展開 + 大小單雙）參考 SSC-OF。
+
+---
+
+## 2. Data Source
+
+需要先讀取：
+/Users/tony.wu/SelfCode/Svn/bglottery
+此專案為既有排列3（PL3）玩法來源，資料夾在 `src/components/room/lotteryAll/pl3/`。
+
+福彩3D（FC3D）資料夾在 `src/components/room/lotteryAll/fc3d/`，兩者玩法結構幾乎相同
+（同一套 3 位數字型官方彩，只有彩種名稱／lotteryId／快取 key 不同，playId 前綴 191 vs 181），
+**但仍是完全獨立的彩種，不可共用同一份 conf 或互相假設賠率相同**，各自要走一次 Step 1 的窮舉與 UI 核對。
+詳見 `prompt/fc3d.txt`。
+
+禁止直接猜測玩法規則。
+
+---
+
+## 3. Step 1 - Config Conversion
+
+讀取 bglottery 的 pl3 玩法設定。
+將其轉換成本專案既有 conf 格式（參考 SSC-OF 的 `shared/config/ssc-of.ts` / `sscof.ts` / `sscof/plays.js`
+分層方式，位數由 5 縮減為 3）。
+
+如果來源設定缺少資訊：
+
+1. 找到對應玩法 UI
+2. 分析 UI 使用的欄位
+3. 由既有 UI 行為反推出必要 config
+4. 補齊 conf
+5. 不可自行發明玩法規則
+
+參考 UI（皆為官方盤，排列3無信用盤）：
+
+src/components/room/lotteryAll/pl3/index.vue
+src/components/room/lotteryAll/pl3/index_script.js
+（`setPlayData(1, 'pc_191')` 寫死只拉 `playTabMode: 1`（官方），從未呼叫過 `playTabMode: 2`（信用），
+佐證來源真的沒有信用盤；`lotteryId: 1901`，`lotteryName: '排列3'`）
+
+src/components/room/lotteryAll/pl3/header.vue
+（開獎動畫 `for (let i = 0; i < 3; i++) { random(0, 9) }`，佐證每期開 3 個 0~9 的號碼：百位/十位/個位；
+跟 fc3d 的 `header.vue` 幾乎一樣，只有 `name: 'lt-header'` 宣告位置與一行判斷式的小差異）
+
+src/components/room/lotteryAll/pl3/config_ssc.js
+（⚠️ 檔名沿用 SSC 的命名習慣，但內容是 pl3 專屬的 `selectarea`/`alias` 佈局設定，playId 前綴 191，
+分類結構與 fc3d 完全對應（只有 playId 前綴 181→191 的差異）：
+- 定位膽（191101010）：百/十/個位各自 0~9 單選
+- 前二 直選（191111010）／組選（191111110）：百十位
+- 後二 直選（191111011）／組選（191111111）：十個位
+- 三星（三碼全）：直選複式（191121010）／直選單式（191121011，`type:'input'` 手動輸入）／
+  直選和值（191121012）／組選組三（191121110）／組選組六（191121111）／組選和值（191121112）；
+  191121113／191121114（組選和值組三/組六）在來源裡是**空物件 `{}`**，代表這兩個玩法目前沒有
+  `selectarea` 設定，動工前需另外查證是否真的有這兩個子玩法、UI 怎麼顯示，不可自行編造內容
+- 不定位：一碼不定位（191131010）／二碼不定位（191131011）
+- 大小單雙：後二（191141011）／前二（191141010）
+這份檔案只提供 `selectarea`/`alias`/`hcltPosition` 這類「畫面佈局」資訊，不含 `playTabName`/`playTypeName`/賠率，
+這些要靠 `LotteryPlayOdds` 介面實際回傳資料核對，比照 `config_11x5.js` 的用法）
+
+src/components/room/lotteryAll/pl3/official/tabs.vue
+（三層選單：playTab → playType → play；`autoPositioningPlay` 用 playId 字串長度 9 反解 tabId/typeId，
+複製快選連結時要注意這個格式）
+
+src/components/room/lotteryAll/pl3/official/play.vue
+src/components/room/lotteryAll/pl3/official/play_script.js
+（這份檔案**已經沒有** fc3d 同名檔案裡那段 `isrx`/`selectedPosition`（萬位/千位…）與
+`alias === 'TSH3'`（豹子/顺子/对子）的死代碼分支，是兩份檔案裡比較乾淨的版本，
+可以直接當作主要參考；若同時開發 fc3d，記得 fc3d 那份多出來的分支是死代碼，不要照抄）
+
+src/components/room/lotteryAll/pl3/official/js/algorithm.js
+src/components/room/lotteryAll/pl3/official/js/select_num_tool.js
+（這兩支跟 fc3d 對應檔案內容完全相同，可以互相對照驗證）
+
+---
+
+## 4. Step 2 - Betting UI
+
+讀取 Step 1 轉換後的 conf。
+依 conf 完善：
+`app/pages/lottery/bg/pl3.vue`
+下注區。
+
+版面骨架參考 EGGS（`egg.vue`）的單頁佈局；玩法看板（定位膽/前二/後二/三星/不定位/大小單雙）
+內部的選號盤與複式展開排版參考 SSC-OF（`app/components/lottery/bg/ssc/of/base/Board.vue`），位數從 5 縮成 3。
+
+---
+
+## 5. Constraints
+
+- 官方盤玩法判定／賠率／複式展開優先複用 SSC-OF 架構，單一盤口的檔案佈局優先複用 EGGS 架構
+- 優先複用既有 lottery config pattern
+- 不要重新設計整套玩法架構
+- 不要自行猜測 pl3 規則，尤其：
+  - `config_ssc.js` 裡 191121113／191121114（組選和值組三/組六）目前是空設定，不可自行編造內容
+  - 彩池是否適用（見第 6 節）不可自行假設
+- 不要把 fc3d 開發時發現的死代碼（`isrx`/`TSH3` 分支）誤植回 pl3，pl3 的來源檔案本身沒有這段
+- 修改前先閱讀既有實作（特別是 SSC 全套：composable／server／config 三層，以及 EGGS 的單盤口佈局）
+- 非 trivial 需求需走 OpenSpec 流程（proposal → design → tasks），此為新彩種、跨多層變更，
+  動工前應先建立 `openspec/changes/add-pl3/` 提案
+
+---
+
+## 6. 彩池機制（Jackpot）—— 預設不建，需先拍板
+
+與 kl8／kl10／pceggs（信用盤單盤口）不同，pl3 **沒有信用盤可以用 rake 建立彩池**，
+bglottery 來源本身也完全沒有彩池相關的欄位或 UI 痕跡（`config_ssc.js`／`official/**` 都是純固定賠率結構）。
+
+專案裡唯一「官方盤玩法接彩池」的先例是 SSC-OF 的「後三直選」與 PK10-OF 的「前三直選」
+（見 `shared/config/ssc-of.ts` 檔頭註解），但那兩個先例的資金來源都是**同一彩種的信用盤 rake**
+（`SSC_JACKPOT_SETTINGS` 定義在 `ssc-cd.ts`，OF 只是借用同一顆池子），pl3 沒有信用盤兄弟盤可借，
+不能直接套用。
+
+**預設先不做彩池**（`server/api/lottery/pl3/` 不建 `jackpot.get.ts`），除非需求方明確要求，
+且要求時必須先拍板以下決策，不可自行假設：
+
+1. **資金來源**：從三星直選（或哪個玩法）自己抽水建池？還是全部玩法統一抽水？
+2. **機制選擇**：是否要比照 SSC-OF「後三直選」的做法，把「三星直選」／「三星直選單式」接上
+   分層中獎（`SSC_OF_PRIZE_TIERS` / `sscOfMatchCount` 那套「猜中幾位」分層邏輯），
+   還是要用一般的 `buildJackpotShares` 權重池（`shared/config/jackpot.ts`）？這兩套機制職責不同，
+   不能混用。
+3. **weight 分級與觸發機率窮舉**：同其他彩種，需針對 pl3 各注項理論賠率重新核對，不可沿用 SSC/PK10/fc3d 的數字
+   （即使 fc3d 玩法結構幾乎相同，也要各自重新窮舉，兩個彩種的賠率標不一定一樣）。
+
+在拍板之前，pl3 所有玩法一律維持 bglottery 來源本來就有的固定賠率結構。

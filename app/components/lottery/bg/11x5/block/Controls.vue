@@ -3,16 +3,13 @@ import { computed } from 'vue'
 import { useX5 } from '~/composables/useX5'
 
 /**
- * 投注控制
+ * 投注控制（信用盤 / 官方盤共用）
  * 金額一律夾在該分頁限額內 —— 超限伺端會整筆拒單
- *
- * ⚠️ 階段 1 只有信用盤。階段 2 接上官方盤後，比照 ssc 的 Controls.vue
- *    把 range／canBet／betCount／totalBetAmount／submit 各自加上 isCd 分流
- *    （官方盤讀 ogQuota / canSubmitOg / ogSelectedCount / ogTotalAmount / betsOf）。
  */
 const {
-  state: mxState, currentQuota, canSubmit, isOpen,
-  selectedCount, totalAmount, actions: mxActions, fetch: mxFetch
+  state: mxState, currentQuota, canSubmit, isOpen, isCd,
+  selectedCount, totalAmount, actions: mxActions, fetch: mxFetch,
+  ofQuota, ofSelectedCount, ofTotalAmount, canSubmitOf
 } = useX5()
 
 const { $dialog } = useNuxtApp()
@@ -26,14 +23,14 @@ const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
  *    所以這裡不需要像早期 k3 那樣手抄一份限額。
  */
 const range = computed(() => {
-  const quota = currentQuota.value
+  const quota = isCd.value ? currentQuota.value : ofQuota.value
   return { min: quota.item.min, max: quota.item.max }
 })
 
-const canBet = computed(() => canSubmit.value)
-const betCount = computed(() => selectedCount.value)
+const canBet = computed(() => (isCd.value ? canSubmit.value : canSubmitOf.value))
+const betCount = computed(() => (isCd.value ? selectedCount.value : ofSelectedCount.value))
 /** 總下注額度 */
-const totalBetAmount = computed(() => totalAmount.value)
+const totalBetAmount = computed(() => (isCd.value ? totalAmount.value : ofTotalAmount.value))
 const betLabel = computed(() =>
   betCount.value > 0 ? `（${betCount.value} 注 / ${money(totalBetAmount.value)}）` : ''
 )
@@ -41,10 +38,15 @@ const betLabel = computed(() =>
 const _handlers = {
   clamp: (value: string | number) =>
     Math.min(range.value.max, Math.max(range.value.min, Math.trunc(Number(value) || 0))),
-  /** 改金額要一併更新已選注項（點注項時套用的就是這個值） */
+  /**
+   * 改金額
+   * 信用盤要一併更新已選注項（點注項時套用的就是這個值）；
+   * 官方盤的展開型分頁每一注都直接讀 state.amount，所以只改 state 就好。
+   */
   setMoney: (value: string | number) => {
     const coin = _handlers.clamp(value)
-    mxActions.setAmount(coin)
+    if (isCd.value) mxActions.setAmount(coin)
+    else mxState.amount = coin
     return coin
   },
   onAmountInput: (event: Event) => {
@@ -65,7 +67,9 @@ const click = {
   clear: () => { mxState.amount = range.value.min },
   submit: async () => {
     if (!isOpen.value) return $dialog.alert('目前非開盤中，無法投注')
-    const result = await mxFetch.bets()
+    // 選號不完整（沒選滿／超過上限）的提示由 betsOf() 回傳，這裡不再自己判一次 ——
+    // 四種選號型態的文案只留 composable 那一份（ofComboHint）
+    const result = isCd.value ? await mxFetch.bets() : await mxFetch.betsOf()
     // 登入失效：提示後導回登入頁
     if ((result as { loginExpired?: boolean }).loginExpired) {
       return $dialog.alert(result.message, { cb: () => router.push('/login') })

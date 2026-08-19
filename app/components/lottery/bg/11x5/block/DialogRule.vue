@@ -18,6 +18,15 @@ import {
 } from '#shared/config/x5'
 import C_PLAYS from '#shared/config/x5cd/plays'
 import { x5RtpOf, x5TabOddsOf } from '#shared/config/x5cd/helpers'
+import C_OF_PLAYS from '#shared/config/x5of/plays'
+import { x5OfChanceOf, x5OfCodeOf, X5_OF_MAX_COMBO, X5_OF_PRIZE_TIERS } from '#shared/config/x5-of'
+import {
+  x5OfComboOf,
+  x5OfIsPoolTab,
+  x5OfRtpOf,
+  x5OfSingleCodes,
+  x5OfTabOddsOf
+} from '#shared/config/x5of/helpers'
 import { useX5 } from '~/composables/useX5'
 
 /**
@@ -26,16 +35,16 @@ import { useX5 } from '~/composables/useX5'
  * 注項表、賠率、機率一律由 config + x5 的機率層推算 —— 改設定就自動跟上，不寫死數字。
  * 這也是「UI 依 config 顯示」的一部分：新增一個分頁或注項，說明頁會自己長出來。
  *
- * ⚠️ 階段 1 只有信用盤（4 分頁、固定賠率）。階段 2 接上官方盤後，
- *    比照 ssc 的 DialogRule.vue 補 ogPlayTables 與 isCd 分流的「投注玩法」段落。
+ * ⚠️ 兩個盤口的開獎號、彩池、時間流程都一樣（那幾段共用），但「投注玩法」與「獎金結構」
+ *    是各自的 —— 在官方盤看到信用盤的注項表只會混淆，所以只列當前盤口的。
  * ⚠️ 爆池那段的數字（條件文案、機率、發放比例、門檻）全部讀 creditJackpot 這份
  *    伺端狀態，不寫死文案 —— 改 X5_JACKPOT_SETTINGS 說明頁會自己跟上。
  */
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
-const { creditJackpot: mxJackpot } = useX5()
-const boardName = '信用'
+const { creditJackpot: mxJackpot, isCd } = useX5()
+const boardName = computed(() => (isCd.value ? '信用' : '官方'))
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
@@ -112,6 +121,69 @@ const cdPlayTables = computed(() =>
   }))
 )
 
+/**
+ * 官方盤的注項表
+ *
+ * 三種分頁型態各自顯示不同內容：
+ *   單選分頁（combo = null）—— 與信用盤同一種緊湊版面，逐項列注碼與賠率
+ *   展開型／單式分頁        —— 沒有固定注項清單（或多達 990 個），改列
+ *                             「選號規則 + 一組樣本注碼的賠率／機率」
+ *                             同一個分頁裡每一注的機率都相同，任一組合皆可代表整頁
+ */
+const ofPlayTables = computed(() =>
+  (C_OF_PLAYS as any[]).map((play) => ({
+    key: String(play.key ?? ''),
+    name: String(play.name ?? ''),
+    tabs: (play.list ?? []).map((tab: any) => {
+      const tabId = Number(tab.tabId)
+      const combo = x5OfComboOf(play.key, tabId)
+      const isPool = x5OfIsPoolTab(play.key, tabId)
+      const rtpText = `${(x5OfRtpOf(play.key, tabId) * 100).toFixed(0)}%`
+      if (combo) {
+        // 樣本注碼：展開型用「號碼 01、02…」湊一組；單式直接取列舉清單的第一注
+        const sample = combo.mode === 'single'
+          ? (x5OfSingleCodes(play.key, tabId)[0] ?? '')
+          : `${combo.prefix}${x5OfCodeOf(
+            Array.from({ length: Number(combo.positions ?? combo.size ?? 0) }, (_, i) => i + 1)
+          )}`
+        const chance = x5OfChanceOf(sample)
+        return {
+          tabId,
+          tabName: String(tab.tabName ?? ''),
+          rtp: rtpText,
+          isPool,
+          combo: {
+            mode: String(combo.mode),
+            size: Number(combo.size ?? 0),
+            positions: Number(combo.positions ?? 0),
+            minPick: Number(combo.minPick ?? 1),
+            sample,
+            odds: x5OfTabOddsOf(play.key, tabId, sample),
+            percent: chance && chance.total > 0 ? ((chance.hit / chance.total) * 100).toFixed(4) : '—',
+            /** 單式分頁的可選注碼數（990 / 462…） */
+            singleCount: combo.mode === 'single' ? x5OfSingleCodes(play.key, tabId).length : 0
+          },
+          groups: []
+        }
+      }
+      return {
+        tabId,
+        tabName: String(tab.tabName ?? ''),
+        rtp: rtpText,
+        isPool,
+        combo: null,
+        groups: (tab.tabGroup ?? []).map((group: any) => ({
+          groupName: String(group.groupName ?? ''),
+          items: (group.groupList ?? []).map((item: any) => ({
+            name: String(item.name ?? ''),
+            odds: x5OfTabOddsOf(play.key, tabId, String(item.name))
+          })).filter((item: { odds: number }) => item.odds > 0)
+        })).filter((group: { items: unknown[] }) => group.items.length > 0)
+      }
+    })
+  }))
+)
+
 const click = {
   /** 快捷選單：捲到對應段落（scrollIntoView 會自己找捲動容器，不用接 DialogShell 的 ref） */
   scrollTo: (id: string) => {
@@ -141,7 +213,11 @@ const click = {
           看「位置」的玩法母數是 P({{ X5_NUMBER_MAX }},{{ X5_BALL_COUNT }}) =
           <strong>{{ X5_TOTAL_PERMS.toLocaleString('zh-TW') }}</strong> 種排列。
           單球類（某球位開某號碼／大小單雙）因為每個球位落在每個號碼的機率都相同，直接用母數 {{ X5_NUMBER_MAX }}。</li>
-        <li>目前檢視的是 <strong>11選5 {{ boardName }}玩法</strong>，共 1-5球／兩面／龍虎鬥／全5中1 四個分頁。</li>
+        <li v-if="isCd">目前檢視的是 <strong>11選5 信用玩法</strong>，共 1-5球／兩面／龍虎鬥／全5中1 四個分頁。</li>
+        <li v-else>目前檢視的是 <strong>11選5 官方玩法</strong>，共 8 個玩法 54 個分頁：
+          三碼／二碼（直選・組選，各有複式・單式・組選膽拖）、不定位、定位膽、
+          任選複式／任選單式／任選膽拖（任選一中一 ~ 任選八中五）、趣味玩法（猜中位・定單雙）。</li>
+        <li>兩種玩法<strong>共用同一份開獎號與彩池</strong> —— 同一期的號碼必然相同，抽水也累積到同一個池。</li>
         <li>賠率一律由「公平賠率 × 回報率」推算，不是拍板數字：公平賠率 = 該注項的母數 ÷ 命中數。</li>
       </ul>
     </section>
@@ -163,9 +239,12 @@ const click = {
       <p class="rule-note">※ 期表與開獎號由伺端共用層持有，同一期的時間點與號碼對所有盤口都一致。</p>
     </section>
 
-    <h3 id="x5-section-play" class="rule-group-title">投注玩法 · 11選5 {{ boardName }}玩法（固定賠率）</h3>
+    <h3 id="x5-section-play" class="rule-group-title">
+      投注玩法 · 11選5 {{ boardName }}玩法<template v-if="isCd">（固定賠率）</template>
+    </h3>
 
-    <section v-for="play in cdPlayTables" :key="play.key" class="rule-block">
+    <!-- ── 信用盤：4 個分頁 ── -->
+    <section v-for="play in (isCd ? cdPlayTables : [])" :key="play.key" class="rule-block">
       <div v-for="tab in play.tabs" :key="`${play.key}-${tab.tabId}`">
         <p class="rule-group-title">
           {{ play.name }} · {{ tab.tabName }}
@@ -189,6 +268,71 @@ const click = {
       </div>
     </section>
 
+    <!-- ── 官方盤：8 個玩法 54 個分頁 ── -->
+    <template v-if="!isCd">
+      <section v-for="play in ofPlayTables" :key="`of-${play.key}`" class="rule-block">
+        <div v-for="tab in play.tabs" :key="`of-${play.key}-${tab.tabId}`">
+          <p class="rule-group-title">
+            {{ play.name }} · {{ tab.tabName }}
+            <span class="rule-tag">回報率 {{ tab.rtp }}</span>
+            <span v-if="tab.isPool" class="rule-tag">彩池分層</span>
+            <span v-else-if="tab.combo" class="rule-tag">{{
+              tab.combo.mode === 'single' ? '單式' : tab.combo.mode === 'dantuo' ? '膽拖' : '複式'
+            }}</span>
+          </p>
+
+          <!-- 展開型／單式分頁：列選號規則 + 樣本注碼 -->
+          <ul v-if="tab.combo">
+            <li v-if="tab.combo.mode === 'direct'">
+              每個位置各選一組號碼，笛卡爾積展開成一注一注的直選
+              （<strong>會濾掉含重複號碼的組合</strong> —— 開獎 5 碼互不重複）。
+            </li>
+            <li v-else-if="tab.combo.mode === 'group'">
+              從一組號碼中選 <strong>{{ tab.combo.size }} 個以上</strong>，
+              每 {{ tab.combo.size }} 個一組成一注（選 n 個 → C(n,{{ tab.combo.size }}) 注），不計順序。
+            </li>
+            <li v-else-if="tab.combo.mode === 'any'">
+              從 01 ~ 11 中選 <strong>{{ tab.combo.size }} 個以上</strong>，
+              每 {{ tab.combo.size }} 個一組成一注（選 n 個 → C(n,{{ tab.combo.size }}) 注）。
+            </li>
+            <li v-else-if="tab.combo.mode === 'dantuo'">
+              <strong>膽碼</strong>每注都包含（1 ~ {{ tab.combo.size - 1 }} 個），
+              <strong>拖碼</strong>補到 {{ tab.combo.size }} 碼；
+              注數 = C(拖碼數, {{ tab.combo.size }} − 膽碼數)。同一號碼不可同時選為膽與拖。
+            </li>
+            <li v-else>
+              本分頁的注碼由設定檔全部列出（共
+              <strong>{{ tab.combo.singleCount.toLocaleString('zh-TW') }} 注</strong>）供直接點選，
+              不需要手動輸入號碼串；一次可選多注，各注金額可分別填。
+            </li>
+            <li>
+              每一注的機率相同 ——
+              <template v-if="tab.isPool">本分頁走彩池分層（見下方獎金結構），沒有固定賠率</template>
+              <template v-else>賠率 <strong>{{ tab.combo.odds }}</strong></template>、
+              命中機率 {{ tab.combo.percent }}%（例：{{ tab.combo.sample }}）。
+            </li>
+          </ul>
+
+          <!-- 單選分頁：同信用盤的緊湊版面 -->
+          <table v-if="tab.groups.length" class="rule-table">
+            <thead>
+              <tr><th>群組</th><th>注項與賠率</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="group in tab.groups" :key="group.groupName">
+                <td class="is-name">{{ group.groupName }}</td>
+                <td>
+                  <span v-for="item in group.items" :key="item.name" class="is-odds">
+                    {{ item.name }} <b>{{ item.odds }}</b>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </template>
+
     <p class="rule-note">
       ※ 表中賠率由「公平賠率 × 該分頁回報率」即時推算（含本金），與看板顯示、伺端派彩同一個來源。
       下注時會把當下賠率鎖進注單，之後調整回報率不影響已成立的注單。
@@ -198,6 +342,19 @@ const click = {
       <h4>獎金結構</h4>
       <ul>
         <li>{{ boardName }}玩法每注獨立結算：<strong>派彩 = 下注金額 × 注單鎖定的賠率</strong>（賠率含本金），未中為 0。</li>
+        <li v-if="!isCd">
+          唯一的例外是<strong>後三直選</strong>（複式與單式兩個分頁）——
+          它<strong>吃共用彩池</strong>，依「逐位比對第三～五球」的命中位數分層派彩：
+          <span v-for="tier in X5_OF_PRIZE_TIERS" :key="tier.match" class="is-odds">
+            命中 {{ tier.match }} 位 {{ tier.name }}
+            <b v-if="tier.type === 'pool'">獎池 {{ (tier.ratio * 100).toFixed(0) }}%</b>
+            <b v-else>固定 {{ tier.amount }} 倍</b>
+          </span>
+        </li>
+        <li v-if="!isCd">
+          pool 型分層按<strong>中獎者的下注額比例</strong>分配，頭獎另有每單位下注的最低保障；
+          該層沒人中獎時<strong>整塊滾存至下期</strong>（與 6hc-of / k3-of / pk10-of / ssc-of 同一套）。
+        </li>
         <li>投注額會依固定比例撥入展示用的<strong>共用彩池</strong>，但這個池<strong>不會被信用盤派彩吃掉</strong> ——
           畫面上的「總獎金」是門面數字，不影響任何一注的實際派彩。</li>
         <li v-if="jackpotReady">
@@ -237,6 +394,14 @@ const click = {
         <li><strong>龍虎鬥沒有「和」</strong>：五碼互不重複，兩個球位不可能開出相同號碼，
           所以每組球對只有龍／虎兩個注項（與時時彩、快3 的兩面圍骰不同）。</li>
         <li><strong>全5中1</strong> 是「該號碼出現在開出的 5 碼中任一位置就算中」，命中機率 5 / {{ X5_NUMBER_MAX }}。</li>
+        <li v-if="!isCd"><strong>直選會濾掉重複號碼</strong>：三個位置各選全部 11 個號碼展開的是
+          P(11,3) = 990 注，不是 11³ = 1,331 注 —— 開獎 5 碼互不重複，`前三直選010101` 永遠不可能中。</li>
+        <li v-if="!isCd"><strong>任選 N > 5 的判定方向相反</strong>：任選一 ~ 五是「選的號碼要全部開出」，
+          任選六 ~ 八則是「開出的 5 碼要全部落在選的號碼內」（來源就是這樣命名為「N 中五」）。</li>
+        <li v-if="!isCd"><strong>膽拖與單式不是另一種玩法</strong>，只是選號方式 ——
+          展開後的注碼與對應的複式完全相同，判定與賠率走同一條路。</li>
+        <li v-if="!isCd">展開後的注數上限為
+          <strong>{{ X5_OF_MAX_COMBO.toLocaleString('zh-TW') }} 注</strong>，超過會整筆拒絕，請縮小選號範圍。</li>
         <li>單注與單期限額都是<strong>依分頁獨立計算</strong>，超限會整筆拒單（伺端與畫面讀同一份設定）。</li>
         <li>投注只在「開盤中」受理；封盤後送單會被伺端擋下。</li>
       </ul>

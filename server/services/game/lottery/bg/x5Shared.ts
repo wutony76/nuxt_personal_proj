@@ -6,6 +6,7 @@ import {
   type JackpotRow
 } from '#shared/config/jackpot'
 import { X5_JACKPOT_SETTINGS } from '#shared/config/x5-cd'
+import { X5_OF_PICK_COUNT, X5_OF_PRIZE_TIERS } from '#shared/config/x5-of'
 import { x5NumberLabel, X5_BALL_COUNT, X5_NUMBERS } from '#shared/config/x5'
 
 /**
@@ -58,8 +59,9 @@ export const X5_SHARED: X5SharedState = {
  * 可發放獎金用與 6hc-of 相同的公式 LOTTERY_BASE.jackpotCalc()：
  *   (池底 + 該期抽水 × 0.8 + 滾存) × 0.55
  *
- * ⚠️ 這個池是**官方盤直選類**未來要吃的（階段 2）；信用盤是固定賠率，
- *    只負責抽水養池。階段 1 因此只會看到池額累積、還不會有人從這裡領走。
+ * ⚠️ 官方盤的**後三直選**吃這個池（依命中位數分層，見 shared/config/x5-of.ts），
+ *    未派出的層數會寫回 carry 滾存至下期；其餘 52 個分頁與整個信用盤都是固定賠率，
+ *    只負責抽水養池。
  * ⚠️ 信用盤的「爆池」是**另一個獨立的池**（見本檔下半 X5_JACKPOT），
  *    不與本節的共用彩池互相吃 —— 否則兩條結算路會搶同一個 carry。
  */
@@ -68,13 +70,14 @@ export const X5_POOL_BASE_MAX = 480_000
 
 /**
  * 池底重骰門檻：可發放獎金低到連頭獎的最低保障都撐不起來時重骰
- *
- * ⚠️ 階段 1 為 0（＝只在還沒有池底時骰一次）——
- *    門檻要由官方盤的分層設定（階段 2 的 `X5_OF_PRIZE_TIERS` 頭獎最低保障 ÷ 分配比例）推出來，
- *    在官方盤還不存在時寫任何數字都是憑空假設。階段 2 接上官方盤時改成
- *    比照 sscShared.ts 的 `SSC_POOL_FLOOR` 由 tier 推導。
+ * 門檻＝頭獎最低保障 ÷ 頭獎分配比例（20,000 ÷ 0.7 ≒ 28,572），與 sscShared.ts 同一條公式
  */
-export const X5_POOL_FLOOR = 0
+const X5_TOP_TIER = X5_OF_PRIZE_TIERS.find(
+  (tier) => tier.type === 'pool' && tier.match === X5_OF_PICK_COUNT
+)
+export const X5_POOL_FLOOR = X5_TOP_TIER && X5_TOP_TIER.type === 'pool' && X5_TOP_TIER.minAmount
+  ? Math.ceil(X5_TOP_TIER.minAmount / X5_TOP_TIER.ratio)
+  : 0
 
 /**
  * 確保池底存在（沒有或已被吃到低於門檻就重骰）

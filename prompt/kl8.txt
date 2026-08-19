@@ -1,0 +1,191 @@
+# KL8  快樂8新增
+
+## 0. 命名慣例
+
+「kl8」開頭是英文字母，可以直接當 JS/TS 常數／型別／函式名稱前綴，
+不需要像「11x5」→`X5`、「6hc」→`LHC` 那樣另外取代稱。
+
+大小寫慣例比照 `EGGS`（PC蛋蛋，同為單一盤口彩種）：
+- 常數：`KL8_xxx`
+- 型別／函式：`Kl8Xxx` / `kl8Xxx`
+- composable：`useKl8`
+- 檔名：`kl8.ts`、`kl8-cd.ts`、`kl8cd/plays.js`（比照 `eggs.ts` / `eggs-cd.ts` / `eggscd/plays.js`）
+
+---
+
+## 1. Project Structure
+
+快樂8**只有信用盤，沒有官方盤**（bglottery 來源 `kl8/` 資料夾裡沒有 `official/` 子資料夾，
+跟 11x5／ssc／pk10／k3 的雙盤口不同，架構性質與 kl10、pceggs 一致）。
+
+架構比照 PC蛋蛋（單一盤口）：`shared/config/eggs.ts` / `eggs-cd.ts` / `eggscd/plays.js`、
+`server/services/game/lottery/bg/eggs.ts`、`app/composables/useEggs.ts`、`app/pages/lottery/bg/egg.vue`。
+
+-shared/config
+├── kl8.ts             共用（開獎號解析、球數/號碼範圍、和值等純函式），比照 `eggs.ts`
+├── kl8-cd.ts          玩法判定與賠率核心、爆池設定，比照 `eggs-cd.ts`
+└── kl8cd/
+    ├── plays.js         注項設定（.js，禁止 import，比照 `eggscd/plays.js`）
+    └── helpers.ts
+
+-server/services/game/lottery/bg
+└── kl8.ts             單一盤口邏輯，比照 `eggs.ts`（不需要 xxxShared/xxxCd/xxxOf 三檔切分）
+
+-server/api/lottery
+└── kl8/                 current.get.ts / claim.post.ts / opencode-history.get.ts / user-record.get.ts / jackpot.get.ts
+                          （比照 `server/api/lottery/eggs/`）
+
+-app/composables
+└── useKl8.ts          比照 `useEggs.ts`
+
+-app/components/lottery/bg/kl8/
+├── base/              Ball、Board（比照 `eggs/base`）
+└── block/             Header、Report、History、Road、Dialog*、Controls、CurrItems、footer/Auto、footer/Chat
+                        （比照 `eggs/block`）
+
+-app/pages/lottery/bg/
+└── kl8.vue            下注頁，比照 `egg.vue` 單頁（不需要像 11x5-cd.vue / 11x5-of.vue 拆兩頁）
+
+UI layout 佈局：整體頁面骨架與看板排版直接比照 PC蛋蛋（`egg.vue` + `app/components/lottery/bg/eggs/**`），
+因為兩者都是單一盤口、單一頁面、共用一份期別與開獎號。
+
+---
+
+## 2. Data Source
+
+需要先讀取：
+/Users/tony.wu/SelfCode/Svn/bglottery
+此專案為既有快樂8（KL8）玩法來源，資料夾在
+`src/components/room/lotteryAll/kl8/`（**不是** `kl10/`，也**不是** `11x5/`——三者是完全獨立的彩種資料夾，
+kl8 與 kl10 雖然名字相近但玩法分頁數量、球數、號碼範圍都不同，不要混用彼此的 config）。
+
+禁止直接猜測玩法規則。
+
+---
+
+## 3. Step 1 - Config Conversion
+
+讀取 bglottery 的 kl8 玩法設定。
+將其轉換成本專案既有 conf 格式（參考 EGGS 的 `shared/config/eggs.ts` / `eggs-cd.ts` / `eggscd/plays.js` 分層方式）。
+
+如果來源設定缺少資訊：
+
+1. 找到對應玩法 UI
+2. 分析 UI 使用的欄位
+3. 由既有 UI 行為反推出必要 config
+4. 補齊 conf
+5. 不可自行發明玩法規則
+
+參考 UI（皆為信用盤，快樂8無官方盤）：
+
+src/components/room/lotteryAll/kl8/index.vue
+src/components/room/lotteryAll/kl8/index_script.js
+（期別/倒數/歷史開獎輪詢邏輯；**只有 2 個玩法 tab**：21210 任選／21211 兩面——
+比 kl10 少了「正和」與「龍虎鬥」兩個 tab，不可比照 kl10 多做出這兩個 tab。
+另外 `components` 裡把 `zhenghe` 這個 component key 指到 `./allTraditional/renxuan/play.vue`，
+純粹是預設 tab 的命名殘留，kl8 資料夾裡**沒有** `zhenghe/` 子資料夾，不要被這個命名誤導）
+src/components/room/lotteryAll/kl8/header.vue
+（頭部：期別、倒數、上期/近5期開獎號碼、開獎動畫。開獎動畫用
+`for (let i = 0; i < 20; i++) { random(0, 80) }`、佔位字元是 20 個 `?`，
+代表 kl8 每期開出 **20 個號碼，號碼池 1~80**——這是標準「快乐8」規則，務必以此為準）
+src/components/room/lotteryAll/kl8/dict.js
+（⚠️ 內容是 0~27 的紅/藍/綠/灰四色分波設定，跟 kl8 實際號碼池 1~80 完全對不上，
+和 kl10 的 `dict.js` 是同一份、疑似都是從 pceggs 複製後沒清乾淨的殘留檔，
+動工前必須查證色波玩法是否真的存在於 kl8，不可直接照搬 0~27 或色波規則）
+
+任選（playTabId 21210）：
+src/components/room/lotteryAll/kl8/allTraditional/renxuan/config_play.js
+（一中一~七中七，minChosen/maxChosen 分別為 1~80/2~8/3~8/4~8/5~8/6~8/7~8，號碼池 01~80；
+判定邏輯需核對「選中號碼是否落在 20 個開獎號內」，注意 kl8 開獎球數是 20 顆、kl10 是 8 顆，
+兩者中獎機率與賠率標完全不同，不可互相套用）
+src/components/room/lotteryAll/kl8/allTraditional/renxuan/play.vue
+src/components/room/lotteryAll/kl8/allTraditional/renxuan/play_script.js
+（`doCalcCombination` 為複式組合展開邏輯，需一併確認注單如何拆單）
+
+兩面（playTabId 21211）：
+src/components/room/lotteryAll/kl8/allTraditional/liangmian/config.js
+（和值：大/小/單/雙/大單/大雙/小單/小雙 ＋ 上盤/和盤/下盤 ＋ 奇盤/和盤/偶盤 ＋ 五行：金/木/水/火/土；
+注意 kl8 的兩面比 kl10 多了「五行」一組、少了「尾大/尾小」一組，不要照搬 kl10 的兩面分組）
+src/components/room/lotteryAll/kl8/allTraditional/liangmian/play.vue
+src/components/room/lotteryAll/kl8/allTraditional/liangmian/play_script.js
+（⚠️ 前端完全沒有和值/上下盤/奇偶盤/五行的計算邏輯，只負責組裝 `playId`/`buyCode` 送後端，
+判定規則必須另外查證真實開獎/派彩紀錄或後端 API，不可自行假設「和值」是指哪幾顆球、
+怎麼切上中下盤、五行怎麼對應號碼）
+
+---
+
+## 4. Step 2 - Betting UI
+
+讀取 Step 1 轉換後的 conf。
+依 conf 完善：
+`app/pages/lottery/bg/kl8.vue`
+下注區。
+
+版面骨架參考 PC蛋蛋（`egg.vue`），兩個玩法看板（任選／兩面）
+依上方 Project Structure 的 `app/components/lottery/bg/kl8/` 分層各自實作。
+
+---
+
+## 5. Constraints
+
+- 優先複用現有 EGGS（單一盤口）架構
+- 優先複用既有 lottery config pattern
+- 不要重新設計整套玩法架構
+- 不要自行猜測 kl8 規則（尤其兩面玩法的和值/上下盤/奇偶盤/五行判定邏輯、`dict.js` 色波是否適用——
+  這幾點來源本身有矛盾、殘留或前端無邏輯可查，必須查證，不可照抄 pceggs、kl10 或 11x5 現有邏輯）
+- 不要把 kl10 的「正和」「龍虎鬥」兩個 tab 誤植到 kl8，kl8 只有「任選」「兩面」兩個 tab
+- 修改前先閱讀既有實作（特別是 EGGS 全套：composable／server／config 三層）
+- 非 trivial 需求需走 OpenSpec 流程（proposal → design → tasks），此為新彩種、跨多層變更，
+  動工前應先建立 `openspec/changes/add-kl8/` 提案
+
+---
+
+## 6. 彩池機制（Jackpot）
+
+需求原文：「增加支援彩池機制，彩池相關設定需要與玩法保持正確關聯」。
+
+kl8 只有一個盤口（無 CD/OF 之分，整個彩種本身即等同信用盤），比照既有慣例，
+單一盤口彩種比照 EGGS（PC蛋蛋）接彩池的做法。
+
+**不是新發明一套彩池，是接上專案既有的泛用爆池骨架**（`shared/config/jackpot.ts`），
+完整參考案例見 `openspec/reference/eggs-jackpot-plan.md`（PC蛋蛋接彩池的完整記錄：
+決策過程、檔案改動清單、驗證清單）。kl8 接彩池的做法與 eggs 幾乎是同一套
+（同為單一盤口、單一結算入口，不需要 `k3Shared.ts` 那種「等多盤口交件才結算」的編排），
+只是彩種判定與觸發條件要重新分析。
+
+### 6.1 既有架構（直接複用，勿重造）
+
+| 層 | 檔案 | 職責 |
+|---|---|---|
+| 泛用核心 | `shared/config/jackpot.ts` | `JackpotSettings` / `JackpotRow` / `JackpotHitRecord` 型別 + `buildJackpotShares()` 純函式 |
+| 彩種判定 | `shared/config/kl8-cd.ts` | 新增 `KL8_JACKPOT_SETTINGS`／`kl8JackpotHit()`／`kl8JackpotLabel()`（比照 `eggs-cd.ts` 的 `EGGS_...`） |
+| 看板設定 | `shared/config/kl8cd/plays.js` + `helpers.ts` | 注項宣告 `weight`（group 層預設＋item 層覆寫）；`helpers.ts` 補 `kl8JackpotWeightOf()` |
+
+金流兩條獨立的線（比照 `eggs.ts`）：
+
+```
+下注  playBets()          → issueJackpotMap[issue] += amount * rakeRatio
+開獎  settleIssuePrize()  → pool = issueJackpotMap[issue] + carryJackpot
+                          → triggered ? 發 pool * payoutRatio : 全部滾存
+                          → carryJackpot = jackpot.remain；issueJackpotMap[issue] = 0
+```
+
+### 6.2 需要拍板的決策（不可自行假設，動工前先確認）
+
+1. **爆池觸發條件**：既有彩種的判準是「看板上真的押得到、機率與 6hc-cd 特別號開 49（≈2%）同量級」。
+   kl8 目前只有任選／兩面兩種玩法，**沒有** eggs／k3／ssc 那種現成的「豹子」圖案概念，
+   也沒有 kl10 的龍虎鬥／正和可用，需要重新從機率窮舉候選
+   （例如任選「七中七」——20 個開獎號中選 7 個全中，母數與機率都跟 kl10 的「任五中五」不同，
+   需另外精算；或兩面裡的極端組合），
+   不可比照 eggs 決策直接套用「豹子」，也不可比照 kl10／11x5 決策套用「全5中1」或「任五中五」。
+2. **weight 分級**：沿用 6hc 的理論賠率分級法（`1/命中機率` ≥20→3、2.5~20→2、<2.5→1），
+   逐項對照 kl8-CD 各注項理論賠率標核對；兩面（和值/上下盤/奇偶盤/五行）的機率須先查證判定規則
+   （見上方 Step 1 對 `liangmian/play_script.js` 的註記）才能精算，不可憑空假設。
+
+### 6.3 關聯機制（需求核心，務必落實）
+
+- 設定檔宣告 weight（group 層預設 + item 層覆寫）
+- 注單需存 `playKey` + `tabId` + `betCode` + `odds`（既有 `orders.ts` 已支援，不需改）
+- 結算時用 `(playKey, tabId, betCode)` 反查 weight，解析順序 `item.weight → group.weight → 0`
+  ⚠️ **明確 `weight: 0`（排除在彩池外）與「完全沒設定」（退回 `weightFallback`）是兩件不同的事**，
+  必須用 `== null` 判斷，不可用 falsy 判斷（此語意在 `shared/config/jackpot.ts` 也要守一次）

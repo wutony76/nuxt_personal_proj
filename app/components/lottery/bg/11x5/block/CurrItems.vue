@@ -3,18 +3,68 @@ import { computed } from 'vue'
 import { useX5, type X5SelectItem } from '~/composables/useX5'
 
 /**
- * 當前注項：列已選注項（金額可逐項改）
+ * 當前注項
+ *   信用盤 → 列已選注項（金額可逐項改）
+ *   官方盤的單選／單式分頁 → 同上（注碼各自有金額）
+ *   官方盤的展開型分頁 → 列展開後的每一注，共用同一個投注金額
  *
- * ⚠️ 階段 1 只有信用盤。階段 2 接上官方盤後，比照 ssc 的 CurrItems.vue
- *    補回 ogRows（單選分頁逐項／複式分頁列展開後的每一注，上限 50 列）
- *    與 ogCoinHandlers，並在 template 用 isCd 分流。
+ * ⚠️ 官方盤的彩池分頁（後三直選）沒有固定賠率，賠率欄改標「彩池」。
+ * ⚠️ 展開型分頁可能上千注（上限 2000），這裡只列前 50 列，否則 DOM 會爆掉；
+ *    總注數與總額仍以 ofSelectedCount / ofTotalAmount 為準。
  */
 const {
-  select: mxSelect, selectedCount,
-  currentQuota: mxQuota, actions: mxActions
+  state: mxState, select: mxSelect, selectedCount, isCd,
+  currentQuota: mxQuota, actions: mxActions,
+  of: mxOf, ofCombo, ofIsSingle, ofIsPool, ofExpandedCodes, ofComboHint, ofSelectedCount, ofQuota
 } = useX5()
 /** 右上角的注數標籤 */
-const currCountLabel = computed(() => `${selectedCount.value} 注`)
+const currCountLabel = computed(() => `${isCd.value ? selectedCount.value : ofSelectedCount.value} 注`)
+
+/** 官方盤是不是「展開型」分頁（金額共用一個值） */
+const ofIsExpand = computed(() => Boolean(ofCombo.value) && !ofIsSingle.value)
+
+const OF_ROW_LIMIT = 50
+/** 官方盤的注項列 */
+const ofRows = computed(() => {
+  if (ofIsExpand.value) {
+    const coin = Number(mxState.amount) || 0
+    return ofExpandedCodes.value.slice(0, OF_ROW_LIMIT).map((code) => ({
+      key: code, label: code, odds: mxActions.ofOddsOf(code), coin, shared: true
+    }))
+  }
+  return mxOf.items
+    .filter((item) => Number(item.coin) > 0)
+    .slice(0, OF_ROW_LIMIT)
+    .map((item) => ({ key: item.code, label: item.code, odds: item.odds, coin: item.coin, shared: false }))
+})
+const ofHiddenCount = computed(() => Math.max(0, ofSelectedCount.value - ofRows.value.length))
+
+const ofCoinHandlers = {
+  /**
+   * 官方盤的金額輸入
+   * 單選／單式 —— 每一注各自有金額，逐項改。
+   * 展開型     —— 每一注都用同一個「投注金額」，所以改任一列等於改 state.amount。
+   */
+  input: (row: { label: string; shared: boolean }, event: Event) => {
+    const target = event.target as HTMLInputElement
+    const coin = Math.min(ofQuota.value.item.max, Math.max(0, Math.trunc(Number(target.value) || 0)))
+    if (row.shared) mxState.amount = coin
+    else mxActions.setOfItemCoin(row.label, coin)
+    target.value = coin > 0 ? String(coin) : ''
+  },
+  /** 離開欄位夾回 [min, max]，不讓它留在 0（0 會被伺端拒單） */
+  blur: (row: { label: string; shared: boolean }, event: Event) => {
+    const target = event.target as HTMLInputElement
+    const quota = ofQuota.value.item
+    const raw = row.shared
+      ? Number(mxState.amount)
+      : Number(mxOf.items.find((item) => item.code === row.label)?.coin ?? 0)
+    const coin = Math.min(quota.max, Math.max(quota.min, Math.trunc(raw || 0)))
+    if (row.shared) mxState.amount = coin
+    else mxActions.setOfItemCoin(row.label, coin)
+    target.value = String(coin)
+  }
+}
 
 const click = {
   /**
@@ -62,23 +112,47 @@ const click = {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in mxSelect.items" :key="String(item.playId)">
-            <td class="c-code">{{ mxActions.labelOf(item.name) }}</td>
-            <td class="c-odds">{{ item.odds }}</td>
-            <td class="c-coin">
-              <input type="number" min="0" :max="mxQuota.item.max" class="coin-input" :value="item.coin || ''"
-                placeholder="0" @input="click.coinInput(item, $event)" @blur="click.coinBlur(item, $event)" />
-            </td>
-          </tr>
-          <tr v-if="mxSelect.items.length === 0">
-            <td colspan="3" class="c-empty">尚未選擇注項</td>
-          </tr>
+          <!-- 信用盤 -->
+          <template v-if="isCd">
+            <tr v-for="item in mxSelect.items" :key="String(item.playId)">
+              <td class="c-code">{{ mxActions.labelOf(item.name) }}</td>
+              <td class="c-odds">{{ item.odds }}</td>
+              <td class="c-coin">
+                <input type="number" min="0" :max="mxQuota.item.max" class="coin-input" :value="item.coin || ''"
+                  placeholder="0" @input="click.coinInput(item, $event)" @blur="click.coinBlur(item, $event)" />
+              </td>
+            </tr>
+            <tr v-if="mxSelect.items.length === 0">
+              <td colspan="3" class="c-empty">尚未選擇注項</td>
+            </tr>
+          </template>
+          <!-- 官方盤（單選／單式與展開型共用同一組列，差別只在金額是否共用） -->
+          <template v-else>
+            <tr v-for="row in ofRows" :key="row.key">
+              <td class="c-code">{{ row.label }}</td>
+              <td class="c-odds">{{ row.odds || (ofIsPool ? '彩池' : '—') }}</td>
+              <td class="c-coin">
+                <input type="number" min="0" :max="ofQuota.item.max" class="coin-input" :value="row.coin || ''"
+                  placeholder="0" @input="ofCoinHandlers.input(row, $event)"
+                  @blur="ofCoinHandlers.blur(row, $event)" />
+              </td>
+            </tr>
+            <!-- 展開太多時只列前 50 注，剩下的用一列說明（總額仍是全部注數算的） -->
+            <tr v-if="ofHiddenCount > 0">
+              <td colspan="3" class="c-empty">…另有 {{ ofHiddenCount }} 注（金額相同）</td>
+            </tr>
+            <tr v-if="ofRows.length === 0">
+              <td colspan="3" class="c-empty">{{ ofComboHint || '尚未選擇注碼' }}</td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
 
-    <button v-if="mxSelect.items.length > 0" type="button" class="clear-btn"
+    <button v-if="isCd && mxSelect.items.length > 0" type="button" class="clear-btn"
       @click="mxActions.clearSelect()">清空</button>
+    <button v-else-if="!isCd && ofSelectedCount > 0" type="button" class="clear-btn"
+      @click="mxActions.clearOf()">清空</button>
   </section>
 </template>
 

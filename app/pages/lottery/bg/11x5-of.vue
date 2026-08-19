@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
 import X5Header from '~/components/lottery/bg/11x5/block/Header.vue'
-import X5Board from '~/components/lottery/bg/11x5/cd/base/Board.vue'
+import X5Board from '~/components/lottery/bg/11x5/of/base/Board.vue'
 import CurrItems from '~/components/lottery/bg/11x5/block/CurrItems.vue'
 import Controls from '~/components/lottery/bg/11x5/block/Controls.vue'
 import Report from '~/components/lottery/bg/11x5/block/Report.vue'
@@ -15,22 +15,24 @@ import { useAuth } from '~/composables/useAuth'
 import { useBgAutoActive } from '~/composables/useBgAutoActive'
 
 /**
- * 11選5 信用玩法（X5-CD）
+ * 11選5 官方玩法（X5-OF）
  *
- * 版面與 ssc-cd／pk10-cd／k3-cd 同一套（頁首／使用者卡＋開獎歷史＋路珠／投注區／注單）。
- * 注項一律讀 shared/config/x5cd 的設定檔，玩法列、分頁列、群組、注項、限額都由 config 決定 ——
- * 這一頁不寫死任何玩法。賠率由 helpers 依該分頁 rtp 即時推算，畫面顯示與伺端鎖進注單的值一致。
- * 期別／倒數／開獎號／彩池由伺端共用層持有（server/services/game/lottery/bg/x5Shared.ts），
- * 官方盤（11x5-of）讀同一份。
+ * 版面與 11x5-cd 同一套，只有投注區換成官方盤看板（of/base/Board.vue）。
+ * 注碼一律讀 shared/config/x5of 的設定檔：8 個玩法、54 個分頁、四種選號型態
+ * （單選／單式／複式展開／膽拖）全部由 config 決定，這一頁不寫死任何玩法。
+ * 期別／倒數／開獎號／彩池與信用盤共用（server/services/game/lottery/bg/x5Shared.ts）。
  *
+ * ⚠️ 「後三直選」的兩個分頁吃共用彩池、依命中位數分層派彩，其餘 52 個分頁是固定賠率 ——
+ *    看板會自己依 combo.pool 切換顯示，這一頁不需要分流。
  */
 const {
-  state: mxState,
+  of: mxOf,
   wallet: mxWallet,
-  playList,
-  groupList,
-  selectedCount,
-  totalAmount,
+  ofPlayList,
+  ofTabList,
+  ofSelectedCount,
+  ofTotalAmount,
+  ofAutoMaxCount,
   actions: mxActions,
   fetch: mxFetch
 } = useX5()
@@ -44,15 +46,16 @@ const state = reactive({ randomCount: 5 })
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 const currentPlayName = computed(() =>
-  playList.value.find((play) => play.key === mxState.select)?.name ?? ''
+  ofPlayList.value.find((play) => play.key === mxOf.play)?.name ?? ''
 )
 
 const click = {
-  play: (playKey: string) => mxActions.setPlay(playKey),
-  tab: (tabId: number) => mxActions.setTab(tabId),
+  play: (playKey: string) => mxActions.setOfPlay(playKey),
+  tab: (tabId: number) => mxActions.setOfTab(tabId),
+  /** 機選：count 是「目標注數」；展開型分頁不見得剛好等於這個數（注數是乘積／組合數） */
   random: () => {
-    const applied = mxActions.randomSelect(state.randomCount)
-    if (applied === 0) $dialog.alert('目前分頁沒有可選注項')
+    const applied = mxActions.randomOfSelect(state.randomCount)
+    if (applied === 0) $dialog.alert('此分頁無法自動選號，請確認注數上限')
   }
 }
 
@@ -76,8 +79,8 @@ onMounted(async () => {
     router.replace('/login')
     return
   }
-  mxActions.setMode('cd')
-  activateAutoPanel('x5-cd')
+  mxActions.setMode('of')
+  activateAutoPanel('x5-of')
   await mxFetch.initPageData()
   await mxFetch.userRecordAll()
   mxFetch.startPolling()
@@ -89,7 +92,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="base lottery-x5 is-cd">
+  <div class="base lottery-x5 is-of">
     <!-- 背景光點（同 pk10-cd / k3-cd） -->
     <div class="bg-fx">
       <span v-for="i in 8" :key="i" class="orb" :style="`--i: ${i}`" />
@@ -127,27 +130,28 @@ onBeforeUnmount(() => {
       <section class="play-warp">
         <!-- 玩法（左）／隨機選號＋切換盤口（右）同一列 -->
         <div class="play-tabs">
-          <button v-for="play in playList" :key="play.key" type="button" class="play-tab"
-            :class="{ active: mxState.select === play.key }" @click="click.play(String(play.key))">
+          <button v-for="play in ofPlayList" :key="play.key" type="button" class="play-tab"
+            :class="{ active: mxOf.play === play.key }" @click="click.play(String(play.key))">
             {{ play.name }}
           </button>
 
           <div class="auto-select">
             <span>隨機選號</span>
-            <input type="number" min="1" class="count-input" v-model.number="state.randomCount" />
+            <input type="number" min="1" :max="ofAutoMaxCount || 1" class="count-input"
+              v-model.number="state.randomCount" />
             <span>注</span>
             <button type="button" class="act-btn" @click="click.random()">機選</button>
-            <button type="button" class="act-btn is-clear" @click="mxActions.clearSelect()">清空</button>
+            <button type="button" class="act-btn is-clear" @click="mxActions.clearOf()">清空</button>
           </div>
 
-          <NuxtLink to="/lottery/bg/11x5-of" class="mode-link">切換官方玩法 →</NuxtLink>
+          <NuxtLink to="/lottery/bg/11x5-cd" class="mode-link">切換信用玩法 →</NuxtLink>
         </div>
 
         <!-- 分頁列：只有一個分頁時整列不渲染（否則留 10px 空白） -->
-        <div v-if="groupList.length > 1" class="tabs-warp">
+        <div v-if="ofTabList.length > 1" class="tabs-warp">
           <div class="bar-tabs">
-            <button v-for="tab in groupList" :key="tab.tabId" type="button" class="bar-tabs-btn"
-              :class="{ active: Number(mxState.selectTabId) === Number(tab.tabId) }"
+            <button v-for="tab in ofTabList" :key="tab.tabId" type="button" class="bar-tabs-btn"
+              :class="{ active: Number(mxOf.tabId) === Number(tab.tabId) }"
               @click="click.tab(Number(tab.tabId))">
               {{ tab.tabName }}
             </button>
@@ -158,8 +162,8 @@ onBeforeUnmount(() => {
         <div class="selector-warp">
           <div class="selector">
             <div class="head">
-              <span>[ {{ currentPlayName }} · {{ mxState.selectTabName }} ] 請選擇注項</span>
-              <span>已選 {{ selectedCount }} 注 · 共 {{ money(totalAmount) }}</span>
+              <span>[ {{ currentPlayName }} · {{ mxOf.tabName }} ] 請選擇注碼</span>
+              <span>已選 {{ ofSelectedCount }} 注 · 共 {{ money(ofTotalAmount) }}</span>
             </div>
             <div class="body">
               <X5Board />
@@ -188,10 +192,10 @@ onBeforeUnmount(() => {
 
 <style lang="scss">
 /* ── 版面骨架：與 pk10-cd 同一套（容器寬度、卡片邊框陰影、進場動畫）───────── */
-/* ⚠️ 本頁 <style> 沒有 scoped，選擇器多帶一個 .is-cd 用來隔開另一個盤口 ——
-   11x5-cd 與（階段 2 的）11x5-of 會共用 .lottery-x5 根 class，NuxtLink 會預抓對面那頁的 CSS 並注入，
+/* ⚠️ 本頁 <style> 沒有 scoped，選擇器多帶一個 .is-of 用來隔開另一個盤口 ——
+   11x5-cd 與 11x5-of 共用 .lottery-x5 根 class，NuxtLink 會預抓對面那頁的 CSS 並注入，
    兩頁同名規則（例如 .mode-link）就會互相覆蓋。 */
-.lottery-x5.is-cd {
+.lottery-x5.is-of {
   min-height: 100vh;
   display: flex;
   flex-direction: column;

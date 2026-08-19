@@ -319,8 +319,14 @@ export type X5UserBetHistory = {
   /** 11選5 沒有真正的和局，tie 只在注碼無法辨識時出現（退還本金） */
   winStatus: 'pending' | 'win' | 'lose' | 'tie'
   winAmount: number
-  /** 該注鎖定的賠率（信用盤全是固定賠率） */
+  /** 該注鎖定的賠率；官方盤的彩池分頁（後三直選）為 0，那邊走分層 */
   odds?: number
+  /**
+   * 官方盤才有：中獎狀態文案
+   *   彩池分頁 → 分層名稱（頭獎／二獎／三獎）
+   *   賠率分頁 → 中獎／和局
+   */
+  tierName?: string
   /** 該注所屬分頁 */
   tabId?: number
   /** 爆池加碼（開出「五球全單或全雙」那期才有值） */
@@ -569,6 +575,8 @@ export const api = {
           return $fetch<SscCurrent>('/api/lottery/ssc-of/current')
         case LOTTERY['X5-CD'].id:
           return $fetch<X5Current>('/api/lottery/x5-cd/current')
+        case LOTTERY['X5-OF'].id:
+          return $fetch<X5Current>('/api/lottery/x5-of/current')
         case LOTTERY.EGGS.id:
           return $fetch<EggsCurrent>('/api/lottery/eggs/current')
         default:
@@ -634,14 +642,20 @@ export const api = {
     /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
     jackpotSscCd: () => $fetch<CreditJackpotState>('/api/lottery/ssc-cd/jackpot'),
     jackpotSscOf: () => $fetch<CreditJackpotState>('/api/lottery/ssc-of/jackpot'),
-    // ── 11選5（X5-CD / X5-OF 共用開獎號與彩池；階段 1 只有信用盤，OF 那幾支階段 2 再補）──
+    // ── 11選5（X5-CD / X5-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
     currentX5Cd: () => $fetch<X5Current>('/api/lottery/x5-cd/current'),
+    currentX5Of: () => $fetch<X5Current>('/api/lottery/x5-of/current'),
     openCodeHistoryX5Cd: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/x5-cd/opencode-history'),
+    openCodeHistoryX5Of: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/x5-of/opencode-history'),
     userRecordX5Cd: () => $fetch<X5UserRecordResponse>('/api/lottery/x5-cd/user-record'),
+    userRecordX5Of: () => $fetch<X5UserRecordResponse>('/api/lottery/x5-of/user-record'),
     claimOneIssueX5Cd: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/x5-cd/claim', { method: 'POST' }),
-    /** 爆池（與 current 回的 pool 是兩個不同的池；兩個盤口共吃這一池） */
+    claimOneIssueX5Of: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/x5-of/claim', { method: 'POST' }),
+    /** 爆池（與 current 回的 pool 是兩個不同的池；兩個盤口共吃這一池，兩支路由回同一份） */
     jackpotX5Cd: () => $fetch<CreditJackpotState>('/api/lottery/x5-cd/jackpot'),
+    jackpotX5Of: () => $fetch<CreditJackpotState>('/api/lottery/x5-of/jackpot'),
     // ── PC蛋蛋（只有信用盤，來源本身無官方盤）──
     currentEggs: () => $fetch<EggsCurrent>('/api/lottery/eggs/current'),
     openCodeHistoryEggs: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/eggs/opencode-history'),

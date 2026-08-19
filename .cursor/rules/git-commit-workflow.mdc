@@ -1,0 +1,14 @@
+---
+description: Git commit workflow preference - never auto-commit, only provide info
+alwaysApply: true
+---
+
+# Git Commit 工作流程
+
+當使用者要求「git add . 給我最新的 git commit」或類似措辭（例如「幫我 commit」「git commit 一下」）時：
+
+- **禁止**實際執行 `git commit`（也不要執行 `git add`、`git push` 等會改變 git 狀態的指令）
+- 只需提供資訊：條列已變更/新增的檔案、整理好的 commit message 草稿（遵循 repo 既有 commit 訊息風格）
+- 使用者會自己手動執行 commit，不需要我代為執行
+
+只有當使用者明確說「幫我建立 commit」「你直接 commit」等**明確授權實際執行**的措辭時，才依照一般流程（git status/diff/log → git add → git commit）實際執行。

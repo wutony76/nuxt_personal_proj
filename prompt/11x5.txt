@@ -8,7 +8,7 @@
 本專案一律用 `X5` 代稱 11 選 5：
 - 常數／型別／函式：`X5_xxx`、`X5CD_xxx`、`X5OF_xxx`
 - composable：`useX5`
-- 檔名：`x5.ts`、`x5-cd.ts`、`x5og.ts`（比照 `ssc.ts` / `ssc-cd.ts` / `sscog.ts`）
+- 檔名：`x5.ts`、`x5-cd.ts`、`x5of.ts`（比照 `ssc.ts` / `ssc-cd.ts` / `sscof.ts`）
 
 檔名／路由（頁面、資料夾）仍可用 `11x5` 原名（同 `6hc-cd.vue` 開頭帶數字沒問題），
 只有「JS/TS 識別字」才需要換成 `X5`。
@@ -77,7 +77,7 @@ UI layout 佈局：
 ## 3. Step 1 - Config Conversion
 
 讀取 bglottery 的 11x5 玩法設定。
-將其轉換成本專案既有 conf 格式（參考 SSC 的 `shared/config/ssc-cd.ts` / `sscog.ts` / `ssccd/plays.js` / `sscog/plays.js` 分層方式）。
+將其轉換成本專案既有 conf 格式（參考 SSC 的 `shared/config/ssc-cd.ts` / `sscof.ts` / `ssccd/plays.js` / `sscof/plays.js` 分層方式）。
 
 如果來源設定缺少資訊：
 

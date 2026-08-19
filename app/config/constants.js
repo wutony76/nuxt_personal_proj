@@ -32,12 +32,9 @@ export const LOTTERY = {
   // id 編碼比照前面各玩法（玩法 id ×100 + 盤口序號）。
   // ⚠️ 代號用 X5 而不是 11X5 —— 「11x5」開頭是數字，不能當 JS/TS 識別字
   //    （同六合彩用 LHC 代稱的做法）；路由與資料夾名仍是 11x5-cd / 11x5-of。
-  // ⚠️ 階段 1 只登記 X5-CD —— 官方盤（X5-OF，預定 id 600101 / sort 601）等服務與頁面
-  //    實作完才登記。這個鍵一旦存在，/api/lottery/userInfo?lottery=X5-OF 就會去拿
-  //    Storage.games['X5-OF']（不存在 → 500），登記在服務之前只會多一條壞路徑。
-  //    大廳也因此用 GAME_MODES 覆寫成只出信用盤那張卡（見 lottery-hall.vue）。
   'X5':{ id: 6001, key: 'X5', name: '11選5', sort: 6 },
   'X5-CD':{ id: 600100, key: 'X5-CD', name: '11選5', sub:'CD', sort: 600 },
+  'X5-OF':{ id: 600101, key: 'X5-OF', name: '11選5', sub:'OF', sort: 601 },
 
   // PC蛋蛋：來源（bglottery pceggs）只有信用模式、沒有官方盤，
   // 因此只登記單一鍵值（無 sub 欄位），這個鍵同時是大廳分組項與伺端 Storage.games 的實際 key，

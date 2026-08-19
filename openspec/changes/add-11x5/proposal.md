@@ -10,7 +10,7 @@
 > 本 change 一律以 `X5` 代稱：常數 `X5_xxx`／`X5CD_xxx`、composable `useX5`、檔名 `x5.ts`／`x5-cd.ts`／`x5-of.ts`。
 > 路由與資料夾名維持 `11x5`（同 `6hc-cd.vue` 開頭帶數字沒問題）。
 
-### 階段 1（本次交付）：信用盤 + 彩池
+### 階段 1（已交付）：信用盤 + 爆池
 
 - 新增 `shared/config/x5.ts`（機率核心：1~11 取 5 不重複、C(11,5)=462 種組合全窮舉）
 - 新增 `shared/config/x5-cd.ts`（信用盤判定＋賠率推導＋`X5_JACKPOT_SETTINGS`／`x5JackpotHit()`／`x5JackpotLabel()`）
@@ -22,11 +22,19 @@
 - 新增 `app/pages/lottery/bg/11x5-cd.vue`
 - `app/config/constants.js` 新增 `LOTTERY['X5']`／`LOTTERY['X5-CD']`（⚠️ `X5-OF` 留到階段 2 再登記 —— 鍵一存在，`/api/lottery/userInfo?lottery=X5-OF` 就會去拿不存在的服務而 500）；`server/services/storage.ts` 註冊實例；`lottery-hall.vue`／`BgAutoPanel.vue`／`useBgAutoActive.ts` 掛上入口
 
-### 階段 2（後續交付）：官方盤
+### 階段 2（已交付）：官方盤
 
-- 新增 `shared/config/x5-of.ts`、`shared/config/x5of/{plays.js,helpers.ts}`、`server/services/game/lottery/bg/x5Of.ts`、
-  `server/api/lottery/x5-of/**`、`of/base/Board.vue`、`of/block/footer/Auto.vue`、`app/pages/lottery/bg/11x5-of.vue`
-- 官方盤含專案**首次出現的「膽拖」下注模式**（`DT2`~`DT8`），需獨立設計選號與注數展開邏輯
+- 新增 `shared/config/x5-of.ts`（8 個玩法的判定與賠率、膽拖／複式／單式展開、後三直選的彩池分層）
+- 新增 `shared/config/x5of/{plays.js,helpers.ts}`（54 個分頁，tabId 沿用來源 playId）
+- 新增 `server/services/game/lottery/bg/x5Of.ts`（**雙結算路徑**：52 個分頁固定賠率、後三直選 2 個分頁彩池分層）
+  與 `server/api/lottery/x5-of/**`（5 支）
+- 新增 `of/base/Board.vue`（四種選號 UI）、`of/block/footer/Auto.vue`、`app/pages/lottery/bg/11x5-of.vue`
+- `useX5.ts` 補上官方盤分支（`of` 選號狀態、`setMode`、`betsOf` / `autoBetsOf`）；
+  `Controls`／`CurrItems`／`Report`／`DialogUser`／`DialogRule` 補回盤口分流
+- ⚠️ 膽拖**不是**專案首次出現 —— `app/components/lottery/bg/6hc/of/block/Selector.vue` 已有一套
+  （`danSelected` / `tuoSelected` + 膽拖分頁 + 同號互斥），本次沿用同一個互動模式，
+  只是把它接進 config 驅動的看板；注數展開規則照來源 `algorithm.js:251-267` 的 `C(拖, N−膽)`。
+- ⚠️ 單式玩法**改成由設定列出全部注碼讓玩家點選**（使用者拍板），不做來源那種文字輸入框。
 
 ## 玩法規則（全部有來源依據，推導過程見 `design.md`）
 
@@ -44,16 +52,16 @@
 
 ### New Capabilities
 - `x5-credit`（階段 1）：11選5 信用盤需提供 1-5球／兩面／龍虎鬥／全5中1 共 4 分頁 112 注項的下注、結算、領獎與爆池分配能力
-- `x5-official`（階段 2）：11選5 官方盤需提供前中後二·三直選／組選／組選膽拖、定位膽、不定位、任選 N 中 M（含單式與膽拖）、趣味玩法（猜中位／定單雙）的下注與結算能力
+- `x5-official`（階段 2）：11選5 官方盤需提供前中後二·三直選／組選／組選膽拖、定位膽、不定位、任選 N 中 M（含單式與膽拖）、趣味玩法（猜中位／定單雙）的下注與結算能力，其中「後三直選」吃共用彩池並依命中位數分層派彩
 
 ### Modified Capabilities
 - （無 —— 不改動既有 6hc／k3／pk10／ssc／eggs 的判定邏輯）
 
 ## Impact
 
-- Config：新增 `shared/config/x5.ts`、`x5-cd.ts`、`x5cd/{plays.js,helpers.ts}`（階段 2 再加 `x5-of.ts`、`x5of/`）
-- 後端：新增 `server/services/game/lottery/bg/{x5Shared,x5Cd}.ts`、`server/api/lottery/x5-cd/**`；修改 `server/services/storage.ts`
-- 前端：新增 `app/composables/useX5.ts`、`app/components/lottery/bg/11x5/**`、`app/pages/lottery/bg/11x5-cd.vue`
+- Config：新增 `shared/config/x5.ts`、`x5-cd.ts`、`x5cd/{plays.js,helpers.ts}`、`x5-of.ts`、`x5of/{plays.js,helpers.ts}`
+- 後端：新增 `server/services/game/lottery/bg/{x5Shared,x5Cd,x5Of}.ts`、`server/api/lottery/x5-{cd,of}/**`；修改 `server/services/storage.ts`
+- 前端：新增 `app/composables/useX5.ts`、`app/components/lottery/bg/11x5/**`、`app/pages/lottery/bg/11x5-{cd,of}.vue`
 - 共用設定：修改 `app/config/constants.js`、`app/services/api.ts`、`app/pages/lottery-hall.vue`、
   `app/components/lottery/bg/BgAutoPanel.vue`、`app/composables/useBgAutoActive.ts`、SCSS manifest
 - 影響範圍：既有檔案皆為**追加式**修改，不動既有彩種邏輯

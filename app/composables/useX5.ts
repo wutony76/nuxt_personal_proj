@@ -25,6 +25,25 @@ import {
 } from '#shared/config/x5'
 import C_PLAYS from '#shared/config/x5cd/plays'
 import { findX5Tab, x5QuotaOf, x5TabOddsOf } from '#shared/config/x5cd/helpers'
+import C_OF_PLAYS from '#shared/config/x5of/plays'
+import {
+  judgeX5OfBet,
+  X5_OF_MAX_COMBO,
+  X5_OF_PLAY_DEFINITIONS,
+  X5_OF_PRIZE_TIERS
+} from '#shared/config/x5-of'
+import {
+  findX5OfTab,
+  x5OfComboCodes,
+  x5OfComboGroups,
+  x5OfComboOf,
+  x5OfIsPoolTab,
+  x5OfIsSingleTab,
+  x5OfItemGroups,
+  x5OfQuotaOf,
+  x5OfSingleCodes,
+  x5OfTabOddsOf
+} from '#shared/config/x5of/helpers'
 
 /**
  * 11選5 前端狀態（X5-CD 信用盤／X5-OF 官方盤共用一支）
@@ -34,16 +53,18 @@ import { findX5Tab, x5QuotaOf, x5TabOddsOf } from '#shared/config/x5cd/helpers'
  *   （server/services/game/lottery/bg/x5Shared.ts），前端沒有理由拆成兩份互相打架。
  *   差異只有「注項怎麼選」。
  *
- * ── 階段 1 的範圍 ───────────────────────────────────────
- *   ⚠️ 目前**只有信用盤**（讀 shared/config/x5cd 的 4 分頁 112 注項）。
- *      `state.mode` / `isCd` / `lotteryMeta` 已經按盤口分流，共用元件靠它切文案；
- *      階段 2 要補的是三處，比照 useSsc.ts 的對應段落：
- *        1. `og` 選號狀態 + ogXxx computed（讀 shared/config/x5of）
- *        2. `_actions.setMode()`（切盤口要清掉選取與上一盤的紀錄）
- *        3. fetch 層的 of 分支（currentX5Of / userRecordX5Of / claimOneIssueX5Of / betsOf）
- *      在官方盤設定還不存在時先寫這些等於憑空假設注項形狀，故不預埋。
+ *   差異只有「注項怎麼選」：
+ *     mode = 'cd' → 讀 shared/config/x5cd（4 分頁 112 注項）
+ *     mode = 'of' → 讀 shared/config/x5of（8 玩法 54 分頁）
  *
- * ⚠️ state 是 module 級單例（與 useSsc / useK3 相同做法）。
+ * ── 官方盤的三種選號型態 ────────────────────────────────
+ *   單選分頁（combo = null：定位膽／不定位／趣味玩法）→ of.items（注碼 → 各自金額）
+ *   單式分頁（combo.mode = 'single'）→ 同樣走 of.items，注碼由 x5OfSingleCodes() 列出來讓玩家選
+ *   展開型分頁（direct / group / any / dantuo）→ of.picks，送單前才用 x5OfComboCodes() 展開
+ *   ⚠️ dantuo 的 picks[0] = 膽碼、picks[1] = 拖碼，且兩邊不可同號（選一邊會清掉另一邊）
+ *
+ * ⚠️ state 是 module 級單例（與 useSsc / useK3 相同做法），
+ *    切換盤口時務必呼叫 actions.setMode() 重置選取，否則會把 CD 的注項帶進 OF。
  */
 
 export type X5Mode = 'cd' | 'of'
@@ -60,6 +81,7 @@ export type X5SelectItem = {
 type ConfigPlay = { key?: string; name?: string; list?: any[] }
 
 const cdPlays = C_PLAYS as ConfigPlay[]
+const ofPlays = C_OF_PLAYS as ConfigPlay[]
 
 /** 兩面分頁可選的四個面（順序即看板顯示順序） */
 const SIDE_OPTIONS = ['大', '小', '單', '雙'] as const
@@ -111,6 +133,23 @@ const select = reactive({
   pool: [] as X5SelectItem[],
   show: true,
   resetToken: 0
+})
+
+/**
+ * 官方盤（x5of）的選號狀態
+ *
+ * 兩種形狀：
+ *   items —— 單選分頁與單式分頁：注碼 → 各自金額
+ *   picks —— 展開型分頁：picks[格] = 該格選的號碼；dantuo 的 0 = 膽碼、1 = 拖碼
+ */
+const of = reactive({
+  play: String(ofPlays[0]?.key ?? ''),
+  tabId: Number(ofPlays[0]?.list?.[0]?.tabId ?? 0),
+  tabName: String(ofPlays[0]?.list?.[0]?.tabName ?? ''),
+  items: [] as Array<{ code: string; odds: number; coin: number }>,
+  picks: [] as Array<Array<number>>,
+  /** 單式分頁的注碼很多（最多 990），畫面分頁顯示 */
+  singlePage: 0
 })
 
 const wallet = reactive({ userName: '-', userId: '-', coin: 0, currentBets: 0, totalBets: 0 })
@@ -167,6 +206,143 @@ const canSubmit = computed(() =>
   isOpen.value && state.submitStatus !== 'loading' && totalAmount.value > 0
 )
 
+// ── Computed：官方盤 ───────────────────────────────────────────────────────
+/** 玩法清單（8 個：三碼／二碼／不定位／定位膽／任選複式／任選單式／任選膽拖／趣味玩法） */
+const ofPlayList = computed(() => ofPlays.map((play) => ({
+  key: String(play.key ?? ''),
+  name: String(play.name ?? '')
+})))
+/** 當前玩法的分頁清單 */
+const ofTabList = computed(() => ofPlays.find((play) => play.key === of.play)?.list ?? [])
+/** 當前分頁的選號規則；單選分頁回 null */
+const ofCombo = computed(() => x5OfComboOf(of.play, of.tabId))
+/** 當前分頁是不是單式（注碼列出來直接選） */
+const ofIsSingle = computed(() => x5OfIsSingleTab(of.play, of.tabId))
+/** 當前分頁是不是走彩池分層（後三直選） */
+const ofIsPool = computed(() => x5OfIsPoolTab(of.play, of.tabId))
+/** 彩池分頁的獎金分層（畫面顯示用） */
+const ofPrizeTiers = computed(() => X5_OF_PRIZE_TIERS)
+/** 單選分頁的注項（定位膽／不定位／趣味玩法） */
+const ofItemGroups = computed(() => x5OfItemGroups(of.play, of.tabId))
+/** 展開型分頁每格可選的號碼 */
+const ofComboGroups = computed(() => x5OfComboGroups(of.play, of.tabId))
+/** 單式分頁的全部注碼（依 conf 列舉） */
+const ofSingleAllCodes = computed(() => (ofIsSingle.value ? x5OfSingleCodes(of.play, of.tabId) : []))
+/** 單式分頁一頁顯示幾注（990 個按鈕一次畫出來會拖慢畫面） */
+const OF_SINGLE_PAGE_SIZE = 120
+const ofSinglePageCount = computed(() =>
+  Math.max(1, Math.ceil(ofSingleAllCodes.value.length / OF_SINGLE_PAGE_SIZE))
+)
+/** 單式分頁當頁的注碼 */
+const ofSingleCodes = computed(() => {
+  const start = Math.min(of.singlePage, ofSinglePageCount.value - 1) * OF_SINGLE_PAGE_SIZE
+  return ofSingleAllCodes.value.slice(start, start + OF_SINGLE_PAGE_SIZE)
+})
+/** 當前分頁限額 */
+const ofQuota = computed(() => x5OfQuotaOf(of.play, of.tabId))
+/** 展開後的每一注（注碼字串）；單選／單式分頁回空陣列 */
+const ofExpandedCodes = computed(() => {
+  if (!ofCombo.value || ofIsSingle.value) return [] as string[]
+  return x5OfComboCodes(of.play, of.tabId, of.picks)
+})
+
+/** C(n, k) —— 算展開前的注數用 */
+function _combinations(n: number, k: number): number {
+  if (n < k || k < 0) return 0
+  let out = 1
+  for (let i = 0; i < k; i++) out = (out * (n - i)) / (i + 1)
+  return Math.round(out)
+}
+
+/**
+ * 展開前的原始注數（不管有沒有超過上限都算得出來）
+ * x5OfComboCodes() 超過 X5_OF_MAX_COMBO 會回空陣列，畫面沒辦法從空陣列分辨
+ * 「還沒選滿」與「選太多」—— 所以這裡自己算一份給提示用。
+ */
+const ofRawComboCount = computed(() => {
+  const combo = ofCombo.value
+  if (!combo || ofIsSingle.value) return 0
+  const sizes = of.picks.map((list) => new Set((Array.isArray(list) ? list : []).map(Number)).size)
+  if (combo.mode === 'direct') {
+    const positions = Number(combo.positions ?? 0)
+    if (sizes.length !== positions || sizes.some((n) => n === 0)) return 0
+    // 只是估上界（沒扣掉重複號碼的組合），夠用來判斷「是不是選太多」
+    return sizes.reduce((acc, n) => acc * n, 1)
+  }
+  const size = Number(combo.size ?? 0)
+  if (combo.mode === 'dantuo') {
+    const dan = sizes[0] ?? 0
+    const tuo = sizes[1] ?? 0
+    if (dan < 1 || dan >= size) return 0
+    return _combinations(tuo, size - dan)
+  }
+  return _combinations(sizes[0] ?? 0, size)
+})
+/** 是否因為超過上限而展不出注碼 */
+const ofComboOverflow = computed(() => ofRawComboCount.value > X5_OF_MAX_COMBO)
+/**
+ * 展開型分頁還不能送單時的提示文案
+ * ⚠️ x5OfComboCodes() 不管「沒選滿」或「超過上限」都回空陣列，
+ *    所以看板／當前注項／投注鈕不能各自猜原因 —— 一律讀這裡。
+ */
+const ofComboHint = computed(() => {
+  const combo = ofCombo.value
+  if (!combo || ofIsSingle.value) return ''
+  if (ofComboOverflow.value) return `展開後超過 ${X5_OF_MAX_COMBO} 注，請縮小選號範圍`
+  if (ofExpandedCodes.value.length > 0) return ''
+  if (combo.mode === 'direct') return `請為每一個位置都至少選一個號碼（共 ${combo.positions} 個位置）`
+  if (combo.mode === 'dantuo') {
+    return `請選 1 ~ ${Number(combo.size ?? 0) - 1} 個膽碼，並選足夠的拖碼補到 ${combo.size} 碼`
+  }
+  return `請至少選 ${combo.minPick} 個號碼`
+})
+/** 已選注數：items 型＝有金額的注項數、展開型＝展開後的注數 */
+const ofSelectedCount = computed(() => {
+  if (ofCombo.value && !ofIsSingle.value) return ofExpandedCodes.value.length
+  return of.items.filter((item) => Number(item.coin) > 0).length
+})
+/** 總投注額：展開型的每一注都用同一個金額（state.amount） */
+const ofTotalAmount = computed(() => {
+  if (ofCombo.value && !ofIsSingle.value) {
+    return Number((ofExpandedCodes.value.length * Number(state.amount || 0)).toFixed(2))
+  }
+  return Number(of.items.reduce((sum, item) => sum + Number(item.coin ?? 0), 0).toFixed(2))
+})
+const canSubmitOf = computed(() =>
+  isOpen.value && state.submitStatus !== 'loading' && ofSelectedCount.value > 0 && ofTotalAmount.value > 0
+)
+/** 自動下注可用的注碼池（單選分頁的注項／單式分頁的全部注碼）；展開型回空陣列 */
+const ofAutoCodes = computed(() => {
+  if (ofIsSingle.value) return ofSingleAllCodes.value
+  if (ofCombo.value) return [] as string[]
+  return ofItemGroups.value.flatMap((group) => group.items.map((item) => item.name)).filter(Boolean)
+})
+/**
+ * 自動下注的注數上限
+ *   items 型 → 該分頁的注碼數
+ *   展開型   → **全選**展開的注數，再夾到 X5_OF_MAX_COMBO
+ * ⚠️ 不能拿 ofExpandedCodes.length 當上限 —— 那是「使用者目前選了多少」，
+ *    自動下注還沒選號會一路算成 0。
+ */
+const ofAutoMaxCount = computed(() => {
+  const combo = ofCombo.value
+  if (!combo || ofIsSingle.value) return ofAutoCodes.value.length
+  const groups = ofComboGroups.value
+  if (groups.length === 0) return 0
+  const size = Number(combo.size ?? 0)
+  let total = 0
+  if (combo.mode === 'direct') {
+    // 每位全選 = P(11, 位數)（已扣掉重複號碼的組合）
+    total = groups.reduce((acc, _g, idx) => acc * (X5_NUMBERS.length - idx), 1)
+  } else if (combo.mode === 'dantuo') {
+    // 膽 1 拖全 = C(10, size − 1)
+    total = _combinations(X5_NUMBERS.length - 1, size - 1)
+  } else {
+    total = _combinations(X5_NUMBERS.length, size)
+  }
+  return Math.max(0, Math.min(total, X5_OF_MAX_COMBO))
+})
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 function _updateStatusRemain() {
   if (!time.statusEndAt) {
@@ -208,9 +384,64 @@ function _shuffle<T>(list: T[]): T[] {
   return items
 }
 
+/** 該分頁的展開型選號有幾格（dantuo 固定 2 格：膽／拖） */
+function _ofPickSlots(): number {
+  const combo = x5OfComboOf(of.play, of.tabId)
+  if (!combo || combo.mode === 'single') return 0
+  if (combo.mode === 'direct') return Number(combo.positions ?? 0)
+  if (combo.mode === 'dantuo') return 2
+  return 1
+}
+
+/** 把展開型的 picks 重設成「每格一個空陣列」 */
+function _resetOfPicks() {
+  of.picks = Array.from({ length: _ofPickSlots() }, () => [] as number[])
+}
+
+/** 某一格可選的號碼 */
+function _ofPickOptions(pos: number): number[] {
+  const group = x5OfComboGroups(of.play, of.tabId).find((item) => item.pos === Number(pos))
+  return group ? [...group.digits] : []
+}
+
+/**
+ * 逐步加寬每一格，直到展開注數 ≥ size
+ * ⚠️ 加太寬會超過 X5_OF_MAX_COMBO（x5OfComboCodes 會回空陣列），
+ *    所以一旦展不出來就停在上一組還展得出來的選擇 —— 寧可少於 size，也不要整筆被伺端拒單。
+ */
+function _widenOfPicks(pools: number[][], size: number): number[][] | null {
+  const combo = x5OfComboOf(of.play, of.tabId)
+  if (!combo) return null
+  const isDantuo = combo.mode === 'dantuo'
+  const target = Number(combo.size ?? 0)
+  const start = isDantuo ? 1 : Math.max(1, Number(combo.minPick ?? 1))
+  const maxTake = Math.max(...pools.map((list) => list.length), 0)
+  let best: number[][] | null = null
+  for (let take = start; take <= maxTake; take++) {
+    // 膽拖：膽碼固定 1 個（多了會壓縮注數），只加寬拖碼
+    const picks = isDantuo
+      ? [pools[0]!.slice(0, 1), pools[1]!.filter((n) => n !== pools[0]![0]).slice(0, Math.max(target - 1, take))]
+      : pools.map((list) => list.slice(0, take))
+    const codes = x5OfComboCodes(of.play, of.tabId, picks)
+    if (codes.length === 0) {
+      if (best) break
+      continue
+    }
+    best = picks
+    if (codes.length >= size) break
+  }
+  return best
+}
+
 // 切換分頁／玩法時把金額夾回新分頁限額（超限會被伺端整筆拒單）
 watch(() => [state.select, state.selectTabId], () => {
   const quota = currentQuota.value
+  state.amount = Math.min(quota.item.max, Math.max(quota.item.min, Math.trunc(Number(state.amount) || 0)))
+})
+// 官方盤同理
+watch(() => [of.play, of.tabId], () => {
+  if (isCd.value) return
+  const quota = ofQuota.value
   state.amount = Math.min(quota.item.max, Math.max(quota.item.min, Math.trunc(Number(state.amount) || 0)))
 })
 
@@ -233,6 +464,164 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 
 // ── Actions ────────────────────────────────────────────────────────────────
 const _actions = {
+  /** 切換盤口：注項語意不同，必須清掉選取與上一盤的紀錄 */
+  setMode: (mode: X5Mode) => {
+    if (state.mode === mode) return
+    state.mode = mode
+    _actions.clearSelect()
+    _actions.clearOf()
+    /*
+     * 伺端本來就分開存（X5-CD 用 user.x5Record、X5-OF 用 user.x5OfRecord），
+     * 但這個 composable 是 module 級單例，userRecord / current.detail 只有一份 ——
+     * 不清的話，從 11x5-cd 走到 11x5-of 的那幾百毫秒（新的 userRecordAll 還沒回來），
+     * 下注紀錄與當期注單會顯示「上一個盤口」的內容。
+     */
+    userRecord.balanceChanges = []
+    userRecord.betHistory = []
+    userRecord.claimableIssues = []
+    userRecord.errorMessage = ''
+    current.detail = []
+    openCodeHistory.list = []
+  },
+
+  // ── 官方盤 ──────────────────────────────────────────────────────────────
+  /** 切換玩法：分頁指回第一個並清掉選取 */
+  setOfPlay: (playKey: string) => {
+    if (of.play === playKey) return
+    of.play = playKey
+    const firstTab = ofPlays.find((play) => play.key === playKey)?.list?.[0]
+    of.tabId = Number(firstTab?.tabId ?? 0)
+    of.tabName = String(firstTab?.tabName ?? '')
+    _actions.clearOf()
+  },
+  setOfTab: (tabId: number | string) => {
+    const tab = findX5OfTab(of.play, tabId)
+    if (!tab) return
+    of.tabId = Number(tab.tabId)
+    of.tabName = String(tab.tabName ?? '')
+    _actions.clearOf()
+  },
+  /** 單選／單式分頁：點注碼切換選取，選取時套用投注金額 */
+  toggleOfItem: (code: string) => {
+    const key = String(code ?? '').trim()
+    if (!key) return
+    const idx = of.items.findIndex((item) => item.code === key)
+    if (idx >= 0) {
+      of.items.splice(idx, 1)
+      return
+    }
+    const quota = x5OfQuotaOf(of.play, of.tabId).item
+    of.items.push({
+      code: key,
+      odds: x5OfTabOddsOf(of.play, of.tabId, key),
+      coin: Math.min(quota.max, Math.max(quota.min, Math.trunc(Number(state.amount) || 0)))
+    })
+  },
+  /** 單選／單式分頁：逐項改金額（0 視為取消該注） */
+  setOfItemCoin: (code: string, coin: number) => {
+    const item = of.items.find((row) => row.code === String(code))
+    if (!item) return
+    const quota = x5OfQuotaOf(of.play, of.tabId).item
+    item.coin = Math.min(quota.max, Math.max(0, Math.trunc(Number(coin) || 0)))
+  },
+  /** 該注碼是否已選（看板標選中用） */
+  isOfItemSelected: (code: string) => of.items.some((item) => item.code === String(code)),
+  /** 單式分頁翻頁 */
+  setOfSinglePage: (page: number) => {
+    const max = ofSinglePageCount.value - 1
+    of.singlePage = Math.max(0, Math.min(Math.trunc(Number(page) || 0), max))
+  },
+  /**
+   * 展開型分頁：切換第 pos 格的某個號碼
+   *
+   * ⚠️ 膽拖的兩格**不可同號** —— 選為膽碼就要從拖碼移除（反之亦然），
+   *    來源 select_num_tool.js:85-88 也是這個行為。
+   * ⚠️ 膽碼數量上限為 size − 1（膽碼填滿就沒有拖的意義），超過時捨去最早選的那個，
+   *    同樣照來源（select_num_tool.js:79-81 的 dan.shift()）。
+   */
+  toggleOfPick: (pos: number, value: number) => {
+    const combo = x5OfComboOf(of.play, of.tabId)
+    if (!combo || combo.mode === 'single') return
+    const slots = _ofPickSlots()
+    const idx = Math.trunc(Number(pos))
+    if (!(idx >= 0 && idx < slots)) return
+    if (of.picks.length !== slots) _resetOfPicks()
+    const num = Math.trunc(Number(value))
+    if (!_ofPickOptions(idx).includes(num)) return
+
+    const list = of.picks[idx] as number[]
+    const at = list.indexOf(num)
+    if (at >= 0) {
+      list.splice(at, 1)
+      return
+    }
+    if (combo.mode === 'dantuo') {
+      const other = of.picks[1 - idx] as number[]
+      const otherAt = other.indexOf(num)
+      // 同號不可兩邊都選：先從另一格移除
+      if (otherAt >= 0) other.splice(otherAt, 1)
+      const danLimit = Number(combo.size ?? 0) - 1
+      if (idx === 0 && list.length >= danLimit && danLimit > 0) list.shift()
+    }
+    list.push(num)
+    list.sort((a, b) => a - b)
+  },
+  /** 展開型分頁：某一格全選 / 全清 */
+  toggleOfPickAll: (pos: number) => {
+    const slots = _ofPickSlots()
+    const idx = Math.trunc(Number(pos))
+    if (!(idx >= 0 && idx < slots)) return
+    if (of.picks.length !== slots) _resetOfPicks()
+    const options = _ofPickOptions(idx)
+    const list = of.picks[idx] as number[]
+    if (list.length === options.length) {
+      of.picks[idx] = []
+      return
+    }
+    const combo = x5OfComboOf(of.play, of.tabId)
+    if (combo?.mode === 'dantuo') {
+      // 膽拖全選只對拖碼有意義；且要排除已選為膽碼的號碼
+      const other = of.picks[1 - idx] as number[]
+      of.picks[idx] = options.filter((num) => !other.includes(num))
+      return
+    }
+    of.picks[idx] = [...options]
+  },
+  /** 該號碼在該格是否已選（看板標選中用） */
+  isOfPickSelected: (pos: number, value: number) =>
+    (of.picks[Math.trunc(Number(pos))] ?? []).includes(Math.trunc(Number(value))),
+  /**
+   * 官方盤隨機選號（count 一律當「目標注數」）
+   *   items 型 —— 從該分頁的注碼隨機挑 count 個（正好 count 注）
+   *   展開型   —— 每格逐步多挑一個，挑到展開後注數 ≥ count 為止
+   * @returns 實際選出的注數
+   */
+  randomOfSelect: (count: number) => {
+    const size = Math.max(1, Math.trunc(Number(count) || 1))
+    _actions.clearOf()
+    const combo = x5OfComboOf(of.play, of.tabId)
+    if (!combo || combo.mode === 'single') {
+      const codes = ofAutoCodes.value
+      _shuffle(codes).slice(0, Math.min(size, codes.length)).forEach((code) => _actions.toggleOfItem(code))
+      return of.items.length
+    }
+    const pools = Array.from({ length: _ofPickSlots() }, (_, pos) => _shuffle(_ofPickOptions(pos)))
+    const picks = _widenOfPicks(pools, size)
+    if (!picks) return 0
+    of.picks = picks.map((list) => [...list].sort((a, b) => a - b))
+    return x5OfComboCodes(of.play, of.tabId, of.picks).length
+  },
+  /** 取注碼賠率（依當前分頁的 rtp 即時推算；彩池分頁回 0） */
+  ofOddsOf: (code: string) => x5OfTabOddsOf(of.play, of.tabId, String(code ?? '')),
+  /** 官方盤注碼照某組開獎會不會中 */
+  judgeOfItem: (betCode: string, openCode: string[], odds = 0) => judgeX5OfBet(betCode, openCode, 1, odds),
+  clearOf: () => {
+    of.items = []
+    of.singlePage = 0
+    _resetOfPicks()
+  },
+
+  // ── 信用盤 ──────────────────────────────────────────────────────────────
   /** 切換玩法：分頁指回該玩法第一個 */
   setPlay: (playKey: string) => {
     const play = cdPlays.find((item) => item.key === playKey)
@@ -324,7 +713,7 @@ const _actions = {
 const fetch = {
   refreshCurrentInfo: async () => {
     try {
-      const result = await api.lottery.currentX5Cd()
+      const result = isCd.value ? await api.lottery.currentX5Cd() : await api.lottery.currentX5Of()
       if (!result) return
       current.runtime = result
       time.syncedAtServerMs = Date.now()
@@ -336,10 +725,12 @@ const fetch = {
       state.errorMessage = error instanceof Error ? error.message : '取得當期資訊失敗'
     }
   },
-  /** 爆池狀態（兩個盤口共吃一池，階段 2 的 of 路由會回同一份） */
+  /** 爆池狀態（兩個盤口共吃一池，兩支路由回同一份） */
   creditJackpot: async () => {
     try {
-      Object.assign(creditJackpot, await api.lottery.jackpotX5Cd())
+      Object.assign(creditJackpot, isCd.value
+        ? await api.lottery.jackpotX5Cd()
+        : await api.lottery.jackpotX5Of())
     } catch {
       // 爆池只是看板附加資訊，取不到就維持舊值，不要蓋掉主要流程的錯誤訊息
     }
@@ -359,7 +750,7 @@ const fetch = {
     userRecord.isLoading = true
     userRecord.errorMessage = ''
     try {
-      const res = await api.lottery.userRecordX5Cd()
+      const res = isCd.value ? await api.lottery.userRecordX5Cd() : await api.lottery.userRecordX5Of()
       userRecord.balanceChanges = res?.balanceChanges ?? []
       userRecord.betHistory = res?.betHistory ?? []
       userRecord.claimableIssues = res?.claimableIssues ?? []
@@ -373,7 +764,9 @@ const fetch = {
   openCodeHistoryAll: async () => {
     openCodeHistory.isLoading = true
     try {
-      const res = await api.lottery.openCodeHistoryX5Cd()
+      const res = isCd.value
+        ? await api.lottery.openCodeHistoryX5Cd()
+        : await api.lottery.openCodeHistoryX5Of()
       openCodeHistory.list = Array.isArray(res?.history) ? res.history : []
     } catch (error) {
       openCodeHistory.errorMessage = error instanceof Error ? error.message : '取得開獎歷史失敗'
@@ -384,7 +777,7 @@ const fetch = {
   claimOneIssue: async () => {
     userRecord.isSubmittingClaim = true
     try {
-      const res = await api.lottery.claimOneIssueX5Cd()
+      const res = isCd.value ? await api.lottery.claimOneIssueX5Cd() : await api.lottery.claimOneIssueX5Of()
       if (res?.ok) {
         wallet.coin = Number(res.coin ?? wallet.coin)
         await fetch.userRecordAll()
@@ -443,6 +836,81 @@ const fetch = {
     )
     return { ...result, count: size, amount: coin * size }
   },
+  /**
+   * 官方盤投注
+   *
+   * 三種選號型態，注碼一律是字串：
+   *   單選分頁（定位膽／不定位／趣味玩法）→ of.items（各自金額）
+   *   單式分頁                            → 同上，注碼是從列舉清單挑的
+   *   展開型分頁                          → x5OfComboCodes() 展開後一注一碼，共用 state.amount
+   * ⚠️ 注碼與賠率伺端都會重新驗一次，前端送的只是意圖。
+   */
+  betsOf: async () => {
+    const combo = x5OfComboOf(of.play, of.tabId)
+    const quota = x5OfQuotaOf(of.play, of.tabId).item
+    const playList: Array<Record<string, unknown>> = []
+
+    if (combo && combo.mode !== 'single') {
+      const codes = x5OfComboCodes(of.play, of.tabId, of.picks)
+      if (codes.length === 0) {
+        state.message = ofComboHint.value || '選號不完整'
+        return { ok: false, message: state.message }
+      }
+      const coin = Math.min(quota.max, Math.max(quota.min, Math.trunc(Number(state.amount) || 0)))
+      codes.forEach((code) => playList.push({ label: code, amount: coin }))
+    } else {
+      of.items.filter((item) => Number(item.coin) > 0).forEach((item) => {
+        playList.push({ label: item.code, amount: Number(item.coin) })
+      })
+      if (playList.length === 0) {
+        state.message = '請先選擇注項並填入金額'
+        return { ok: false, message: state.message }
+      }
+    }
+
+    const total = Number(playList.reduce((sum, row) => sum + Number(row.amount ?? 0), 0).toFixed(2))
+    const result = await fetch.submit(
+      [{ playKey: of.play, playTypeName: of.tabName, selectTabId: of.tabId, playList }],
+      total
+    )
+    if (result.ok) _actions.clearOf()
+    return result
+  },
+  /**
+   * 官方盤自動投注
+   *
+   * 與信用盤的 autoBets 同一個原則：直接組 payload 送單，不動使用者手動選的注項。
+   *   items 型 → 從該分頁的注碼隨機取 count 個
+   *   展開型   → 每格隨機挑，展開到注數 ≥ count（不衝破 X5_OF_MAX_COMBO）
+   */
+  autoBetsOf: async ({ count, amount }: { count: number; amount: number }) => {
+    const coin = Math.max(0, Math.trunc(Number(amount) || 0))
+    if (!(coin > 0)) return { ok: false, message: '請填入投注金額', count: 0, amount: 0 }
+    const size = Math.max(1, Math.trunc(Number(count) || 1))
+    const combo = x5OfComboOf(of.play, of.tabId)
+    const playList: Array<Record<string, unknown>> = []
+
+    if (combo && combo.mode !== 'single') {
+      const pools = Array.from({ length: _ofPickSlots() }, (_, pos) => _shuffle(_ofPickOptions(pos)))
+      const picks = _widenOfPicks(pools, size)
+      const codes = picks ? x5OfComboCodes(of.play, of.tabId, picks) : []
+      if (codes.length === 0) return { ok: false, message: '此分頁無法自動選號', count: 0, amount: 0 }
+      codes.forEach((code) => playList.push({ label: code, amount: coin }))
+    } else {
+      const codes = ofAutoCodes.value
+      if (codes.length === 0) return { ok: false, message: '注項尚未載入', count: 0, amount: 0 }
+      _shuffle(codes).slice(0, Math.min(size, codes.length)).forEach((code) => {
+        playList.push({ label: code, amount: coin })
+      })
+    }
+
+    const total = Number((playList.length * coin).toFixed(2))
+    const result = await fetch.submit(
+      [{ playKey: of.play, playTypeName: of.tabName, selectTabId: of.tabId, playList }],
+      total
+    )
+    return { ...result, count: playList.length, amount: total }
+  },
   /** 共用送單流程（三段狀態 + 餘額／當期資訊刷新） */
   submit: async (groups: any[], amount: number) => {
     if (state.submitStatus === 'loading') return { ok: false, message: '投注處理中' }
@@ -469,7 +937,8 @@ const fetch = {
           time: new Date(Number(row.bet_time ?? Date.now())).toLocaleTimeString('zh-TW')
         })
       })
-      _actions.clearSelect()
+      if (isCd.value) _actions.clearSelect()
+      else _actions.clearOf()
       select.resetToken += 1
       /*
        * 送單成功一律刷新餘額與注單（手動與自動下注兩條路都涵蓋）——
@@ -547,10 +1016,36 @@ export function useX5() {
     totalAmount,
     canSubmit,
 
+    /** 官方盤 */
+    of,
+    ofPlayList,
+    ofTabList,
+    ofCombo,
+    ofIsSingle,
+    ofIsPool,
+    ofPrizeTiers,
+    ofItemGroups,
+    ofComboGroups,
+    ofSingleCodes,
+    ofSingleAllCodes,
+    ofSinglePageCount,
+    ofExpandedCodes,
+    ofRawComboCount,
+    ofComboOverflow,
+    ofComboHint,
+    ofQuota,
+    ofSelectedCount,
+    ofTotalAmount,
+    ofAutoCodes,
+    ofAutoMaxCount,
+    canSubmitOf,
+    ofMaxCombo: X5_OF_MAX_COMBO,
+
     actions: _actions,
     fetch,
     /** 玩法定義（供玩法列表對帳） */
     playDefinitions: X5_PLAY_DEFINITIONS,
+    ofPlayDefinitions: X5_OF_PLAY_DEFINITIONS,
     /** 注項賠率查詢（依分頁 rtp 即時推算） */
     oddsOf: x5TabOddsOf,
     /** 常數（元件畫號碼球用） */

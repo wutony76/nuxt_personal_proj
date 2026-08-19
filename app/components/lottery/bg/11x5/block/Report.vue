@@ -16,7 +16,7 @@ import { useX5 } from '~/composables/useX5'
  * ⚠️ 與 pk10 的差別：一期只開 5 顆號碼球，「開獎」欄畫得下全部 ——
  *    不像那邊要截前三名再補一個「…」。
  */
-const { userRecord: mxRecord, fetch: mxFetch, actions: mxActions } = useX5()
+const { userRecord: mxRecord, isCd, fetch: mxFetch, actions: mxActions } = useX5()
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 const claimable = computed(() =>
@@ -114,8 +114,8 @@ watch([total, () => state.pageSize], ([count, size]) => {
             <th>期數</th>
             <th>注碼</th>
             <th>金額</th>
-            <!-- 信用盤全是固定賠率；階段 2 若官方盤有吃彩池的分頁，欄名再比照 ssc 加 isCd 分流 -->
-            <th>賠率</th>
+            <!-- 官方盤的後三直選吃彩池、沒有固定賠率，欄名跟著分流 -->
+            <th>{{ isCd ? '賠率' : '賠率／分層' }}</th>
             <th>結果</th>
             <th>派彩</th>
             <th>開獎</th>
@@ -128,7 +128,7 @@ watch([total, () => state.pageSize], ([count, size]) => {
             <td class="t-issue">{{ row.issue }}</td>
             <td class="t-code">{{ _handlers.codeLabelOf(row.betCode) }}</td>
             <td class="t-num">{{ money(row.coin) }}</td>
-            <td class="t-num">{{ row.odds || '—' }}</td>
+            <td class="t-num">{{ row.odds || '—' }}<em v-if="!isCd && row.tierName">（{{ row.tierName }}）</em></td>
             <td class="t-status">{{ statusText(row.winStatus) }}</td>
             <td class="t-num t-payout">{{ row.winAmount > 0 ? money(row.winAmount) : '—' }}</td>
             <td class="t-open">

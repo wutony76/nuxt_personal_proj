@@ -8,7 +8,7 @@ import { useX5 } from '~/composables/useX5'
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
-const { userRecord: mxRecord, wallet: mxWallet, fetch: mxFetch } = useX5()
+const { userRecord: mxRecord, wallet: mxWallet, isCd, fetch: mxFetch } = useX5()
 
 const TABS = [
   { key: 'claim', label: '可領獎金' },
@@ -123,8 +123,8 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
             <td>{{ row.betCode.join('、') }}</td>
             <td>{{ money(row.coin) }}</td>
             <td>
-              <!-- 信用盤全是固定賠率，一律顯示鎖進注單的賠率 -->
-              {{ row.odds || '—' }}
+              <!-- 信用盤全是固定賠率；官方盤的彩池分頁沒有賠率，改顯示命中分層 -->
+              {{ row.odds || '—' }}<em v-if="!isCd && row.tierName">（{{ row.tierName }}）</em>
             </td>
             <td :class="`is-${row.winStatus}`">{{ statusText(row.winStatus) }}</td>
             <td>{{ row.winAmount > 0 ? money(row.winAmount) : '—' }}</td>
