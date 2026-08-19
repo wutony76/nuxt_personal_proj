@@ -1,0 +1,176 @@
+# 11x5  11選5新增
+
+## 0. 命名慣例
+
+「11x5」開頭是數字，不能直接當 JS/TS 常數、型別、函式名稱前綴
+（同專案內 6HC 用 `LHC` 代稱的做法）。
+
+本專案一律用 `X5` 代稱 11 選 5：
+- 常數／型別／函式：`X5_xxx`、`X5CD_xxx`、`X5OF_xxx`
+- composable：`useX5`
+- 檔名：`x5.ts`、`x5-cd.ts`、`x5og.ts`（比照 `ssc.ts` / `ssc-cd.ts` / `sscog.ts`）
+
+檔名／路由（頁面、資料夾）仍可用 `11x5` 原名（同 `6hc-cd.vue` 開頭帶數字沒問題），
+只有「JS/TS 識別字」才需要換成 `X5`。
+
+---
+
+## 1. Project Structure
+
+11 選 5 有**信用盤與官方盤兩個盤口**（不是 pceggs 那種單盤口），
+架構比照 SSC（`app/composables/useSsc.ts` / `server/services/game/lottery/bg/sscCd.ts` 等）：
+
+-shared/config
+├── x5.ts              共用（開獎號解析、球數/號碼範圍等純函式）
+├── x5-cd.ts           信用盤玩法定義、爆池設定（若有）
+├── x5-of.ts            官方盤玩法定義
+├── x5cd/
+│   ├── plays.js         信用盤注項設定（.js，禁止 import，比照 ssccd/plays.js）
+│   └── helpers.ts
+└── x5of/
+    ├── plays.js         官方盤注項設定
+    └── helpers.ts
+
+-server/services/game/lottery/bg
+├── x5Shared.ts        兩盤口共用狀態（期別、開獎號、彩池），比照 sscShared.ts
+├── x5Cd.ts            信用盤
+└── x5Of.ts            官方盤
+
+-server/api/lottery
+├── x5-cd/               current.get.ts / claim.post.ts / opencode-history.get.ts / user-record.get.ts
+└── x5-of/               同上四支
+
+-app/composables
+└── useX5.ts           比照 useSsc.ts，module-level singleton，cd/of 共用一支
+
+-app/components/lottery/bg/11x5/
+├── base/ block/ block/footer/     共用（Header、Report、History、Road、Dialog*、Chat…）
+├── cd/base/ cd/block/footer/      信用盤專屬（看板、自動下注）
+└── of/base/ of/block/footer/      官方盤專屬（看板、自動下注）
+
+-app/pages/lottery/bg/
+├── 11x5-cd.vue
+└── 11x5-of.vue
+
+UI layout 佈局：
+- 整體頁面骨架（頭部／使用者卡＋開獎歷史＋路珠／投注區／注單）參考 SSC（`ssc-cd.vue` / `ssc-of.vue`），
+  因為 11x5 同樣是雙盤口、共用期別與開獎號。
+- 信用盤玩法結構（第一~五球／總和／龍虎鬥／全5中1）幾乎與 SSC-CD 一致（只是號碼 1~11 而非 0~9），
+  可直接比照 `ssc/cd/base/Board.vue` 改。
+- 官方盤玩法（前/中/後二·三 直選、組選、**組選膽拖**、定位膽、不定位、任選 N 中 M、趣味玩法）
+  比 SSC-OF／PK10-OF 都複雜，**且含「膽拖」這個目前專案沒有任何彩種實作過的下注模式** ——
+  這部分不要硬套 SSC/PK10 現有邏輯，依 bglottery 來源分析後另外設計。
+
+---
+
+## 2. Data Source
+
+需要先讀取：
+/Users/tony.wu/SelfCode/Svn/bglottery
+此專案為既有 11x5（11選5）玩法來源，資料夾在
+`src/components/room/lotteryAll/11x5/`（**不是** `pceggs/`，兩者是完全獨立的彩種）。
+
+禁止直接猜測玩法規則。
+
+---
+
+## 3. Step 1 - Config Conversion
+
+讀取 bglottery 的 11x5 玩法設定。
+將其轉換成本專案既有 conf 格式（參考 SSC 的 `shared/config/ssc-cd.ts` / `sscog.ts` / `ssccd/plays.js` / `sscog/plays.js` 分層方式）。
+
+如果來源設定缺少資訊：
+
+1.⁠ ⁠找到對應玩法 UI
+2.⁠ ⁠分析 UI 使用的欄位
+3.⁠ ⁠由既有 UI 行為反推出必要 config
+4.⁠ ⁠補齊 conf
+5.⁠ ⁠不可自行發明玩法規則
+
+參考 UI：
+
+信用盤：
+src/components/room/lotteryAll/11x5/index.vue
+src/components/room/lotteryAll/11x5/index_script.js
+src/components/room/lotteryAll/11x5/header.vue
+src/components/room/lotteryAll/11x5/config_11x5_credit.js（信用盤玩法設定：第一~五球／總和／龍虎鬥／全5中1）
+src/components/room/lotteryAll/11x5/creditTraditional/creditPlay.vue
+src/components/room/lotteryAll/11x5/creditTraditional/creditPlay_script.js
+
+官方盤：
+src/components/room/lotteryAll/11x5/config_11x5.js（官方盤玩法設定，含 selectarea 佈局／alias／膽拖結構）
+src/components/room/lotteryAll/11x5/official/play.vue
+src/components/room/lotteryAll/11x5/official/play_script.js
+src/components/room/lotteryAll/11x5/official/tabs.vue
+src/components/room/lotteryAll/11x5/official/js/algorithm.js
+src/components/room/lotteryAll/11x5/official/js/select_num_tool.js
+
+---
+
+## 4. Step 2 - Betting UI
+
+讀取 Step 1 轉換後的 conf。
+依 conf 完善：
+`app/pages/lottery/bg/11x5-cd.vue`、`11x5-of.vue`
+下注區。
+版面骨架參考 SSC（`ssc-cd.vue` / `ssc-of.vue`），玩法看板依上方 Project Structure 的資料夾分層各自實作。
+
+---
+
+## 5. Constraints
+•⁠  ⁠優先複用現有 SSC（雙盤口）與 K3 架構
+•⁠  ⁠優先複用既有 lottery config pattern
+•⁠  ⁠不要重新設計整套玩法架構
+•⁠  ⁠不要自行猜測 11x5 規則（尤其「膽拖」這種目前專案沒有先例的模式）
+•⁠  ⁠修改前先閱讀既有實作（特別是 SSC 全套：composable／server／config 三層）
+•⁠  ⁠非 trivial 需求需走 OpenSpec 流程（proposal → design → tasks），此為新彩種、跨多層變更，動工前應先建立
+   `openspec/changes/add-11x5/` 提案
+
+---
+
+## 6. 彩池機制（Jackpot）
+
+需求原文：「增加支援彩池機制，彩池相關設定需要與玩法保持正確關聯」。
+
+11x5-**CD**（信用盤）需支援彩池機制（比照既有慣例，彩池只接在信用盤，官方盤是固定賠率不接彩池——
+6hc-cd／ssc-cd／k3-cd／pk10-cd／eggs 皆是如此）。
+
+**不是新發明一套彩池，是接上專案既有的泛用爆池骨架**（`shared/config/jackpot.ts`），
+完整參考案例見 `openspec/reference/eggs-jackpot-plan.md`（PC蛋蛋接彩池的完整記錄：
+決策過程、檔案改動清單、驗證清單），11x5-CD 接彩池的做法幾乎是同一套，只是彩種判定與觸發條件要重新分析。
+
+### 6.1 既有架構（直接複用，勿重造）
+
+| 層 | 檔案 | 職責 |
+|---|---|---|
+| 泛用核心 | `shared/config/jackpot.ts` | `JackpotSettings` / `JackpotRow` / `JackpotHitRecord` 型別 + `buildJackpotShares()` 純函式 |
+| 彩種判定 | `shared/config/x5-cd.ts` | 新增 `X5_JACKPOT_SETTINGS`／`x5JackpotHit()`／`x5JackpotLabel()`（比照 `ssc-cd.ts` 的 `SSC_...`／`eggs-cd.ts` 的 `EGGS_...`） |
+| 看板設定 | `shared/config/x5cd/plays.js` + `helpers.ts` | 注項宣告 `weight`（group 層預設＋item 層覆寫）；`helpers.ts` 補 `x5JackpotWeightOf()` |
+
+金流兩條獨立的線（比照 `k3Cd.ts` / `eggs.ts`）：
+
+```
+下注  playBets()          → issueJackpotMap[issue] += amount * rakeRatio
+開獎  settleIssuePrize()  → pool = issueJackpotMap[issue] + carryJackpot
+                          → triggered ? 發 pool * payoutRatio : 全部滾存
+                          → carryJackpot = jackpot.remain；issueJackpotMap[issue] = 0
+```
+
+### 6.2 需要拍板的決策（不可自行假設，動工前先確認）
+
+1. **爆池觸發條件**：既有彩種的判準是「看板上真的押得到、機率與 6hc-cd 特別號開 49（≈2%）同量級」。
+   `config_11x5_credit.js` 目前只有第一~五球／總和／龍虎鬥／全5中1 四種玩法，
+   **沒有** eggs／k3／ssc 那種現成的「豹子」圖案概念，需要重新從機率窮舉候選（例如全5中1某特定號、總和極值等），
+   不可比照 eggs 決策直接套用「豹子」。
+2. **weight 分級**：沿用 6hc 的理論賠率分級法（`1/命中機率` ≥20→3、2.5~20→2、<2.5→1），
+   逐項對照 11x5-CD 各注項理論賠率標（第一~五球每項機率 1/11，總和／龍虎鬥／全5中1 需個別核對）。
+
+### 6.3 關聯機制（需求核心，務必落實）
+
+- 設定檔宣告 weight（group 層預設 + item 層覆寫）
+- 注單需存 `playKey` + `tabId` + `betCode` + `odds`（既有 `orders.ts` 已支援，不需改）
+- 結算時用 `(playKey, tabId, betCode)` 反查 weight，解析順序 `item.weight → group.weight → 0`
+  ⚠️ **明確 `weight: 0`（排除在彩池外）與「完全沒設定」（退回 `weightFallback`）是兩件不同的事**，
+  必須用 `== null` 判斷，不可用 falsy 判斷（此語意在 `shared/config/jackpot.ts` 也要守一次）
+
+官方盤（OF）不接彩池，`current.get.ts` 不需要加 `pool` 欄位（同 eggs 的做法）。

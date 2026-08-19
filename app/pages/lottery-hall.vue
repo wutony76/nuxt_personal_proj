@@ -80,6 +80,16 @@ const GAME_META: Record<string, {
       CD: '五球縱橫藏變數，\n位次之間見真章。\n組合分明多變化，\n一局開落定輸贏。',
     },
   },
+  X5: {
+    en: 'X5',
+    ribbon: 'BG · 11 選 5 不重複',
+    enByMode: {
+      CD: 'X5 [CD]',
+    },
+    descByMode: {
+      CD: '十一藏機開五碼，\n號無重複見真章。\n大小單雙皆有序，\n一局落定判高低。',
+    },
+  },
   EGGS: {
     en: 'EGGS',
     ribbon: 'BG · 3 球 0~9 組合',
@@ -100,6 +110,14 @@ const MODE_META = [
  * suffix 留空代表不分盤口（routeKey 直接是玩法 key，不加 "-OF"／"-CD" 後綴）。
  */
 const GAME_MODES: Record<string, typeof MODE_META> = {
+  /**
+   * 11選5：來源同時有官方與信用兩個盤口，但**階段 1 只實作了信用盤** ——
+   * 走預設的 MODE_META 會生出一張 X5-OF 卡，點下去是不存在的路由。
+   * ⚠️ 階段 2 補上 11x5-of.vue 後，把這一項整段刪掉即可（回到預設的兩張卡）。
+   */
+  X5: [
+    { suffix: 'CD', theme: 'cd', mark: '信', label: '信 用', tag: 'CREDIT · MODE', note: '每注獨立 · 賠率即時派彩' },
+  ],
   EGGS: [
     { suffix: '', theme: 'cd', mark: '信', label: '信 用', tag: 'CREDIT · MODE', note: '每注獨立 · 賠率即時派彩' },
   ],
@@ -116,6 +134,7 @@ const ROUTE_DICT: Record<string, string> = {
   'PK10-OF': '/lottery/bg/pk10-of',
   'SSC-CD': '/lottery/bg/ssc-cd',
   'SSC-OF': '/lottery/bg/ssc-of',
+  'X5-CD': '/lottery/bg/11x5-cd',
   'EGGS': '/lottery/bg/egg',
 }
 

@@ -10,12 +10,14 @@
         <Pk10OfAuto v-else-if="lotteryType === 'pk10-of'" />
         <SscCdAuto v-else-if="lotteryType === 'ssc-cd'" />
         <SscOfAuto v-else-if="lotteryType === 'ssc-of'" />
+        <X5CdAuto v-else-if="lotteryType === 'x5-cd'" />
         <EggsAuto v-else-if="lotteryType === 'eggs'" />
         <OfChat v-if="lotteryType === '6hc-of'" />
         <CdChat v-else-if="lotteryType === '6hc-cd'" />
         <K3Chat v-else-if="lotteryType === 'k3-cd' || lotteryType === 'k3-of'" />
         <Pk10Chat v-else-if="lotteryType === 'pk10-cd' || lotteryType === 'pk10-of'" />
         <SscChat v-else-if="lotteryType === 'ssc-cd' || lotteryType === 'ssc-of'" />
+        <X5Chat v-else-if="lotteryType === 'x5-cd'" />
         <EggsChat v-else-if="lotteryType === 'eggs'" />
       </div>
     </div>
@@ -49,6 +51,11 @@ const Pk10Chat = defineAsyncComponent(() => import('~/components/lottery/bg/pk10
 const SscCdAuto = defineAsyncComponent(() => import('~/components/lottery/bg/ssc/cd/block/footer/Auto.vue'))
 const SscOfAuto = defineAsyncComponent(() => import('~/components/lottery/bg/ssc/of/block/footer/Auto.vue'))
 const SscChat = defineAsyncComponent(() => import('~/components/lottery/bg/ssc/block/footer/Chat.vue'))
+
+// 11選5：階段 1 只有信用盤。階段 2 補官方盤時要**另外**加一支 X5OfAuto
+// （指向 11x5/of/block/footer/Auto.vue），不可讓 x5-of 共用 X5CdAuto —— 會踩到上面那個 instance 殘留問題
+const X5CdAuto = defineAsyncComponent(() => import('~/components/lottery/bg/11x5/cd/block/footer/Auto.vue'))
+const X5Chat = defineAsyncComponent(() => import('~/components/lottery/bg/11x5/block/footer/Chat.vue'))
 
 // PC蛋蛋只有信用盤，Auto／Chat 各一支
 const EggsAuto = defineAsyncComponent(() => import('~/components/lottery/bg/eggs/block/footer/Auto.vue'))

@@ -265,6 +265,69 @@ export type SscUserBetHistory = {
 }
 
 /**
+ * 11選5（X5）共用彩池狀態（X5-CD 與 X5-OF 讀到同一份，見 server/services/game/lottery/bg/x5Shared.ts）
+ * ⚠️ 階段 1 只有信用盤（固定賠率、不吃池），這個值目前純粹是看板的門面數字；
+ *    階段 2 的官方盤直選類才會真的從這個池分層派彩。
+ */
+export type X5Pool = {
+  issue: string
+  base: number
+  carry: number
+  /** 該期已累積的抽水 */
+  issuePool?: number
+  /** 可發放 = 池底 + 該期抽水 × 0.8 + 累積滾存，再乘 0.55 */
+  distributable: number
+}
+
+/**
+ * 11選5 當期資訊
+ * ⚠️ openCode 長度固定 5，`openCode[i]` 是第 i+1 顆球，
+ *    號碼 01 ~ 11（補零兩位字串）且**互不重複**（與 ssc 的可重複不同）。
+ */
+export type X5Current = {
+  issue: string
+  issueCurrent: string
+  issueLatest: string
+  currentStatus: string
+  countdown: string
+  statusEndAt: number
+  openCode: string[]
+  openingCode: string[]
+  openCodePlay: Array<{ num: number; label: string; ball: number; index: number }>
+  time: { start: string; end: string }
+  startAt: number
+  endAt: number
+  pool: X5Pool
+}
+
+/** 11選5 玩家紀錄 */
+export type X5UserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: X5UserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+  pool: X5Pool
+}
+
+export type X5UserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  betCode: string[]
+  openCode: string[]
+  matchCount: number
+  /** 11選5 沒有真正的和局，tie 只在注碼無法辨識時出現（退還本金） */
+  winStatus: 'pending' | 'win' | 'lose' | 'tie'
+  winAmount: number
+  /** 該注鎖定的賠率（信用盤全是固定賠率） */
+  odds?: number
+  /** 該注所屬分頁 */
+  tabId?: number
+  /** 爆池加碼（開出「五球全單或全雙」那期才有值） */
+  jackpotAmount: number
+}
+
+/**
  * PC蛋蛋（EGGS）當期資訊
  * ⚠️ 只有信用盤（來源本身無官方盤），不像 K3/SSC 有共用彩池，故沒有 pool 欄位。
  *    openCode 長度固定 3（0~9，可重複）。
@@ -504,6 +567,8 @@ export const api = {
           return $fetch<SscCurrent>('/api/lottery/ssc-cd/current')
         case LOTTERY['SSC-OF'].id:
           return $fetch<SscCurrent>('/api/lottery/ssc-of/current')
+        case LOTTERY['X5-CD'].id:
+          return $fetch<X5Current>('/api/lottery/x5-cd/current')
         case LOTTERY.EGGS.id:
           return $fetch<EggsCurrent>('/api/lottery/eggs/current')
         default:
@@ -569,6 +634,14 @@ export const api = {
     /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
     jackpotSscCd: () => $fetch<CreditJackpotState>('/api/lottery/ssc-cd/jackpot'),
     jackpotSscOf: () => $fetch<CreditJackpotState>('/api/lottery/ssc-of/jackpot'),
+    // ── 11選5（X5-CD / X5-OF 共用開獎號與彩池；階段 1 只有信用盤，OF 那幾支階段 2 再補）──
+    currentX5Cd: () => $fetch<X5Current>('/api/lottery/x5-cd/current'),
+    openCodeHistoryX5Cd: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/x5-cd/opencode-history'),
+    userRecordX5Cd: () => $fetch<X5UserRecordResponse>('/api/lottery/x5-cd/user-record'),
+    claimOneIssueX5Cd: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/x5-cd/claim', { method: 'POST' }),
+    /** 爆池（與 current 回的 pool 是兩個不同的池；兩個盤口共吃這一池） */
+    jackpotX5Cd: () => $fetch<CreditJackpotState>('/api/lottery/x5-cd/jackpot'),
     // ── PC蛋蛋（只有信用盤，來源本身無官方盤）──
     currentEggs: () => $fetch<EggsCurrent>('/api/lottery/eggs/current'),
     openCodeHistoryEggs: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/eggs/opencode-history'),
