@@ -103,7 +103,11 @@ watch([total, () => state.pageSize], ([count, size]) => {
             <td class="t-num">{{ money(row.coin) }}</td>
             <td class="t-num">{{ row.odds ?? '—' }}</td>
             <td class="t-status">{{ statusText(row.winStatus) }}</td>
-            <td class="t-num t-payout">{{ row.winAmount > 0 ? money(row.winAmount) : '—' }}</td>
+            <td class="t-num t-payout">
+              {{ row.winAmount > 0 ? money(row.winAmount) : '—' }}
+              <!-- 爆池加碼：開豹子那期才會有值，平時是 0 -->
+              <em v-if="row.jackpotAmount > 0" class="jackpot-amount">＋爆池 {{ money(row.jackpotAmount) }}</em>
+            </td>
             <td class="t-open">
               <span v-if="row.openCode?.length" class="open-ball">
                 <Ball v-for="(code, idx) in row.openCode" :key="idx" :digit="code" size="sm" />
@@ -281,6 +285,16 @@ watch([total, () => state.pageSize], ([count, size]) => {
 
     .t-payout {
       font-weight: 700;
+    }
+
+    /** 爆池加碼：與派彩同一格、換行標示，避免多開一欄把表格擠爆 */
+    .jackpot-amount {
+      display: block;
+      margin-top: 2px;
+      font-size: 11px;
+      font-style: normal;
+      font-weight: 700;
+      color: var(--color-gold);
     }
 
     .t-open .open-ball {

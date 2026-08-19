@@ -202,11 +202,12 @@ export type SscCurrent = {
 }
 
 /**
- * 爆池狀態（快3／PK10／時時彩共用這個形狀）
+ * 爆池狀態（快3／PK10／時時彩／PC蛋蛋共用這個形狀）
  *
  * ⚠️ 與 `SscPool` 是兩個不同的池：SscPool 是官方盤的彩池分頁分層在吃的；
  *    這個是爆池，**信用盤與官方盤共吃一池**，開出爆池條件那期一次發放。
  * ⚠️ 同一個彩種的 `-cd/jackpot` 與 `-of/jackpot` 回的是同一份資料。
+ * ⚠️ PC蛋蛋沒有官方盤、也沒有共用彩池，爆池是它唯一的池（只有 `/eggs/jackpot`）。
  */
 export type CreditJackpotState = {
   issue: string
@@ -574,6 +575,8 @@ export const api = {
     userRecordEggs: () => $fetch<EggsUserRecordResponse>('/api/lottery/eggs/user-record'),
     claimOneIssueEggs: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/eggs/claim', { method: 'POST' }),
+    /** 爆池（PC蛋蛋沒有官方盤共用彩池，這是它唯一的池） */
+    jackpotEggs: () => $fetch<CreditJackpotState>('/api/lottery/eggs/jackpot'),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),

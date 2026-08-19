@@ -1,9 +1,33 @@
 # PC蛋蛋（EGGS）彩池機制 —— 實作藍圖
 
-> 狀態：**分析完成，尚未實作。** 決定要做時直接讀本檔即可開工，不需重新調查。
+> 狀態：**已實作完成（2026-08-18）。** 本檔保留為設計依據與決策紀錄。
 > 分析日期：2026-08-18　範圍：`shared/config/eggs*`、`server/**/eggs.ts`、`app/**/eggs/**`
 >
 > 需求原文：「PC 蛋蛋增加支援彩池機制，彩池相關設定需要與玩法保持正確關聯」
+
+---
+
+## 實作結果與本計畫的差異（動工時骨架已變動）
+
+本計畫寫於「跨盤口爆池」重構**之前**，以下三點依現況調整，其餘照計畫執行：
+
+| 計畫寫的 | 實際做的 | 原因 |
+|---|---|---|
+| `EGGS_CD_JACKPOT` / `eggsCdJackpotHit` / `eggsCdJackpotLabel` | `EGGS_JACKPOT_SETTINGS` / `eggsJackpotHit` / `eggsJackpotLabel` | 爆池已改為兩盤共吃，其他三個彩種的 `*_CD_JACKPOT` 都改名為 `*_JACKPOT_SETTINGS`，eggs 直接跟上 |
+| `JackpotSettings` 只有 6 個欄位 | 多帶 `boardWeight: { cd: 1 }` | 重構後新增的必填欄位（盤口係數）。eggs 沒有官方盤，這個係數等於不作用 |
+| `JackpotRow` 不含 `source` | 每列帶 `source: 'cd'` | 重構後新增的必填欄位，供多盤口分流寫回；eggs 只有一個來源 |
+
+另外兩點確認：
+
+- **§6① 的踩雷點已失效** —— 該節說「k3 / ssc / pk10 的爆池前端沒串接、不要照抄」。
+  重構時已把六個看板都串好了，eggs 的 Header 因此**可以**照那套寫法，
+  只是 eggs 沒有共用彩池，少了「總獎金／預估頭獎／中獎機率」那一塊。
+- **§6② 仍然成立** —— eggs 只有一個池，也因為只有一個盤口，
+  不需要其他彩種那套「等所有盤口交件才結算」的編排（見 `k3Shared.ts`），直接在 class 內結算。
+
+**§4 決策 1 的副作用**（豹子既是爆池條件、又是 weight 最高的注項 → 雙重加成）
+維持既有慣例（k3 圍骰、ssc 後三豹子皆同），豹子 `weight: 3` 照常給。
+要取消雙重加成的話，把 `shared/config/eggscd/plays.js` 裡豹子那項改成 `weight: 0` 即可，**不必改程式**。
 
 ---
 
@@ -284,20 +308,31 @@ eggs 沒有官方盤、沒有 Shared 層，只會有一個池 →
 
 ## 7. 驗證清單
 
-- [ ] `eggsPatternCounts()` 對帳：豹子 10 / 對子 270 / 順子 48（合計 328，非 1000 —— 其餘為半順雜六）
-- [ ] `eggsJackpotWeightOf()` 三種情境：注項有 weight → 取注項；只有 group → 取 group；明確 `weight: 0` → 回 0（**不可**退 fallback）
-- [ ] `buildJackpotShares()` 尾差：多筆 share 加總須等於 `pool * payoutRatio`（最後一筆吃尾差）
-- [ ] 未觸發期：`payout === 0`、`remain === pool`、`carryJackpot` 正確累加、`issueJackpotMap[issue]` 歸零
-- [ ] `minPool` 門檻：池低於 1000 且開豹子 → `reason: 'pool-too-low'`、不發放、全額滾存
-- [ ] 端到端（curl + session cookie，比照 `openspec/changes/add-pceggs/tasks.md` 10.2 的做法）：
-      下注多筆 → 等開到豹子那期 → 確認 `jackpotAmount` 寫進 betHistory、
-      `claimableIssues` 含爆池金額、領獎後餘額正確、`lastHit` 有值
-- [ ] `/api/lottery/eggs/jackpot` 在服務未初始化時回 `EMPTY` 而非 500
-- [ ] `npm run build` exit code 0
+- [x] `eggsPatternCounts()` 對帳：豹子 10 / 對子 270 / 順子 48（合計 328，非 1000 —— 其餘為半順雜六）
+- [x] `eggsJackpotWeightOf()` 三種情境：注項有 weight → 取注項；只有 group → 取 group；明確 `weight: 0` → 回 0（**不可**退 fallback）
+      （因為 config 44 項現在都有明確 weight，後兩種情境是暫時改動 plays.js 跑完再還原驗的）
+- [x] `buildJackpotShares()` 尾差：多筆 share 加總須等於 `pool * payoutRatio`（最後一筆吃尾差）
+- [x] 未觸發期：`payout === 0`、`remain === pool`、`carryJackpot` 正確累加、`issueJackpotMap[issue]` 歸零
+- [x] `minPool` 門檻：池低於 1000 且開豹子 → `reason: 'pool-too-low'`、不發放、全額滾存
+- [x] 端到端（curl + session cookie）：下注多筆 → 結算 → `jackpotAmount` 寫進 betHistory、
+      `claimableIssues` 含爆池金額、**領獎後餘額正確**（78,100 = 派彩 77,600 + 加碼 500）、
+      該期從可領清單移除、餘額變動有領獎紀錄、`lastHit` 有值
+      ⚠️ 豹子觸發率 1%／期、一期 7 分鐘，等不到自然開出 —— 觸發是用臨時探測路由
+      強制以 `7 7 7` 呼叫真實的 `settleIssuePrize()` 產生的，測完路由已刪除
+- [x] `/api/lottery/eggs/jackpot` 在服務未初始化時回 `EMPTY` 而非 500
+- [x] 觸發後派彩：以臨時探測路由強制用 `7 7 7` 跑真實結算 —— 池 1000 → 發放 500、
+      weight 1:3 的兩注加碼 125:375、滾存 500、可領 = 派彩 + 加碼，測完已刪除路由
+- [x] `npm run build` exit code 0（Σ 6.26 MB；`eggs/jackpot.get.mjs` 有進 build）
+      ⚠️ build 有數則 sourcemap WARN，來自 `nuxt:module-preload-polyfill` 與
+      `@tailwindcss/vite`，是既有的、與爆池無關
 
 ---
 
-## 8. 落成 openspec change 時的建議切法
+## 8. 落成 openspec change 時的建議切法（未採用）
+
+> 實際做法：直接依第 5 節的檔案清單實作，沒有另開 `openspec/changes/add-eggs-jackpot/`。
+> 若之後要補正式提案，以下切法仍可參考。
+
 
 本檔是 reference（調查結論）。要正式動工建議開 `openspec/changes/add-eggs-jackpot/`：
 

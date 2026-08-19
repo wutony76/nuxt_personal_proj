@@ -15,6 +15,7 @@
  *   色波      红波/蓝波/绿波                  母數 1000
  *   特码      0 ~ 27 直選                    母數 1000
  */
+import { type JackpotSettings } from '#shared/config/jackpot'
 import {
   eggsDigitsOf,
   eggsPatternCounts,
@@ -246,6 +247,55 @@ export function judgeEggsBet(
     odds: lockedOdds,
     payout: hit ? Number((safeCoin * lockedOdds).toFixed(2)) : 0
   }
+}
+
+// ── 爆池（抽水入池 + 開豹子時發放） ─────────────────────────────
+
+/**
+ * PC蛋蛋的爆池設定
+ *
+ * ── 爆池期怎麼定 ────────────────────────────────────────
+ *   開出**豹子**（三球同號）時觸發。選這個條件的理由與其他彩種一致：
+ *     1. 它是看板上真的存在的注項（特殊玩法分頁的「豹子」），玩家看得到也押得到
+ *     2. 機率 10/1000 = 1%，與 6hc-cd 的「特別號開 49」（1/49 ≒ 2.04%）同一個量級
+ *   ⚠️ PC蛋蛋的開獎結構（3 球 × 0~9、可重複）與時時彩的後三**完全相同**，
+ *      所以這裡的 hitRate 與 ssc 的「後三豹子」是同一個數字，不是類比。
+ *
+ * ── 與其他彩種的差異：只有一個池 ────────────────────────
+ *   k3 / pk10 / ssc 都有「官方盤分層用的共用彩池」與「爆池」兩個池，註解裡反覆警告不能互吃；
+ *   PC蛋蛋沒有官方盤、沒有 Shared 層，**只有爆池這一個池**，那組風險不存在。
+ *   也因為只有一個盤口，不需要其他彩種那套「等所有盤口交件才結算」的編排
+ *   （見 server/services/game/lottery/bg/k3Shared.ts），直接在 class 內結算即可。
+ *
+ * ⚠️ boardWeight 只列 cd —— PC蛋蛋沒有官方盤，這個係數在這裡等於不作用。
+ */
+export const EGGS_JACKPOT_SETTINGS: JackpotSettings = {
+  rakeRatio: 0.01,
+  payoutRatio: 0.5,
+  /** 以 rakeRatio 1% 換算 ≈ 需累積 10 萬投注額 */
+  minPool: 1000,
+  /** 注單查不到看板設定時的保底權重（設定檔的 weight 都有值，這裡只是保險） */
+  weightFallback: 1,
+  boardWeight: { cd: 1 },
+  hitLabel: '開出豹子（三球同號）',
+  hitRate: 10 / 1000
+}
+
+/**
+ * 這一期是不是爆池期
+ * @returns true = 豹子；開獎格式不合回 false
+ */
+export function eggsJackpotHit(openCode: Array<string | number>): boolean {
+  const digits = eggsDigitsOf(openCode)
+  if (!digits) return false
+  return eggsPatternOf(digits) === '豹子'
+}
+
+/** 爆池期的開獎文字（寫進爆池紀錄，給看板顯示用） */
+export function eggsJackpotLabel(openCode: Array<string | number>): string {
+  const digits = eggsDigitsOf(openCode)
+  if (!digits) return ''
+  return `豹${digits.join('')}`
 }
 
 /** 玩法定義（順序即前端玩法列的顯示順序，需與 eggscd/plays.js 一致） */

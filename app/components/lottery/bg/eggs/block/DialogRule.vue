@@ -9,6 +9,7 @@ import {
   EGGS_TOTAL_OUTCOMES
 } from '#shared/config/eggs-cd'
 import { EGGS_SUM_COUNTS, EGGS_EXTREME_BIG_RANGE, EGGS_EXTREME_SMALL_RANGE } from '#shared/config/eggs'
+import { EGGS_JACKPOT_SETTINGS } from '#shared/config/eggs-cd'
 import C_PLAYS from '#shared/config/eggscd/plays'
 import { eggsRtpOf, eggsTabOddsOf } from '#shared/config/eggscd/helpers'
 
@@ -21,11 +22,30 @@ const emit = defineEmits<{ close: [] }>()
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
+/**
+ * 爆池說明的數字一律讀 EGGS_JACKPOT_SETTINGS，不寫死 ——
+ * 之後調整觸發條件、發放比例或門檻，說明頁自動跟上
+ */
+const JACKPOT = EGGS_JACKPOT_SETTINGS
+const jackpotHitRate = `${(JACKPOT.hitRate * 100).toFixed(2)}%`
+const jackpotPayoutPct = `${(JACKPOT.payoutRatio * 100).toFixed(0)}%`
+const jackpotRakePct = `${(JACKPOT.rakeRatio * 100).toFixed(0)}%`
+
+/** 各分頁的爆池權重（讀看板設定，與實際分配用的是同一份資料） */
+const JACKPOT_WEIGHTS = C_PLAYS.map((play) => {
+  const tab = play.list?.[0]
+  const items = (tab?.tabGroup ?? []).flatMap((group) => group.groupList ?? [])
+  const levels = Array.from(new Set(items.map((item) => Number((item as { weight?: number }).weight ?? 0))))
+    .sort((a, b) => b - a)
+  return { name: String(play.name ?? ''), tabName: String(tab?.tabName ?? ''), levels }
+})
+
 const NAV_ITEMS = [
   { id: 'eggs-section-intro', label: '遊戲簡介' },
   { id: 'eggs-section-timeline', label: '時間流程' },
   { id: 'eggs-section-sum', label: '和值分布' },
   { id: 'eggs-section-play', label: '投注玩法' },
+  { id: 'eggs-section-jackpot', label: '爆池' },
   { id: 'eggs-section-note', label: '特別說明' }
 ]
 
@@ -148,6 +168,37 @@ const sumRows = computed(() =>
       </div>
     </section>
 
+    <section id="eggs-section-jackpot" class="rule-sec">
+      <h4>爆池</h4>
+      <ul>
+        <li>每筆投注額的 <strong>{{ jackpotRakePct }}</strong> 撥入爆池累積，
+          與賠率派彩<strong>互不影響</strong>（賠率派彩由莊家支付，不吃這個池）。</li>
+        <li>開獎<strong>{{ JACKPOT.hitLabel }}</strong>（機率 {{ jackpotHitRate }}）時觸發，
+          一次發放累積池的 <strong>{{ jackpotPayoutPct }}</strong>，其餘滾存至下期。</li>
+        <li>累積池未達 <strong>{{ money(JACKPOT.minPool) }}</strong> 時不發放，整池滾存。</li>
+        <li>有份的是該期<strong>非未中</strong>的注單（和局也算有份），
+          依「<strong>投注額 × 注項權重</strong>」比例分配。</li>
+      </ul>
+      <div class="rule-table-wrap">
+        <table class="rule-table">
+          <thead>
+            <tr><th>玩法</th><th>分頁</th><th>注項權重</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in JACKPOT_WEIGHTS" :key="row.name">
+              <td>{{ row.name }}</td>
+              <td>{{ row.tabName }}</td>
+              <td>{{ row.levels.join('／') }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="rule-note">
+        權重依「理論賠率（母數 ÷ 命中數）」分三級：≥ 20 倍 → 3、2.5 ~ 20 倍 → 2、&lt; 2.5 倍 → 1。
+        越難中的注項在爆池分到越多。
+      </p>
+    </section>
+
     <section id="eggs-section-note" class="rule-sec">
       <h4>特別說明</h4>
       <ul>
@@ -159,6 +210,8 @@ const sumRows = computed(() =>
         <li><strong>特碼</strong>：直接猜中和值（{{ EGGS_SUM_MIN }} ~ {{ EGGS_SUM_MAX }}）。</li>
         <li><strong>賠率在下注當下就鎖進注單</strong>，之後調整設定或回報率都不影響已成立的注單。</li>
         <li>單注與單期限額由各分頁的設定決定，超限伺端會<strong>整筆拒單</strong>（不會只擋超出的部分）。</li>
+        <li><strong>爆池加碼</strong>與賠率派彩會合併在同一期的可領獎金裡，
+          下注紀錄的派彩欄會另外標出加碼金額。</li>
       </ul>
     </section>
   </DialogShell>

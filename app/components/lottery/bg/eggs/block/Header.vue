@@ -14,12 +14,27 @@ import { useEggs } from '~/composables/useEggs'
  *   .right .inner .timer（期別／狀態／倒數）＋ .open-code（可點的開獎區）
  *
  * ── 與 k3 的差異 ────────────────────────────────────────
- *   PC蛋蛋只有信用盤，沒有共用彩池／頭獎預估／中獎機率那一塊獎金框，
- *   開獎球換成 3 顆號碼球（0~9，可重複）。
+ *   PC蛋蛋只有信用盤，沒有共用彩池／頭獎預估／中獎機率那一塊獎金框
+ *   （只有一個爆池，見 .left 的 .jackpot-box），開獎球換成 3 顆號碼球（0~9，可重複）。
  */
 const emit = defineEmits<{ (event: 'open-opencode-dialog'): void }>()
 
-const { current: mxCurrent, time: mxTime, lotteryMeta } = useEggs()
+const { current: mxCurrent, creditJackpot: mxJackpot, time: mxTime, lotteryMeta } = useEggs()
+
+const money = (value: number) =>
+  Number(value ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/**
+ * 爆池
+ *
+ * ⚠️ 與 k3 / pk10 / ssc 的頁首不同 —— 那三個要同時顯示「總獎金」（官方盤分層在吃的
+ *    共用彩池）與「爆池」兩個數字；PC蛋蛋沒有官方盤、沒有共用彩池，只有爆池這一個。
+ */
+const jackpotReady = computed(() => Number(mxJackpot.rakeRatio) > 0)
+const jackpotPool = computed(() => Number(mxJackpot.distributable ?? 0))
+const jackpotHitRate = computed(() => `${(Number(mxJackpot.hitRate ?? 0) * 100).toFixed(2)}%`)
+/** 累積池未達門檻時不發放，畫面要講清楚 */
+const jackpotBelowMin = computed(() => jackpotPool.value < Number(mxJackpot.minPool ?? 0))
 
 const issueCurrent = computed(() => String(mxCurrent.runtime?.issueCurrent ?? '—'))
 const issueLatest = computed(() => String(mxCurrent.runtime?.issueLatest ?? '—'))
@@ -121,6 +136,21 @@ onBeforeUnmount(_anim.stop)
         <h1 class="title">PC蛋蛋</h1>
         <p class="sub">信用玩法</p>
         <p class="lotteryId">LOTTERY_ID: {{ lotteryMeta.id }}</p>
+        <!-- 爆池：PC蛋蛋唯一的池（沒有官方盤共用彩池） -->
+        <div v-if="jackpotReady" class="jackpot-box">
+          <div class="row">
+            <span class="label">爆池</span>
+            <span class="val">{{ money(jackpotPool) }}</span>
+          </div>
+          <p class="jackpot-note">
+            {{ mxJackpot.hitLabel }}（{{ jackpotHitRate }}）時發放 {{ (mxJackpot.payoutRatio * 100).toFixed(0) }}%<template
+              v-if="jackpotBelowMin">，未達 {{ money(mxJackpot.minPool) }} 不發放</template>
+          </p>
+          <p v-if="mxJackpot.lastHit" class="jackpot-note is-hit">
+            上次爆池 第{{ mxJackpot.lastHit.issue }}期 {{ mxJackpot.lastHit.openLabel }}
+            發出 {{ money(mxJackpot.lastHit.payout) }}（{{ mxJackpot.lastHit.orders }} 注 / {{ mxJackpot.lastHit.winners }} 人）
+          </p>
+        </div>
       </div>
     </div>
 
@@ -225,6 +255,43 @@ onBeforeUnmount(_anim.stop)
         font-size: 13px;
         color: var(--color-red-desc);
         padding-left: 0.75rem;
+      }
+
+      .jackpot-box {
+        margin: 0.375rem 0 0;
+        padding: 0.25rem 0 0 0.75rem;
+        border-top: 1px dashed var(--color-gold);
+        max-width: 320px;
+
+        .row {
+          display: flex;
+          align-items: baseline;
+          gap: 8px;
+
+          .label {
+            font-size: 13px;
+            color: var(--color-red-desc);
+          }
+
+          .val {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--color-red-main);
+            font-variant-numeric: tabular-nums;
+          }
+        }
+
+        .jackpot-note {
+          margin: 0.125rem 0 0;
+          font-size: 11px;
+          line-height: 1.5;
+          color: var(--color-red-desc);
+
+          &.is-hit {
+            color: var(--color-red-main);
+            font-weight: 700;
+          }
+        }
       }
     }
   }

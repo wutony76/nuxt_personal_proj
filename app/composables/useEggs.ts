@@ -4,6 +4,7 @@ import {
   api,
   type EggsCurrent,
   type EggsUserBetHistory,
+  type CreditJackpotState,
   type LotteryUserBalanceChange,
   type LotteryClaimableIssue,
   type LotteryOpenCodeHistoryItem
@@ -59,6 +60,24 @@ const select = reactive({
   pool: [] as EggsSelectItem[],
   show: true,
   resetToken: 0
+})
+
+/**
+ * 爆池狀態
+ * ⚠️ PC蛋蛋沒有官方盤、也沒有共用彩池 —— 這是它唯一的池，
+ *    不像 k3 / pk10 / ssc 的看板要同時顯示「總獎金」與「爆池」兩個數字。
+ */
+const creditJackpot = reactive<CreditJackpotState>({
+  issue: '',
+  currentIssueJackpot: 0,
+  carryJackpot: 0,
+  distributable: 0,
+  rakeRatio: 0,
+  payoutRatio: 0,
+  minPool: 0,
+  hitLabel: '',
+  hitRate: 0,
+  lastHit: null
 })
 
 const wallet = reactive({ userName: '-', userId: '-', coin: 0, currentBets: 0, totalBets: 0 })
@@ -235,6 +254,14 @@ const _actions = {
 
 // ── Fetch ──────────────────────────────────────────────────────────────────
 const fetch = {
+  /** 爆池狀態（看板附加資訊，取不到就維持舊值，不蓋掉主要流程的錯誤訊息） */
+  creditJackpot: async () => {
+    try {
+      Object.assign(creditJackpot, await api.lottery.jackpotEggs())
+    } catch {
+      // 靜默：爆池只是顯示用
+    }
+  },
   refreshCurrentInfo: async () => {
     try {
       const result = await api.lottery.currentEggs()
@@ -400,7 +427,9 @@ const fetch = {
   },
   initPageData: async () => {
     state.fetchStatus = 'loading'
-    await Promise.all([fetch.refreshCurrentInfo(), fetch.userInfo(), fetch.openCodeHistoryAll()])
+    await Promise.all([
+      fetch.refreshCurrentInfo(), fetch.userInfo(), fetch.openCodeHistoryAll(), fetch.creditJackpot()
+    ])
     state.fetchStatus = 'success'
   },
   startPolling: () => {
@@ -414,6 +443,7 @@ const fetch = {
           current.detail = []
           fetch.userRecordAll()
           fetch.openCodeHistoryAll()
+          fetch.creditJackpot()
         })
       }, 3000)
     }
@@ -428,6 +458,7 @@ export function useEggs() {
   return {
     state,
     current,
+    creditJackpot,
     select,
     wallet,
     time,

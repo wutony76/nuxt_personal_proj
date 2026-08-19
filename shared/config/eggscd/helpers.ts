@@ -33,6 +33,8 @@ type ConfigGroup = {
   groupName?: string
   groupList?: ConfigOption[]
   columns?: number
+  /** 爆池分配的群組層預設權重（注項的 weight 會覆寫它） */
+  weight?: number
 }
 type ConfigTab = {
   tabId?: number
@@ -155,4 +157,22 @@ export function eggsHasBetCode(playKey?: string, tabId?: number | string, betCod
 export function eggsFindPlayLocation(betCode?: string | number): { playKey: string; tabId: number } | null {
   const found = _findAnyTabItem(betCode)
   return found ? { playKey: found.playKey, tabId: found.tabId } : null
+}
+
+/**
+ * 取注項的爆池分配權重
+ *
+ * 順序：注項 weight → 群組 weight → 0（不參與分配）
+ * ⚠️ 明確給 0 代表「該注項排除在爆池外」，與「沒設定」（呼叫端會退回
+ *    EGGS_JACKPOT_SETTINGS.weightFallback）是兩件不同的事，故用 null 判斷而非 falsy。
+ * @returns 權重；注項不在該分頁或無法辨識回 0
+ */
+export function eggsJackpotWeightOf(playKey?: string, tabId?: number | string, betCode?: string | number): number {
+  const found = _findTabItem(playKey, tabId, betCode)
+  if (!found) return 0
+  const itemWeight = found.item.weight == null ? null : Number(found.item.weight)
+  if (itemWeight != null && Number.isFinite(itemWeight) && itemWeight >= 0) return itemWeight
+  const groupWeight = found.group.weight == null ? null : Number(found.group.weight)
+  if (groupWeight != null && Number.isFinite(groupWeight) && groupWeight >= 0) return groupWeight
+  return 0
 }

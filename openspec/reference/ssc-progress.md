@@ -162,14 +162,26 @@
 - API：`/{game}-cd/jackpot` 與 `/{game}-of/jackpot` 回**同一份**
 - 前端：三個 composable 的 `creditJackpot` + 六個看板的 Header 爆池區塊
 
-⚠️ **PC蛋蛋（EGGS）還沒有爆池** —— 藍圖見 `openspec/reference/eggs-jackpot-plan.md`。
+### 三、PC蛋蛋（EGGS）的爆池
+
+同一套骨架，但**只有一個盤口、也只有一個池**（沒有官方盤、沒有共用彩池），
+所以不需要「等所有盤口交件」的編排，直接在 `eggs.ts` class 內結算。
+
+- `shared/config/eggs-cd.ts`：`EGGS_JACKPOT_SETTINGS` + `eggsJackpotHit()`（豹子 10/1000 = 1%）
+- `shared/config/eggscd/plays.js`：5 個群組 + **44 個注項全部標 weight**
+  （特碼 28 項機率從 1/1000 到 75/1000 差 75 倍，group 一次帶過會失準，必須逐項標）
+- `shared/config/eggscd/helpers.ts`：`ConfigGroup.weight` + `eggsJackpotWeightOf()`
+- `server/api/lottery/eggs/jackpot.get.ts`、`useEggs` 的 `creditJackpot`、Header／Report／DialogRule
+
+⚠️ 豹子既是爆池條件、又是 weight 最高的注項（雙重加成），與 k3 圍骰／ssc 後三豹子同慣例。
+   要取消的話把 plays.js 裡豹子那項改成 `weight: 0` 即可（設定值，不必改程式）。
+   詳細決策依據見 `openspec/reference/eggs-jackpot-plan.md`。
 
 ## 已知待辦
 
 1. 官方盤還有 **94 個 playType** 未實作，清單見 `openspec/reference/ssc-of-todo.md`
    （單式 `input`、和值／跨度／包胆 `noFastSelect` 那幾類）
-2. PC蛋蛋（EGGS）還沒有爆池，要補的話照「信用盤爆池」那節加一組設定
-   （`EGGS_CD_JACKPOT` + `eggsCdJackpotHit`，觸發條件建議用「開出豹子」10/1000）
+2. （已完成）PC蛋蛋的爆池 —— 見上面「三、PC蛋蛋（EGGS）的爆池」
 
 > 先前記的「大廳 SSC-OF 卡片標『獎池分層』與實作不符」已隨後三直選改吃彩池而解決。
 
@@ -188,6 +200,8 @@
 | 爆池編排 | 兩盤交件 → 只結算一次 → 各取自己那半（臨時 dev 路由驗，測完刪除） | 逐項一致 |
 | 彩池分層結算 | 後三直選下 200 注，重算每注命中層與每單位派彩、驗滾存 | 269 passed |
 | 爆池帳務 | 六個盤口下注 → 等結算 → 驗兩盤抽水都進同一池、整筆滾進 carry、不動共用彩池 | 15 passed |
+| EGGS 爆池 | 觸發窮舉、44 個注項權重與理論賠率分級對帳、分配／門檻／weight 0 語意 | 66 passed |
+| EGGS 端對端 | 五個分頁下注 → 抽水 → 等結算 → 滾存；另強制以豹子跑一次派彩路徑 | 9 passed |
 
 ## 重要慣例（照做即可）
 

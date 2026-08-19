@@ -4,9 +4,14 @@ import LOTTERY_BASE from './base'
 // ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
 //    ./base 才是本層的彩票基底（期表／狀態機／訂單）
 import { MEMORY } from '../../../base'
-import { judgeEggsBet, type EggsBetResult } from '#shared/config/eggs-cd'
+import { buildJackpotShares, type JackpotHitRecord, type JackpotRow } from '#shared/config/jackpot'
+import { judgeEggsBet, type EggsBetResult ,
+  eggsJackpotHit,
+  eggsJackpotLabel,
+  EGGS_JACKPOT_SETTINGS
+} from '#shared/config/eggs-cd'
 import { eggsSumOf, eggsDigitsOf } from '#shared/config/eggs'
-import { eggsQuotaOf, eggsRtpOf, eggsTabOddsOf, eggsHasBetCode, findEggsTab } from '#shared/config/eggscd/helpers'
+import { eggsQuotaOf, eggsRtpOf, eggsTabOddsOf, eggsHasBetCode, findEggsTab , eggsJackpotWeightOf } from '#shared/config/eggscd/helpers'
 
 /**
  * PC蛋蛋（EGGS）信用盤
@@ -114,6 +119,16 @@ function _eggsRandomOpenCode(): string[] {
 
 export default class EGGS extends LOTTERY_BASE {
   issueSettledMap: Record<string, boolean>
+  /**
+   * 各期爆池抽水累積：issue → 金額
+   * ⚠️ PC蛋蛋沒有官方盤、沒有 Shared 層，只有這一個池 ——
+   *    不像 k3 / pk10 / ssc 要區分「共用彩池」與「爆池」兩套帳。
+   */
+  issueJackpotMap: Record<string, number>
+  /** 爆池未發放的滾存 */
+  carryJackpot: number
+  /** 最近一次爆池紀錄（供頁首與說明頁展示） */
+  lastJackpotHit: JackpotHitRecord | null
 
   declare _get: LOTTERY_BASE['_get'] & {
     user: (userId: string) => UserStoreLike
@@ -137,11 +152,26 @@ export default class EGGS extends LOTTERY_BASE {
       claimableIssues: UserClaimableIssue[]
     }
     sumOf: (openCode: string[]) => number
+    creditJackpot: () => {
+      issue: string
+      currentIssueJackpot: number
+      carryJackpot: number
+      distributable: number
+      rakeRatio: number
+      payoutRatio: number
+      minPool: number
+      hitLabel: string
+      hitRate: number
+      lastHit: JackpotHitRecord | null
+    }
   }
 
   constructor() {
     super(LOTTERY.EGGS.key, LOTTERY.EGGS.id)
     this.issueSettledMap = {}
+    this.issueJackpotMap = {}
+    this.carryJackpot = 0
+    this.lastJackpotHit = null
 
     Object.assign(this._get, {
       user: (userId: string) => Storage.get.user(userId) as UserStoreLike,
@@ -301,6 +331,8 @@ export default class EGGS extends LOTTERY_BASE {
         }>
 
         const payoutByUser = new Map<string, number>()
+        /** 爆池分配用的注單列（權重讀該注項的看板設定） */
+        const jackpotRows: JackpotRow[] = []
         issueOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
           const betCode = String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
@@ -332,7 +364,56 @@ export default class EGGS extends LOTTERY_BASE {
           if (payout > 0) {
             payoutByUser.set(row.userId, Number((Number(payoutByUser.get(row.userId) ?? 0) + payout).toFixed(2)))
           }
+
+          jackpotRows.push({
+            orderId: String(row.orderId),
+            userId: String(row.userId),
+            coin,
+            source: 'cd',
+            // 有份條件：非未中（和局也算有份，與 6hc-cd / k3-cd 同一套語意）
+            eligible: result !== 'lose',
+            // 權重讀該注項所屬群組的看板設定（注項 weight → 群組 weight → 0 不參與）
+            weight: eggsJackpotWeightOf(playKey, tabId, betCode)
+          })
         })
+
+        // ── 爆池發放（爆池期：開出豹子）──
+        // ⚠️ share 必須在下面寫 claimableIssues 之前併進 payoutByUser，否則玩家領不到
+        const jackpotPool = Number((
+          Number(this.issueJackpotMap[safeIssue] ?? 0) + Number(this.carryJackpot ?? 0)
+        ).toFixed(2))
+        const jackpot = buildJackpotShares(
+          jackpotRows,
+          eggsJackpotHit(codes),
+          jackpotPool,
+          EGGS_JACKPOT_SETTINGS
+        )
+        jackpot.shares.forEach((share) => {
+          if (!(share.amount > 0)) return
+          payoutByUser.set(
+            share.userId,
+            Number((Number(payoutByUser.get(share.userId) ?? 0) + share.amount).toFixed(2))
+          )
+          // 記在該注單上，供下注紀錄顯示「爆池加碼」
+          const record = this.handle.ensureUserRecord(this._get.user(share.userId))
+          const idx = record.betHistory.findIndex((item) => String(item.orderId) === share.orderId)
+          const current = record.betHistory[idx]
+          if (idx >= 0 && current) record.betHistory[idx] = { ...current, jackpotAmount: share.amount }
+        })
+        // 未發放的部分（含未觸發時的整池）滾存至下期
+        this.carryJackpot = Number(jackpot.remain.toFixed(2))
+        this.issueJackpotMap[safeIssue] = 0
+        if (jackpot.triggered) {
+          this.lastJackpotHit = {
+            issue: safeIssue,
+            openLabel: eggsJackpotLabel(codes),
+            pool: jackpot.pool,
+            payout: jackpot.payout,
+            winners: new Set(jackpot.shares.map((share) => share.userId)).size,
+            orders: jackpot.shares.length,
+            createdAt: Date.now()
+          }
+        }
 
         payoutByUser.forEach((amount, userId) => {
           if (amount <= 0) return
@@ -380,6 +461,26 @@ export default class EGGS extends LOTTERY_BASE {
             : percent < 0 ? `比上期少了 ${Math.abs(percent).toFixed(2)}%` : '與上一期投注相同'
         }
         return { currentBets, totalBets, analysis }
+      },
+      /**
+       * 爆池狀態（供頁首與說明頁顯示）
+       * ⚠️ PC蛋蛋只有這一個池，不像 k3 / pk10 / ssc 還要區分官方盤的共用彩池
+       */
+      creditJackpot: () => {
+        const issue = this._get.latestIssue()
+        const currentIssueJackpot = Number(this.issueJackpotMap[issue] ?? 0)
+        return {
+          issue,
+          currentIssueJackpot,
+          carryJackpot: Number(this.carryJackpot ?? 0),
+          distributable: Number((currentIssueJackpot + Number(this.carryJackpot ?? 0)).toFixed(2)),
+          rakeRatio: EGGS_JACKPOT_SETTINGS.rakeRatio,
+          payoutRatio: EGGS_JACKPOT_SETTINGS.payoutRatio,
+          minPool: EGGS_JACKPOT_SETTINGS.minPool,
+          hitLabel: EGGS_JACKPOT_SETTINGS.hitLabel,
+          hitRate: EGGS_JACKPOT_SETTINGS.hitRate,
+          lastHit: this.lastJackpotHit
+        }
       },
       userDialogRecord: (userId: string) => {
         const record = this.handle.ensureUserRecord(this._get.user(userId))
@@ -432,6 +533,10 @@ export default class EGGS extends LOTTERY_BASE {
     const afterCoin = Number(user?.coin ?? 0)
 
     const rows = this.handle.buildOrderRows({ issue, userId, amount, groups })
+    // 抽水入爆池（PC蛋蛋只有這一個池，沒有官方盤共用彩池）
+    this.issueJackpotMap[issue] = Number((
+      Number(this.issueJackpotMap[issue] ?? 0) + Number((amount * EGGS_JACKPOT_SETTINGS.rakeRatio).toFixed(2))
+    ).toFixed(2))
     this.handle.pushBalanceChange(userId, {
       issue,
       type: 'bet',
