@@ -13,6 +13,7 @@
         <X5CdAuto v-else-if="lotteryType === 'x5-cd'" />
         <X5OfAuto v-else-if="lotteryType === 'x5-of'" />
         <EggsAuto v-else-if="lotteryType === 'eggs'" />
+        <Kl10Auto v-else-if="lotteryType === 'kl10'" />
         <OfChat v-if="lotteryType === '6hc-of'" />
         <CdChat v-else-if="lotteryType === '6hc-cd'" />
         <K3Chat v-else-if="lotteryType === 'k3-cd' || lotteryType === 'k3-of'" />
@@ -20,6 +21,7 @@
         <SscChat v-else-if="lotteryType === 'ssc-cd' || lotteryType === 'ssc-of'" />
         <X5Chat v-else-if="lotteryType === 'x5-cd' || lotteryType === 'x5-of'" />
         <EggsChat v-else-if="lotteryType === 'eggs'" />
+        <Kl10Chat v-else-if="lotteryType === 'kl10'" />
       </div>
     </div>
   </Transition>
@@ -61,6 +63,8 @@ const X5Chat = defineAsyncComponent(() => import('~/components/lottery/bg/11x5/b
 // PC蛋蛋只有信用盤，Auto／Chat 各一支
 const EggsAuto = defineAsyncComponent(() => import('~/components/lottery/bg/eggs/block/footer/Auto.vue'))
 const EggsChat = defineAsyncComponent(() => import('~/components/lottery/bg/eggs/block/footer/Chat.vue'))
+const Kl10Auto = defineAsyncComponent(() => import('~/components/lottery/bg/kl10/block/footer/Auto.vue'))
+const Kl10Chat = defineAsyncComponent(() => import('~/components/lottery/bg/kl10/block/footer/Chat.vue'))
 </script>
 
 <style lang="scss">

@@ -40,6 +40,10 @@ export const LOTTERY = {
   // 因此只登記單一鍵值（無 sub 欄位），這個鍵同時是大廳分組項與伺端 Storage.games 的實際 key，
   // 不像其他玩法要另外拆 CD/OF 兩個子項。
   'EGGS':{ id: 5001, key: 'EGGS', name: 'PC蛋蛋', sort: 5 },
+
+  // 快樂十分：來源（bglottery kl10）只有信用模式、沒有官方盤，
+  // 與 PC蛋蛋 一樣只登記單一鍵值（無 sub 欄位），這個鍵同時是大廳分組項與伺端 Storage.games 的 key
+  'KL10':{ id: 7001, key: 'KL10', name: '快樂十分', sort: 7 },
 } 
 
 export const SORT = {

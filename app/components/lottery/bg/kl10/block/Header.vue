@@ -1,12 +1,21 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import Ball from '~/components/lottery/bg/eggs/base/Ball.vue'
+import Ball from '~/components/lottery/bg/kl10/base/Ball.vue'
 import { STATUS_TIME } from '~/config/constants'
-import { EGGS_BIG_LINE, EGGS_DIGIT_MAX, eggsDigitsOf, eggsSumOf } from '#shared/config/eggs'
-import { useEggs } from '~/composables/useEggs'
+import {
+  kl10NumbersOf,
+  kl10ParityZoneOf,
+  kl10SumOf,
+  kl10ZoneOf,
+  KL10_BALL_COUNT,
+  KL10_NUMBER_MAX,
+  KL10_NUMBER_MIN,
+  KL10_SUM_BIG_LINE
+} from '#shared/config/kl10'
+import { useKl10 } from '~/composables/useKl10'
 
 /**
- * PC蛋蛋頁首
+ * 快樂十分頁首
  *
  * 版面參照 k3 的 Header（app/components/lottery/bg/k3/block/Header.vue）：
  *   .header-warp  4px 深紅外框 + 金色漸層頂條
@@ -14,12 +23,13 @@ import { useEggs } from '~/composables/useEggs'
  *   .right .inner .timer（期別／狀態／倒數）＋ .open-code（可點的開獎區）
  *
  * ── 與 k3 的差異 ────────────────────────────────────────
- *   PC蛋蛋只有信用盤，沒有共用彩池／頭獎預估／中獎機率那一塊獎金框
- *   （只有一個爆池，獎金框 `.info-bonus` 三列讀的是它），開獎球換成 3 顆號碼球（0~9，可重複）。
+ *   快樂十分只有信用盤，沒有共用彩池／頭獎預估／中獎機率那一塊獎金框
+ *   （只有一個爆池，獎金框 `.info-bonus` 三列讀的是它），開獎球換成 8 顆號碼球（1~20，不重複）。
+ *   兩面標示除了總和大小／單雙，另外帶上下盤與奇偶盤（爆池條件就看奇偶）。
  */
 const emit = defineEmits<{ (event: 'open-opencode-dialog'): void }>()
 
-const { current: mxCurrent, creditJackpot: mxJackpot, time: mxTime, lotteryMeta } = useEggs()
+const { current: mxCurrent, creditJackpot: mxJackpot, time: mxTime, lotteryMeta } = useKl10()
 
 const money = (value: number) =>
   Number(value ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -29,7 +39,7 @@ const money = (value: number) =>
  *
  * 版位與 k3 頁首的 `.info-bonus` 相同（總額／預估／機率三列 + 明細），但**資料來源不同**：
  * k3 的「總獎金」是**官方盤分層派彩在吃的共用彩池**（`pool.distributable`），
- * PC蛋蛋沒有官方盤、沒有那個池 —— 這裡三列全部讀爆池，各欄語意如下：
+ * 快樂十分沒有官方盤、沒有那個池 —— 這裡三列全部讀爆池，各欄語意如下：
  *   總彩池   = 爆池可發放額（當期抽水 + 未發放滾存）
  *   預估發放 = 現在就觸發的話會發出多少（可發放額 × payoutRatio）
  *   觸發機率 = 爆池條件的發生機率（hitRate）
@@ -128,22 +138,25 @@ const openCode = computed(() => {
   const codes = Array.isArray(mxCurrent.runtime?.openCode) ? mxCurrent.runtime!.openCode : []
   return codes.length > 0 ? codes : []
 })
-const balls = computed(() => (openCode.value.length > 0 ? openCode.value : [0, 0, 0]))
-const digits = computed(() => eggsDigitsOf(openCode.value))
-const sum = computed(() => (digits.value ? eggsSumOf(digits.value) : 0))
-const isTriple = computed(() => openCode.value.length === 3 && new Set(openCode.value).size === 1)
-const isBig = computed(() => sum.value > EGGS_BIG_LINE)
+const PLACEHOLDER_BALLS = Array.from({ length: KL10_BALL_COUNT }, () => 0)
+const balls = computed(() => (openCode.value.length > 0 ? openCode.value : PLACEHOLDER_BALLS))
+const nums = computed(() => kl10NumbersOf(openCode.value))
+const sum = computed(() => (nums.value ? kl10SumOf(nums.value) : 0))
+const isBig = computed(() => sum.value >= KL10_SUM_BIG_LINE)
 const isOdd = computed(() => sum.value % 2 === 1)
+/** 上下盤／奇偶盤（和盤在這裡如實顯示「和盤」，注碼才寫成 上下和／奇偶和） */
+const zone = computed(() => (nums.value ? kl10ZoneOf(nums.value) : ''))
+const parityZone = computed(() => (nums.value ? kl10ParityZoneOf(nums.value) : ''))
 
 /**
  * 開獎動畫
- *   準備開獎／開獎中 → 三顆球持續翻點並抖動（rolling）
+ *   準備開獎／開獎中 → 8 顆球持續翻號並抖動（rolling）
  *   新一期開出       → 依序落下彈跳（revealToken 遞增讓 key 變動、CSS 動畫重播）
  */
 const ROLL_INTERVAL_MS = 90
 const anim = reactive({
   rolling: false,
-  rollFaces: [0, 0, 0] as number[],
+  rollFaces: PLACEHOLDER_BALLS as number[],
   revealToken: 0
 })
 let rollTimer: ReturnType<typeof setInterval> | null = null
@@ -159,7 +172,10 @@ const _anim = {
     if (rollTimer) return
     anim.rolling = true
     rollTimer = setInterval(() => {
-      anim.rollFaces = [0, 1, 2].map(() => Math.floor(Math.random() * (EGGS_DIGIT_MAX + 1)))
+      // 翻號用的隨機號碼允許重複（只是動畫），落定時才是真正不重複的開獎號
+      anim.rollFaces = PLACEHOLDER_BALLS.map(
+        () => KL10_NUMBER_MIN + Math.floor(Math.random() * (KL10_NUMBER_MAX - KL10_NUMBER_MIN + 1))
+      )
     }, ROLL_INTERVAL_MS)
   },
   stop: () => {
@@ -193,12 +209,12 @@ onBeforeUnmount(() => {
   <header class="header-warp">
     <div class="left">
       <div class="info">
-        <h1 class="title">PC蛋蛋</h1>
+        <h1 class="title">快樂十分</h1>
         <p class="sub">信用玩法</p>
         <p class="lotteryId">LOTTERY_ID: {{ lotteryMeta.id }}</p>
       </div>
 
-      <!-- 獎金框：版位同 k3，但三列讀的是爆池（PC蛋蛋沒有官方盤共用彩池） -->
+      <!-- 獎金框：版位同 k3，但三列讀的是爆池（快樂十分沒有官方盤共用彩池） -->
       <div class="info-bonus">
         <div class="row">
           <span class="label">總彩池</span>
@@ -254,16 +270,17 @@ onBeforeUnmount(() => {
             </div>
 
             <!-- key 帶 revealToken：新一期開出時強制重建，CSS 落下動畫才會重播 -->
-            <div v-for="(code, idx) in displayBalls" :key="`eggs-open-${anim.revealToken}-${idx}`" class="ball-warp"
+            <div v-for="(code, idx) in displayBalls" :key="`kl10-open-${anim.revealToken}-${idx}`" class="ball-warp"
               :class="{ 'is-rolling': anim.rolling }" :style="{ '--i': idx }">
-              <Ball :digit="code" size="lg" :pending="!anim.rolling && openCode.length === 0" />
+              <Ball :num="code" size="md" :pending="!anim.rolling && openCode.length === 0" />
             </div>
 
-            <div v-if="openCode.length > 0 && !anim.rolling" :key="`eggs-meta-${anim.revealToken}`" class="open-meta">
-              <span class="meta-sum">和值 {{ sum }}</span>
+            <div v-if="openCode.length > 0 && !anim.rolling" :key="`kl10-meta-${anim.revealToken}`" class="open-meta">
+              <span class="meta-sum">總和 {{ sum }}</span>
               <span class="meta-tag" :class="{ 'is-blue': !isBig }">{{ isBig ? '大' : '小' }}</span>
               <span class="meta-tag" :class="{ 'is-blue': !isOdd }">{{ isOdd ? '單' : '雙' }}</span>
-              <span v-if="isTriple" class="meta-tag is-triple">豹子</span>
+              <span v-if="zone" class="meta-tag is-zone">{{ zone }}</span>
+              <span v-if="parityZone" class="meta-tag is-zone">{{ parityZone }}</span>
             </div>
           </div>
         </div>
@@ -468,16 +485,16 @@ onBeforeUnmount(() => {
           color: var(--color-red-desc);
         }
 
+        /* ⚠️ 8 顆球 + 兩面標籤同一列會超出寬度（eggs 只有 3 顆才 nowrap），故允許換行 */
         .main {
           margin-top: 0.75rem;
           display: flex;
           flex-direction: row;
-          flex-wrap: nowrap;
+          flex-wrap: wrap;
           align-items: center;
           justify-content: center;
-          gap: 0.4rem;
+          gap: 0.4rem 0.3rem;
           overflow: visible;
-          white-space: nowrap;
 
           .ball-legend {
             display: inline-flex;
@@ -507,21 +524,25 @@ onBeforeUnmount(() => {
           .ball-warp {
             display: inline-flex;
             align-items: center;
-            animation: eggs-ball-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+            animation: kl10-ball-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
             animation-delay: calc(var(--i, 0) * 0.12s);
 
             &.is-rolling {
-              animation: eggs-ball-roll 0.32s linear infinite;
+              animation: kl10-ball-roll 0.32s linear infinite;
               animation-delay: calc(var(--i, 0) * 0.06s);
             }
           }
 
+          /* ⚠️ 兩面標示有 4 個（大小／單雙／上下盤／奇偶盤），直排會比球高一截，改流動排列 */
           .open-meta {
-            animation: eggs-meta-in 0.4s ease both;
+            animation: kl10-meta-in 0.4s ease both;
             animation-delay: 0.62s;
             margin-left: 0.5rem;
             display: inline-flex;
-            flex-direction: column;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            max-width: 9rem;
             gap: 3px;
             font-size: 12px;
             font-weight: 700;
@@ -546,7 +567,7 @@ onBeforeUnmount(() => {
                 color: var(--text-blue);
               }
 
-              &.is-triple {
+              &.is-zone {
                 border-color: #d97706;
                 background: #fef3c7;
                 color: #b45309;
@@ -586,7 +607,7 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes eggs-ball-in {
+@keyframes kl10-ball-in {
   0% {
     opacity: 0;
     transform: translateY(-18px) scale(0.7) rotate(-20deg);
@@ -603,7 +624,7 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes eggs-ball-roll {
+@keyframes kl10-ball-roll {
   0% {
     transform: translateY(0) rotate(0deg);
   }
@@ -625,7 +646,7 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes eggs-meta-in {
+@keyframes kl10-meta-in {
   from {
     opacity: 0;
     transform: translateY(6px);

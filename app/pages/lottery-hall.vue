@@ -97,6 +97,11 @@ const GAME_META: Record<string, {
     ribbon: 'BG · 3 球 0~9 組合',
     desc: '三球輪轉見天機，\n點數分明照式提。\n大小單雙皆有序，\n一局開落定高低。',
   },
+  KL10: {
+    en: 'KL10',
+    ribbon: 'BG · 20 取 8 不重複',
+    desc: '廿碼藏鋒開八數，\n正和龍虎任選陳。\n上下奇偶分兩面，\n一輪落定見輸贏。',
+  },
 }
 
 const MODE_META = [
@@ -115,6 +120,10 @@ const GAME_MODES: Record<string, typeof MODE_META> = {
   EGGS: [
     { suffix: '', theme: 'cd', mark: '信', label: '信 用', tag: 'CREDIT · MODE', note: '每注獨立 · 賠率即時派彩' },
   ],
+  // 快樂十分同 PC蛋蛋：來源只有信用模式
+  KL10: [
+    { suffix: '', theme: 'cd', mark: '信', label: '信 用', tag: 'CREDIT · MODE', note: '每注獨立 · 賠率即時派彩' },
+  ],
 }
 
 const router = useRouter()
@@ -131,6 +140,7 @@ const ROUTE_DICT: Record<string, string> = {
   'X5-CD': '/lottery/bg/11x5-cd',
   'X5-OF': '/lottery/bg/11x5-of',
   'EGGS': '/lottery/bg/egg',
+  'KL10': '/lottery/bg/kl10',
 }
 
 const state = reactive({

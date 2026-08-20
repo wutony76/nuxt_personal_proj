@@ -208,6 +208,7 @@ export type SscCurrent = {
  *    這個是爆池，**信用盤與官方盤共吃一池**，開出爆池條件那期一次發放。
  * ⚠️ 同一個彩種的 `-cd/jackpot` 與 `-of/jackpot` 回的是同一份資料。
  * ⚠️ PC蛋蛋沒有官方盤、也沒有共用彩池，爆池是它唯一的池（只有 `/eggs/jackpot`）。
+ * ⚠️ 快樂十分同上（只有 `/kl10/jackpot`）。
  */
 export type CreditJackpotState = {
   issue: string
@@ -375,6 +376,53 @@ export type EggsUserBetHistory = {
   odds?: number
   /** 該注所屬分頁 */
   tabId?: number
+  jackpotAmount: number
+}
+
+/**
+ * 快樂十分（KL10）當期資訊
+ * ⚠️ 只有信用盤（來源本身無官方盤），不像 K3/SSC 有共用彩池，故沒有 pool 欄位。
+ *    openCode 長度固定 8（1~20，互不重複，補零兩位）。
+ */
+export type Kl10Current = {
+  issue: string
+  issueCurrent: string
+  issueLatest: string
+  currentStatus: string
+  countdown: string
+  statusEndAt: number
+  openCode: string[]
+  openingCode: string[]
+  openCodePlay: Array<{ num: number; label: string; ball: number; index: number }>
+  time: { start: string; end: string }
+  startAt: number
+  endAt: number
+}
+
+/** 快樂十分玩家紀錄 */
+export type Kl10UserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: Kl10UserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+}
+
+export type Kl10UserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  /** 一注一個注碼（任選的複式已在下注時展開成多注） */
+  betCode: string[]
+  openCode: string[]
+  matchCount: number
+  /** tie 只在注碼無法辨識時出現（退還本金） */
+  winStatus: 'pending' | 'win' | 'lose' | 'tie'
+  winAmount: number
+  /** 該注鎖定的賠率（含本金） */
+  odds?: number
+  /** 該注所屬分頁 */
+  tabId?: number
+  /** 爆池加碼（開出「奇偶一邊倒」那期才有值） */
   jackpotAmount: number
 }
 
@@ -579,6 +627,8 @@ export const api = {
           return $fetch<X5Current>('/api/lottery/x5-of/current')
         case LOTTERY.EGGS.id:
           return $fetch<EggsCurrent>('/api/lottery/eggs/current')
+        case LOTTERY.KL10.id:
+          return $fetch<Kl10Current>('/api/lottery/kl10/current')
         default:
           return null
       }
@@ -664,6 +714,14 @@ export const api = {
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/eggs/claim', { method: 'POST' }),
     /** 爆池（PC蛋蛋沒有官方盤共用彩池，這是它唯一的池） */
     jackpotEggs: () => $fetch<CreditJackpotState>('/api/lottery/eggs/jackpot'),
+    // ── 快樂十分（只有信用盤，來源本身無官方盤）──
+    currentKl10: () => $fetch<Kl10Current>('/api/lottery/kl10/current'),
+    openCodeHistoryKl10: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/kl10/opencode-history'),
+    userRecordKl10: () => $fetch<Kl10UserRecordResponse>('/api/lottery/kl10/user-record'),
+    claimOneIssueKl10: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/kl10/claim', { method: 'POST' }),
+    /** 爆池（快樂十分沒有官方盤共用彩池，這是它唯一的池） */
+    jackpotKl10: () => $fetch<CreditJackpotState>('/api/lottery/kl10/jackpot'),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),
