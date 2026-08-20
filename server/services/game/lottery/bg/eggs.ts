@@ -8,7 +8,18 @@ import { buildJackpotShares, type JackpotHitRecord, type JackpotRow } from '#sha
 import { judgeEggsBet, type EggsBetResult ,
   eggsJackpotHit,
   eggsJackpotLabel,
-  EGGS_JACKPOT_SETTINGS
+  EGGS_JACKPOT_SETTINGS,
+  eggsPoolPicksOf,
+  eggsPoolMatchCount,
+  EGGS_POOL_PLAY_KEY,
+  EGGS_POOL_PICK_COUNT,
+  EGGS_POOL_PLAY_WEIGHT,
+  EGGS_POOL_BASE_MIN,
+  EGGS_POOL_BASE_MAX,
+  EGGS_POOL_RAKE_RATIO,
+  EGGS_POOL_QUOTA,
+  EGGS_POOL_PRIZE_TIERS,
+  EGGS_POOL_FLOOR
 } from '#shared/config/eggs-cd'
 import { eggsSumOf, eggsDigitsOf } from '#shared/config/eggs'
 import { eggsQuotaOf, eggsRtpOf, eggsTabOddsOf, eggsHasBetCode, findEggsTab , eggsJackpotWeightOf } from '#shared/config/eggscd/helpers'
@@ -53,6 +64,8 @@ type Group = {
     label?: string | number
     amount?: number | string
     coin?: number | string
+    /** 彩池玩法（選號）專用：一注多碼，不走 label 那套（見 EGGS_POOL_PLAY_KEY 分支） */
+    codes?: Array<number | string>
   }>
 }
 
@@ -130,6 +143,17 @@ export default class EGGS extends LOTTERY_BASE {
   /** 最近一次爆池紀錄（供頁首與說明頁展示） */
   lastJackpotHit: JackpotHitRecord | null
 
+  /**
+   * 彩池玩法（選號）的獨立彩金池——跟上面的爆池是兩個池，互不影響
+   * ⚠️ 只有一個 class，不需要 k3Shared.ts 那種跨 class 單例
+   */
+  poolBase: number
+  poolBaseSetAt: number
+  /** 各期彩池玩法抽水累積：issue → 金額（與爆池抽水並行，同一筆下注各自抽各自的） */
+  issuePoolMap: Record<string, number>
+  /** 彩池玩法未派出的滾存 */
+  carryPool: number
+
   declare _get: LOTTERY_BASE['_get'] & {
     user: (userId: string) => UserStoreLike
     userRecord: (userId: string) => UserRecord
@@ -164,6 +188,14 @@ export default class EGGS extends LOTTERY_BASE {
       hitRate: number
       lastHit: JackpotHitRecord | null
     }
+    poolState: () => {
+      issue: string
+      base: number
+      carry: number
+      issuePool: number
+      distributable: number
+      prizeTiers: typeof EGGS_POOL_PRIZE_TIERS
+    }
   }
 
   constructor() {
@@ -172,6 +204,10 @@ export default class EGGS extends LOTTERY_BASE {
     this.issueJackpotMap = {}
     this.carryJackpot = 0
     this.lastJackpotHit = null
+    this.poolBase = 0
+    this.poolBaseSetAt = 0
+    this.issuePoolMap = {}
+    this.carryPool = 0
 
     Object.assign(this._get, {
       user: (userId: string) => Storage.get.user(userId) as UserStoreLike,
@@ -233,9 +269,31 @@ export default class EGGS extends LOTTERY_BASE {
       /** 限額與注項合法性驗證：任一注違規就整筆拒絕，且必須在扣款／建單之前呼叫 */
       validateBetQuota: (input: { issue: string; userId: string; amount: number; groups: Group[] }) => {
         const _money = (value: number) => Number(value).toLocaleString('zh-TW')
+        const orders = this._get.orders() as unknown as {
+          get: { issueTabCoin: (issue: string, userId: string, tabId: number) => number }
+        }
         const newByTab = new Map<number, { playKey: string; coin: number }>()
+        let poolNewCoin = 0
           ; (Array.isArray(input.groups) ? input.groups : []).forEach((group) => {
             const playKey = String(group?.playKey || '')
+            if (playKey === EGGS_POOL_PLAY_KEY) {
+              ; (Array.isArray(group?.playList) ? group.playList : []).forEach((play) => {
+                const picks = eggsPoolPicksOf(Array.isArray(play?.codes) ? play.codes : [])
+                if (!picks) {
+                  this.handle.rejectBet(`選號（彩池）號碼不合法，需 ${EGGS_POOL_PICK_COUNT} 碼、每碼 0~9`)
+                }
+                const rawCoin = Number(play?.amount ?? play?.coin ?? input.amount)
+                const coin = Number.isFinite(rawCoin) && rawCoin > 0 ? rawCoin : Number(input.amount)
+                if (coin < EGGS_POOL_QUOTA.item.min) {
+                  this.handle.rejectBet(`選號（彩池）單注最低 ${_money(EGGS_POOL_QUOTA.item.min)}，本次 ${_money(coin)}`)
+                }
+                if (coin > EGGS_POOL_QUOTA.item.max) {
+                  this.handle.rejectBet(`選號（彩池）單注上限 ${_money(EGGS_POOL_QUOTA.item.max)}，本次 ${_money(coin)}`)
+                }
+                poolNewCoin += coin
+              })
+              return
+            }
               ; (Array.isArray(group?.playList) ? group.playList : []).forEach((play) => {
                 const tabId = _resolveTabId(play, group)
                 const tabName = findEggsTab(playKey, tabId)?.tabName ?? String(tabId)
@@ -256,9 +314,6 @@ export default class EGGS extends LOTTERY_BASE {
                 newByTab.set(tabId, { playKey: prev?.playKey || playKey, coin: Number(prev?.coin ?? 0) + coin })
               })
           })
-        const orders = this._get.orders() as unknown as {
-          get: { issueTabCoin: (issue: string, userId: string, tabId: number) => number }
-        }
         newByTab.forEach(({ playKey, coin: newCoin }, tabId) => {
           const quota = eggsQuotaOf(playKey, tabId)
           if (!(quota.issue.max > 0)) return
@@ -270,6 +325,16 @@ export default class EGGS extends LOTTERY_BASE {
             )
           }
         })
+        if (poolNewCoin > 0 && EGGS_POOL_QUOTA.issue.max > 0) {
+          // 彩池玩法的 select_tab_id 固定為 0（見 buildOrderRows），單期上限用同一個 sentinel 查累積
+          const used = Number(orders?.get?.issueTabCoin?.(input.issue, input.userId, 0) ?? 0)
+          if (used + poolNewCoin > EGGS_POOL_QUOTA.issue.max) {
+            this.handle.rejectBet(
+              `選號（彩池） 單期投注上限 ${_money(EGGS_POOL_QUOTA.issue.max)}，`
+              + `本期已投注 ${_money(used)}、本次 ${_money(poolNewCoin)}`
+            )
+          }
+        }
       },
       buildOrderRows: (input: { issue: string; userId: string; amount: number; groups: Group[] }): BetOrderRow[] => {
         const rows: BetOrderRow[] = []
@@ -278,6 +343,30 @@ export default class EGGS extends LOTTERY_BASE {
             const playKey = String(group?.playKey || '')
             const playList = Array.isArray(group?.playList) ? group.playList : []
             const total = playList.length
+            if (playKey === EGGS_POOL_PLAY_KEY) {
+              // 彩池玩法：一注多碼（picks 陣列），不是「一注項一金額」，validateBetQuota 已驗證過合法性
+              playList.forEach((play, index) => {
+                const orderId = this.handle.createOrderId(input.issue)
+                const picks = eggsPoolPicksOf(Array.isArray(play?.codes) ? play.codes : [])
+                if (!picks) return
+                const playCoin = Number(play?.amount ?? play?.coin ?? input.amount)
+                rows.push({
+                  issue: input.issue,
+                  user_id: input.userId,
+                  select_tab_id: 0,
+                  bet_time: Date.now(),
+                  coin: Number.isFinite(playCoin) && playCoin > 0 ? playCoin : input.amount,
+                  order_id: `${orderId}(${index + 1}/${total})`,
+                  status: 'success',
+                  bet_code: picks.map(String),
+                  play_key: playKey,
+                  play_type_name: playTypeName,
+                  // 彩池玩法非固定賠率結算，odds 欄位不使用（保留 0 只為滿足型別）
+                  odds: 0
+                })
+              })
+              return
+            }
             playList.forEach((play, index) => {
               const orderId = this.handle.createOrderId(input.issue)
               const tabId = _resolveTabId(play, group)
@@ -333,7 +422,11 @@ export default class EGGS extends LOTTERY_BASE {
         const payoutByUser = new Map<string, number>()
         /** 爆池分配用的注單列（權重讀該注項的看板設定） */
         const jackpotRows: JackpotRow[] = []
-        issueOrders.forEach((row) => {
+        // 彩池玩法（選號）走獨立的分層結算，不能混進固定賠率的 judgeEggsBet（picks[0] 可能被誤判為特碼）
+        const oddsOrders = issueOrders.filter((row) => String(row.playKey ?? '') !== EGGS_POOL_PLAY_KEY)
+        const poolOrders = issueOrders.filter((row) => String(row.playKey ?? '') === EGGS_POOL_PLAY_KEY)
+
+        oddsOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
           const betCode = String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
           const playKey = String(row.playKey ?? '')
@@ -376,6 +469,72 @@ export default class EGGS extends LOTTERY_BASE {
             weight: eggsJackpotWeightOf(playKey, tabId, betCode)
           })
         })
+
+        // ── 彩池玩法：依命中顆數分層派彩（比照 k3-of 的 K3_OF_PRIZE_TIERS 結算邏輯） ──
+        const poolTotal = this.distributablePool(safeIssue)
+        const poolRows = poolOrders.map((row) => ({
+          ...row,
+          matchCount: eggsPoolMatchCount(
+            (Array.isArray(row.betCode) ? row.betCode : []).map((code) => Number(code)),
+            codes
+          ),
+          payout: 0
+        }))
+        let carryPoolNext = 0
+        EGGS_POOL_PRIZE_TIERS.forEach((tier) => {
+          const winners = poolRows.filter((row) => row.matchCount === tier.match)
+          if (tier.type === 'pool') {
+            const tierPool = Number((poolTotal * tier.ratio).toFixed(2))
+            if (winners.length === 0) {
+              // 該層沒人中 → 整塊滾存至下期
+              carryPoolNext = Number((carryPoolNext + tierPool).toFixed(2))
+              return
+            }
+            const totalWinnerBets = Number(winners.reduce((sum, row) => sum + Number(row.coin ?? 0), 0).toFixed(2))
+            const naturalPerUnit = totalWinnerBets > 0 ? tierPool / totalWinnerBets : 0
+            const prizePerUnit = tier.minAmount !== undefined
+              ? Math.max(naturalPerUnit, tier.minAmount)
+              : naturalPerUnit
+            winners.forEach((row) => {
+              row.payout = Number((prizePerUnit * Number(row.coin ?? 1)).toFixed(2))
+            })
+          } else {
+            winners.forEach((row) => {
+              row.payout = Number((tier.amount * Number(row.coin ?? 1)).toFixed(2))
+            })
+          }
+        })
+        poolRows.forEach((row) => {
+          const record = this.handle.ensureUserRecord(this._get.user(row.userId))
+          const idx = record.betHistory.findIndex((item) => String(item.orderId) === String(row.orderId))
+          const current = record.betHistory[idx]
+          if (idx >= 0 && current) {
+            record.betHistory[idx] = {
+              ...current,
+              openCode: [...codes],
+              matchCount: row.matchCount,
+              specialMatch: false,
+              winStatus: row.payout > 0 ? 'win' : 'lose',
+              winAmount: row.payout,
+              odds: 0
+            }
+          }
+          if (row.payout > 0) {
+            payoutByUser.set(row.userId, Number((Number(payoutByUser.get(row.userId) ?? 0) + row.payout).toFixed(2)))
+          }
+          jackpotRows.push({
+            orderId: String(row.orderId),
+            userId: String(row.userId),
+            coin: Number(row.coin ?? 0),
+            source: 'cd',
+            // 彩池玩法沒有和局，命中 ≥ 1（有派彩）才算有份，比照 k3-of 的選號玩法
+            eligible: row.payout > 0,
+            // 查不到看板設定，用 fallback 常數（比照 K3_OF_POOL_PLAY_WEIGHT）
+            weight: EGGS_POOL_PLAY_WEIGHT
+          })
+        })
+        this.carryPool = carryPoolNext
+        this.issuePoolMap[safeIssue] = 0
 
         // ── 爆池發放（爆池期：開出豹子）──
         // ⚠️ share 必須在下面寫 claimableIssues 之前併進 payoutByUser，否則玩家領不到
@@ -494,6 +653,19 @@ export default class EGGS extends LOTTERY_BASE {
       sumOf: (openCode: string[]) => {
         const digits = eggsDigitsOf(openCode)
         return digits ? eggsSumOf(digits) : 0
+      },
+      /** 彩池玩法狀態（供頁首與選號頁顯示；池底不足門檻時順便重骰） */
+      poolState: () => {
+        const issue = this._get.latestIssue()
+        this.ensurePoolBase()
+        return {
+          issue,
+          base: this.poolBase,
+          carry: this.carryPool,
+          issuePool: Number(this.issuePoolMap[issue] ?? 0),
+          distributable: this.distributablePool(issue),
+          prizeTiers: EGGS_POOL_PRIZE_TIERS
+        }
       }
     })
 
@@ -505,11 +677,36 @@ export default class EGGS extends LOTTERY_BASE {
     this.handle.prdOpenCode()
     Storage.games[this.key] = this
     LOTTERY_BASE.getOrders(this.id, this.key)
+    // 開機就把彩池玩法的池底生好，不依賴「剛好有人先呼叫 poolState()」這個隱含順序
+    this.ensurePoolBase()
   }
 
   override circle() {
     this.handle.refreshCurrent(MEMORY.now)
     this.handle.settleClosedIssueIfNeeded()
+  }
+
+  /**
+   * 確保彩池玩法的池底存在（沒有或已被吃到低於門檻就重骰）
+   * 比照 k3Shared.ts 的 k3EnsurePoolBase，但這裡只有一個 class，不需要跨 class 單例
+   */
+  ensurePoolBase(): number {
+    const issue = this._get.latestIssue()
+    const distributable = this.distributablePool(issue)
+    if (this.poolBase > 0 && distributable >= EGGS_POOL_FLOOR) return this.poolBase
+    this.poolBase = LOTTERY_BASE.jackpotBase(EGGS_POOL_BASE_MIN, EGGS_POOL_BASE_MAX)
+    this.poolBaseSetAt = Date.now()
+    return this.poolBase
+  }
+
+  /**
+   * 彩池玩法可派發金額 =（池底 + 該期抽水 × 0.8 + 滾存）× 0.55
+   * 複用既有的泛用工具 LOTTERY_BASE.jackpotCalc()（本來就不是 K3 專屬），0.8/0.55 為其預設值
+   */
+  distributablePool(issue: string): number {
+    return Number(
+      LOTTERY_BASE.jackpotCalc(this.poolBase, Number(this.issuePoolMap[issue] ?? 0), this.carryPool).toFixed(2)
+    )
   }
 
   playBets(payload: PlayBetsPayload, user: UserStoreLike) {
@@ -533,9 +730,13 @@ export default class EGGS extends LOTTERY_BASE {
     const afterCoin = Number(user?.coin ?? 0)
 
     const rows = this.handle.buildOrderRows({ issue, userId, amount, groups })
-    // 抽水入爆池（PC蛋蛋只有這一個池，沒有官方盤共用彩池）
+    // 抽水入爆池（PC蛋蛋只有這一個爆池，沒有官方盤共用彩池）
     this.issueJackpotMap[issue] = Number((
       Number(this.issueJackpotMap[issue] ?? 0) + Number((amount * EGGS_JACKPOT_SETTINGS.rakeRatio).toFixed(2))
+    ).toFixed(2))
+    // 同時抽水入彩池玩法的獨立彩金池（比照 K3-CD 兩條水並行，不限彩池玩法本身，任何分頁的下注都算）
+    this.issuePoolMap[issue] = Number((
+      Number(this.issuePoolMap[issue] ?? 0) + Number((amount * EGGS_POOL_RAKE_RATIO).toFixed(2))
     ).toFixed(2))
     this.handle.pushBalanceChange(userId, {
       issue,

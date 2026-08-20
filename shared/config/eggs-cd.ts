@@ -306,3 +306,80 @@ export const EGGS_PLAY_DEFINITIONS: Array<{ key: string; name: string }> = [
   { key: 'sebo', name: '色波' },
   { key: 'tema', name: '特碼' }
 ]
+
+// ── 彩池玩法（選號，比照 k3-of 的「選號」xuanhao：依命中顆數分層、依下注比例分錢） ──────────
+//
+// ⚠️ 這是本專案自己設計的機制（比照 k3-of，非 bglottery 來源），與現有爆池（上方
+//    EGGS_JACKPOT_SETTINGS）是兩個完全獨立的池：各自的池底／抽水／滾存互不影響，
+//    只是兩者都從同一筆下注金額抽水、且彩池玩法的注單也會一併參與現有爆池分配
+//    （見 server/services/game/lottery/bg/eggs.ts）。
+
+export type PoolPrizeTier =
+  | { match: number; type: 'pool'; ratio: number; minAmount?: number; name: string }
+  | { match: number; type: 'fixed'; amount: number; name: string }
+
+/** sentinel playKey：這個玩法刻意不進 eggscd/plays.js 的看板網格，比照 k3-of 的 xuanhao */
+export const EGGS_POOL_PLAY_KEY = 'xuanhao'
+/** 選 3 個數字（0~9，可重複）——跟 PC蛋蛋開獎位數同構，是 k3-of 選骰子玩法最直接的類比 */
+export const EGGS_POOL_PICK_COUNT = 3
+/** 查不到看板 weight 時的 fallback（比照 K3_OF_POOL_PLAY_WEIGHT），讓這個玩法也能參與既有爆池 */
+export const EGGS_POOL_PLAY_WEIGHT = 3
+
+/** 池底範圍：使用者拍板比照 k3 的數值範圍，但獨立宣告成 EGGS 自己的常數，不 import K3 的 */
+export const EGGS_POOL_BASE_MIN = 110_000
+export const EGGS_POOL_BASE_MAX = 450_000
+/** 抽水比例：比照 K3_RAKE_RATIO（信用盤 2%），與既有爆池的 1% 是兩條並行的水 */
+export const EGGS_POOL_RAKE_RATIO = 0.02
+
+/** 硬編碼額度（比照 K3_OF_QUOTA，這個玩法沒有看板設定可查） */
+export const EGGS_POOL_QUOTA = { item: { min: 2, max: 10000 }, issue: { max: 500000 } }
+
+/**
+ * 分層派彩表（比照 K3_OF_PRIZE_TIERS 的 70/20/固定倍數比例，見 design.md 的機率驗證）
+ * ⚠️ 命中率依選型不同（全異/一對/豹子形狀），與 k3-of 選骰子同樣的已知簡化，非本次新增問題
+ */
+export const EGGS_POOL_PRIZE_TIERS: PoolPrizeTier[] = [
+  { match: 3, type: 'pool', ratio: 0.70, minAmount: 20000, name: '頭獎' },
+  { match: 2, type: 'pool', ratio: 0.20, name: '二獎' },
+  { match: 1, type: 'fixed', amount: 2, name: '三獎' }
+]
+
+/** 池底重骰門檻：可派發金額低於「頭獎保底 ÷ 頭獎 ratio」時視為不足（比照 K3_POOL_FLOOR 的算法） */
+export const EGGS_POOL_FLOOR = (() => {
+  const top = EGGS_POOL_PRIZE_TIERS.find((tier) => tier.type === 'pool' && tier.minAmount !== undefined)
+  return top && top.type === 'pool' && top.minAmount ? Math.ceil(top.minAmount / top.ratio) : 0
+})()
+
+/**
+ * 選號是否合法：3 碼、每碼 0~9（可重複）
+ * @returns 排序後的號碼陣列；不合法回 null
+ */
+export function eggsPoolPicksOf(codes: Array<string | number>): number[] | null {
+  if (!Array.isArray(codes) || codes.length !== EGGS_POOL_PICK_COUNT) return null
+  const nums = codes.map((code) => Number(code))
+  if (nums.some((num) => !Number.isInteger(num) || num < 0 || num > 9)) return null
+  return [...nums].sort((a, b) => a - b)
+}
+
+/**
+ * 命中顆數（picks 與開獎 3 球的 multiset 交集，仿 k3OfMatchCount）
+ * @returns 0 ~ EGGS_POOL_PICK_COUNT；開獎格式不合回 0
+ */
+export function eggsPoolMatchCount(picks: number[], openCode: Array<string | number>): number {
+  const digits = eggsDigitsOf(openCode)
+  if (!digits) return 0
+  const remaining = [...digits]
+  let matched = 0
+  for (const pick of picks) {
+    const idx = remaining.indexOf(pick)
+    if (idx < 0) continue
+    remaining.splice(idx, 1)
+    matched++
+  }
+  return matched
+}
+
+/** 依命中顆數查對應的分層設定；未中（查不到）回 null */
+export function eggsPoolTierOf(matchCount: number): PoolPrizeTier | null {
+  return EGGS_POOL_PRIZE_TIERS.find((tier) => tier.match === matchCount) ?? null
+}

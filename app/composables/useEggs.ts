@@ -5,11 +5,18 @@ import {
   type EggsCurrent,
   type EggsUserBetHistory,
   type CreditJackpotState,
+  type PoolPlayState,
   type LotteryUserBalanceChange,
   type LotteryClaimableIssue,
   type LotteryOpenCodeHistoryItem
 } from '~/services/api'
-import { judgeEggsBet, EGGS_PLAY_DEFINITIONS } from '#shared/config/eggs-cd'
+import {
+  judgeEggsBet,
+  EGGS_PLAY_DEFINITIONS,
+  EGGS_POOL_PLAY_KEY,
+  EGGS_POOL_PICK_COUNT,
+  EGGS_POOL_QUOTA
+} from '#shared/config/eggs-cd'
 import { eggsSumOf, eggsDigitsOf } from '#shared/config/eggs'
 import C_PLAYS from '#shared/config/eggscd/plays'
 import { findEggsTab, eggsQuotaOf, eggsTabOddsOf } from '#shared/config/eggscd/helpers'
@@ -80,6 +87,29 @@ const creditJackpot = reactive<CreditJackpotState>({
   lastHit: null
 })
 
+/**
+ * 彩池玩法（選號）狀態 —— 與上面的爆池是兩個獨立的池，互不影響
+ * ⚠️ 這個玩法刻意不進 eggscd/plays.js（比照 k3-of 的 xuanhao），playList 由 `playList` 計算屬性
+ *    合成注入。跟 KL10 的號碼池不同：PC蛋蛋開獎可重複（0~9），改用「N 個獨立槽位」介面
+ *    （比照 k3-of 的 Picker.vue：第一碼/第二碼/第三碼各自選一個 0~9），不是 toggle 式號碼池。
+ */
+const poolPlay = reactive({
+  /** EGGS_POOL_PICK_COUNT 個槽位，各自選一個 0~9；未選為 null */
+  picks: Array.from({ length: EGGS_POOL_PICK_COUNT }, () => null as number | null),
+  /** 單注金額（固定一注，不像任何複式展開） */
+  amount: 10 as number
+})
+
+/** 彩池玩法的池底／抽水／滾存／分層獎金表（取不到就維持舊值，不蓋掉主要流程的錯誤訊息） */
+const poolPlayState = reactive<PoolPlayState>({
+  issue: '',
+  base: 0,
+  carry: 0,
+  issuePool: 0,
+  distributable: 0,
+  prizeTiers: []
+})
+
 const wallet = reactive({ userName: '-', userId: '-', coin: 0, currentBets: 0, totalBets: 0 })
 
 const time = reactive({
@@ -108,21 +138,34 @@ const openCodeHistory = reactive({
 
 // ── Computed ───────────────────────────────────────────────────────────────
 const lotteryMeta = computed(() => LOTTERY.EGGS)
-/** 玩法清單 */
-const playList = computed(() => C_PLAYS as Array<{ key?: string; name?: string; list?: any[] }>)
+/**
+ * 玩法清單：附加彩池玩法（選號）的合成分頁項目
+ * ⚠️ 這個玩法刻意不進 C_PLAYS（eggscd/plays.js），比照 k3-of 的 xuanhao —— 沒有對應的看板分頁，
+ *    `list` 留空即可，頁面的子分頁列本來就 `v-if="groupList.length > 1"`，會自動不顯示。
+ */
+const playList = computed(() => [
+  ...(C_PLAYS as Array<{ key?: string; name?: string; list?: any[] }>),
+  { key: EGGS_POOL_PLAY_KEY, name: '選號（彩池）', list: [] }
+])
 /** 當前玩法的分頁清單 */
 const groupList = computed(() => playList.value.find((play) => play.key === state.select)?.list ?? [])
-/** 當前分頁限額 */
-const currentQuota = computed(() => eggsQuotaOf(state.select, state.selectTabId))
+/** 是否為彩池玩法（選號）分頁 */
+const isPoolPlay = computed(() => state.select === EGGS_POOL_PLAY_KEY)
+/** 當前分頁限額（彩池玩法用自己的硬編碼額度，不查 eggscd 的看板設定） */
+const currentQuota = computed(() => isPoolPlay.value ? EGGS_POOL_QUOTA : eggsQuotaOf(state.select, state.selectTabId))
 /** 已選注項數 */
 const selectedCount = computed(() => select.items.filter((item) => Number(item.coin) > 0).length)
-/** 本次投注總額 */
-const totalAmount = computed(() =>
-  Number(select.items.reduce((sum, item) => sum + Number(item.coin ?? 0), 0).toFixed(2))
-)
+/** 彩池玩法：已選滿全部槽位（0~9，可重複，跟 KL10 的「不重複」不同） */
+const poolPlayReady = computed(() => poolPlay.picks.every((digit) => digit !== null))
+/** 本次投注總額（依當前看板模式取其一） */
+const totalAmount = computed(() => {
+  if (isPoolPlay.value) return Math.max(0, Math.trunc(Number(poolPlay.amount) || 0))
+  return Number(select.items.reduce((sum, item) => sum + Number(item.coin ?? 0), 0).toFixed(2))
+})
 const isOpen = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPEN)
 const canSubmit = computed(() =>
   isOpen.value && state.submitStatus !== 'loading' && totalAmount.value > 0
+  && (!isPoolPlay.value || poolPlayReady.value)
 )
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -187,6 +230,7 @@ const _actions = {
     }
     select.items = []
     select.pool = []
+    _actions.clearPool()
     // 看板的 layout 是 computed，清掉 pool 後要 bump 讓它重新登記
     select.resetToken += 1
   },
@@ -249,6 +293,25 @@ const _actions = {
   sumOf: (openCode: string[]) => {
     const digits = eggsDigitsOf((Array.isArray(openCode) ? openCode : []).map(Number))
     return digits ? eggsSumOf(digits) : 0
+  },
+  /** 彩池玩法：設定第 index 槽位的數字（0~9），比照 k3-of Picker 的「第X顆」介面 */
+  setPoolPick: (index: number, digit: number) => {
+    if (index < 0 || index >= EGGS_POOL_PICK_COUNT) return
+    const safeDigit = Math.trunc(Number(digit))
+    if (!(safeDigit >= 0 && safeDigit <= 9)) return
+    poolPlay.picks[index] = safeDigit
+  },
+  /** 彩池玩法：設定單注金額 */
+  setPoolAmount: (money: number) => {
+    poolPlay.amount = Math.max(0, Math.trunc(Number(money) || 0))
+  },
+  /** 彩池玩法：隨機選滿全部槽位 */
+  randomPool: () => {
+    poolPlay.picks = poolPlay.picks.map(() => Math.floor(Math.random() * 10))
+    return poolPlay.picks.length
+  },
+  clearPool: () => {
+    poolPlay.picks = poolPlay.picks.map(() => null)
   }
 }
 
@@ -260,6 +323,14 @@ const fetch = {
       Object.assign(creditJackpot, await api.lottery.jackpotEggs())
     } catch {
       // 靜默：爆池只是顯示用
+    }
+  },
+  /** 彩池玩法（選號）狀態——與上面的爆池是兩個獨立的池 */
+  poolState: async () => {
+    try {
+      Object.assign(poolPlayState, await api.lottery.poolEggs())
+    } catch {
+      // 靜默：彩池玩法狀態只是顯示用
     }
   },
   refreshCurrentInfo: async () => {
@@ -347,10 +418,43 @@ const fetch = {
     )
   },
   /**
+   * 投注：彩池玩法（選號）
+   * 固定 EGGS_POOL_PICK_COUNT 碼一注（可重複），賠率概念不適用（依命中顆數分層派彩，見伺端結算）。
+   */
+  betsPool: async () => {
+    if (!poolPlayReady.value) {
+      state.message = `請選滿 ${EGGS_POOL_PICK_COUNT} 個數字`
+      return { ok: false, message: state.message }
+    }
+    const coin = Math.max(0, Math.trunc(Number(poolPlay.amount) || 0))
+    if (!(coin > 0)) {
+      state.message = '請填入單注金額'
+      return { ok: false, message: state.message }
+    }
+    return fetch.submit(
+      [{
+        playKey: EGGS_POOL_PLAY_KEY,
+        playTypeName: '選號（彩池）',
+        selectTabId: 0,
+        playList: [{ codes: poolPlay.picks as number[], amount: coin }]
+      }],
+      coin
+    )
+  },
+  /**
    * 自動投注：從當前分頁的注項池隨機取 count 項，各下 amount 元
    * 直接組 payload 送單，不經由 select.items —— 這樣不會覆蓋使用者手動填的注項。
+   * ⚠️ 彩池玩法沒有 select.pool，固定選滿槽位、固定一注，count 忽略。
    */
   autoBets: async ({ count, amount }: { count: number; amount: number }) => {
+    if (isPoolPlay.value) {
+      const coin = Math.max(0, Math.trunc(Number(amount) || 0))
+      if (!(coin > 0)) return { ok: false, message: '請填入投注金額', count: 0, amount: 0 }
+      poolPlay.amount = coin
+      _actions.randomPool()
+      const result = await fetch.betsPool()
+      return { ...result, count: 1, amount: coin }
+    }
     const pool = select.pool
     if (pool.length === 0) return { ok: false, message: '注項尚未載入', count: 0, amount: 0 }
     const coin = Math.max(0, Math.trunc(Number(amount) || 0))
@@ -409,9 +513,11 @@ const fetch = {
         })
       })
       _actions.clearSelect()
+      _actions.clearPool()
       select.resetToken += 1
-      // 送單成功一律刷新餘額與注單（自動下注是直接呼叫 fetch.submit，不經手動投注流程）
-      await Promise.all([fetch.userInfo(), fetch.userRecordAll()])
+      // 送單成功一律刷新餘額、注單、爆池與彩池玩法狀態（自動下注是直接呼叫 fetch.submit，不經手動投注流程）
+      // ⚠️ 爆池／彩金池金額本來只在換期輪詢時才刷新，玩家下注後畫面看不到自己剛抽的水，這裡補上即時刷新
+      await Promise.all([fetch.userInfo(), fetch.userRecordAll(), fetch.creditJackpot(), fetch.poolState()])
       return { ok: true, message: state.message, count: ((result as any)?.orders ?? []).length, amount }
     } catch (error) {
       state.submitStatus = 'error'
@@ -428,7 +534,8 @@ const fetch = {
   initPageData: async () => {
     state.fetchStatus = 'loading'
     await Promise.all([
-      fetch.refreshCurrentInfo(), fetch.userInfo(), fetch.openCodeHistoryAll(), fetch.creditJackpot()
+      fetch.refreshCurrentInfo(), fetch.userInfo(), fetch.openCodeHistoryAll(),
+      fetch.creditJackpot(), fetch.poolState()
     ])
     state.fetchStatus = 'success'
   },
@@ -439,11 +546,12 @@ const fetch = {
         const before = String(current.runtime?.issueLatest ?? '')
         fetch.refreshCurrentInfo().then(() => {
           if (String(current.runtime?.issueLatest ?? '') === before) return
-          // 期別換了代表上一期已開獎：注單結果、可領獎金、開獎歷史一起刷新
+          // 期別換了代表上一期已開獎：注單結果、可領獎金、開獎歷史、彩池玩法狀態一起刷新
           current.detail = []
           fetch.userRecordAll()
           fetch.openCodeHistoryAll()
           fetch.creditJackpot()
+          fetch.poolState()
         })
       }, 3000)
     }
@@ -459,6 +567,8 @@ export function useEggs() {
     state,
     current,
     creditJackpot,
+    poolPlay,
+    poolPlayState,
     select,
     wallet,
     time,
@@ -470,6 +580,8 @@ export function useEggs() {
     groupList,
     currentQuota,
     selectedCount,
+    isPoolPlay,
+    poolPlayReady,
     totalAmount,
     isOpen,
     canSubmit,
@@ -479,6 +591,8 @@ export function useEggs() {
     /** 玩法定義（供玩法列表對帳） */
     playDefinitions: EGGS_PLAY_DEFINITIONS,
     /** 注項賠率查詢（依分頁 rtp 即時推算） */
-    oddsOf: eggsTabOddsOf
+    oddsOf: eggsTabOddsOf,
+    /** 彩池玩法固定選號數（供 Picker 顯示槽位數） */
+    poolPickCount: EGGS_POOL_PICK_COUNT
   }
 }

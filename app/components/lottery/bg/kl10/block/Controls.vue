@@ -13,7 +13,8 @@ import { useKl10 } from '~/composables/useKl10'
 const {
   state: mxState, currentQuota, canSubmit, isOpen,
   selectedCount, totalAmount, actions: mxActions, fetch: mxFetch,
-  isRenxuan, renxuan: mxRenxuan, renxuanCombos, currentChosen
+  isRenxuan, renxuan: mxRenxuan, renxuanCombos, currentChosen,
+  isPoolPlay, poolPlay: mxPool, poolPlayPicked, poolPickCount
 } = useKl10()
 
 const { $dialog } = useNuxtApp()
@@ -23,23 +24,32 @@ const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
 const range = computed(() => ({ min: currentQuota.value.item.min, max: currentQuota.value.item.max }))
 const canBet = computed(() => canSubmit.value)
-/** 注數：表格看板算已選注項數，任選算展開後的組合數 */
-const betCount = computed(() => (isRenxuan.value ? renxuanCombos.value.length : selectedCount.value))
+/** 注數：表格看板算已選注項數，任選算展開後的組合數，彩池玩法固定一注（選滿才算） */
+const betCount = computed(() => {
+  if (isRenxuan.value) return renxuanCombos.value.length
+  if (isPoolPlay.value) return poolPlayPicked.value.length === poolPickCount ? 1 : 0
+  return selectedCount.value
+})
 const betLabel = computed(() =>
   betCount.value > 0 ? `（${betCount.value} 注 / ${money(totalAmount.value)}）` : ''
 )
-/** 畫面顯示的金額欄：任選是單注金額 */
-const inputAmount = computed(() => (isRenxuan.value ? mxRenxuan.amount : mxState.amount))
-const amountLabel = computed(() => (isRenxuan.value ? '單注' : '金額'))
+/** 畫面顯示的金額欄：任選／彩池玩法都是單注金額 */
+const inputAmount = computed(() => {
+  if (isRenxuan.value) return mxRenxuan.amount
+  if (isPoolPlay.value) return mxPool.amount
+  return mxState.amount
+})
+const amountLabel = computed(() => (isRenxuan.value || isPoolPlay.value ? '單注' : '金額'))
 const totalBetAmount = computed(() => totalAmount.value)
 
 const _handlers = {
   clamp: (value: string | number) =>
     Math.min(range.value.max, Math.max(range.value.min, Math.trunc(Number(value) || 0))),
-  /** 改金額要一併更新已選注項（點注項時套用的就是這個值）；任選改的是單注金額 */
+  /** 改金額要一併更新已選注項（點注項時套用的就是這個值）；任選／彩池玩法改的是單注金額 */
   setMoney: (value: string | number) => {
     const coin = _handlers.clamp(value)
     if (isRenxuan.value) mxActions.setRenxuanAmount(coin)
+    else if (isPoolPlay.value) mxActions.setPoolAmount(coin)
     else mxActions.setAmount(coin)
     return coin
   },
@@ -58,12 +68,17 @@ const click = {
    */
   clear: () => {
     if (isRenxuan.value) mxActions.setRenxuanAmount(range.value.min)
+    else if (isPoolPlay.value) mxActions.setPoolAmount(range.value.min)
     else mxState.amount = range.value.min
   },
   submit: async () => {
     if (!isOpen.value) return $dialog.alert('目前非開盤中，無法投注')
-    // 任選走複式送單（在 composable 內展開成 C(k, N) 注）
-    const result = isRenxuan.value ? await mxFetch.betsRenxuan() : await mxFetch.bets()
+    // 任選走複式送單（composable 內展開成 C(k, N) 注）；彩池玩法固定一注（composable 內走 codes 陣列）
+    const result = isRenxuan.value
+      ? await mxFetch.betsRenxuan()
+      : isPoolPlay.value
+        ? await mxFetch.betsPool()
+        : await mxFetch.bets()
     if ((result as { loginExpired?: boolean }).loginExpired) {
       return $dialog.alert(result.message, { cb: () => router.push('/login') })
     }
@@ -92,6 +107,9 @@ const click = {
     <p v-if="isRenxuan" class="ctrl-note">
       {{ mxState.selectTabName }}：一注 {{ currentChosen?.pick ?? 0 }} 碼，
       目前 {{ betCount }} 注（單注 {{ money(mxRenxuan.amount) }}）
+    </p>
+    <p v-else-if="isPoolPlay" class="ctrl-note">
+      選號（彩池）：固定 {{ poolPickCount }} 碼一注，已選 {{ poolPlayPicked.length }} / {{ poolPickCount }}
     </p>
 
     <div class="ctrl-acts">

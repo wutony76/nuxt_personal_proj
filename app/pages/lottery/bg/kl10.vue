@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
 import Kl10Header from '~/components/lottery/bg/kl10/block/Header.vue'
 import Kl10Board from '~/components/lottery/bg/kl10/base/Board.vue'
 import Kl10BoardRenxuan from '~/components/lottery/bg/kl10/base/BoardRenxuan.vue'
+import Kl10PoolPicker from '~/components/lottery/bg/kl10/block/PoolPicker.vue'
 import CurrItems from '~/components/lottery/bg/kl10/block/CurrItems.vue'
 import Controls from '~/components/lottery/bg/kl10/block/Controls.vue'
 import Report from '~/components/lottery/bg/kl10/block/Report.vue'
@@ -35,6 +36,9 @@ const {
   isRenxuan,
   currentChosen,
   renxuanCombos,
+  isPoolPlay,
+  poolPlayPicked,
+  poolPickCount,
   actions: mxActions,
   fetch: mxFetch
 } = useKl10()
@@ -51,21 +55,28 @@ const currentPlayName = computed(() =>
   playList.value.find((play) => play.key === mxState.select)?.name ?? ''
 )
 
-/** 已選注數：任選看展開後的組合數 */
-const betCount = computed(() => (isRenxuan.value ? renxuanCombos.value.length : selectedCount.value))
+/** 已選注數：任選看展開後的組合數，彩池玩法固定一注（選滿才算） */
+const betCount = computed(() => {
+  if (isRenxuan.value) return renxuanCombos.value.length
+  if (isPoolPlay.value) return poolPlayPicked.value.length === poolPickCount ? 1 : 0
+  return selectedCount.value
+})
 
 const click = {
   play: (playKey: string) => mxActions.setPlay(playKey),
   tab: (tabId: number) => mxActions.setTab(tabId),
   random: () => {
-    // 任選是「機選滿最少選號數」，不是機選 N 個注項
+    // 任選是「機選滿最少選號數」，彩池玩法是「機選滿固定碼數」，都不是機選 N 個注項
     const applied = isRenxuan.value
       ? mxActions.randomRenxuan()
-      : mxActions.randomSelect(state.randomCount)
+      : isPoolPlay.value
+        ? mxActions.randomPool()
+        : mxActions.randomSelect(state.randomCount)
     if (applied === 0) $dialog.alert('目前分頁沒有可選注項')
   },
   clear: () => {
     if (isRenxuan.value) mxActions.clearRenxuan()
+    else if (isPoolPlay.value) mxActions.clearPool()
     else mxActions.clearSelect()
   }
 }
@@ -149,6 +160,10 @@ onBeforeUnmount(() => {
               <span class="count-fixed">{{ currentChosen?.min ?? 0 }}</span>
               <span>碼</span>
             </template>
+            <template v-else-if="isPoolPlay">
+              <span class="count-fixed">{{ poolPickCount }}</span>
+              <span>碼</span>
+            </template>
             <template v-else>
               <input type="number" min="1" class="count-input" v-model.number="state.randomCount" />
               <span>注</span>
@@ -177,8 +192,9 @@ onBeforeUnmount(() => {
               <span>已選 {{ betCount }} 注 · 共 {{ money(totalAmount) }}</span>
             </div>
             <div class="body">
-              <!-- 任選是選號池 + 複式展開，與表格看板是兩套互動 -->
+              <!-- 任選是選號池 + 複式展開，彩池玩法是固定選號 + 分層派彩，皆與表格看板是不同互動 -->
               <Kl10BoardRenxuan v-if="isRenxuan" />
+              <Kl10PoolPicker v-else-if="isPoolPlay" />
               <Kl10Board v-else />
             </div>
           </div>

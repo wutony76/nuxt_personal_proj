@@ -237,6 +237,22 @@ export type CreditJackpotState = {
   } | null
 }
 
+/**
+ * 彩池玩法（選號）狀態——PC蛋蛋／快樂十分專用，與上面的 CreditJackpotState（爆池）是兩個獨立的池
+ * ⚠️ 同一套形狀比照 SscPool，但多帶 prizeTiers（依命中顆數分層派彩，靜態顯示用）
+ */
+export type PoolPlayState = {
+  issue: string
+  base: number
+  carry: number
+  issuePool: number
+  distributable: number
+  prizeTiers: Array<
+    | { match: number; type: 'pool'; ratio: number; minAmount?: number; name: string }
+    | { match: number; type: 'fixed'; amount: number; name: string }
+  >
+}
+
 /** SSC 玩家紀錄 */
 export type SscUserRecordResponse = {
   balanceChanges: LotteryUserBalanceChange[]
@@ -714,6 +730,8 @@ export const api = {
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/eggs/claim', { method: 'POST' }),
     /** 爆池（PC蛋蛋沒有官方盤共用彩池，這是它唯一的池） */
     jackpotEggs: () => $fetch<CreditJackpotState>('/api/lottery/eggs/jackpot'),
+    /** 彩池玩法（選號）狀態，與上面的爆池是兩個獨立的池 */
+    poolEggs: () => $fetch<PoolPlayState>('/api/lottery/eggs/pool'),
     // ── 快樂十分（只有信用盤，來源本身無官方盤）──
     currentKl10: () => $fetch<Kl10Current>('/api/lottery/kl10/current'),
     openCodeHistoryKl10: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/kl10/opencode-history'),
@@ -722,6 +740,8 @@ export const api = {
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/kl10/claim', { method: 'POST' }),
     /** 爆池（快樂十分沒有官方盤共用彩池，這是它唯一的池） */
     jackpotKl10: () => $fetch<CreditJackpotState>('/api/lottery/kl10/jackpot'),
+    /** 彩池玩法（選號）狀態，與上面的爆池是兩個獨立的池 */
+    poolKl10: () => $fetch<PoolPlayState>('/api/lottery/kl10/pool'),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),

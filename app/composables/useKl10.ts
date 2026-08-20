@@ -5,11 +5,18 @@ import {
   type Kl10Current,
   type Kl10UserBetHistory,
   type CreditJackpotState,
+  type PoolPlayState,
   type LotteryUserBalanceChange,
   type LotteryClaimableIssue,
   type LotteryOpenCodeHistoryItem
 } from '~/services/api'
-import { judgeKl10Bet, KL10_PLAY_DEFINITIONS } from '#shared/config/kl10-cd'
+import {
+  judgeKl10Bet,
+  KL10_PLAY_DEFINITIONS,
+  KL10_POOL_PLAY_KEY,
+  KL10_POOL_PICK_COUNT,
+  KL10_POOL_QUOTA
+} from '#shared/config/kl10-cd'
 import {
   kl10NumberLabel,
   kl10NumbersOf,
@@ -102,6 +109,27 @@ const creditJackpot = reactive<CreditJackpotState>({
   lastHit: null
 })
 
+/**
+ * 彩池玩法（選號）狀態 —— 與上面的爆池是兩個獨立的池，互不影響
+ * ⚠️ 這個玩法刻意不進 kl10cd/plays.js（比照 k3-of 的 xuanhao），playList 由 `playList` 計算屬性
+ *    合成注入，選號池另外用這組獨立狀態管理，不與 `select.pool`／`renxuan.pool` 混用。
+ */
+const poolPlay = reactive({
+  nums: KL10_NUMBERS.map((num) => ({ num, label: kl10NumberLabel(num), select: false })),
+  /** 單注金額（一注固定 4 碼，只有一注，不像任選會展開成多注） */
+  amount: 10 as number
+})
+
+/** 彩池玩法的池底／抽水／滾存／分層獎金表（取不到就維持舊值，不蓋掉主要流程的錯誤訊息） */
+const poolPlayState = reactive<PoolPlayState>({
+  issue: '',
+  base: 0,
+  carry: 0,
+  issuePool: 0,
+  distributable: 0,
+  prizeTiers: []
+})
+
 const wallet = reactive({ userName: '-', userId: '-', coin: 0, currentBets: 0, totalBets: 0 })
 
 const time = reactive({
@@ -154,12 +182,21 @@ const _handlers = {
 
 // ── Computed ───────────────────────────────────────────────────────────────
 const lotteryMeta = computed(() => LOTTERY.KL10)
-/** 玩法清單 */
-const playList = computed(() => C_PLAYS as Array<{ key?: string; name?: string; list?: any[] }>)
+/**
+ * 玩法清單：附加彩池玩法（選號）的合成分頁項目
+ * ⚠️ 這個玩法刻意不進 C_PLAYS（kl10cd/plays.js），比照 k3-of 的 xuanhao —— 沒有對應的看板分頁，
+ *    `list` 留空即可，頁面的子分頁列本來就 `v-if="groupList.length > 1"`，會自動不顯示。
+ */
+const playList = computed(() => [
+  ...(C_PLAYS as Array<{ key?: string; name?: string; list?: any[] }>),
+  { key: KL10_POOL_PLAY_KEY, name: '選號（彩池）', list: [] }
+])
 /** 當前玩法的分頁清單 */
 const groupList = computed(() => playList.value.find((play) => play.key === state.select)?.list ?? [])
-/** 當前分頁限額 */
-const currentQuota = computed(() => kl10QuotaOf(state.select, state.selectTabId))
+/** 是否為彩池玩法（選號）分頁 */
+const isPoolPlay = computed(() => state.select === KL10_POOL_PLAY_KEY)
+/** 當前分頁限額（彩池玩法用自己的硬編碼額度，不查 kl10cd 的看板設定） */
+const currentQuota = computed(() => isPoolPlay.value ? KL10_POOL_QUOTA : kl10QuotaOf(state.select, state.selectTabId))
 /** 已選注項數（表格看板） */
 const selectedCount = computed(() => select.items.filter((item) => Number(item.coin) > 0).length)
 
@@ -189,15 +226,23 @@ const renxuanTotal = computed(() =>
   Number((Math.max(0, Math.trunc(Number(renxuan.amount) || 0)) * renxuanCombos.value.length).toFixed(2))
 )
 
-/** 本次投注總額（依當前看板模式取其一） */
-const totalAmount = computed(() =>
-  isRenxuan.value
-    ? renxuanTotal.value
-    : Number(select.items.reduce((sum, item) => sum + Number(item.coin ?? 0), 0).toFixed(2))
+/** 彩池玩法已選號碼（依號碼遞增） */
+const poolPlayPicked = computed(() =>
+  poolPlay.nums.filter((item) => item.select).map((item) => item.num).sort((a, b) => a - b)
 )
+/** 是否已選滿 KL10_POOL_PICK_COUNT 碼（湊滿才能送單，不像任選可以複式展開） */
+const poolPlayReady = computed(() => poolPlayPicked.value.length === KL10_POOL_PICK_COUNT)
+
+/** 本次投注總額（依當前看板模式取其一） */
+const totalAmount = computed(() => {
+  if (isRenxuan.value) return renxuanTotal.value
+  if (isPoolPlay.value) return Math.max(0, Math.trunc(Number(poolPlay.amount) || 0))
+  return Number(select.items.reduce((sum, item) => sum + Number(item.coin ?? 0), 0).toFixed(2))
+})
 const isOpen = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPEN)
 const canSubmit = computed(() =>
   isOpen.value && state.submitStatus !== 'loading' && totalAmount.value > 0
+  && (!isPoolPlay.value || poolPlayReady.value)
 )
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -267,6 +312,7 @@ const _actions = {
     select.items = []
     select.pool = []
     _actions.clearRenxuan()
+    _actions.clearPool()
     // 看板的 layout 是 computed，清掉 pool 後要 bump 讓它重新登記
     select.resetToken += 1
   },
@@ -363,6 +409,39 @@ const _actions = {
   clearRenxuan: () => {
     renxuan.pool.forEach((item) => { item.select = false })
   },
+  /**
+   * 彩池玩法：點號碼切換選取
+   * 固定選 KL10_POOL_PICK_COUNT 碼（不像任選可以複式展開），選滿後不再加選，需先取消一個。
+   */
+  togglePoolNumber: (num: number) => {
+    const item = poolPlay.nums.find((option) => option.num === Number(num))
+    if (!item) return { ok: false, message: '號碼不存在' }
+    if (!item.select && poolPlayPicked.value.length >= KL10_POOL_PICK_COUNT) {
+      return { ok: false, message: `固定選 ${KL10_POOL_PICK_COUNT} 個號碼，請先取消已選號碼` }
+    }
+    item.select = !item.select
+    return { ok: true, message: '' }
+  },
+  /** 彩池玩法：設定單注金額 */
+  setPoolAmount: (money: number) => {
+    poolPlay.amount = Math.max(0, Math.trunc(Number(money) || 0))
+  },
+  /** 彩池玩法：隨機選滿 KL10_POOL_PICK_COUNT 碼 */
+  randomPool: () => {
+    const shuffled = [...poolPlay.nums]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      const tmp = shuffled[i] as (typeof poolPlay.nums)[number]
+      shuffled[i] = shuffled[j] as (typeof poolPlay.nums)[number]
+      shuffled[j] = tmp
+    }
+    const picked = new Set(shuffled.slice(0, KL10_POOL_PICK_COUNT).map((item) => item.num))
+    poolPlay.nums.forEach((item) => { item.select = picked.has(item.num) })
+    return picked.size
+  },
+  clearPool: () => {
+    poolPlay.nums.forEach((item) => { item.select = false })
+  },
   /** 該注項照某組開獎會不會中（畫面標示用，與結算共用同一支判定） */
   judgeItem: (betCode: string, openCode: string[], odds = 0) =>
     judgeKl10Bet(betCode, openCode, 1, odds),
@@ -386,6 +465,14 @@ const fetch = {
       Object.assign(creditJackpot, await api.lottery.jackpotKl10())
     } catch {
       // 靜默：爆池只是顯示用
+    }
+  },
+  /** 彩池玩法（選號）狀態——與上面的爆池是兩個獨立的池 */
+  poolState: async () => {
+    try {
+      Object.assign(poolPlayState, await api.lottery.poolKl10())
+    } catch {
+      // 靜默：彩池玩法狀態只是顯示用
     }
   },
   refreshCurrentInfo: async () => {
@@ -519,11 +606,36 @@ const fetch = {
     )
   },
   /**
+   * 投注：彩池玩法（選號）
+   * 固定 4 碼一注，不像任選會展開成多注；賠率概念不適用（依命中顆數分層派彩，見伺端結算）。
+   */
+  betsPool: async () => {
+    if (!poolPlayReady.value) {
+      state.message = `請選滿 ${KL10_POOL_PICK_COUNT} 個號碼`
+      return { ok: false, message: state.message }
+    }
+    const coin = Math.max(0, Math.trunc(Number(poolPlay.amount) || 0))
+    if (!(coin > 0)) {
+      state.message = '請填入單注金額'
+      return { ok: false, message: state.message }
+    }
+    return fetch.submit(
+      [{
+        playKey: KL10_POOL_PLAY_KEY,
+        playTypeName: '選號（彩池）',
+        selectTabId: 0,
+        playList: [{ codes: poolPlayPicked.value, amount: coin }]
+      }],
+      coin
+    )
+  },
+  /**
    * 自動投注：從當前分頁的注項池隨機取 count 項，各下 amount 元
    * 直接組 payload 送單，不經由 select.items —— 這樣不會覆蓋使用者手動填的注項。
    *
    * ⚠️ 任選分頁沒有 select.pool（它的看板是號碼池），改為「隨機選滿最少選號數 → 送複式」：
    *    count 在那裡指「要下幾組隨機組合」沒有意義（組合數由選幾個號碼決定），故忽略 count。
+   * ⚠️ 彩池玩法同樣沒有 select.pool，固定選 KL10_POOL_PICK_COUNT 碼、固定一注，count 也忽略。
    */
   autoBets: async ({ count, amount }: { count: number; amount: number }) => {
     if (isRenxuan.value) {
@@ -534,6 +646,14 @@ const fetch = {
       const combos = renxuanCombos.value.length
       const result = await fetch.betsRenxuan()
       return { ...result, count: combos, amount: coin * combos }
+    }
+    if (isPoolPlay.value) {
+      const coin = Math.max(0, Math.trunc(Number(amount) || 0))
+      if (!(coin > 0)) return { ok: false, message: '請填入投注金額', count: 0, amount: 0 }
+      poolPlay.amount = coin
+      _actions.randomPool()
+      const result = await fetch.betsPool()
+      return { ...result, count: 1, amount: coin }
     }
     const pool = select.pool
     if (pool.length === 0) return { ok: false, message: '注項尚未載入', count: 0, amount: 0 }
@@ -594,9 +714,11 @@ const fetch = {
       })
       _actions.clearSelect()
       _actions.clearRenxuan()
+      _actions.clearPool()
       select.resetToken += 1
-      // 送單成功一律刷新餘額與注單（自動下注是直接呼叫 fetch.submit，不經手動投注流程）
-      await Promise.all([fetch.userInfo(), fetch.userRecordAll()])
+      // 送單成功一律刷新餘額、注單、爆池與彩池玩法狀態（自動下注是直接呼叫 fetch.submit，不經手動投注流程）
+      // ⚠️ 爆池／彩金池金額本來只在換期輪詢時才刷新，玩家下注後畫面看不到自己剛抽的水，這裡補上即時刷新
+      await Promise.all([fetch.userInfo(), fetch.userRecordAll(), fetch.creditJackpot(), fetch.poolState()])
       return { ok: true, message: state.message, count: ((result as any)?.orders ?? []).length, amount }
     } catch (error) {
       state.submitStatus = 'error'
@@ -613,7 +735,8 @@ const fetch = {
   initPageData: async () => {
     state.fetchStatus = 'loading'
     await Promise.all([
-      fetch.refreshCurrentInfo(), fetch.userInfo(), fetch.openCodeHistoryAll(), fetch.creditJackpot()
+      fetch.refreshCurrentInfo(), fetch.userInfo(), fetch.openCodeHistoryAll(),
+      fetch.creditJackpot(), fetch.poolState()
     ])
     state.fetchStatus = 'success'
   },
@@ -624,11 +747,12 @@ const fetch = {
         const before = String(current.runtime?.issueLatest ?? '')
         fetch.refreshCurrentInfo().then(() => {
           if (String(current.runtime?.issueLatest ?? '') === before) return
-          // 期別換了代表上一期已開獎：注單結果、可領獎金、開獎歷史一起刷新
+          // 期別換了代表上一期已開獎：注單結果、可領獎金、開獎歷史、彩池玩法狀態一起刷新
           current.detail = []
           fetch.userRecordAll()
           fetch.openCodeHistoryAll()
           fetch.creditJackpot()
+          fetch.poolState()
         })
       }, 3000)
     }
@@ -644,6 +768,8 @@ export function useKl10() {
     state,
     current,
     creditJackpot,
+    poolPlay,
+    poolPlayState,
     select,
     renxuan,
     wallet,
@@ -661,6 +787,9 @@ export function useKl10() {
     renxuanCombos,
     renxuanOdds,
     renxuanTotal,
+    isPoolPlay,
+    poolPlayPicked,
+    poolPlayReady,
     selectedCount,
     totalAmount,
     isOpen,
@@ -671,6 +800,8 @@ export function useKl10() {
     /** 玩法定義（供玩法列表對帳） */
     playDefinitions: KL10_PLAY_DEFINITIONS,
     /** 注項賠率查詢（依分頁 rtp 即時推算） */
-    oddsOf: kl10TabOddsOf
+    oddsOf: kl10TabOddsOf,
+    /** 彩池玩法固定選號數（供 Picker 顯示「已選 x/N」） */
+    poolPickCount: KL10_POOL_PICK_COUNT
   }
 }

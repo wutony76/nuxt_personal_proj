@@ -8,7 +8,8 @@ import { useEggs } from '~/composables/useEggs'
  */
 const {
   state: mxState, currentQuota, canSubmit, isOpen,
-  selectedCount, totalAmount, actions: mxActions, fetch: mxFetch
+  selectedCount, totalAmount, actions: mxActions, fetch: mxFetch,
+  isPoolPlay, poolPlay: mxPool, poolPlayReady, poolPickCount
 } = useEggs()
 
 const { $dialog } = useNuxtApp()
@@ -18,18 +19,24 @@ const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
 const range = computed(() => ({ min: currentQuota.value.item.min, max: currentQuota.value.item.max }))
 const canBet = computed(() => canSubmit.value)
+/** 注數：彩池玩法固定一注（選滿才算） */
+const betCount = computed(() => (isPoolPlay.value ? (poolPlayReady.value ? 1 : 0) : selectedCount.value))
 const betLabel = computed(() =>
-  selectedCount.value > 0 ? `（${selectedCount.value} 注 / ${money(totalAmount.value)}）` : ''
+  betCount.value > 0 ? `（${betCount.value} 注 / ${money(totalAmount.value)}）` : ''
 )
+/** 畫面顯示的金額欄：彩池玩法是單注金額 */
+const inputAmount = computed(() => (isPoolPlay.value ? mxPool.amount : mxState.amount))
+const amountLabel = computed(() => (isPoolPlay.value ? '單注' : '元'))
 const totalBetAmount = computed(() => totalAmount.value)
 
 const _handlers = {
   clamp: (value: string | number) =>
     Math.min(range.value.max, Math.max(range.value.min, Math.trunc(Number(value) || 0))),
-  /** 改金額要一併更新已選注項（點注項時套用的就是這個值） */
+  /** 改金額要一併更新已選注項（點注項時套用的就是這個值）；彩池玩法改的是單注金額 */
   setMoney: (value: string | number) => {
     const coin = _handlers.clamp(value)
-    mxActions.setAmount(coin)
+    if (isPoolPlay.value) mxActions.setPoolAmount(coin)
+    else mxActions.setAmount(coin)
     return coin
   },
   onAmountInput: (event: Event) => {
@@ -40,17 +47,18 @@ const _handlers = {
 
 const click = {
   /** 快捷金額是「累加」不是「設定」（按鈕文案就是 +10、+50…），同 k3 的做法 */
-  coin: (coin: number) => { _handlers.setMoney((Number(mxState.amount) || 0) + coin) },
+  coin: (coin: number) => { _handlers.setMoney((Number(inputAmount.value) || 0) + coin) },
   /**
    * 清空：只還原投注金額到該分頁的單注最低額
    * ⚠️ 不動當前注項 —— 要清注項請用當前注項卡上的清空
    */
   clear: () => {
-    mxState.amount = range.value.min
+    if (isPoolPlay.value) mxActions.setPoolAmount(range.value.min)
+    else mxState.amount = range.value.min
   },
   submit: async () => {
     if (!isOpen.value) return $dialog.alert('目前非開盤中，無法投注')
-    const result = await mxFetch.bets()
+    const result = isPoolPlay.value ? await mxFetch.betsPool() : await mxFetch.bets()
     if ((result as { loginExpired?: boolean }).loginExpired) {
       return $dialog.alert(result.message, { cb: () => router.push('/login') })
     }
@@ -62,9 +70,9 @@ const click = {
 <template>
   <div class="block-main eggs-ctrl">
     <div class="ctrl-row">
-      <input type="number" :min="range.min" :max="range.max" class="ctrl-input" :value="mxState.amount"
+      <input type="number" :min="range.min" :max="range.max" class="ctrl-input" :value="inputAmount"
         @input="_handlers.onAmountInput" @blur="_handlers.onAmountInput" />
-      <span class="ctrl-unit">元</span>
+      <span class="ctrl-unit">{{ amountLabel }}</span>
       <span class="ctrl-range">{{ money(range.min) }} — {{ money(range.max) }}</span>
     </div>
     <div class="ctrl-quick">
@@ -76,6 +84,9 @@ const click = {
       <span class="total-label">總注額</span>
       <span class="total-value">{{ money(totalBetAmount) }}</span>
     </div>
+    <p v-if="isPoolPlay" class="ctrl-note">
+      選號（彩池）：固定 {{ poolPickCount }} 碼一注（可重複）
+    </p>
 
     <div class="ctrl-acts">
       <button type="button" class="submit-btn" :disabled="!canBet" @click="click.submit()">
@@ -218,6 +229,14 @@ const click = {
         background: #fff1f2;
       }
     }
+  }
+
+  .ctrl-note {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-red-desc);
+    text-align: center;
   }
 
   .ctrl-err {

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
 import EggsHeader from '~/components/lottery/bg/eggs/block/Header.vue'
 import EggsBoard from '~/components/lottery/bg/eggs/base/Board.vue'
+import EggsPoolPicker from '~/components/lottery/bg/eggs/block/PoolPicker.vue'
 import CurrItems from '~/components/lottery/bg/eggs/block/CurrItems.vue'
 import Controls from '~/components/lottery/bg/eggs/block/Controls.vue'
 import Report from '~/components/lottery/bg/eggs/block/Report.vue'
@@ -30,6 +31,8 @@ const {
   groupList,
   selectedCount,
   totalAmount,
+  isPoolPlay,
+  poolPlayReady,
   actions: mxActions,
   fetch: mxFetch
 } = useEggs()
@@ -46,12 +49,20 @@ const currentPlayName = computed(() =>
   playList.value.find((play) => play.key === mxState.select)?.name ?? ''
 )
 
+/** 已選注數：彩池玩法固定一注（選滿才算） */
+const betCount = computed(() => (isPoolPlay.value ? (poolPlayReady.value ? 1 : 0) : selectedCount.value))
+
 const click = {
   play: (playKey: string) => mxActions.setPlay(playKey),
   tab: (tabId: number) => mxActions.setTab(tabId),
   random: () => {
-    const applied = mxActions.randomSelect(state.randomCount)
+    // 彩池玩法是「機選滿全部槽位」，不是機選 N 個注項
+    const applied = isPoolPlay.value ? mxActions.randomPool() : mxActions.randomSelect(state.randomCount)
     if (applied === 0) $dialog.alert('目前分頁沒有可選注項')
+  },
+  clear: () => {
+    if (isPoolPlay.value) mxActions.clearPool()
+    else mxActions.clearSelect()
   }
 }
 
@@ -130,10 +141,10 @@ onBeforeUnmount(() => {
 
           <div class="auto-select">
             <span>隨機選號</span>
-            <input type="number" min="1" class="count-input" v-model.number="state.randomCount" />
-            <span>注</span>
+            <input v-if="!isPoolPlay" type="number" min="1" class="count-input" v-model.number="state.randomCount" />
+            <span>{{ isPoolPlay ? '固定 1 注' : '注' }}</span>
             <button type="button" class="act-btn" @click="click.random()">機選</button>
-            <button type="button" class="act-btn is-clear" @click="mxActions.clearSelect()">清空</button>
+            <button type="button" class="act-btn is-clear" @click="click.clear()">清空</button>
           </div>
         </div>
 
@@ -153,10 +164,12 @@ onBeforeUnmount(() => {
           <div class="selector">
             <div class="head">
               <span>[ {{ currentPlayName }} · {{ mxState.selectTabName }} ] 請選擇注項</span>
-              <span>已選 {{ selectedCount }} 注 · 共 {{ money(totalAmount) }}</span>
+              <span>已選 {{ betCount }} 注 · 共 {{ money(totalAmount) }}</span>
             </div>
             <div class="body">
-              <EggsBoard />
+              <!-- 彩池玩法是固定選號 + 分層派彩，與表格看板是不同互動 -->
+              <EggsPoolPicker v-if="isPoolPlay" />
+              <EggsBoard v-else />
             </div>
           </div>
           <aside class="selector-side">

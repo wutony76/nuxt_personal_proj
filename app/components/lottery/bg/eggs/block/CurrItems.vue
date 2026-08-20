@@ -2,8 +2,26 @@
 import { computed } from 'vue'
 import { useEggs, type EggsSelectItem } from '~/composables/useEggs'
 
-/** 當前注項：已選注項列表，金額可直接改（PC蛋蛋只有信用盤，沒有官方盤那一分支） */
-const { select: mxSelect, totalAmount, selectedCount, currentQuota: mxQuota, actions: mxActions } = useEggs()
+/**
+ * 當前注項：已選注項列表，金額可直接改（PC蛋蛋只有信用盤，沒有官方盤那一分支）
+ * ⚠️ 彩池玩法沒有「已選注項」可逐項改金額 —— 固定一注、共用同一個單注金額，
+ *    所以那個模式改成唯讀列出選好的號碼（金額在看板／控制列上改）。
+ */
+const {
+  select: mxSelect, totalAmount, selectedCount, currentQuota: mxQuota, actions: mxActions,
+  isPoolPlay, poolPlay: mxPool
+} = useEggs()
+
+/** 彩池玩法：唯讀預覽（固定一注，選滿才顯示），沒有賠率概念（依命中顆數分層派彩） */
+const poolRows = computed(() => {
+  const picked = mxPool.picks.filter((digit) => digit !== null) as number[]
+  if (picked.length === 0) return []
+  return [{
+    key: picked.join('-'),
+    code: `選號（彩池）${picked.join(',')}`,
+    coin: Math.max(0, Math.trunc(Number(mxPool.amount) || 0))
+  }]
+})
 
 const click = {
   /**
@@ -30,7 +48,7 @@ const click = {
   }
 }
 
-const currCountLabel = computed(() => `${selectedCount.value} 注`)
+const currCountLabel = computed(() => `${isPoolPlay.value ? poolRows.value.length : selectedCount.value} 注`)
 </script>
 
 <template>
@@ -50,7 +68,16 @@ const currCountLabel = computed(() => `${selectedCount.value} 注`)
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in mxSelect.items" :key="String(item.playId)">
+          <!-- 彩池玩法：唯讀列出固定一注（依命中顆數分層派彩，沒有賠率概念） -->
+          <template v-if="isPoolPlay">
+            <tr v-for="row in poolRows" :key="row.key">
+              <td class="c-code">{{ row.code }}</td>
+              <td class="c-odds">—</td>
+              <td class="c-coin is-fixed">{{ row.coin }}</td>
+            </tr>
+            <tr v-if="poolRows.length === 0"><td colspan="3" class="c-empty">選號數不足，尚無可下注注單</td></tr>
+          </template>
+          <tr v-for="item in (isPoolPlay ? [] : mxSelect.items)" :key="String(item.playId)">
             <td class="c-code">{{ item.name }}</td>
             <td class="c-odds">{{ item.odds }}</td>
             <td class="c-coin">
@@ -58,12 +85,16 @@ const currCountLabel = computed(() => `${selectedCount.value} 注`)
                 placeholder="0" @input="click.coinInput(item, $event)" @blur="click.coinBlur(item, $event)" />
             </td>
           </tr>
-          <tr v-if="mxSelect.items.length === 0"><td colspan="3" class="c-empty">尚未選擇注項</td></tr>
+          <tr v-if="!isPoolPlay && mxSelect.items.length === 0"><td colspan="3" class="c-empty">尚未選擇注項</td></tr>
         </tbody>
       </table>
     </div>
 
-    <button v-if="mxSelect.items.length > 0" type="button" class="clear-btn" @click="mxActions.clearSelect()">
+    <button v-if="isPoolPlay && poolRows.length > 0" type="button" class="clear-btn" @click="mxActions.clearPool()">
+      清空選號
+    </button>
+    <button v-else-if="!isPoolPlay && mxSelect.items.length > 0" type="button" class="clear-btn"
+      @click="mxActions.clearSelect()">
       清空
     </button>
   </section>
@@ -161,6 +192,12 @@ const currCountLabel = computed(() => `${selectedCount.value} 注`)
       text-align: center;
       font-weight: 700;
       color: #d97706;
+    }
+
+    .c-coin.is-fixed {
+      font-weight: 700;
+      color: var(--color-red-main);
+      font-variant-numeric: tabular-nums;
     }
 
     .c-coin {

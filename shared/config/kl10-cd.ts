@@ -467,3 +467,80 @@ export const KL10_PLAY_DEFINITIONS: Array<{ key: string; name: string }> = [
   { key: 'renxuan', name: '任選' },
   { key: 'liangmian', name: '兩面' }
 ]
+
+// ── 彩池玩法（選號，比照 k3-of 的「選號」xuanhao：依命中顆數分層、依下注比例分錢） ──────────
+//
+// ⚠️ 這是本專案自己設計的機制（比照 k3-of，非 bglottery 來源），與現有爆池（上方
+//    KL10_JACKPOT_SETTINGS）是兩個完全獨立的池：各自的池底／抽水／滾存互不影響，
+//    只是兩者都從同一筆下注金額抽水、且彩池玩法的注單也會一併參與現有爆池分配
+//    （見 server/services/game/lottery/bg/kl10.ts）。
+// ⚠️ 跟「任選」不同：任選是全中才算中（kl10IsHit 的 all-or-nothing），彩池玩法是
+//    依命中顆數分層，兩者判定邏輯完全獨立，不共用 _parseBet／kl10IsHit。
+
+export type PoolPrizeTier =
+  | { match: number; type: 'pool'; ratio: number; minAmount?: number; name: string }
+  | { match: number; type: 'fixed'; amount: number; name: string }
+
+/** sentinel playKey：這個玩法刻意不進 kl10cd/plays.js 的看板網格，比照 k3-of 的 xuanhao */
+export const KL10_POOL_PLAY_KEY = 'xuanhao'
+/**
+ * 選 4 個號碼（1~20，不重複）。用超幾何分布驗證過：任選 4 碼對中 8 個開獎號，
+ * 全中機率 1.445%，與 k3-of 全體平均全中機率（1.79%）同量級；因開獎本身不重複，
+ * 任何 4 碼組合的命中分布完全相同（不像 eggs/k3 有選型機率落差），見 design.md。
+ */
+export const KL10_POOL_PICK_COUNT = 4
+/** 查不到看板 weight 時的 fallback（比照 K3_OF_POOL_PLAY_WEIGHT），讓這個玩法也能參與既有爆池 */
+export const KL10_POOL_PLAY_WEIGHT = 3
+
+/** 池底範圍：使用者拍板比照 k3 的數值範圍，但獨立宣告成 KL10 自己的常數，不 import K3 的 */
+export const KL10_POOL_BASE_MIN = 110_000
+export const KL10_POOL_BASE_MAX = 450_000
+/** 抽水比例：比照 K3_RAKE_RATIO（信用盤 2%），與既有爆池的 1% 是兩條並行的水 */
+export const KL10_POOL_RAKE_RATIO = 0.02
+
+/** 硬編碼額度（比照 K3_OF_QUOTA，這個玩法沒有看板設定可查） */
+export const KL10_POOL_QUOTA = { item: { min: 2, max: 10000 }, issue: { max: 500000 } }
+
+/**
+ * 分層派彩表（比照 K3_OF_PRIZE_TIERS 的 70/20/固定倍數比例，見 design.md 的機率驗證）
+ * 命中門檻依 KL10_POOL_PICK_COUNT(4) 設計：全中(4)/中3/中2
+ */
+export const KL10_POOL_PRIZE_TIERS: PoolPrizeTier[] = [
+  { match: 4, type: 'pool', ratio: 0.70, minAmount: 20000, name: '頭獎' },
+  { match: 3, type: 'pool', ratio: 0.20, name: '二獎' },
+  { match: 2, type: 'fixed', amount: 2, name: '三獎' }
+]
+
+/** 池底重骰門檻：可派發金額低於「頭獎保底 ÷ 頭獎 ratio」時視為不足（比照 K3_POOL_FLOOR 的算法） */
+export const KL10_POOL_FLOOR = (() => {
+  const top = KL10_POOL_PRIZE_TIERS.find((tier) => tier.type === 'pool' && tier.minAmount !== undefined)
+  return top && top.type === 'pool' && top.minAmount ? Math.ceil(top.minAmount / top.ratio) : 0
+})()
+
+/**
+ * 選號是否合法：4 碼、每碼 1~20、不重複
+ * @returns 排序後的號碼陣列；不合法回 null
+ */
+export function kl10PoolPicksOf(codes: Array<string | number>): number[] | null {
+  if (!Array.isArray(codes) || codes.length !== KL10_POOL_PICK_COUNT) return null
+  const nums = codes.map((code) => Number(code))
+  if (nums.some((num) => !Number.isInteger(num) || num < KL10_NUMBER_MIN || num > KL10_NUMBER_MAX)) return null
+  if (new Set(nums).size !== nums.length) return null
+  return [...nums].sort((a, b) => a - b)
+}
+
+/**
+ * 命中顆數（picks 與開獎 8 號的集合交集；開獎本身不重複，不需要 multiset 邏輯）
+ * @returns 0 ~ KL10_POOL_PICK_COUNT；開獎格式不合回 0
+ */
+export function kl10PoolMatchCount(picks: number[], openCode: Array<string | number>): number {
+  const nums = kl10NumbersOf(openCode)
+  if (!nums) return 0
+  const drawn = new Set(nums)
+  return picks.reduce((count, pick) => count + (drawn.has(pick) ? 1 : 0), 0)
+}
+
+/** 依命中顆數查對應的分層設定；未中（查不到）回 null */
+export function kl10PoolTierOf(matchCount: number): PoolPrizeTier | null {
+  return KL10_POOL_PRIZE_TIERS.find((tier) => tier.match === matchCount) ?? null
+}

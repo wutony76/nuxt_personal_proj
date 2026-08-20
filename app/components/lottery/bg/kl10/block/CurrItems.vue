@@ -11,7 +11,8 @@ import { kl10NumberLabel } from '#shared/config/kl10'
  */
 const {
   select: mxSelect, totalAmount, selectedCount, currentQuota: mxQuota, actions: mxActions,
-  isRenxuan, renxuan: mxRenxuan, renxuanCombos, renxuanOdds, state: mxState
+  isRenxuan, renxuan: mxRenxuan, renxuanCombos, renxuanOdds, state: mxState,
+  isPoolPlay, poolPlay: mxPool, poolPlayPicked
 } = useKl10()
 
 /** 任選展開後的注碼列（唯讀預覽） */
@@ -22,6 +23,15 @@ const renxuanRows = computed(() =>
     coin: Math.max(0, Math.trunc(Number(mxRenxuan.amount) || 0))
   }))
 )
+/** 彩池玩法：唯讀預覽（固定一注，選滿才顯示），沒有賠率概念（依命中顆數分層派彩） */
+const poolRows = computed(() => {
+  if (poolPlayPicked.value.length === 0) return []
+  return [{
+    key: poolPlayPicked.value.join('-'),
+    code: `選號（彩池）${poolPlayPicked.value.map((num) => kl10NumberLabel(num)).join(',')}`,
+    coin: Math.max(0, Math.trunc(Number(mxPool.amount) || 0))
+  }]
+})
 
 const click = {
   /**
@@ -48,9 +58,11 @@ const click = {
   }
 }
 
-const currCountLabel = computed(() =>
-  `${isRenxuan.value ? renxuanRows.value.length : selectedCount.value} 注`
-)
+const currCountLabel = computed(() => {
+  if (isRenxuan.value) return `${renxuanRows.value.length} 注`
+  if (isPoolPlay.value) return `${poolRows.value.length} 注`
+  return `${selectedCount.value} 注`
+})
 </script>
 
 <template>
@@ -79,7 +91,16 @@ const currCountLabel = computed(() =>
             </tr>
             <tr v-if="renxuanRows.length === 0"><td colspan="3" class="c-empty">選號數不足，尚無可下注組合</td></tr>
           </template>
-          <tr v-for="item in (isRenxuan ? [] : mxSelect.items)" :key="String(item.playId)">
+          <!-- 彩池玩法：唯讀列出固定一注（依命中顆數分層派彩，沒有賠率概念） -->
+          <template v-else-if="isPoolPlay">
+            <tr v-for="row in poolRows" :key="row.key">
+              <td class="c-code">{{ row.code }}</td>
+              <td class="c-odds">—</td>
+              <td class="c-coin is-fixed">{{ row.coin }}</td>
+            </tr>
+            <tr v-if="poolRows.length === 0"><td colspan="3" class="c-empty">選號數不足，尚無可下注注單</td></tr>
+          </template>
+          <tr v-for="item in (isRenxuan || isPoolPlay ? [] : mxSelect.items)" :key="String(item.playId)">
             <td class="c-code">{{ item.name }}</td>
             <td class="c-odds">{{ item.odds }}</td>
             <td class="c-coin">
@@ -87,7 +108,7 @@ const currCountLabel = computed(() =>
                 placeholder="0" @input="click.coinInput(item, $event)" @blur="click.coinBlur(item, $event)" />
             </td>
           </tr>
-          <tr v-if="!isRenxuan && mxSelect.items.length === 0">
+          <tr v-if="!isRenxuan && !isPoolPlay && mxSelect.items.length === 0">
             <td colspan="3" class="c-empty">尚未選擇注項</td>
           </tr>
         </tbody>
@@ -98,7 +119,11 @@ const currCountLabel = computed(() =>
       @click="mxActions.clearRenxuan()">
       清空選號
     </button>
-    <button v-else-if="!isRenxuan && mxSelect.items.length > 0" type="button" class="clear-btn"
+    <button v-else-if="isPoolPlay && poolRows.length > 0" type="button" class="clear-btn"
+      @click="mxActions.clearPool()">
+      清空選號
+    </button>
+    <button v-else-if="!isRenxuan && !isPoolPlay && mxSelect.items.length > 0" type="button" class="clear-btn"
       @click="mxActions.clearSelect()">
       清空
     </button>
