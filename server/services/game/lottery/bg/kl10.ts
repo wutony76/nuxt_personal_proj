@@ -9,6 +9,8 @@ import { judgeKl10Bet, type Kl10BetResult ,
   kl10JackpotHit,
   kl10JackpotLabel,
   KL10_JACKPOT_SETTINGS,
+  KL10_JACKPOT_BASE_MIN,
+  KL10_JACKPOT_BASE_MAX,
   kl10PoolPicksOf,
   kl10PoolMatchCount,
   KL10_POOL_PLAY_KEY,
@@ -221,7 +223,8 @@ export default class KL10 extends LOTTERY_BASE {
     super(LOTTERY.KL10.key, LOTTERY.KL10.id)
     this.issueSettledMap = {}
     this.issueJackpotMap = {}
-    this.carryJackpot = 0
+    // 開站一次性 seed 池底到滾存，讓玩家一進遊戲就看到非 0 的總彩池；之後照既有機制自然演化
+    this.carryJackpot = LOTTERY_BASE.jackpotBase(KL10_JACKPOT_BASE_MIN, KL10_JACKPOT_BASE_MAX)
     this.lastJackpotHit = null
     this.poolBase = 0
     this.poolBaseSetAt = 0

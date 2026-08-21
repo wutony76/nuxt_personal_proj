@@ -180,11 +180,7 @@ const openCodeHistory = reactive({
 
 // ── Computed：共用 ─────────────────────────────────────────────────────────
 const isCd = computed(() => state.mode === 'cd')
-/**
- * ⚠️ 階段 1 固定回 X5-CD —— 官方盤還沒登記進 LOTTERY（見 app/config/constants.js 的說明）。
- *    階段 2 改成 `isCd.value ? LOTTERY['X5-CD'] : LOTTERY['X5-OF']`（同 useSsc）。
- */
-const lotteryMeta = computed(() => LOTTERY['X5-CD'])
+const lotteryMeta = computed(() => (isCd.value ? LOTTERY['X5-CD'] : LOTTERY['X5-OF']))
 const isOpen = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPEN)
 
 // ── Computed：信用盤 ───────────────────────────────────────────────────────

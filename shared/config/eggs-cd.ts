@@ -282,6 +282,18 @@ export const EGGS_JACKPOT_SETTINGS: JackpotSettings = {
 }
 
 /**
+ * 爆池起始池底（僅開站時 seed 一次到 carryJackpot，之後照既有機制自然累積／發放）
+ *
+ * ⚠️ 不可比照彩池玩法（EGGS_POOL_BASE_MIN/MAX）那樣「每期都重新加回去」——
+ *    爆池的公式（buildJackpotShares）沒有彩池玩法那個 0.55 阻尼係數，
+ *    若每期都持續疊加一筆固定池底，滾存會無界成長（幾百期後爆炸成天文數字）。
+ *    因此這裡只在建構子執行一次性 seed，之後池底就融進 carryJackpot 自然演化，
+ *    範圍比照彩池玩法（獨立宣告，不共用同一組常數）。
+ */
+export const EGGS_JACKPOT_BASE_MIN = 110_000
+export const EGGS_JACKPOT_BASE_MAX = 450_000
+
+/**
  * 這一期是不是爆池期
  * @returns true = 豹子；開獎格式不合回 false
  */

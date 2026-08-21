@@ -9,6 +9,8 @@ import { judgeEggsBet, type EggsBetResult ,
   eggsJackpotHit,
   eggsJackpotLabel,
   EGGS_JACKPOT_SETTINGS,
+  EGGS_JACKPOT_BASE_MIN,
+  EGGS_JACKPOT_BASE_MAX,
   eggsPoolPicksOf,
   eggsPoolMatchCount,
   EGGS_POOL_PLAY_KEY,
@@ -202,7 +204,8 @@ export default class EGGS extends LOTTERY_BASE {
     super(LOTTERY.EGGS.key, LOTTERY.EGGS.id)
     this.issueSettledMap = {}
     this.issueJackpotMap = {}
-    this.carryJackpot = 0
+    // 開站一次性 seed 池底到滾存，讓玩家一進遊戲就看到非 0 的總彩池；之後照既有機制自然演化
+    this.carryJackpot = LOTTERY_BASE.jackpotBase(EGGS_JACKPOT_BASE_MIN, EGGS_JACKPOT_BASE_MAX)
     this.lastJackpotHit = null
     this.poolBase = 0
     this.poolBaseSetAt = 0
