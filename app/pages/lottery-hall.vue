@@ -102,6 +102,11 @@ const GAME_META: Record<string, {
     ribbon: 'BG · 20 取 8 不重複',
     desc: '廿碼藏鋒開八數，\n正和龍虎任選陳。\n上下奇偶分兩面，\n一輪落定見輸贏。',
   },
+  KL8: {
+    en: 'KL8',
+    ribbon: 'BG · 80 選 20 開號',
+    desc: '八十藏珠開廿號，\n任選兩面各成章。\n和值上下奇偶判，\n五行流轉定高低。',
+  },
 }
 
 const MODE_META = [
@@ -124,6 +129,10 @@ const GAME_MODES: Record<string, typeof MODE_META> = {
   KL10: [
     { suffix: '', theme: 'cd', mark: '信', label: '信 用', tag: 'CREDIT · MODE', note: '每注獨立 · 賠率即時派彩' },
   ],
+  // 快樂8同 PC蛋蛋／快樂十分：來源只有信用模式
+  KL8: [
+    { suffix: '', theme: 'cd', mark: '信', label: '信 用', tag: 'CREDIT · MODE', note: '每注獨立 · 賠率即時派彩' },
+  ],
 }
 
 const router = useRouter()
@@ -141,6 +150,7 @@ const ROUTE_DICT: Record<string, string> = {
   'X5-OF': '/lottery/bg/11x5-of',
   'EGGS': '/lottery/bg/egg',
   'KL10': '/lottery/bg/kl10',
+  'KL8': '/lottery/bg/kl8',
 }
 
 const state = reactive({

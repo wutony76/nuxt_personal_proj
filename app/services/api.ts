@@ -442,6 +442,54 @@ export type Kl10UserBetHistory = {
   jackpotAmount: number
 }
 
+/**
+ * 快樂8（KL8）當期資訊
+ * ⚠️ 只有信用盤（來源本身無官方盤），不像 K3/SSC 有共用彩池，故沒有 pool 欄位。
+ *    openCode 長度固定 20（1~80，互不重複，補零兩位）。
+ *    快樂8沒有「第幾球」的位置概念，openCodePlay 也就沒有 kl10 的 ball 欄位。
+ */
+export type Kl8Current = {
+  issue: string
+  issueCurrent: string
+  issueLatest: string
+  currentStatus: string
+  countdown: string
+  statusEndAt: number
+  openCode: string[]
+  openingCode: string[]
+  openCodePlay: Array<{ num: number; label: string; index: number }>
+  time: { start: string; end: string }
+  startAt: number
+  endAt: number
+}
+
+/** 快樂8玩家紀錄 */
+export type Kl8UserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: Kl8UserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+}
+
+export type Kl8UserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  /** 一注一個注碼（任選的複式已在下注時展開成多注；選號彩池玩法帶 3 個號碼） */
+  betCode: string[]
+  openCode: string[]
+  matchCount: number
+  /** tie 只在注碼無法辨識時出現（退還本金） */
+  winStatus: 'pending' | 'win' | 'lose' | 'tie'
+  winAmount: number
+  /** 該注鎖定的賠率（含本金） */
+  odds?: number
+  /** 該注所屬分頁 */
+  tabId?: number
+  /** 爆池加碼（開出「奇偶一邊倒」那期才有值） */
+  jackpotAmount: number
+}
+
 /** 信用盤（6hc-cd）獎池狀態：含可發放累積池、發放參數與最近一次爆池紀錄 */
 export type Lottery6hcCdJackpot = {
   issue: string
@@ -645,6 +693,8 @@ export const api = {
           return $fetch<EggsCurrent>('/api/lottery/eggs/current')
         case LOTTERY.KL10.id:
           return $fetch<Kl10Current>('/api/lottery/kl10/current')
+        case LOTTERY.KL8.id:
+          return $fetch<Kl8Current>('/api/lottery/kl8/current')
         default:
           return null
       }
@@ -742,6 +792,16 @@ export const api = {
     jackpotKl10: () => $fetch<CreditJackpotState>('/api/lottery/kl10/jackpot'),
     /** 彩池玩法（選號）狀態，與上面的爆池是兩個獨立的池 */
     poolKl10: () => $fetch<PoolPlayState>('/api/lottery/kl10/pool'),
+    // ── 快樂8（只有信用盤，來源本身無官方盤）──
+    currentKl8: () => $fetch<Kl8Current>('/api/lottery/kl8/current'),
+    openCodeHistoryKl8: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/kl8/opencode-history'),
+    userRecordKl8: () => $fetch<Kl8UserRecordResponse>('/api/lottery/kl8/user-record'),
+    claimOneIssueKl8: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/kl8/claim', { method: 'POST' }),
+    /** 爆池（快樂8沒有官方盤共用彩池，這是它唯一的池） */
+    jackpotKl8: () => $fetch<CreditJackpotState>('/api/lottery/kl8/jackpot'),
+    /** 彩池玩法（選號）狀態，與上面的爆池是兩個獨立的池 */
+    poolKl8: () => $fetch<PoolPlayState>('/api/lottery/kl8/pool'),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),

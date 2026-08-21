@@ -124,6 +124,13 @@ src/components/room/lotteryAll/kl8/allTraditional/liangmian/play_script.js
 版面骨架參考 PC蛋蛋（`egg.vue`），兩個玩法看板（任選／兩面）
 依上方 Project Structure 的 `app/components/lottery/bg/kl8/` 分層各自實作。
 
+同時補齊 Hall 與入口串接（避免只做下注頁、未接主流程）：
+
+- `app/pages/lottery-hall.vue` 新增/調整 KL8 卡片資料（名稱、ribbon、路由）
+- 進入路由需對應 `app/pages/lottery/bg/kl8.vue`
+- top 選單（會員/開獎/玩法）與 dialog 事件串接，比照既有 bg 單盤口頁
+- 不可沿用 kl10 的文案（例如 `BG · 10 碼排位`）到 KL8
+
 ---
 
 ## 5. Constraints
@@ -137,6 +144,7 @@ src/components/room/lotteryAll/kl8/allTraditional/liangmian/play_script.js
 - 修改前先閱讀既有實作（特別是 EGGS 全套：composable／server／config 三層）
 - 非 trivial 需求需走 OpenSpec 流程（proposal → design → tasks），此為新彩種、跨多層變更，
   動工前應先建立 `openspec/changes/add-kl8/` 提案
+- 不可照抄 kl10 的路由、hall 文案、tab key、判定邏輯；kl8 的球數/號碼範圍/兩面分組皆不同
 
 ---
 
@@ -189,3 +197,83 @@ kl8 只有一個盤口（無 CD/OF 之分，整個彩種本身即等同信用盤
 - 結算時用 `(playKey, tabId, betCode)` 反查 weight，解析順序 `item.weight → group.weight → 0`
   ⚠️ **明確 `weight: 0`（排除在彩池外）與「完全沒設定」（退回 `weightFallback`）是兩件不同的事**，
   必須用 `== null` 判斷，不可用 falsy 判斷（此語意在 `shared/config/jackpot.ts` 也要守一次）
+
+### 6.4 頭獎機制（KL8 必做，與 KL10／EGGS 對齊）
+
+KL8 需明確具備「頭獎」分層，不可只有抽水與滾存。
+
+- 以 `shared/config/kl8-cd.ts` 定義 KL8 的 jackpot 分層時，需包含 `name: '頭獎'` 的 pool layer
+- 該層需有明確：
+  - `ratio`（派發占比）
+  - `minAmount`（頭獎最低保障）
+- 觸發語意與 KL10/EGGS 一致：
+  - 只有在 `kl8JackpotHit()` 命中時才會進入派發
+  - 未觸發期不得派發頭獎，池子全額滾存
+- 流程要求：
+  - 下注階段：累積至 `issueJackpotMap`
+  - 開獎階段：`pool = issueJackpotMap[issue] + carryJackpot`
+  - 觸發後：依分層（含頭獎）配比派發
+  - 未觸發／不足門檻：寫回 `carryJackpot`
+
+---
+
+## 7. 實作交付清單（Definition of Done）
+
+以下檔案層需全部落地，才算 KL8 完成：
+
+1. shared/config
+   - `shared/config/kl8.ts`
+   - `shared/config/kl8-cd.ts`
+   - `shared/config/kl8cd/plays.js`
+   - `shared/config/kl8cd/helpers.ts`
+2. server
+   - `server/services/game/lottery/bg/kl8.ts`
+   - `server/api/lottery/kl8/current.get.ts`
+   - `server/api/lottery/kl8/claim.post.ts`
+   - `server/api/lottery/kl8/opencode-history.get.ts`
+   - `server/api/lottery/kl8/user-record.get.ts`
+   - `server/api/lottery/kl8/jackpot.get.ts`
+3. frontend
+   - `app/composables/useKl8.ts`
+   - `app/components/lottery/bg/kl8/**`
+   - `app/pages/lottery/bg/kl8.vue`
+   - `app/pages/lottery-hall.vue`（KL8 卡片入口）
+
+---
+
+## 8. 驗收清單（必跑）
+
+### 8.1 玩法與看板
+
+- 僅有 2 個 tab：任選（21210）、兩面（21211）
+- 任選可正確選號、複式展開、拆單下注
+- 兩面各分組（含五行）可下注，且不混入 kl10 的尾大/尾小分組
+
+### 8.2 開獎與結算
+
+- 每期開 20 顆、號碼池 1~80
+- 任選中獎判定以「20 顆開獎號命中」為準
+- user-record / claim / opencode-history 流程可通
+
+### 8.3 彩池
+
+- 下注有累積 `issueJackpotMap`
+- 開獎後會執行觸發判定、派發或滾存
+- `weight: 0` 與未設定 weight 的語意正確區分
+
+### 8.4 頁面入口
+
+- hall 可進入 KL8 頁
+- top 選單 dialog（會員/開獎/玩法）在 KL8 頁可正常觸發
+
+---
+
+## 9. 常見錯誤防呆（Review Gate）
+
+PR 自檢時若出現以下任一項，視為不通過：
+
+- 出現 kl10 才有的 tab（正和/龍虎鬥）
+- 使用 1~20 或 8 顆開獎球邏輯到 kl8
+- 使用 `dict.js` 0~27 色波直接當 KL8 正式規則
+- hall 文案或路由仍沿用 kl10（例：`BG · 10 碼排位`）
+- 未建立 `openspec/changes/add-kl8/` 就直接大改多層

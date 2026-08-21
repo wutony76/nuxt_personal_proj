@@ -44,7 +44,11 @@ export const LOTTERY = {
   // 快樂十分：來源（bglottery kl10）只有信用模式、沒有官方盤，
   // 與 PC蛋蛋 一樣只登記單一鍵值（無 sub 欄位），這個鍵同時是大廳分組項與伺端 Storage.games 的 key
   'KL10':{ id: 7001, key: 'KL10', name: '快樂十分', sort: 7 },
-} 
+
+  // 快樂8：來源（bglottery kl8）只有信用模式、沒有官方盤，
+  // 與 PC蛋蛋／快樂十分 一樣只登記單一鍵值（無 sub 欄位）
+  'KL8':{ id: 8001, key: 'KL8', name: '快樂8', sort: 8 },
+}
 
 export const SORT = {
   DEFAULT: 'default',
