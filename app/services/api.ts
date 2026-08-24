@@ -534,6 +534,49 @@ export type Fc3dUserBetHistory = {
   tabId?: number
 }
 
+/**
+ * 排列3（PL3）當期資訊
+ * ⚠️ 玩法結構與福彩3D相同（同為官方盤單盤口、無信用盤、無彩池），型別結構完全比照 Fc3dCurrent。
+ */
+export type Pl3Current = {
+  issueCurrent: string
+  issueLatest: string
+  currentStatus: string
+  countdown: string
+  statusEndAt: number
+  openCode: string[]
+  openingCode: string[]
+  openCodePlay: Array<{ num: number; label: string; index: number }>
+  time: { start: string; end: string }
+  startAt: number
+  endAt: number
+}
+
+/** 排列3玩家紀錄 */
+export type Pl3UserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: Pl3UserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+}
+
+export type Pl3UserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  /** 一注一個注碼（複式已在下注時展開成多注，例如「三星直選123」「大小單雙前二大單」） */
+  betCode: string[]
+  openCode: string[]
+  matchCount: number
+  /** tie：官方盤沒有真正的和局，只在注碼無法辨識時出現（退還本金） */
+  winStatus: 'pending' | 'win' | 'lose' | 'tie'
+  winAmount: number
+  /** 該注鎖定的賠率（含本金） */
+  odds?: number
+  /** 該注所屬分頁 */
+  tabId?: number
+}
+
 /** 信用盤（6hc-cd）獎池狀態：含可發放累積池、發放參數與最近一次爆池紀錄 */
 export type Lottery6hcCdJackpot = {
   issue: string
@@ -741,6 +784,8 @@ export const api = {
           return $fetch<Kl8Current>('/api/lottery/kl8/current')
         case LOTTERY.FC3D.id:
           return $fetch<Fc3dCurrent>('/api/lottery/fc3d/current')
+        case LOTTERY.PL3.id:
+          return $fetch<Pl3Current>('/api/lottery/pl3/current')
         default:
           return null
       }
@@ -854,6 +899,12 @@ export const api = {
     userRecordFc3d: () => $fetch<Fc3dUserRecordResponse>('/api/lottery/fc3d/user-record'),
     claimOneIssueFc3d: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/fc3d/claim', { method: 'POST' }),
+    // ── 排列3（只有官方盤，玩法結構與福彩3D相同，來源本身無信用盤，也沒有任何彩池／爆池）──
+    currentPl3: () => $fetch<Pl3Current>('/api/lottery/pl3/current'),
+    openCodeHistoryPl3: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/pl3/opencode-history'),
+    userRecordPl3: () => $fetch<Pl3UserRecordResponse>('/api/lottery/pl3/user-record'),
+    claimOneIssuePl3: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery/pl3/claim', { method: 'POST' }),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),

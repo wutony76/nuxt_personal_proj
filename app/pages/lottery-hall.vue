@@ -112,6 +112,11 @@ const GAME_META: Record<string, {
     ribbon: 'BG · 3 位數字定位',
     desc: '三位開時定其形，\n直組和值照章明。\n不定大小皆有序，\n一局落定見輸贏。',
   },
+  PL3: {
+    en: 'PL3',
+    ribbon: 'BG · 3 位數字排列',
+    desc: '三位排定見分曉，\n直組和值細推敲。\n不定大小皆可選，\n一局落定見輸贏。',
+  },
 }
 
 const MODE_META = [
@@ -142,6 +147,10 @@ const GAME_MODES: Record<string, typeof MODE_META> = {
   FC3D: [
     { suffix: '', theme: 'of', mark: '官', label: '官 方', tag: 'OFFICIAL · MODE', note: '每注獨立 · 固定賠率結算' },
   ],
+  // 排列3同福彩3D：只有官方模式（來源無信用盤），且沒有彩池/爆池，固定賠率結算
+  PL3: [
+    { suffix: '', theme: 'of', mark: '官', label: '官 方', tag: 'OFFICIAL · MODE', note: '每注獨立 · 固定賠率結算' },
+  ],
 }
 
 const router = useRouter()
@@ -161,6 +170,7 @@ const ROUTE_DICT: Record<string, string> = {
   'KL10': '/lottery/bg/kl10',
   'KL8': '/lottery/bg/kl8',
   'FC3D': '/lottery/bg/fc3d',
+  'PL3': '/lottery/bg/pl3',
 }
 
 const state = reactive({

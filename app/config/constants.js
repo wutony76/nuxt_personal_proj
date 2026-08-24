@@ -53,6 +53,11 @@ export const LOTTERY = {
   // 與 PC蛋蛋／快樂十分／快樂8 一樣只登記單一鍵值（無 sub 欄位），
   // 這個鍵同時是大廳分組項與伺端 Storage.games 的 key（下注沿用共用路由 /api/lottery/bet）。
   'FC3D':{ id: 9001, key: 'FC3D', name: '福彩3D', sort: 9 },
+
+  // 排列3：來源（bglottery pl3）只有官方盤、沒有信用盤，玩法結構與福彩3D幾乎相同
+  // （僅 playId 前綴／lotteryId 不同），但仍是完全獨立彩種，各自登記一組鍵值，
+  // 與 FC3D／PC蛋蛋／快樂十分／快樂8 一樣只登記單一鍵值（無 sub 欄位）。
+  'PL3':{ id: 10001, key: 'PL3', name: '排列3', sort: 10 },
 }
 
 export const SORT = {
