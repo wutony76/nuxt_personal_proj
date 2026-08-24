@@ -107,6 +107,11 @@ const GAME_META: Record<string, {
     ribbon: 'BG · 80 選 20 開號',
     desc: '八十藏珠開廿號，\n任選兩面各成章。\n和值上下奇偶判，\n五行流轉定高低。',
   },
+  FC3D: {
+    en: 'FC3D',
+    ribbon: 'BG · 3 位數字定位',
+    desc: '三位開時定其形，\n直組和值照章明。\n不定大小皆有序，\n一局落定見輸贏。',
+  },
 }
 
 const MODE_META = [
@@ -133,6 +138,10 @@ const GAME_MODES: Record<string, typeof MODE_META> = {
   KL8: [
     { suffix: '', theme: 'cd', mark: '信', label: '信 用', tag: 'CREDIT · MODE', note: '每注獨立 · 賠率即時派彩' },
   ],
+  // 福彩3D只有官方模式（來源無信用盤），且沒有彩池/爆池，固定賠率結算
+  FC3D: [
+    { suffix: '', theme: 'of', mark: '官', label: '官 方', tag: 'OFFICIAL · MODE', note: '每注獨立 · 固定賠率結算' },
+  ],
 }
 
 const router = useRouter()
@@ -151,6 +160,7 @@ const ROUTE_DICT: Record<string, string> = {
   'EGGS': '/lottery/bg/egg',
   'KL10': '/lottery/bg/kl10',
   'KL8': '/lottery/bg/kl8',
+  'FC3D': '/lottery/bg/fc3d',
 }
 
 const state = reactive({

@@ -21,6 +21,7 @@ import X5OfClass from './game/lottery/bg/x5Of'
 import EggsClass from './game/lottery/bg/eggs'
 import Kl10Class from './game/lottery/bg/kl10'
 import Kl8Class from './game/lottery/bg/kl8'
+import Fc3dClass from './game/lottery/bg/fc3d'
 import { LOTTERY } from '~/config/constants'
 
 export const verifyPasswordHash = (password: string, storedHash: string): boolean => {
@@ -139,6 +140,8 @@ export class Storage {
       new Kl10Class()
       // 快樂8：同 PC蛋蛋／快樂十分，只有信用盤，自己持有期表
       new Kl8Class()
+      // 福彩3D：只有官方盤（來源本身無信用盤、無彩池），自己持有期表，不與其他實例共用開獎號
+      new Fc3dClass()
       // console.log('games.init.success', Storage.games)
       console.log('SUCCESS ---BASE>games.init')
     }

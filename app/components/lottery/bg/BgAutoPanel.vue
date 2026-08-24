@@ -15,6 +15,7 @@
         <EggsAuto v-else-if="lotteryType === 'eggs'" />
         <Kl10Auto v-else-if="lotteryType === 'kl10'" />
         <Kl8Auto v-else-if="lotteryType === 'kl8'" />
+        <Fc3dAuto v-else-if="lotteryType === 'fc3d'" />
         <OfChat v-if="lotteryType === '6hc-of'" />
         <CdChat v-else-if="lotteryType === '6hc-cd'" />
         <K3Chat v-else-if="lotteryType === 'k3-cd' || lotteryType === 'k3-of'" />
@@ -24,6 +25,7 @@
         <EggsChat v-else-if="lotteryType === 'eggs'" />
         <Kl10Chat v-else-if="lotteryType === 'kl10'" />
         <Kl8Chat v-else-if="lotteryType === 'kl8'" />
+        <Fc3dChat v-else-if="lotteryType === 'fc3d'" />
       </div>
     </div>
   </Transition>
@@ -70,6 +72,9 @@ const Kl10Chat = defineAsyncComponent(() => import('~/components/lottery/bg/kl10
 // 快樂8只有信用盤，Auto／Chat 各一支
 const Kl8Auto = defineAsyncComponent(() => import('~/components/lottery/bg/kl8/block/footer/Auto.vue'))
 const Kl8Chat = defineAsyncComponent(() => import('~/components/lottery/bg/kl8/block/footer/Chat.vue'))
+// 福彩3D只有官方盤，Auto／Chat 各一支
+const Fc3dAuto = defineAsyncComponent(() => import('~/components/lottery/bg/fc3d/block/footer/Auto.vue'))
+const Fc3dChat = defineAsyncComponent(() => import('~/components/lottery/bg/fc3d/block/footer/Chat.vue'))
 </script>
 
 <style lang="scss">

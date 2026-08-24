@@ -1,7 +1,7 @@
 import { ref, readonly } from 'vue'
 
 type LotteryType = '6hc-of' | '6hc-cd' | 'k3-cd' | 'k3-of' | 'pk10-cd' | 'pk10-of' | 'ssc-cd' | 'ssc-of'
-  | 'x5-cd' | 'x5-of' | 'eggs' | 'kl10' | 'kl8'
+  | 'x5-cd' | 'x5-of' | 'eggs' | 'kl10' | 'kl8' | 'fc3d'
 
 const _active = ref(false)
 const _lotteryType = ref<LotteryType | null>(null)

@@ -48,6 +48,11 @@ export const LOTTERY = {
   // 快樂8：來源（bglottery kl8）只有信用模式、沒有官方盤，
   // 與 PC蛋蛋／快樂十分 一樣只登記單一鍵值（無 sub 欄位）
   'KL8':{ id: 8001, key: 'KL8', name: '快樂8', sort: 8 },
+
+  // 福彩3D：來源（bglottery fc3d）只有官方盤、沒有信用盤，是目前唯一「官方盤單盤口」的玩法，
+  // 與 PC蛋蛋／快樂十分／快樂8 一樣只登記單一鍵值（無 sub 欄位），
+  // 這個鍵同時是大廳分組項與伺端 Storage.games 的 key（下注沿用共用路由 /api/lottery/bet）。
+  'FC3D':{ id: 9001, key: 'FC3D', name: '福彩3D', sort: 9 },
 }
 
 export const SORT = {
