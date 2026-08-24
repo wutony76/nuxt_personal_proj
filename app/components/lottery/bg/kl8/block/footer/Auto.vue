@@ -16,7 +16,7 @@ import { useKl8 } from '~/composables/useKl8'
 const {
   state: mxState, current: mxCurrent, select: mxSelect, wallet: mxWallet,
   currentQuota: mxQuota, playList, fetch: mxFetch,
-  isRenxuan, currentChosen
+  isRenxuan, isPoolPlay, currentChosen, poolPickCount
 } = useKl8()
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
@@ -42,15 +42,19 @@ const currentStatusText = computed(() => String(mxCurrent.runtime?.currentStatus
 /** 可投注的注項數（與看板隨機選號同一組 pool） */
 const poolSize = computed(() => mxSelect.pool.length)
 const maxCount = computed(() => Math.max(1, poolSize.value || 1))
-/** 任選：機選滿 minChosen 碼 → C(min, pick) = 1 注，注數不由使用者決定 */
-const autoBetCount = computed(() => (isRenxuan.value ? 1 : state.betCount))
+/** 任選／選號（彩池）：機選固定碼數 → 固定 1 注，注數不由使用者決定 */
+const autoBetCount = computed(() => (isRenxuan.value || isPoolPlay.value ? 1 : state.betCount))
 const totalCost = computed(() => autoBetCount.value * state.betAmount)
 const playInfo = computed(() => {
   const play = playList.value.find((item) => item.key === mxState.select)?.name || '-'
-  const tab = mxState.selectTabName || '-'
   if (isRenxuan.value) {
+    const tab = mxState.selectTabName || '-'
     return `${play} / ${tab}：機選 ${currentChosen.value?.min ?? 0} 碼（固定 1 注）`
   }
+  if (isPoolPlay.value) {
+    return `${play}：機選 ${poolPickCount} 碼（固定 1 注）`
+  }
+  const tab = mxState.selectTabName || '-'
   return `${play} / ${tab}：隨機 ${state.betCount} 注（上限 ${maxCount.value} 注）`
 })
 
@@ -91,7 +95,9 @@ const _actions = {
   },
   autoBet: async (issue: string) => {
     if (state.isRunning) return
-    if (poolSize.value === 0) {
+    // 任選／選號（彩池）不走 select.pool（它們各自有自己的號碼池狀態），
+    // 這個「注項池是否載入」的檢查只適用於兩面這種表格看板分頁。
+    if (!isRenxuan.value && !isPoolPlay.value && poolSize.value === 0) {
       _handlers.setStatus('玩法未載入，跳過本期', 'low')
       return
     }
@@ -172,7 +178,7 @@ watch([() => mxState.select, () => mxState.selectTabId], () => {
       </div>
       <div class="auto-coin">
         <span class="coin-label">每期注數</span>
-        <input v-if="!isRenxuan" type="number" min="1" :max="maxCount" class="coin-input count-input"
+        <input v-if="!isRenxuan && !isPoolPlay" type="number" min="1" :max="maxCount" class="coin-input count-input"
           :value="state.betCount"
           @input="_handlers.onCountInput" @blur="_handlers.onCountInput" />
         <span v-else class="auto-fixed">1</span>

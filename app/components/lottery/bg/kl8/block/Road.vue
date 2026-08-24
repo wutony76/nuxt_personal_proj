@@ -187,6 +187,10 @@ const click = {
 /* 卡片外框由全域 .lottery-kl8 .block-main 提供（同開獎歷史、當前注項） */
 .kl8-road {
   min-width: 0;
+  /* 與 kl10 的 .kl10-road 對齊高度——兩者都靠 align-items:stretch 撐開這一列，
+     但 kl8 多一個「五行」分頁、格線內容較少，撐出來的自然高度比 kl10 矮，
+     這裡固定同一個值，兩款遊戲的路單走勢卡片高度才會一致。 */
+  min-height: 294px;
   display: flex;
   flex-direction: column;
   background: #fff;

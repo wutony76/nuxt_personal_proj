@@ -307,10 +307,10 @@ const _actions = {
     const play = C_PLAYS.find((item: any) => item.key === playKey)
     const firstTab = play?.list?.[0]
     state.select = playKey
-    if (firstTab) {
-      state.selectTabId = Number(firstTab.tabId)
-      state.selectTabName = String(firstTab.tabName)
-    }
+    // 選號（彩池）是合成分頁、不在 C_PLAYS 裡，沒有 firstTab 可對——清掉分頁欄位，
+    // 不然會沿用上一個玩法的 tabId/tabName（顯示與限額查詢都會對錯分頁）。
+    state.selectTabId = firstTab ? Number(firstTab.tabId) : 0
+    state.selectTabName = firstTab ? String(firstTab.tabName) : ''
     select.items = []
     select.pool = []
     _actions.clearRenxuan()

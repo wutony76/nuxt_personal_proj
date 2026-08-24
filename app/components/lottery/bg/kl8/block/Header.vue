@@ -264,14 +264,12 @@ onBeforeUnmount(() => {
           @keydown.enter="emit('open-opencode-dialog')" @keydown.space.prevent="emit('open-opencode-dialog')">
           <div class="issue">第{{ issueLatest }}期 開獎</div>
           <div class="main">
-            <div class="ball-legend">
-              <div class="ball-legend-title"><span>開獎號碼</span></div>
-            </div>
-
-            <!-- key 帶 revealToken：新一期開出時強制重建，CSS 落下動畫才會重播 -->
-            <div v-for="(code, idx) in displayBalls" :key="`kl8-open-${anim.revealToken}-${idx}`" class="ball-warp"
-              :class="{ 'is-rolling': anim.rolling }" :style="{ '--i': idx }">
-              <Ball :num="code" size="sm" :pending="!anim.rolling && openCode.length === 0" />
+            <div class="ball-row">
+              <!-- key 帶 revealToken：新一期開出時強制重建，CSS 落下動畫才會重播 -->
+              <div v-for="(code, idx) in displayBalls" :key="`kl8-open-${anim.revealToken}-${idx}`" class="ball-warp"
+                :class="{ 'is-rolling': anim.rolling }" :style="{ '--i': idx }">
+                <Ball :num="code" size="sm" :pending="!anim.rolling && openCode.length === 0" />
+              </div>
             </div>
 
             <div v-if="openCode.length > 0 && !anim.rolling" :key="`kl8-meta-${anim.revealToken}`" class="open-meta">
@@ -484,40 +482,22 @@ onBeforeUnmount(() => {
           color: var(--color-red-desc);
         }
 
-        /* ⚠️ 20 顆球 + 兩面標籤同一列會超出寬度，故允許換行 */
+        /* 直向排列：球列自成一排、兩面標示另起一排在下方，不再擠成一團 */
         .main {
           margin-top: 0.75rem;
           display: flex;
-          flex-direction: row;
-          flex-wrap: wrap;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 0.4rem 0.3rem;
+          gap: 0.5rem;
           overflow: visible;
 
-          .ball-legend {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: flex-start;
-            flex-shrink: 0;
-            margin-right: 0.25rem;
-            padding: 0.375rem 0.625rem;
-
-            .ball-legend-title {
-              height: 45px;
-              display: flex;
-              align-items: center;
-              font-size: 12px;
-              font-weight: 700;
-              color: var(--color-red-main);
-
-              span {
-                border: 1px solid var(--color-red-main);
-                border-radius: 0.25rem;
-                padding: 0 0.25rem;
-                transition: background 0.15s, color 0.15s;
-              }
-            }
+          .ball-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem 0.3rem;
           }
 
           .ball-warp {
@@ -532,17 +512,15 @@ onBeforeUnmount(() => {
             }
           }
 
-          /* ⚠️ 兩面標示有 5 個（大小／單雙／上下盤／奇偶盤／五行），改流動排列 */
+          /* 兩面標示有 5 個（大小／單雙／上下盤／奇偶盤／五行），自己一排、置中流動排列 */
           .open-meta {
             animation: kl8-meta-in 0.4s ease both;
             animation-delay: 0.62s;
-            margin-left: 0.5rem;
-            display: inline-flex;
+            display: flex;
             flex-wrap: wrap;
             align-items: center;
             justify-content: center;
-            max-width: 11rem;
-            gap: 3px;
+            gap: 4px;
             font-size: 12px;
             font-weight: 700;
 

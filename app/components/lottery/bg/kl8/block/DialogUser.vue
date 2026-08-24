@@ -237,9 +237,11 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
   }
 }
 
+/* 固定 10 欄，20 顆球剛好平均分兩列——欄寬不隨表格伸縮，其餘欄位才能分到更多空間 */
 .du-ball {
-  display: inline-flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(10, 1.35rem);
+  justify-content: center;
   gap: 3px;
 }
 
