@@ -571,10 +571,14 @@ export type Pl3UserBetHistory = {
   /** tie：官方盤沒有真正的和局，只在注碼無法辨識時出現（退還本金） */
   winStatus: 'pending' | 'win' | 'lose' | 'tie'
   winAmount: number
-  /** 該注鎖定的賠率（含本金） */
+  /** 該注鎖定的賠率（含本金）；三星直選吃彩池後為 0，改看 tierName/winAmount */
   odds?: number
   /** 該注所屬分頁 */
   tabId?: number
+  /** 三星直選命中的分層名稱（頭獎／二獎／三獎），非三星直選注單為空字串 */
+  tierName?: string
+  /** 全站爆池加碼金額（未觸發或未參與分潤為 0） */
+  jackpotAmount?: number
 }
 
 /** 信用盤（6hc-cd）獎池狀態：含可發放累積池、發放參數與最近一次爆池紀錄 */
@@ -899,12 +903,16 @@ export const api = {
     userRecordFc3d: () => $fetch<Fc3dUserRecordResponse>('/api/lottery/fc3d/user-record'),
     claimOneIssueFc3d: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/fc3d/claim', { method: 'POST' }),
-    // ── 排列3（只有官方盤，玩法結構與福彩3D相同，來源本身無信用盤，也沒有任何彩池／爆池）──
+    // ── 排列3（只有官方盤，玩法結構與福彩3D相同，來源本身無信用盤）──
     currentPl3: () => $fetch<Pl3Current>('/api/lottery/pl3/current'),
     openCodeHistoryPl3: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/pl3/opencode-history'),
     userRecordPl3: () => $fetch<Pl3UserRecordResponse>('/api/lottery/pl3/user-record'),
     claimOneIssuePl3: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/pl3/claim', { method: 'POST' }),
+    /** 全站爆池（開出豹子觸發） */
+    jackpotPl3: () => $fetch<CreditJackpotState>('/api/lottery/pl3/jackpot'),
+    /** 三星直選分層彩池狀態，與上面的爆池是兩個獨立的池 */
+    poolPl3: () => $fetch<PoolPlayState>('/api/lottery/pl3/pool'),
     games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),

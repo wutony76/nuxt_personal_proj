@@ -6,7 +6,9 @@ import {
   type Pl3UserBetHistory,
   type LotteryUserBalanceChange,
   type LotteryClaimableIssue,
-  type LotteryOpenCodeHistoryItem
+  type LotteryOpenCodeHistoryItem,
+  type CreditJackpotState,
+  type PoolPlayState
 } from '~/services/api'
 import { PL3_PLAY_DEFINITIONS, PL3_MAX_COMBO } from '#shared/config/pl3-of'
 import {
@@ -17,6 +19,7 @@ import {
   pl3ComboCodes,
   pl3QuotaOf,
   pl3TabOddsOf,
+  pl3OfIsPoolTab,
   type Pl3OfCombo
 } from '#shared/config/pl3of/helpers'
 
@@ -24,8 +27,11 @@ import {
  * 排列3（PL3）前端狀態
  *
  * ── 與 useEggs / useSsc 的差異 ──────────────────────────
- *   來源（bglottery pl3）只有官方盤、沒有信用盤，也沒有任何彩池／爆池，
- *   所以沒有 mode / setMode、沒有信用盤選號、也沒有 creditJackpot / poolPlay。
+ *   來源（bglottery pl3）只有官方盤、沒有信用盤，所以沒有 mode / setMode、沒有信用盤選號。
+ *   三星直選（複式＋單式）已改吃分層彩池、全站另有開豹子觸發的爆池（見
+ *   openspec/changes/add-pl3-jackpot/），故仍比照 useEggs 提供 `creditJackpot`／
+ *   `poolPlayState` 兩份唯讀狀態；但 PL3 沒有 EGGS 那種獨立選號側玩法（xuanhao），
+ *   三星直選本身就在既有玩法列表裡，不需要 poolPlay 選號狀態機。
  *   看板有兩種型態（比照 useSsc 的 of.items / of.picks）：
  *     單選分頁（定位膽）           → board.items（code/odds/coin）
  *     複式分頁（其餘 4 個分頁）    → board.picks（依 combo.mode 展開，見 pl3ComboCodes）
@@ -58,6 +64,30 @@ const current = reactive({
   runtime: null as Pl3Current | null,
   /** 當期自己的注單（下注成功後本地追加，開獎後由 user-record 覆蓋） */
   detail: [] as Array<{ orderId: string; betCode: string[]; coin: number; odds?: number; time: string }>
+})
+
+/** 全站爆池狀態（開出豹子觸發，比照 useEggs 的 creditJackpot） */
+const creditJackpot = reactive<CreditJackpotState>({
+  issue: '',
+  currentIssueJackpot: 0,
+  carryJackpot: 0,
+  distributable: 0,
+  rakeRatio: 0,
+  payoutRatio: 0,
+  minPool: 0,
+  hitLabel: '',
+  hitRate: 0,
+  lastHit: null
+})
+
+/** 三星直選分層彩池狀態（與上面的爆池是兩個獨立的池，比照 useEggs 的 poolPlayState） */
+const poolPlayState = reactive<PoolPlayState>({
+  issue: '',
+  base: 0,
+  carry: 0,
+  issuePool: 0,
+  distributable: 0,
+  prizeTiers: []
 })
 
 /**
@@ -115,6 +145,9 @@ const groupList = computed(() => playList.value.find((play) => play.key === stat
 const combo = computed<Pl3OfCombo | null>(() => pl3ComboOf(state.play, state.tabId))
 /** 是否為輸入模式（三星直選單式） */
 const isInputMode = computed(() => combo.value?.mode === 'input')
+
+/** 當前分頁是否已改吃分層彩池（三星直選複式／單式）：吃池分頁不顯示固定賠率 */
+const isPoolTab = computed(() => pl3OfIsPoolTab(state.play, state.tabId))
 /** 複式分頁每個位置可選的號碼／和值／面 */
 const comboGroups = computed(() => pl3ComboGroups(state.play, state.tabId))
 /** 當前分頁限額 */
@@ -505,6 +538,18 @@ const fetch = {
       openCodeHistory.isLoading = false
     }
   },
+  /** 全站爆池狀態（比照 useEggs 的 fetch.creditJackpot） */
+  creditJackpot: async () => {
+    try {
+      Object.assign(creditJackpot, await api.lottery.jackpotPl3())
+    } catch { /* 爆池取不到不阻斷畫面 */ }
+  },
+  /** 三星直選分層彩池狀態（比照 useEggs 的 fetch.poolState） */
+  poolState: async () => {
+    try {
+      Object.assign(poolPlayState, await api.lottery.poolPl3())
+    } catch { /* 彩池取不到不阻斷畫面 */ }
+  },
   claimOneIssue: async () => {
     userRecord.isSubmittingClaim = true
     try {
@@ -624,8 +669,8 @@ const fetch = {
           time: new Date(Number(row.bet_time ?? Date.now())).toLocaleTimeString('zh-TW')
         })
       })
-      // pl3 沒有彩池／爆池，送單成功只需刷新餘額與注單（不像 eggs/kl10/kl8 還要刷 jackpot/pool）
-      await Promise.all([fetch.userInfo(), fetch.userRecordAll()])
+      // 下注會影響兩個池的抽水累積，比照 eggs/kl10/kl8 一併刷新 jackpot/pool
+      await Promise.all([fetch.userInfo(), fetch.userRecordAll(), fetch.creditJackpot(), fetch.poolState()])
       return { ok: true, message: state.message, count: ((result as any)?.orders ?? []).length, amount }
     } catch (error) {
       state.submitStatus = 'error'
@@ -641,7 +686,10 @@ const fetch = {
   },
   initPageData: async () => {
     state.fetchStatus = 'loading'
-    await Promise.all([fetch.refreshCurrentInfo(), fetch.userInfo(), fetch.openCodeHistoryAll()])
+    await Promise.all([
+      fetch.refreshCurrentInfo(), fetch.userInfo(), fetch.openCodeHistoryAll(),
+      fetch.creditJackpot(), fetch.poolState()
+    ])
     state.fetchStatus = 'success'
   },
   startPolling: () => {
@@ -651,10 +699,12 @@ const fetch = {
         const before = String(current.runtime?.issueLatest ?? '')
         fetch.refreshCurrentInfo().then(() => {
           if (String(current.runtime?.issueLatest ?? '') === before) return
-          // 期別換了代表上一期已開獎：注單結果、可領獎金、開獎歷史一起刷新
+          // 期別換了代表上一期已開獎：注單結果、可領獎金、開獎歷史、兩個池狀態一起刷新
           current.detail = []
           fetch.userRecordAll()
           fetch.openCodeHistoryAll()
+          fetch.creditJackpot()
+          fetch.poolState()
         })
       }, 3000)
     }
@@ -674,12 +724,15 @@ export function usePl3() {
     time,
     userRecord,
     openCodeHistory,
+    creditJackpot,
+    poolPlayState,
 
     lotteryMeta,
     playList,
     groupList,
     combo,
     isInputMode,
+    isPoolTab,
     comboGroups,
     comboCodes,
     comboOverflow,

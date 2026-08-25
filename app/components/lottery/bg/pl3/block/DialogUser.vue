@@ -122,9 +122,12 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
             <td>{{ row.issue }}</td>
             <td>{{ row.betCode.join('、') }}</td>
             <td>{{ money(row.coin) }}</td>
-            <td>{{ row.odds ?? '—' }}</td>
+            <td>{{ row.tierName || row.odds || '浮動' }}</td>
             <td :class="`is-${row.winStatus}`">{{ statusText(row.winStatus) }}</td>
-            <td>{{ row.winAmount > 0 ? money(row.winAmount) : '—' }}</td>
+            <td>
+              {{ row.winAmount > 0 ? money(row.winAmount) : '—' }}
+              <span v-if="row.jackpotAmount" class="du-jackpot">+{{ money(row.jackpotAmount) }} 爆池</span>
+            </td>
             <td>
               <span v-if="row.openCode?.length" class="du-ball">
                 <Ball v-for="(code, idx) in row.openCode" :key="idx" :digit="code" size="sm" />
@@ -142,6 +145,14 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
 </template>
 
 <style scoped lang="scss">
+.du-jackpot {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #b45309;
+}
+
 .dialog-table-wrap {
   max-height: 320px;
   overflow: auto;

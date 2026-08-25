@@ -5,9 +5,9 @@ import {
   PL3_TOTAL_OUTCOMES, PL3_SUM_MIN, PL3_SUM_MAX, PL3_SUM_BIG_LINE,
   pl3SumCounts, pl3GroupSumCounts
 } from '#shared/config/pl3'
-import { pl3GroupCombos } from '#shared/config/pl3-of'
+import { pl3GroupCombos, PL3_OF_PRIZE_TIERS } from '#shared/config/pl3-of'
 import {
-  pl3Plays, pl3RtpOf, pl3TabOddsOf, pl3ComboGroups, type Pl3OfGroupMode
+  pl3Plays, pl3RtpOf, pl3TabOddsOf, pl3ComboGroups, pl3OfIsPoolTab, type Pl3OfGroupMode
 } from '#shared/config/pl3of/helpers'
 
 /**
@@ -86,10 +86,20 @@ const PLAY_ROWS = computed(() =>
     tabs: (play.list ?? []).map((tab: any) => ({
       tabName: tab.tabName,
       rtp: pl3RtpOf(play.key, tab.tabId),
+      isPool: pl3OfIsPoolTab(play.key, tab.tabId),
       rows: _sampleRows(play.key, tab)
     }))
   }))
 )
+
+/** 三星直選分層彩池摘要（供「投注玩法」段落取代固定賠率顯示） */
+const poolTierRows = PL3_OF_PRIZE_TIERS.map((tier) => ({
+  name: tier.name,
+  match: tier.match,
+  desc: tier.type === 'pool'
+    ? `彩池 × ${(tier.ratio * 100).toFixed(0)}%（按下注額比例分）${tier.minAmount ? `，每單位保底 ${tier.minAmount.toLocaleString('zh-TW')}` : ''}`
+    : `固定 ${tier.amount} 倍下注額`
+}))
 
 const sumRows = computed(() => {
   const table = pl3SumCounts()
@@ -167,12 +177,16 @@ const groupSumRows = computed(() => {
       <p class="rule-note">※ 豹子（3 位數字皆相同）不計入任何組選和值，母數仍是全部 {{ PL3_TOTAL_OUTCOMES }} 種開獎結果。</p>
     </section>
 
-    <h3 id="pl3-section-play" class="rule-group-title">投注玩法 · 排列3官方玩法（固定賠率）</h3>
+    <h3 id="pl3-section-play" class="rule-group-title">投注玩法 · 排列3官方玩法</h3>
     <section v-for="play in PLAY_ROWS" :key="play.key" class="rule-sec">
       <h4>{{ play.name }}</h4>
       <div v-for="tab in play.tabs" :key="tab.tabName">
-        <p class="rule-note">{{ tab.tabName }} · 回報率 {{ (tab.rtp * 100).toFixed(0) }}%</p>
-        <table class="rule-table">
+        <p class="rule-note">
+          {{ tab.tabName }} ·
+          <template v-if="tab.isPool">浮動賠率（依彩池分潤，見下方分層說明）</template>
+          <template v-else>回報率 {{ (tab.rtp * 100).toFixed(0) }}%</template>
+        </p>
+        <table v-if="!tab.isPool" class="rule-table">
           <thead>
             <tr><th>注碼</th><th>賠率</th></tr>
           </thead>
@@ -180,6 +194,18 @@ const groupSumRows = computed(() => {
             <tr v-for="row in tab.rows" :key="row.name">
               <td class="is-name">{{ row.name }}</td>
               <td class="is-odds">{{ row.odds }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <table v-else class="rule-table">
+          <thead>
+            <tr><th>命中位數</th><th>分層</th><th>派彩方式</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="tier in poolTierRows" :key="tier.match">
+              <td class="is-name">{{ tier.match }} 位</td>
+              <td class="is-name">{{ tier.name }}</td>
+              <td class="is-odds">{{ tier.desc }}</td>
             </tr>
           </tbody>
         </table>
@@ -193,9 +219,13 @@ const groupSumRows = computed(() => {
         <li><strong>不定位</strong>：一碼不定位判定所選數字是否出現在三位數字中任一位；
           二碼不定位判定所選兩個相異數字是否各自出現在三位數字中（不要求對應位置）。</li>
         <li>三星組選和值目前只提供合併版（不分「組三和值」與「組六和值」）。</li>
-        <li><strong>賠率在下注當下就鎖進注單</strong>，之後調整設定或回報率都不影響已成立的注單。</li>
+        <li><strong>三星直選（複式／單式）已改吃分層彩池</strong>：依命中位數（0~3 位）分層派彩，
+          未中獎的分層獎金整塊滾存至下期；判定方式為逐位比對，與百/十/個位置對應是否相同無關順序。</li>
+        <li><strong>全站爆池</strong>：任一分頁下注都會抽水累積，開出<strong>豹子</strong>（三位數字全同）時觸發，
+          依「下注額 × 該注項權重」比例分配給該期有份的注單（含三星直選）。</li>
+        <li><strong>固定賠率的分頁</strong>在下注當下就鎖進注單，之後調整設定或回報率都不影響已成立的注單；
+          三星直選的實際派彩則以開獎後的分層結果為準。</li>
         <li>單注與單期限額由各分頁的設定決定，超限伺端會<strong>整筆拒單</strong>（不會只擋超出的部分）。</li>
-        <li>排列3<strong>沒有彩池或爆池</strong>，所有玩法一律固定賠率結算。</li>
       </ul>
     </section>
   </DialogShell>

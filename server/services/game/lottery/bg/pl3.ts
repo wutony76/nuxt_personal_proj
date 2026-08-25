@@ -4,9 +4,31 @@ import LOTTERY_BASE from './base'
 // ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
 //    ./base 才是本層的彩票基底（期表／狀態機／訂單）
 import { MEMORY } from '../../../base'
+import { buildJackpotShares, type JackpotHitRecord, type JackpotRow } from '#shared/config/jackpot'
 import { pl3DigitsOf, pl3SumOf } from '#shared/config/pl3'
-import { judgePl3Bet, PL3_MAX_COMBO } from '#shared/config/pl3-of'
-import { pl3HasBetCode, pl3QuotaOf, pl3TabOddsOf, findPl3Tab } from '#shared/config/pl3of/helpers'
+import {
+  judgePl3Bet,
+  PL3_MAX_COMBO,
+  PL3_OF_RAKE_RATIO,
+  PL3_OF_PRIZE_TIERS,
+  PL3_POOL_BASE_MIN,
+  PL3_POOL_BASE_MAX,
+  PL3_POOL_FLOOR,
+  PL3_JACKPOT_SETTINGS,
+  PL3_JACKPOT_BASE_MIN,
+  PL3_JACKPOT_BASE_MAX,
+  pl3SanxingMatchCount,
+  pl3JackpotHit,
+  pl3JackpotLabel
+} from '#shared/config/pl3-of'
+import {
+  pl3HasBetCode,
+  pl3QuotaOf,
+  pl3TabOddsOf,
+  findPl3Tab,
+  pl3OfIsPoolTab,
+  pl3JackpotWeightOf
+} from '#shared/config/pl3of/helpers'
 
 /**
  * 排列3官方盤（PL3）
@@ -20,10 +42,14 @@ import { pl3HasBetCode, pl3QuotaOf, pl3TabOddsOf, findPl3Tab } from '#shared/con
  *                            直接用 LOTTERY_BASE 內建的 prdOpenCode 產當日期表，
  *                            只覆寫 randomOpenCode（3 位 0~9）與 openCodePlay（三球展示）。
  *
- * ── 明確不做（來源無、規範第 6 節「預設不建」）──────────────
- *   ✗ 爆池（issueJackpotMap / carryJackpot / creditJackpot）
- *   ✗ 彩池（poolBase / issuePoolMap / carryPool / poolState）
- *   ✗ 任何 rake-into-pool 抽水：playBets 只扣款、建注、推播餘額變化。
+ * ── 彩池機制（openspec/changes/add-pl3-jackpot/）────────────
+ *   三星直選（複式＋單式）已改吃分層彩池，賠率不再固定——判定與分層比例沿用
+ *   SSC-OF「後三直選」（結構相同：3 位、0~9、可重複、逐位比對），記帳骨架比照
+ *   EGGS 的單 class 寫法（PL3 只有一個盤口，不需要跨 class 共用單例）。
+ *   全站爆池（issueJackpotMap / carryJackpot）比照 EGGS：開豹子觸發、`buildJackpotShares`
+ *   依權重分潤；三星直選池（poolBase / issuePoolMap / carryPool）比照 SSC-OF 的阻尼公式
+ *   ＋池底重骰。兩個池各自獨立記帳，互不影響。
+ *   資金來源：對整筆送單金額抽水，不篩選分頁——比照既有 SSC-OF／EGGS 慣例，非新例外。
  *
  * ── 複式的注碼從哪來 ────────────────────────────────────
  *   除了定位膽是單選分頁，其餘分頁都是複式：前端用 pl3ComboCodes() 把選號展開成
@@ -84,10 +110,14 @@ type UserBetHistory = {
   /** tie：排列3官方盤沒有真正的和局，僅在注碼無法辨識時退回本金 */
   winStatus: 'pending' | 'win' | 'lose' | 'tie'
   winAmount: number
-  /** 下注時鎖進注單的賠率 */
+  /** 下注時鎖進注單的賠率（三星直選吃彩池後為 0，改看 tierName/winAmount） */
   odds: number
   /** 注碼所屬分頁 */
   tabId: number
+  /** 三星直選命中的分層名稱（頭獎／二獎／三獎），非三星直選注單固定空字串 */
+  tierName: string
+  /** 全站爆池加碼金額（未觸發或未參與分潤為 0） */
+  jackpotAmount: number
 }
 type UserClaimableIssue = { issue: string; amount: number; openCode: string[]; createdAt: number }
 type UserRecord = {
@@ -113,6 +143,21 @@ function _pl3RandomOpenCode(): string[] {
 export default class PL3 extends LOTTERY_BASE {
   issueSettledMap: Record<string, boolean>
 
+  /** 全站爆池：各期抽水累積（issue → 金額） */
+  issueJackpotMap: Record<string, number>
+  /** 爆池未發放的滾存 */
+  carryJackpot: number
+  /** 最近一次爆池紀錄（供頁首與說明頁展示） */
+  lastJackpotHit: JackpotHitRecord | null
+
+  /** 三星直選分層彩池：池底（比照 SSC-OF，需要阻尼公式＋門檻重骰維持可持續派彩） */
+  poolBase: number
+  poolBaseSetAt: number
+  /** 三星直選池：各期抽水累積（issue → 金額，與爆池抽水並行、互不影響） */
+  issuePoolMap: Record<string, number>
+  /** 三星直選池未派出的滾存 */
+  carryPool: number
+
   declare _get: LOTTERY_BASE['_get'] & {
     user: (userId: string) => UserStoreLike
     userRecord: (userId: string) => UserRecord
@@ -136,11 +181,39 @@ export default class PL3 extends LOTTERY_BASE {
       claimableIssues: UserClaimableIssue[]
     }
     sumOf: (openCode: string[]) => number
+    creditJackpot: () => {
+      issue: string
+      currentIssueJackpot: number
+      carryJackpot: number
+      distributable: number
+      rakeRatio: number
+      payoutRatio: number
+      minPool: number
+      hitLabel: string
+      hitRate: number
+      lastHit: JackpotHitRecord | null
+    }
+    poolState: () => {
+      issue: string
+      base: number
+      carry: number
+      issuePool: number
+      distributable: number
+      prizeTiers: typeof PL3_OF_PRIZE_TIERS
+    }
   }
 
   constructor() {
     super(LOTTERY.PL3.key, LOTTERY.PL3.id)
     this.issueSettledMap = {}
+    this.issueJackpotMap = {}
+    // 開站一次性 seed 池底到滾存，讓玩家一進遊戲就看到非 0 的總彩池；之後照既有機制自然演化
+    this.carryJackpot = LOTTERY_BASE.jackpotBase(PL3_JACKPOT_BASE_MIN, PL3_JACKPOT_BASE_MAX)
+    this.lastJackpotHit = null
+    this.poolBase = 0
+    this.poolBaseSetAt = 0
+    this.issuePoolMap = {}
+    this.carryPool = 0
 
     Object.assign(this._get, {
       user: (userId: string) => Storage.get.user(userId) as UserStoreLike,
@@ -190,7 +263,9 @@ export default class PL3 extends LOTTERY_BASE {
           winStatus: 'pending',
           winAmount: 0,
           odds: Number(row.odds ?? 0),
-          tabId: Number(row.tab_id ?? 0)
+          tabId: Number(row.tab_id ?? 0),
+          tierName: '',
+          jackpotAmount: 0
         })
         if (record.betHistory.length > 5000) record.betHistory = record.betHistory.slice(-4000)
       },
@@ -324,10 +399,11 @@ export default class PL3 extends LOTTERY_BASE {
         })
       },
       /**
-       * 官方盤結算（固定賠率，逐注獨立）
+       * 官方盤結算：一般固定賠率分頁 + 三星直選分層彩池 + 全站爆池，三段分開跑
        *
-       * pl3 沒有彩池／爆池，所以只有一條路：judgePl3Bet 逐注判定，賠率取注單鎖的值。
        * ⚠️ 無法辨識的注碼視為和局退還本金，不吞玩家注金（比照 sscOf / eggs 的和局退款語意）。
+       * ⚠️ 三星直選的注單「同時」參與分層彩池（自己的中獎判定）與全站爆池（有份就分潤），
+       *    比照 EGGS 彩池玩法注單同時參與 EGGS 自己爆池的作法，兩段互不影響。
        */
       settleIssuePrize: (issue: string, openCode: string[]) => {
         const safeIssue = String(issue ?? '')
@@ -344,7 +420,14 @@ export default class PL3 extends LOTTERY_BASE {
         }>
 
         const payoutByUser = new Map<string, number>()
-        issueOrders.forEach((row) => {
+        /** 全站爆池分配用的注單列（一般分頁與三星直選都要收，權重讀該注項的看板設定） */
+        const jackpotRows: JackpotRow[] = []
+
+        const oddsOrders = issueOrders.filter((row) => !pl3OfIsPoolTab(row.playKey, row.tabId))
+        const poolOrders = issueOrders.filter((row) => pl3OfIsPoolTab(row.playKey, row.tabId))
+
+        // ── 一般固定賠率分頁（原邏輯不變）──
+        oddsOrders.forEach((row) => {
           const coin = Number(row.coin ?? 0)
           const betCode = String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
           const lockedOdds = Number(row.odds ?? 0)
@@ -370,7 +453,118 @@ export default class PL3 extends LOTTERY_BASE {
           if (payout > 0) {
             payoutByUser.set(row.userId, Number((Number(payoutByUser.get(row.userId) ?? 0) + payout).toFixed(2)))
           }
+
+          jackpotRows.push({
+            orderId: String(row.orderId),
+            userId: String(row.userId),
+            coin,
+            source: 'of',
+            // 有份條件：非未中（和局也算有份，與其他彩種同一套語意）
+            eligible: status !== 'lose',
+            weight: pl3JackpotWeightOf(String(row.playKey ?? ''), Number(row.tabId ?? 0), betCode)
+          })
         })
+
+        // ── 三星直選（複式＋單式）：依命中位數分層派彩，比照 SSC-OF 後三直選 ──
+        const poolTotal = this.distributablePool(safeIssue)
+        const tierRows = poolOrders.map((row) => ({
+          ...row,
+          matchCount: pl3SanxingMatchCount(String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? ''), codes) ?? 0,
+          payout: 0,
+          tierName: ''
+        }))
+
+        let carryPoolNext = 0
+        PL3_OF_PRIZE_TIERS.forEach((tier) => {
+          const winners = tierRows.filter((row) => row.matchCount === tier.match)
+          if (tier.type === 'pool') {
+            const tierPool = Number((poolTotal * tier.ratio).toFixed(2))
+            if (winners.length === 0) {
+              // 該層沒人中 → 整塊滾存至下期
+              carryPoolNext = Number((carryPoolNext + tierPool).toFixed(2))
+              return
+            }
+            const totalWinnerBets = Number(winners.reduce((sum, row) => sum + Number(row.coin ?? 0), 0).toFixed(2))
+            const naturalPerUnit = totalWinnerBets > 0 ? tierPool / totalWinnerBets : 0
+            const prizePerUnit = tier.minAmount !== undefined
+              ? Math.max(naturalPerUnit, tier.minAmount)
+              : naturalPerUnit
+            winners.forEach((row) => {
+              row.payout = Number((prizePerUnit * Number(row.coin ?? 1)).toFixed(2))
+              row.tierName = tier.name
+            })
+          } else {
+            winners.forEach((row) => {
+              row.payout = Number((tier.amount * Number(row.coin ?? 1)).toFixed(2))
+              row.tierName = tier.name
+            })
+          }
+        })
+
+        tierRows.forEach((row) => {
+          const record = this.handle.ensureUserRecord(this._get.user(row.userId))
+          const idx = record.betHistory.findIndex((item) => String(item.orderId) === String(row.orderId))
+          const current = record.betHistory[idx]
+          if (idx >= 0 && current) {
+            record.betHistory[idx] = {
+              ...current,
+              openCode: [...codes],
+              matchCount: row.matchCount,
+              tierName: row.tierName,
+              winStatus: row.payout > 0 ? 'win' : 'lose',
+              winAmount: row.payout,
+              odds: 0
+            }
+          }
+          if (row.payout > 0) {
+            payoutByUser.set(row.userId, Number((Number(payoutByUser.get(row.userId) ?? 0) + row.payout).toFixed(2)))
+          }
+
+          jackpotRows.push({
+            orderId: String(row.orderId),
+            userId: String(row.userId),
+            coin: Number(row.coin ?? 0),
+            source: 'of',
+            // 分層彩池沒有和局，命中 ≥ 1 位（有派彩）才算有份
+            eligible: row.payout > 0,
+            weight: pl3JackpotWeightOf(
+              String(row.playKey ?? ''), Number(row.tabId ?? 0),
+              String((Array.isArray(row.betCode) ? row.betCode : [])[0] ?? '')
+            )
+          })
+        })
+        this.carryPool = carryPoolNext
+        this.issuePoolMap[safeIssue] = 0
+
+        // ── 全站爆池（開出豹子）：單一 class，不必等其他盤口交件，直接結算 ──
+        const jackpotPool = Number((
+          Number(this.issueJackpotMap[safeIssue] ?? 0) + Number(this.carryJackpot ?? 0)
+        ).toFixed(2))
+        const jackpot = buildJackpotShares(jackpotRows, pl3JackpotHit(codes), jackpotPool, PL3_JACKPOT_SETTINGS)
+        jackpot.shares.forEach((share) => {
+          if (!(share.amount > 0)) return
+          payoutByUser.set(
+            share.userId,
+            Number((Number(payoutByUser.get(share.userId) ?? 0) + share.amount).toFixed(2))
+          )
+          const record = this.handle.ensureUserRecord(this._get.user(share.userId))
+          const idx = record.betHistory.findIndex((item) => String(item.orderId) === share.orderId)
+          const current = record.betHistory[idx]
+          if (idx >= 0 && current) record.betHistory[idx] = { ...current, jackpotAmount: share.amount }
+        })
+        this.carryJackpot = Number(jackpot.remain.toFixed(2))
+        this.issueJackpotMap[safeIssue] = 0
+        if (jackpot.triggered) {
+          this.lastJackpotHit = {
+            issue: safeIssue,
+            openLabel: pl3JackpotLabel(codes),
+            pool: jackpot.pool,
+            payout: jackpot.payout,
+            winners: new Set(jackpot.shares.map((share) => share.userId)).size,
+            orders: jackpot.shares.length,
+            createdAt: Date.now()
+          }
+        }
 
         payoutByUser.forEach((amount, userId) => {
           this.handle.pushClaimable(userId, safeIssue, amount, codes)
@@ -414,6 +608,36 @@ export default class PL3 extends LOTTERY_BASE {
       sumOf: (openCode: string[]) => {
         const digits = pl3DigitsOf(openCode)
         return digits ? pl3SumOf(digits) : 0
+      },
+      /** 全站爆池狀態（開出豹子觸發，供頁首與說明頁展示） */
+      creditJackpot: () => {
+        const issue = this._get.latestIssue()
+        const currentIssueJackpot = Number(this.issueJackpotMap[issue] ?? 0)
+        return {
+          issue,
+          currentIssueJackpot,
+          carryJackpot: Number(this.carryJackpot ?? 0),
+          distributable: Number((currentIssueJackpot + Number(this.carryJackpot ?? 0)).toFixed(2)),
+          rakeRatio: PL3_JACKPOT_SETTINGS.rakeRatio,
+          payoutRatio: PL3_JACKPOT_SETTINGS.payoutRatio,
+          minPool: PL3_JACKPOT_SETTINGS.minPool,
+          hitLabel: PL3_JACKPOT_SETTINGS.hitLabel,
+          hitRate: PL3_JACKPOT_SETTINGS.hitRate,
+          lastHit: this.lastJackpotHit
+        }
+      },
+      /** 三星直選分層彩池狀態（供看板與說明頁顯示；池底不足門檻時順便重骰） */
+      poolState: () => {
+        const issue = this._get.latestIssue()
+        this.ensurePoolBase()
+        return {
+          issue,
+          base: this.poolBase,
+          carry: this.carryPool,
+          issuePool: Number(this.issuePoolMap[issue] ?? 0),
+          distributable: this.distributablePool(issue),
+          prizeTiers: PL3_OF_PRIZE_TIERS
+        }
       }
     })
 
@@ -425,11 +649,36 @@ export default class PL3 extends LOTTERY_BASE {
     this.handle.prdOpenCode()
     Storage.games[this.key] = this
     LOTTERY_BASE.getOrders(this.id, this.key)
+    // 開機就把三星直選池的池底生好，不依賴「剛好有人先呼叫 poolState()」這個隱含順序
+    this.ensurePoolBase()
   }
 
   override circle() {
     this.handle.refreshCurrent(MEMORY.now)
     this.handle.settleClosedIssueIfNeeded()
+  }
+
+  /**
+   * 確保三星直選池的池底存在（沒有或已被吃到低於門檻就重骰）
+   * 比照 eggs.ts 的 ensurePoolBase，PL3 只有一個 class，不需要跨 class 單例
+   */
+  ensurePoolBase(): number {
+    const issue = this._get.latestIssue()
+    const distributable = this.distributablePool(issue)
+    if (this.poolBase > 0 && distributable >= PL3_POOL_FLOOR) return this.poolBase
+    this.poolBase = LOTTERY_BASE.jackpotBase(PL3_POOL_BASE_MIN, PL3_POOL_BASE_MAX)
+    this.poolBaseSetAt = Date.now()
+    return this.poolBase
+  }
+
+  /**
+   * 三星直選池可派發金額 =（池底 + 該期抽水 × 0.8 + 滾存）× 0.55
+   * 複用既有的泛用工具 LOTTERY_BASE.jackpotCalc()，0.8/0.55 為其預設值（比照 SSC-OF／EGGS）
+   */
+  distributablePool(issue: string): number {
+    return Number(
+      LOTTERY_BASE.jackpotCalc(this.poolBase, Number(this.issuePoolMap[issue] ?? 0), this.carryPool).toFixed(2)
+    )
   }
 
   playBets(payload: PlayBetsPayload, user: UserStoreLike) {
@@ -453,7 +702,14 @@ export default class PL3 extends LOTTERY_BASE {
     const afterCoin = Number(user?.coin ?? 0)
 
     const rows = this.handle.buildOrderRows({ issue, userId, amount, groups })
-    // ⚠️ pl3 沒有彩池／爆池，這裡不做任何 rake-into-pool 抽水（與 sscOf / eggs 的抽水段落刻意不同）
+    // 抽水入全站爆池（比照 EGGS，對整筆送單金額抽水，不篩選分頁）
+    this.issueJackpotMap[issue] = Number((
+      Number(this.issueJackpotMap[issue] ?? 0) + Number((amount * PL3_JACKPOT_SETTINGS.rakeRatio).toFixed(2))
+    ).toFixed(2))
+    // 抽水入三星直選池（比照 SSC-OF，同樣對整筆送單金額抽水，是兩條並行的水，互不影響）
+    this.issuePoolMap[issue] = Number((
+      Number(this.issuePoolMap[issue] ?? 0) + Number((amount * PL3_OF_RAKE_RATIO).toFixed(2))
+    ).toFixed(2))
     this.handle.pushBalanceChange(userId, {
       issue,
       type: 'bet',

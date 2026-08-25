@@ -20,6 +20,8 @@ const {
   board,
   combo,
   isInputMode,
+  isPoolTab,
+  poolPlayState,
   comboGroups,
   comboCodes,
   comboOverflow,
@@ -93,6 +95,14 @@ const comboPreview = computed(() => {
 /** 每個位置／每組已選幾個值（顯示在該列標題） */
 const pickedCountOf = (pos: number) => (board.picks[pos] ?? []).length
 
+/** 三星直選分層彩池摘要（頭獎／二獎／三獎），供 isPoolTab 時顯示 */
+const poolTierSummary = computed(() =>
+  poolPlayState.prizeTiers.map((tier) => tier.type === 'pool'
+    ? `${tier.name} 彩池${(tier.ratio * 100).toFixed(0)}%${tier.minAmount ? `（保底 ${money(tier.minAmount)}）` : ''}`
+    : `${tier.name} 固定 ${tier.amount} 倍`
+  ).join('／')
+)
+
 const click = {
   /** 單選分頁：點注項切換選取 */
   cell: (code: string) => {
@@ -127,6 +137,14 @@ const click = {
         {{ isInputMode ? '※ 輸入 3 位數字注碼，每注套用投注金額'
           : combo ? '※ 選號後自動組成注碼，每注套用投注金額' : '※ 點注項即選取並套用投注金額，也可逐項改金額' }}
       </span>
+    </div>
+
+    <!-- 三星直選（複式／單式）已改吃分層彩池，賠率不再固定，這裡顯示可派發彩池與分層說明 -->
+    <div v-if="isPoolTab" class="pool-banner">
+      <span class="pool-tag">浮動賠率</span>
+      <span>依命中位數分層派彩，非固定倍數</span>
+      <span class="pool-amount">可派發彩池 {{ money(poolPlayState.distributable) }}</span>
+      <span class="pool-tiers">{{ poolTierSummary }}</span>
     </div>
 
     <!-- ── 輸入分頁（三星直選單式）─────────────────────────── -->
@@ -297,6 +315,37 @@ const click = {
     .quota-note {
       margin-left: auto;
       color: var(--color-red-desc);
+    }
+  }
+
+  .pool-banner {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    border: 1px dashed #d97706;
+    border-radius: 0.25rem;
+    background: #fef3c7;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #92400e;
+
+    .pool-tag {
+      font-weight: 700;
+      border: 1px solid #d97706;
+      border-radius: 0.25rem;
+      padding: 1px 6px;
+      background: #fff;
+    }
+
+    .pool-amount {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pool-tiers {
+      margin-left: auto;
+      color: #b45309;
     }
   }
 

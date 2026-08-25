@@ -8,13 +8,25 @@ import { usePl3 } from '~/composables/usePl3'
 /**
  * 排列3頁首
  *
- * 版面比照 eggs 的 Header（`.header-warp` 4px 深紅外框 + 金色漸層頂條），
- * 但**移除獎金框**（`.info-bonus`）——pl3 沒有信用盤、沒有彩池／爆池，
- * 沒有任何池子可以顯示，比 eggs 更單純。
+ * 版面比照 eggs 的 Header（`.header-warp` 4px 深紅外框 + 金色漸層頂條）。
+ * 三星直選改吃分層彩池後補回獎金框（`.info-bonus`）——這裡顯示的是**全站爆池**
+ * （開出豹子觸發，比照 eggs 的 jackpot-box）；三星直選自己的分層彩池另外顯示在
+ * Board.vue 的三星直選分頁（那是玩法專屬資訊，不是全站資訊）。
  */
 const emit = defineEmits<{ (event: 'open-opencode-dialog'): void }>()
 
-const { current: mxCurrent, time: mxTime, lotteryMeta } = usePl3()
+const { current: mxCurrent, time: mxTime, lotteryMeta, creditJackpot: mxJackpot } = usePl3()
+
+const money = (value: number) =>
+  Number(value ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/** 全站爆池（總額／預估發放／觸發機率，比照 eggs 的 .info-bonus 三列） */
+const jackpotReady = computed(() => Number(mxJackpot.rakeRatio) > 0)
+const jackpotPool = computed(() => Number(mxJackpot.distributable ?? 0))
+const jackpotHitRate = computed(() => `${(Number(mxJackpot.hitRate ?? 0) * 100).toFixed(2)}%`)
+const jackpotBelowMin = computed(() => jackpotPool.value < Number(mxJackpot.minPool ?? 0))
+const jackpotRakePct = computed(() => `${(Number(mxJackpot.rakeRatio ?? 0) * 100).toFixed(0)}%`)
+const estimatedPayout = computed(() => Number((jackpotPool.value * Number(mxJackpot.payoutRatio ?? 0)).toFixed(2)))
 
 const issueCurrent = computed(() => String(mxCurrent.runtime?.issueCurrent ?? '—'))
 const issueLatest = computed(() => String(mxCurrent.runtime?.issueLatest ?? '—'))
@@ -114,6 +126,42 @@ onBeforeUnmount(() => { _anim.stop() })
         <h1 class="title">排列3</h1>
         <p class="sub">官方玩法</p>
         <p class="lotteryId">LOTTERY_ID: {{ lotteryMeta.id }}</p>
+      </div>
+
+      <!-- 獎金框：全站爆池（開出豹子觸發），版位比照 eggs 的 .info-bonus -->
+      <div class="info-bonus">
+        <div class="row">
+          <span class="label">爆池總額</span>
+          <span class="val val-big">{{ money(jackpotPool) }}</span>
+        </div>
+        <div class="row">
+          <span class="label">預估發放</span>
+          <span class="val val-big">{{ money(estimatedPayout) }}</span>
+        </div>
+        <div class="row">
+          <span class="label">觸發機率</span>
+          <span class="accent">{{ jackpotHitRate }}</span>
+        </div>
+        <p class="pool-note">※ 彩池由全部分頁投注抽水 {{ jackpotRakePct }} 累積</p>
+
+        <div v-if="jackpotReady" class="jackpot-box">
+          <div class="row">
+            <span class="label">當期抽水</span>
+            <span class="val">{{ money(mxJackpot.currentIssueJackpot) }}</span>
+          </div>
+          <div class="row">
+            <span class="label">上期滾存</span>
+            <span class="val">{{ money(mxJackpot.carryJackpot) }}</span>
+          </div>
+          <p class="jackpot-note">
+            {{ mxJackpot.hitLabel }}時發放 {{ (mxJackpot.payoutRatio * 100).toFixed(0) }}%<template
+              v-if="jackpotBelowMin">，未達 {{ money(mxJackpot.minPool) }} 不發放</template>
+          </p>
+          <p v-if="mxJackpot.lastHit" class="jackpot-note is-hit">
+            上次爆池 第{{ mxJackpot.lastHit.issue }}期 {{ mxJackpot.lastHit.openLabel }}
+            發出 {{ money(mxJackpot.lastHit.payout) }}（{{ mxJackpot.lastHit.orders }} 注 / {{ mxJackpot.lastHit.winners }} 人）
+          </p>
+        </div>
       </div>
     </div>
 
@@ -217,6 +265,74 @@ onBeforeUnmount(() => { _anim.stop() })
         font-size: 13px;
         color: var(--color-red-desc);
         padding-left: 0.75rem;
+      }
+    }
+
+    /* 獎金框：全站爆池，樣式沿用 eggs 的 .info-bonus（固定寬度、不跟右側搶空間） */
+    .info-bonus {
+      flex: 0 0 250px;
+      display: grid;
+      gap: 0.375rem;
+      align-content: start;
+      border: 1px solid #fee2e2;
+      border-radius: 0.375rem;
+      padding: 0.625rem;
+      margin-left: 1rem;
+
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-size: 12px;
+
+        .label {
+          white-space: nowrap;
+          color: var(--color-red-desc);
+        }
+
+        .val {
+          white-space: nowrap;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+          color: var(--color-red-main);
+
+          &.val-big {
+            font-size: 20px;
+            font-weight: 700;
+          }
+        }
+
+        .accent {
+          white-space: nowrap;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+          color: #15803d;
+        }
+      }
+
+      .pool-note {
+        margin: 0.25rem 0 0;
+        font-size: 11px;
+        color: var(--color-red-desc);
+      }
+
+      .jackpot-box {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px dashed var(--color-gold);
+      }
+
+      .jackpot-note {
+        margin: 2px 0 0;
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--color-red-desc);
+
+        &.is-hit {
+          color: var(--color-red-main);
+          font-weight: 700;
+        }
       }
     }
   }

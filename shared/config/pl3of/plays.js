@@ -145,8 +145,9 @@ export default [
         tabId: 191121010,
         tabName: '三星直選複式',
         settings: { quota: _quota(100), payout: _payout },
-        // 三星直選123 —— 1/1000（公平 1000.000），odds 960.00
-        combo: { mode: 'direct', section: '三星', positions: 3, minPick: 1, prefix: '三星直選' },
+        // ⚠️ 已改吃分層彩池（pool: true），賠率不再固定 960.00 ——
+        //    依命中位數 0~3 分層派彩，比照 SSC-OF「後三直選」，見 pl3-of.ts PL3_OF_PRIZE_TIERS
+        combo: { mode: 'direct', section: '三星', positions: 3, minPick: 1, prefix: '三星直選', pool: true },
         tabGroup: [
           { groupName: '百位', pos: 0, weight: 2, columns: 5, groupList: _digits(191121010, 0) },
           { groupName: '十位', pos: 1, weight: 2, columns: 5, groupList: _digits(191121010, 1) },
@@ -157,8 +158,9 @@ export default [
         tabId: 191121011,
         tabName: '三星直選單式',
         settings: { quota: _quota(100), payout: _payout },
-        // 與三星直選複式同判定（1/1000，odds 960.00），差別只在前端用輸入框貼注碼，不走展開函式
-        combo: { mode: 'input', positions: 3, minPick: 1, prefix: '三星直選' },
+        // 與三星直選複式同判定、同吃一個分層彩池（pool: true），差別只在前端用輸入框貼注碼，
+        // 不走展開函式
+        combo: { mode: 'input', positions: 3, minPick: 1, prefix: '三星直選', pool: true },
         tabGroup: []
       },
       {
