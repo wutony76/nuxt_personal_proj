@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
 import { GET_CONT } from '../config/constants'
 import { useRouter } from 'vue-router'
+import { api } from '../services/api'
 import type { LobbyItem } from '../types/lottery'
 
 useHead({
@@ -147,7 +148,7 @@ const GAME_MODES: Record<string, typeof MODE_META> = {
   FC3D: [
     { suffix: '', theme: 'of', mark: '官', label: '官 方', tag: 'OFFICIAL · MODE', note: '每注獨立 · 固定賠率結算' },
   ],
-  // 排列3同福彩3D：只有官方模式（來源無信用盤），且沒有彩池/爆池，固定賠率結算
+  // 排列3同福彩3D：只有官方模式（來源無信用盤）；已接上三星直選分層彩池與全站爆池
   PL3: [
     { suffix: '', theme: 'of', mark: '官', label: '官 方', tag: 'OFFICIAL · MODE', note: '每注獨立 · 固定賠率結算' },
   ],
@@ -178,8 +179,131 @@ const state = reactive({
   leaving: false,
 })
 
+/**
+ * 各卡片對應的彩池／爆池總額（供入場鈕上方的跑馬燈數字用）
+ *
+ * ⚠️ 每張卡片背後的池子形狀都不一樣，這裡只取「該分頁公開 API 已經算好的可派發總額」，
+ *    不重算任何伺端才有的阻尼公式：
+ *   - 有 `distributable` 欄位的直接讀該值（CreditJackpotState／SharedPoolState 系列）。
+ *   - 6hc-of／6hc-cd 的 jackpot API 沒有回 `distributable`（見 server/api/lottery/
+ *     6hc-of|6hc-cd/jackpot.get.ts），改用「當期抽水 + 滾存」近似顯示。
+ *   - k3／pk10／ssc／x5 的官方盤各有「爆池」（cd/of 共吃，`jackpotXxx()`）與「共用彩池」
+ *     （cd/of 共用同一份，官方盤吃池分頁拿去分層派彩，`poolXxxOf()`，見各自新增的
+ *     `server/api/lottery/{k3,pk10,ssc,x5}-of/pool.get.ts`）兩個獨立的池，CD／OF 卡片
+ *     背後是同一對池子，兩張卡都顯示相加後的同一個總額。
+ *   - eggs／kl10／kl8／pl3 同樣各自有「爆池」與「分層彩池」兩個獨立的池，兩者相加顯示成一個總額。
+ *   - fc3d 沒有任何彩池／爆池（見 shared/config/fc3d-of.ts），不列進表裡，卡片不顯示這個區塊。
+ */
+const POOL_FETCHERS: Record<string, () => Promise<number>> = {
+  // 6HC-OF／6HC-CD 是兩個完全獨立、各自都有開站種子池底的爆池（各自的 jackpotBase 欄位），
+  // 不是像 k3/pk10/ssc/x5 那樣兩盤口共用一份。顯示總額＝jackpotBase + 當期抽水 + 滾存，
+  // 比照既有 use6hcOfficial.ts／use6hcCredit.ts 的 livePool 算法（純加總，不是伺端拿來判斷
+  // 要不要重骰種子池底用的 jackpotCalc 阻尼公式，兩者用途不同）。
+  '6HC-OF': async () => {
+    const r = await api.lottery.jackpot6hcOf()
+    return Number(r?.jackpotBase ?? 0) + Number(r?.currentIssueJackpot ?? 0) + Number(r?.carryJackpot ?? 0)
+  },
+  '6HC-CD': async () => {
+    const r = await api.lottery.jackpot6hcCd()
+    return Number(r?.jackpotBase ?? 0) + Number(r?.currentIssueJackpot ?? 0) + Number(r?.carryJackpot ?? 0)
+  },
+  // K3/PK10/SSC/X5 的官方盤有兩個池：爆池（cd/of 共吃）＋共用彩池（cd/of 共用，官方盤吃池
+  // 分頁用來分層派彩），CD／OF 兩張卡背後是同一對池子，兩張卡加總後顯示同一個總額
+  'K3-CD': async () => {
+    const [jackpot, pool] = await Promise.all([api.lottery.jackpotK3Cd(), api.lottery.poolK3Of()])
+    return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
+  },
+  'K3-OF': async () => {
+    const [jackpot, pool] = await Promise.all([api.lottery.jackpotK3Of(), api.lottery.poolK3Of()])
+    return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
+  },
+  'PK10-CD': async () => {
+    const [jackpot, pool] = await Promise.all([api.lottery.jackpotPk10Cd(), api.lottery.poolPk10Of()])
+    return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
+  },
+  'PK10-OF': async () => {
+    const [jackpot, pool] = await Promise.all([api.lottery.jackpotPk10Of(), api.lottery.poolPk10Of()])
+    return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
+  },
+  'SSC-CD': async () => {
+    const [jackpot, pool] = await Promise.all([api.lottery.jackpotSscCd(), api.lottery.poolSscOf()])
+    return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
+  },
+  'SSC-OF': async () => {
+    const [jackpot, pool] = await Promise.all([api.lottery.jackpotSscOf(), api.lottery.poolSscOf()])
+    return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
+  },
+  'X5-CD': async () => {
+    const [jackpot, pool] = await Promise.all([api.lottery.jackpotX5Cd(), api.lottery.poolX5Of()])
+    return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
+  },
+  'X5-OF': async () => {
+    const [jackpot, pool] = await Promise.all([api.lottery.jackpotX5Of(), api.lottery.poolX5Of()])
+    return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
+  },
+  EGGS: async () => {
+    const [jackpot, pool] = await Promise.all([api.lottery.jackpotEggs(), api.lottery.poolEggs()])
+    return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
+  },
+  KL10: async () => {
+    const [jackpot, pool] = await Promise.all([api.lottery.jackpotKl10(), api.lottery.poolKl10()])
+    return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
+  },
+  KL8: async () => {
+    const [jackpot, pool] = await Promise.all([api.lottery.jackpotKl8(), api.lottery.poolKl8()])
+    return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
+  },
+  PL3: async () => {
+    const [jackpot, pool] = await Promise.all([api.lottery.jackpotPl3(), api.lottery.poolPl3()])
+    return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
+  },
+}
+
+/** 卡片顯示用的彩池數字（動畫跑到的當前值），key 為 card.routeKey */
+const displayPools = reactive<Record<string, number>>({})
+const _poolRaf: Record<string, number> = {}
+const POOL_ANIM_MS = 4000
+
+/** 池額跳動動畫（與各玩法頁首的池額動畫同一套手法），變大變小都用 ease-out 跑過去 */
+const _animatePoolTo = (key: string, target: number) => {
+  if (_poolRaf[key] != null) cancelAnimationFrame(_poolRaf[key])
+  const from = Number(displayPools[key] ?? 0)
+  const diff = target - from
+  if (Math.abs(diff) < 0.01) {
+    displayPools[key] = target
+    return
+  }
+  const start = performance.now()
+  const step = (now: number) => {
+    const t = Math.min((now - start) / POOL_ANIM_MS, 1)
+    const ease = 1 - Math.pow(1 - t, 3)
+    displayPools[key] = Number((from + diff * ease).toFixed(2))
+    if (t < 1) {
+      _poolRaf[key] = requestAnimationFrame(step)
+    } else {
+      delete _poolRaf[key]
+    }
+  }
+  _poolRaf[key] = requestAnimationFrame(step)
+}
+
+/** 逐一取回各卡片的彩池總額並套動畫；單一彩種取失敗不影響其他卡片 */
+const _fetchPools = async () => {
+  await Promise.all(Object.entries(POOL_FETCHERS).map(async ([key, fetcher]) => {
+    try {
+      _animatePoolTo(key, await fetcher())
+    } catch { /* 該彩種彩池取不到不阻斷畫面，維持上一次的顯示值 */ }
+  }))
+}
+
+let poolTimer: ReturnType<typeof setInterval> | null = null
+
+const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW', { maximumFractionDigits: 0 })
+
 const _handlers = {
   enterDelay: (base: number, idx: number, step = 0.12) => `${base + idx * step}s`,
+  /** 該卡片的玩法有沒有彩池／爆池可顯示（fc3d 沒有，不列進 POOL_FETCHERS） */
+  hasPool: (routeKey: string) => routeKey in POOL_FETCHERS,
   buildCards: (list: LobbyItem[]) =>
     list.flatMap((item, gameIdx) => {
       const modes = GAME_MODES[item.key] ?? MODE_META
@@ -224,6 +348,13 @@ const click = {
 
 onMounted(() => {
   init()
+  _fetchPools()
+  poolTimer = setInterval(_fetchPools, 10000)
+})
+
+onBeforeUnmount(() => {
+  if (poolTimer) clearInterval(poolTimer)
+  Object.values(_poolRaf).forEach((id) => cancelAnimationFrame(id))
 })
 </script>
 
@@ -306,6 +437,10 @@ onMounted(() => {
           </div>
           <p class="gc__desc">{{ card.desc }}</p>
           <div class="mono gc__note">{{ card.note }}</div>
+          <div v-if="_handlers.hasPool(card.routeKey)" class="gc__pool">
+            <span class="mono gc__pool-label">彩池 POOL</span>
+            <span class="bebas gc__pool-val">{{ money(displayPools[card.routeKey] ?? 0) }}</span>
+          </div>
           <span class="gc__enter" @click="click.start(card.routeKey)">
             <span class="brush gc__enter-label">{{ card.label }}</span>
             <span class="mono gc__enter-tag">{{ card.tag }}</span>
@@ -1082,6 +1217,48 @@ onMounted(() => {
     margin-top: 10px;
     position: relative;
     z-index: 1;
+  }
+
+  /*
+   * 彩池／爆池總額：字色比照 .hall-top__title 的金色跑馬燈效果（同一組漸層 + shimmerText）。
+   * ⚠️ 卡片底色是米白（var(--ivory) = #fff9e8），金色文字直接疊上去對比太弱、幾乎看不清楚，
+   *    不加框線 DOM、不上底色，改用 -webkit-text-stroke 直接在數字「字形本身」外面描一圈
+   *    深紅色，文字還是透空的漸層填色，只是每個字多一個描邊。
+   */
+  &__pool {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    position: relative;
+    z-index: 1;
+  }
+
+  &__pool-label {
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    color: var(--color-red-desc);
+  }
+
+  &__pool-val {
+    font-size: 52px;
+    line-height: 1;
+    letter-spacing: 0.03em;
+    font-variant-numeric: tabular-nums;
+    background: linear-gradient(90deg,
+        var(--gold-bright) 0%,
+        #fffef2 38%,
+        var(--gold-bright) 52%,
+        var(--gold-bright) 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 1px #de6d4e;
+    paint-order: stroke fill;
+    animation: shimmerText 3.5s linear infinite;
   }
 
   &__enter {

@@ -204,15 +204,30 @@ export const SSC_JACKPOT: SSCJackpotState = {
   results: {}
 }
 
+/**
+ * 爆池開站種子池底（僅一次性 seed 到 carry，之後照既有機制自然演化，比照 EGGS/KL10/KL8/PL3
+ * 的 `carryJackpot = LOTTERY_BASE.jackpotBase(...)` 寫法）
+ * ⚠️ 範圍沿用 SSC_POOL_BASE_MIN/MAX（共用彩池的既有池底範圍），只是套用在爆池這個獨立的池上，
+ *    兩個池底互不影響、各自隨機。
+ */
+export const SSC_JACKPOT_BASE_MIN = SSC_POOL_BASE_MIN
+export const SSC_JACKPOT_BASE_MAX = SSC_POOL_BASE_MAX
+let _jackpotSeeded = false
+
 /** 已註冊的盤口（class 在 constructor 註冊；決定「要等幾份交件」） */
 const _boards = new Set<SSCJackpotBoard>()
 
 /**
  * 註冊一個盤口會參與爆池
  * ⚠️ 註冊了就一定要在自己的結算流程裡 submitRows，否則該期永遠湊不齊、不會發放。
+ * ⚠️ 兩個盤口都會呼叫這支，種子池底只在第一次呼叫時灌一次（`_jackpotSeeded` 保證不重複），
+ *    不管先註冊的是 cd 還是 of。
  */
 export function sscRegisterJackpotBoard(board: SSCJackpotBoard): void {
   _boards.add(board)
+  if (_jackpotSeeded) return
+  _jackpotSeeded = true
+  SSC_JACKPOT.carry = LOTTERY_BASE.jackpotBase(SSC_JACKPOT_BASE_MIN, SSC_JACKPOT_BASE_MAX)
 }
 
 /** 累加某期的爆池抽水（兩個盤口都往同一個池加） */

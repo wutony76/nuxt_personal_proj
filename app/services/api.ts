@@ -253,6 +253,19 @@ export type PoolPlayState = {
   >
 }
 
+/**
+ * 雙盤口彩種（k3/pk10/ssc/x5 的官方盤）共用彩池狀態——CD 與 OF 共用同一份，
+ * 官方盤某個吃池分頁依此分層派彩。沒有 `prizeTiers`（分層比例定義在各彩種自己的
+ * `*-of.ts`，不透過 API 對外露出），純供大廳跑馬燈這類「只要總額」的呼叫端用。
+ */
+export type SharedPoolState = {
+  issue: string
+  base: number
+  carry: number
+  issuePool: number
+  distributable: number
+}
+
 /** SSC 玩家紀錄 */
 export type SscUserRecordResponse = {
   balanceChanges: LotteryUserBalanceChange[]
@@ -825,6 +838,8 @@ export const api = {
     /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
     jackpotK3Cd: () => $fetch<CreditJackpotState>('/api/lottery/k3-cd/jackpot'),
     jackpotK3Of: () => $fetch<CreditJackpotState>('/api/lottery/k3-of/jackpot'),
+    /** 共用彩池（K3-CD 與 K3-OF 共用同一份），與上面的爆池是兩個獨立的池 */
+    poolK3Of: () => $fetch<SharedPoolState>('/api/lottery/k3-of/pool'),
     // ── PK10（PK10-CD / PK10-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
     currentPk10Cd: () => $fetch<Pk10Current>('/api/lottery/pk10-cd/current'),
     currentPk10Of: () => $fetch<Pk10Current>('/api/lottery/pk10-of/current'),
@@ -839,6 +854,8 @@ export const api = {
     /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
     jackpotPk10Cd: () => $fetch<CreditJackpotState>('/api/lottery/pk10-cd/jackpot'),
     jackpotPk10Of: () => $fetch<CreditJackpotState>('/api/lottery/pk10-of/jackpot'),
+    /** 共用彩池（PK10-CD 與 PK10-OF 共用同一份），與上面的爆池是兩個獨立的池 */
+    poolPk10Of: () => $fetch<SharedPoolState>('/api/lottery/pk10-of/pool'),
     // ── 時時彩（SSC-CD / SSC-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
     currentSscCd: () => $fetch<SscCurrent>('/api/lottery/ssc-cd/current'),
     currentSscOf: () => $fetch<SscCurrent>('/api/lottery/ssc-of/current'),
@@ -853,6 +870,8 @@ export const api = {
     /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
     jackpotSscCd: () => $fetch<CreditJackpotState>('/api/lottery/ssc-cd/jackpot'),
     jackpotSscOf: () => $fetch<CreditJackpotState>('/api/lottery/ssc-of/jackpot'),
+    /** 共用彩池（SSC-CD 與 SSC-OF 共用同一份），與上面的爆池是兩個獨立的池 */
+    poolSscOf: () => $fetch<SharedPoolState>('/api/lottery/ssc-of/pool'),
     // ── 11選5（X5-CD / X5-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
     currentX5Cd: () => $fetch<X5Current>('/api/lottery/x5-cd/current'),
     currentX5Of: () => $fetch<X5Current>('/api/lottery/x5-of/current'),
@@ -867,6 +886,8 @@ export const api = {
     /** 爆池（與 current 回的 pool 是兩個不同的池；兩個盤口共吃這一池，兩支路由回同一份） */
     jackpotX5Cd: () => $fetch<CreditJackpotState>('/api/lottery/x5-cd/jackpot'),
     jackpotX5Of: () => $fetch<CreditJackpotState>('/api/lottery/x5-of/jackpot'),
+    /** 共用彩池（X5-CD 與 X5-OF 共用同一份），與上面的爆池是兩個獨立的池 */
+    poolX5Of: () => $fetch<SharedPoolState>('/api/lottery/x5-of/pool'),
     // ── PC蛋蛋（只有信用盤，來源本身無官方盤）──
     currentEggs: () => $fetch<EggsCurrent>('/api/lottery/eggs/current'),
     openCodeHistoryEggs: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/eggs/opencode-history'),
