@@ -100,9 +100,12 @@ watch([total, () => state.pageSize], ([count, size]) => {
             <td class="t-issue">{{ row.issue }}</td>
             <td class="t-code">{{ row.betCode.join('、') }}</td>
             <td class="t-num">{{ money(row.coin) }}</td>
-            <td class="t-num">{{ row.odds ?? '—' }}</td>
+            <td class="t-num">{{ row.tierName || row.odds || '浮動' }}</td>
             <td class="t-status">{{ statusText(row.winStatus) }}</td>
-            <td class="t-num t-payout">{{ row.winAmount > 0 ? money(row.winAmount) : '—' }}</td>
+            <td class="t-num t-payout">
+              {{ row.winAmount > 0 ? money(row.winAmount) : '—' }}
+              <span v-if="row.jackpotAmount" class="t-jackpot">+{{ money(row.jackpotAmount) }} 爆池</span>
+            </td>
             <td class="t-open">
               <span v-if="row.openCode?.length" class="open-ball">
                 <Ball v-for="(code, idx) in row.openCode" :key="idx" :digit="code" size="sm" />
@@ -279,6 +282,14 @@ watch([total, () => state.pageSize], ([count, size]) => {
 
     .t-payout {
       font-weight: 700;
+
+      .t-jackpot {
+        display: block;
+        margin-top: 2px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #b45309;
+      }
     }
 
     .t-open .open-ball {

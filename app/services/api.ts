@@ -505,7 +505,8 @@ export type Kl8UserBetHistory = {
 
 /**
  * 福彩3D（FC3D）當期資訊
- * ⚠️ 只有官方盤（來源本身無信用盤），且沒有任何彩池／爆池，故沒有 pool／jackpot 欄位。
+ * ⚠️ 只有官方盤（來源本身無信用盤）；current 本身沒有 pool／jackpot 欄位，
+ *    全站爆池／三星直選分層彩池另外走 jackpotFc3d／poolFc3d 兩支獨立 API。
  *    openCode 長度固定 3（百/十/個位，各自 0~9，可重複）。
  */
 export type Fc3dCurrent = {
@@ -541,10 +542,14 @@ export type Fc3dUserBetHistory = {
   /** tie：官方盤沒有真正的和局，只在注碼無法辨識時出現（退還本金） */
   winStatus: 'pending' | 'win' | 'lose' | 'tie'
   winAmount: number
-  /** 該注鎖定的賠率（含本金） */
+  /** 該注鎖定的賠率（含本金）；三星直選吃彩池後為 0，改看 tierName/winAmount */
   odds?: number
   /** 該注所屬分頁 */
   tabId?: number
+  /** 三星直選命中的分層名稱（頭獎／二獎／三獎），非三星直選注單為空字串 */
+  tierName?: string
+  /** 全站爆池加碼金額（未觸發或未參與分潤為 0） */
+  jackpotAmount?: number
 }
 
 /**
@@ -918,12 +923,16 @@ export const api = {
     jackpotKl8: () => $fetch<CreditJackpotState>('/api/lottery/kl8/jackpot'),
     /** 彩池玩法（選號）狀態，與上面的爆池是兩個獨立的池 */
     poolKl8: () => $fetch<PoolPlayState>('/api/lottery/kl8/pool'),
-    // ── 福彩3D（只有官方盤，來源本身無信用盤，也沒有任何彩池／爆池）──
+    // ── 福彩3D（只有官方盤，來源本身無信用盤；三星直選改吃分層彩池，全站另有開豹子爆池）──
     currentFc3d: () => $fetch<Fc3dCurrent>('/api/lottery/fc3d/current'),
     openCodeHistoryFc3d: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/fc3d/opencode-history'),
     userRecordFc3d: () => $fetch<Fc3dUserRecordResponse>('/api/lottery/fc3d/user-record'),
     claimOneIssueFc3d: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/fc3d/claim', { method: 'POST' }),
+    /** 全站爆池（開出豹子觸發） */
+    jackpotFc3d: () => $fetch<CreditJackpotState>('/api/lottery/fc3d/jackpot'),
+    /** 三星直選分層彩池狀態，與上面的爆池是兩個獨立的池 */
+    poolFc3d: () => $fetch<PoolPlayState>('/api/lottery/fc3d/pool'),
     // ── 排列3（只有官方盤，玩法結構與福彩3D相同，來源本身無信用盤）──
     currentPl3: () => $fetch<Pl3Current>('/api/lottery/pl3/current'),
     openCodeHistoryPl3: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/pl3/opencode-history'),

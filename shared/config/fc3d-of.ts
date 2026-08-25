@@ -1,8 +1,16 @@
 /**
  * 福彩3D官方盤（FC3D-OF）判定與賠率核心
  *
- * 結構比照 shared/config/sscof.ts（無 pool 分頁那一套），位數由 5 縮為 3；
- * fc3d 只有官方盤、沒有彩池，故本檔不含任何 pool/jackpot 分支。
+ * 結構比照 shared/config/sscof.ts（無 pool 分頁那一套），位數由 5 縮為 3。
+ *
+ * ── 彩池機制（本檔尾段）───────────────────────────────────
+ *   三星直選（複式＋單式）改吃分層彩池，比照 SSC-OF「後三直選」／PK10-OF「前三直選」——
+ *   三星直選在結構上與 SSC 後三完全同構（3 位、0~9、可重複、逐位比對），機率分布
+ *   （命中3/2/1/0 → 1/27/243/729 每 1000）相同，故 `FC3D_OF_PRIZE_TIERS` 直接沿用
+ *   `SSC_OF_PRIZE_TIERS` 的既有比例，不重新設計。
+ *   全站爆池比照 PC蛋蛋（EGGS）——FC3D 與 EGGS 同為「單一盤口、無信用盤」，開獎結構相同
+ *   （3 位 0~9 可重複），觸發條件（開豹子）與機率（1%）直接沿用 `EGGS_JACKPOT_SETTINGS`。
+ *   詳見 openspec/changes/add-fc3d-jackpot/design.md。
  *
  * ── 玩法（對照 bglottery fc3d/config_ssc.js）─────────────
  *   定位膽        百/十/個位各自單選一個數字                母數 1000（命中 100）
@@ -39,6 +47,7 @@ import {
   FC3D_PLACE_NAMES,
   type Fc3dChance
 } from '#shared/config/fc3d'
+import type { JackpotSettings } from '#shared/config/jackpot'
 
 /** 取不到分頁 rtp 時的預設回報率（官方盤一致慣例，比照 SSCOF/X5OF/PK10OF_RTP_FALLBACK 皆 0.96） */
 export const FC3D_RTP_FALLBACK = 0.96
@@ -437,3 +446,135 @@ export const FC3D_PLAY_DEFINITIONS: Array<{ key: string; name: string }> = [
 ]
 
 export { FC3D_DIGIT_MAX, FC3D_PLACE_NAMES, FC3D_TOTAL_OUTCOMES }
+
+// ── 彩池機制 ──────────────────────────────────────────────────────────────
+
+/**
+ * 三星直選分層彩池（沿用 SSC_OF_PRIZE_TIERS 數值：三星直選與 SSC 後三機率結構相同）
+ *   pool  —— 從可派發彩池按 ratio 切一塊，依中獎者下注額比例分配；minAmount 為頭獎保底
+ *   fixed —— 固定倍數，直接按下注倍數發放
+ * ⚠️ 未產生中獎者的 pool 層，該層獎金整塊滾存至下期（比照 SSC-OF）
+ */
+export type Fc3dOfPrizeTier =
+  | { match: number; type: 'pool'; ratio: number; minAmount?: number; name: string }
+  | { match: number; type: 'fixed'; amount: number; name: string }
+
+export const FC3D_OF_PRIZE_TIERS: Fc3dOfPrizeTier[] = [
+  { match: 3, type: 'pool', ratio: 0.70, minAmount: 20000, name: '頭獎' },
+  { match: 2, type: 'pool', ratio: 0.20, name: '二獎' },
+  { match: 1, type: 'fixed', amount: 2, name: '三獎' }
+]
+
+/** 走分層彩池的玩法 key（三星直選複式／單式共用同一個池） */
+export const FC3D_POOL_PLAY_KEY = 'sanxing'
+
+/**
+ * 抽水比例：撥入三星直選池（比照 SSC_OF_RAKE_RATIO，該分頁的獎金全部來自池，非莊家賠付）
+ * ⚠️ 對整筆送單金額抽水，不篩選分頁——比照既有 SSC-OF／EGGS 慣例，非本次新例外，
+ *    詳見 design.md 決策 3。
+ */
+export const FC3D_OF_RAKE_RATIO = 0.6
+
+/** 三星直選池底範圍（比照 SSC-OF 的 120,000~480,000，因三星直選池比照 SSC-OF 完全吃池） */
+export const FC3D_POOL_BASE_MIN = 120_000
+export const FC3D_POOL_BASE_MAX = 480_000
+
+/** 池底重骰門檻：可派發金額低於「頭獎保底 ÷ 頭獎比例」時視為不足 */
+export const FC3D_POOL_FLOOR = (() => {
+  const top = FC3D_OF_PRIZE_TIERS.find((tier) => tier.type === 'pool' && tier.minAmount !== undefined)
+  return top && top.type === 'pool' && top.minAmount ? Math.ceil(top.minAmount / top.ratio) : 0
+})()
+
+/**
+ * 把三星直選的注碼正規化成 3 個號碼（比照 sscOfPicksOf）
+ * ⚠️ 不排序（順序就是位置）、不去重（號碼可重複）。
+ * @param betCode `三星直選123`，或已經拆好的 3 個號碼
+ */
+export function fc3dSanxingPicksOf(betCode: string | number | Array<string | number>): number[] | null {
+  const raw = Array.isArray(betCode)
+    ? betCode.map((code) => String(code))
+    : (() => {
+        const code = String(betCode ?? '').trim()
+        if (!code.startsWith('三星直選') || code.startsWith('三星直選和值')) return []
+        return code.slice('三星直選'.length).split('')
+      })()
+  if (raw.length !== 3) return null
+  const picks = raw.map((code) => Number(code))
+  if (picks.some((digit) => !Number.isInteger(digit) || digit < 0 || digit > FC3D_DIGIT_MAX)) return null
+  return picks
+}
+
+/**
+ * 三星直選的命中位數（逐位比對百十個位，比照 sscOfMatchCount）
+ * @returns 0 ~ 3；注碼或開獎格式不合回 null
+ */
+export function fc3dSanxingMatchCount(
+  betCode: string | number | Array<string | number>,
+  openCode: Array<string | number>
+): number | null {
+  const picks = fc3dSanxingPicksOf(betCode)
+  const digits = fc3dDigitsOf(openCode)
+  if (!picks || !digits) return null
+  return picks.filter((digit, idx) => digit === digits[idx]).length
+}
+
+/** 命中位數 → 所屬分層；不中回 null */
+export function fc3dSanxingTierOf(matchCount: number): Fc3dOfPrizeTier | null {
+  const count = Number(matchCount)
+  if (!Number.isInteger(count) || count <= 0) return null
+  return FC3D_OF_PRIZE_TIERS.find((tier) => tier.match === count) ?? null
+}
+
+/**
+ * 窮舉三星直選（3 位 0~9）固定一注的命中位數分布（機率對帳用）
+ * @returns index 0~3 對應命中 0~3 的結果數；預期 [729, 243, 27, 1]
+ */
+export function fc3dSanxingMatchCounts(picks: number[] = [1, 2, 3]): number[] {
+  const table = [0, 0, 0, 0]
+  const max = FC3D_DIGIT_MAX + 1
+  for (let hundred = 0; hundred < max; hundred++) {
+    for (let ten = 0; ten < max; ten++) {
+      for (let unit = 0; unit < max; unit++) {
+        const tail = [hundred, ten, unit]
+        const matched = picks.filter((digit, idx) => digit === tail[idx]).length
+        table[matched] = Number(table[matched] ?? 0) + 1
+      }
+    }
+  }
+  return table
+}
+
+/**
+ * 全站爆池設定（沿用 EGGS_JACKPOT_SETTINGS 數值：FC3D 與 EGGS 同為單一盤口、開獎結構相同）
+ * ⚠️ boardWeight 只列 of —— FC3D 沒有信用盤，這個係數在這裡等於不作用。
+ */
+export const FC3D_JACKPOT_SETTINGS: JackpotSettings = {
+  rakeRatio: 0.01,
+  payoutRatio: 0.5,
+  minPool: 1000,
+  weightFallback: 1,
+  boardWeight: { of: 1 },
+  hitLabel: '開出豹子（三位數字全同）',
+  hitRate: 10 / 1000
+}
+
+/** 爆池起始池底（僅開站時一次性 seed 到 carryJackpot，之後自然演化，比照 EGGS） */
+export const FC3D_JACKPOT_BASE_MIN = 110_000
+export const FC3D_JACKPOT_BASE_MAX = 450_000
+
+/**
+ * 這一期是不是爆池期（開出豹子）
+ * @returns true = 豹子；開獎格式不合回 false
+ */
+export function fc3dJackpotHit(openCode: Array<string | number>): boolean {
+  const digits = fc3dDigitsOf(openCode)
+  if (!digits) return false
+  return fc3dIsTriple(digits)
+}
+
+/** 爆池期的開獎文字（寫進爆池紀錄，給看板顯示用） */
+export function fc3dJackpotLabel(openCode: Array<string | number>): string {
+  const digits = fc3dDigitsOf(openCode)
+  if (!digits) return ''
+  return `豹${digits.join('')}`
+}

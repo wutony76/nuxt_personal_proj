@@ -144,7 +144,7 @@ const GAME_MODES: Record<string, typeof MODE_META> = {
   KL8: [
     { suffix: '', theme: 'cd', mark: '信', label: '信 用', tag: 'CREDIT · MODE', note: '每注獨立 · 賠率即時派彩' },
   ],
-  // 福彩3D只有官方模式（來源無信用盤），且沒有彩池/爆池，固定賠率結算
+  // 福彩3D只有官方模式（來源無信用盤）；已接上三星直選分層彩池與全站爆池
   FC3D: [
     { suffix: '', theme: 'of', mark: '官', label: '官 方', tag: 'OFFICIAL · MODE', note: '每注獨立 · 固定賠率結算' },
   ],
@@ -191,8 +191,7 @@ const state = reactive({
  *     （cd/of 共用同一份，官方盤吃池分頁拿去分層派彩，`poolXxxOf()`，見各自新增的
  *     `server/api/lottery/{k3,pk10,ssc,x5}-of/pool.get.ts`）兩個獨立的池，CD／OF 卡片
  *     背後是同一對池子，兩張卡都顯示相加後的同一個總額。
- *   - eggs／kl10／kl8／pl3 同樣各自有「爆池」與「分層彩池」兩個獨立的池，兩者相加顯示成一個總額。
- *   - fc3d 沒有任何彩池／爆池（見 shared/config/fc3d-of.ts），不列進表裡，卡片不顯示這個區塊。
+ *   - eggs／kl10／kl8／pl3／fc3d 同樣各自有「爆池」與「分層彩池」兩個獨立的池，兩者相加顯示成一個總額。
  */
 const POOL_FETCHERS: Record<string, () => Promise<number>> = {
   // 6HC-OF／6HC-CD 是兩個完全獨立、各自都有開站種子池底的爆池（各自的 jackpotBase 欄位），
@@ -255,6 +254,10 @@ const POOL_FETCHERS: Record<string, () => Promise<number>> = {
   },
   PL3: async () => {
     const [jackpot, pool] = await Promise.all([api.lottery.jackpotPl3(), api.lottery.poolPl3()])
+    return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
+  },
+  FC3D: async () => {
+    const [jackpot, pool] = await Promise.all([api.lottery.jackpotFc3d(), api.lottery.poolFc3d()])
     return Number(jackpot?.distributable ?? 0) + Number(pool?.distributable ?? 0)
   },
 }

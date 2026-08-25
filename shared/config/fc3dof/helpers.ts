@@ -3,7 +3,8 @@
  *
  * 結構比照 shared/config/sscof/helpers.ts：賠率與限額都以「分頁（tabId）設定」為主，
  * 取不到才退回全域預設；前端顯示 / clamp、伺端驗證 / 派彩全部走這裡。
- * fc3d 沒有彩池，故**不含** sscOfIsPoolTab／sscOfJackpotWeightOf 之類 pool/jackpot 函式。
+ * 三星直選複式／單式改吃分層彩池後新增 `fc3dOfIsPoolTab`／`fc3dJackpotWeightOf`
+ * （比照 sscOfIsPoolTab／sscOfJackpotWeightOf），詳見 openspec/changes/add-fc3d-jackpot/。
  *
  * ── 分頁型態 ────────────────────────────────────────────
  *   單選分頁（定位膽）—— groupList 就是注項清單，注碼＝name（百位0…）
@@ -65,6 +66,8 @@ export type Fc3dOfCombo = {
   positions?: number
   group?: Fc3dOfGroupMode
   minPick: number
+  /** 三星直選複式／單式改吃分層彩池時為 true（見 fc3d-of.ts FC3D_OF_PRIZE_TIERS） */
+  pool?: boolean
 }
 
 type ConfigOption = {
@@ -134,6 +137,14 @@ export function findFc3dTab(playKey?: string, tabId?: number | string): ConfigTa
 /** 該分頁的複式規則；單選分頁（定位膽）回 null */
 export function fc3dComboOf(playKey?: string, tabId?: number | string): Fc3dOfCombo | null {
   return findFc3dTab(playKey, tabId)?.combo ?? null
+}
+
+/**
+ * 該分頁是否走分層彩池（三星直選複式／單式）
+ * ⚠️ 比照 sscOfIsPoolTab：注碼展開／驗證不必為吃池分頁開特例，只有派彩方式不一樣。
+ */
+export function fc3dOfIsPoolTab(playKey?: string, tabId?: number | string): boolean {
+  return fc3dComboOf(playKey, tabId)?.pool === true
 }
 
 /** 取分頁的投注限額 */
@@ -212,15 +223,43 @@ export function fc3dHasBetCode(playKey?: string, tabId?: number | string, betCod
  *
  * 一律由 fc3d-of.ts 依「公平賠率 × 該分頁 rtp」推算，而不是讀 config 的 odds ——
  * config 的 odds 只是產生時的快照，改 rtp 就會與實際不符。
- * @returns 賠率；注碼無法辨識或不屬於該分頁回 0
+ * @returns 賠率；注碼無法辨識或不屬於該分頁回 0（吃分層彩池的分頁一律回 0，那邊不吃賠率）
  */
 export function fc3dTabOddsOf(playKey?: string, tabId?: number | string, betCode?: string | number): number {
   const code = String(betCode ?? '').trim()
   if (!code || !fc3dHasBetCode(playKey, tabId, code)) return 0
+  if (fc3dOfIsPoolTab(playKey, tabId)) return 0
   const odds = fc3dOddsOf(code, fc3dRtpOf(playKey, tabId))
   if (!(odds > 0)) return 0
   const maxOdds = fc3dMaxOddsOf(playKey, tabId)
   return maxOdds > 0 ? Math.min(odds, maxOdds) : odds
+}
+
+/**
+ * 取注項的全站爆池分配權重（比照 sscOfJackpotWeightOf／eggsJackpotWeightOf）
+ *
+ * 順序：注項 weight → 群組 weight → 0（不參與分配）；
+ * 複式分頁的注碼不在清單裡（例如「三星直選123」），退回該分頁第一個群組的 weight。
+ * ⚠️ 明確給 0 代表「排除」，與「沒設定」（呼叫端會退回 FC3D_JACKPOT_SETTINGS.weightFallback）
+ *    是兩件不同的事，故用 null 判斷而非 falsy。
+ */
+export function fc3dJackpotWeightOf(playKey?: string, tabId?: number | string, betCode?: string | number): number {
+  const code = String(betCode ?? '').trim()
+  const tab = findFc3dTab(playKey, tabId)
+  if (!tab) return 0
+  const groups = Array.isArray(tab.tabGroup) ? tab.tabGroup : []
+  for (const group of groups) {
+    const list = Array.isArray(group.groupList) ? group.groupList : []
+    const item = list.find((option) => String(option?.name ?? '') === code || String(option?.playId ?? '') === code)
+    if (!item) continue
+    const itemWeight = item.weight == null ? null : Number(item.weight)
+    if (itemWeight != null && Number.isFinite(itemWeight) && itemWeight >= 0) return itemWeight
+    const groupWeight = group.weight == null ? null : Number(group.weight)
+    if (groupWeight != null && Number.isFinite(groupWeight) && groupWeight >= 0) return groupWeight
+    return 0
+  }
+  const first = groups[0]
+  return first?.weight == null ? 0 : Number(first.weight)
 }
 
 /**
