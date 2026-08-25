@@ -9,7 +9,7 @@
 @use "./lhc_kl8.scss";
 @use "./lhc_fc3d.scss";
 @use "./lhc_pl3.scss";
-@import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=LXGW+WenKai+TC&display=swap');
 
 /**
  * 統一捲軸樣式（.lottery-scrollbar）
@@ -45,6 +45,15 @@
 
 :root {
   --font-brush: 'Ma Shan Zheng', cursive;
+  /**
+   * 給標題含 Ma Shan Zheng 缺字（選／樂／時…）的彩種用：
+   * 逐字實測 Ma Shan Zheng 的 woff2 子集，確認「選」「樂」「時」三字不在任何子集的
+   * 實際字圖裡（unicode-range 有涵蓋但字圖是空的），换成 LXGW WenKai TC（霞鶩文楷，
+   * Google Fonts 上少數字重完整的繁體楷書手寫風字型）避免同一標題內字體混雜。
+   * 11選5／快樂十分／快樂8／時時彩用這個，其餘標題字都在 Ma Shan Zheng 涵蓋範圍內
+   * 不需要換。
+   */
+  --font-brush-tc: 'LXGW WenKai TC', "Noto Serif TC", serif;
   --color-gold: #c9a227;
 
   --base-width: 1240px;

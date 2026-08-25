@@ -326,7 +326,8 @@ const ballLabels = X5_BALL_NAMES.map((name) => name.replace('球', ''))
 
       .title {
         margin: 0;
-        font-family: var(--font-brush), "Noto Serif TC", serif;
+        /* 「選」不在 Ma Shan Zheng 的實際字圖裡，換 LXGW WenKai TC 避免同一標題缺字混字體 */
+        font-family: var(--font-brush-tc);
         font-size: 62px;
         letter-spacing: -4px;
         font-weight: 900;
