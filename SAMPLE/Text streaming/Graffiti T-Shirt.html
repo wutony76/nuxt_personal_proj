@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>WILDSTYLE — T-Shirt Drop</title>
+<meta name="viewport" content="width=1440, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Bungee+Shade&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#f6efe2; --paper:#fbf6ea; --ink:#0d0b0a;
+  --magenta:#ec1e7c; --lime:#bfe636; --cyan:#26c6c9;
+  --yellow:#ffd23a; --tangerine:#ff7a1a; --purple:#7a2fa6;
+}
+*{box-sizing:border-box}
+html,body{margin:0; background:#0d0b0a;}
+body{
+  font-family:'Space Grotesk',sans-serif; color:var(--ink);
+  background:
+    radial-gradient(1100px 700px at 0% 0%, #2a1a2e 0%, transparent 60%),
+    radial-gradient(900px 600px at 100% 100%, #16313a 0%, transparent 55%),
+    #0d0b0a;
+  min-height:100vh; padding:40px 0 80px;
+}
+.stage{
+  width:1440px; margin:0 auto; background:var(--paper);
+  border:2px solid var(--ink);
+  box-shadow:18px 18px 0 var(--ink), 18px 18px 0 4px var(--lime);
+  position:relative; overflow:hidden;
+}
+.stage::before{
+  content:""; position:absolute; inset:0;
+  background-image:
+    radial-gradient(rgba(13,11,10,.18) 1px, transparent 1.4px),
+    radial-gradient(rgba(13,11,10,.10) 1px, transparent 1.2px);
+  background-size:6px 6px, 11px 11px; background-position:0 0, 3px 3px;
+  opacity:.35; mix-blend-mode:multiply; pointer-events:none; z-index:1;
+}
+.layer{position:relative; z-index:2}
+
+.nav{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:14px 28px; background:var(--ink); color:var(--cream);
+  font-family:'Space Mono',monospace; font-size:13px;
+}
+.nav a{color:var(--cream); text-decoration:none; padding:6px 10px; border:2px solid transparent}
+.nav a.on{color:var(--lime); border:2px solid var(--lime); transform:rotate(-1deg)}
+.nav b{color:var(--yellow); font-family:'Bungee',sans-serif; font-size:18px; letter-spacing:.04em}
+.nav .group{display:flex; gap:6px;}
+
+/* HEADER */
+.head{
+  padding:36px 56px 22px; border-bottom:2px solid var(--ink);
+  background:linear-gradient(180deg,#fffaee,#f3e9d2);
+  position:relative; overflow:hidden;
+}
+.head .tk{
+  display:inline-block; font-family:'Space Mono',monospace; font-size:12px;
+  letter-spacing:.2em; background:var(--yellow); color:var(--ink);
+  padding:6px 14px; border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink);
+  transform:rotate(-2deg); margin-bottom:10px;
+}
+.head h1{
+  font-family:'Bungee',sans-serif; font-size:132px; line-height:.9; margin:0;
+  -webkit-text-stroke:3px var(--ink); color:var(--magenta);
+  text-shadow:8px 8px 0 var(--ink);
+}
+.head h1 em{ font-style:normal; color:var(--cyan); display:inline-block; transform:rotate(-2deg);}
+.head h1 span{ color:var(--lime);}
+.head .sub{
+  display:flex; justify-content:space-between; align-items:flex-end; margin-top:18px;
+}
+.head .sub p{ font-size:18px; max-width:560px; margin:0; line-height:1.45;}
+.head .sub p b{ background:var(--cyan); padding:0 6px; box-shadow:3px 3px 0 var(--ink); display:inline-block;}
+.head .right{
+  font-family:'Space Mono',monospace; font-size:12px; text-align:right;
+}
+.head .right b{font-family:'Bungee',sans-serif; font-size:22px; color:var(--magenta); -webkit-text-stroke:1.5px var(--ink); display:block;}
+
+/* MOCKUPS ROW */
+.row{
+  display:grid; grid-template-columns: 1fr 1fr;
+  border-bottom:2px solid var(--ink);
+}
+.tee{
+  position:relative;
+  padding:50px 40px 60px;
+  border-right:2px solid var(--ink);
+  overflow:hidden;
+  min-height:760px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+.tee:last-child{border-right:none}
+.tee.dark{
+  background:
+    radial-gradient(circle at 30% 30%, #2a2326 0%, #0d0b0a 70%);
+}
+.tee.light{
+  background:
+    radial-gradient(circle at 70% 30%, #fff5dd 0%, #e8dcc1 70%);
+}
+.tee .lbl{
+  position:absolute; top:18px; left:20px;
+  font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.2em;
+  padding:4px 8px; border:2px solid var(--ink);
+}
+.tee.dark .lbl{ color:var(--lime); border-color:var(--lime); background:rgba(0,0,0,.3);}
+.tee.light .lbl{ color:var(--ink); background:var(--yellow);}
+.tee .price{
+  position:absolute; top:18px; right:20px;
+  background:var(--magenta); color:var(--cream);
+  font-family:'Bungee',sans-serif; font-size:18px;
+  padding:8px 12px; border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink);
+  transform:rotate(6deg);
+}
+
+/* shirt svg sized */
+.shirt{ width:520px; height:auto; filter: drop-shadow(8px 12px 0 rgba(0,0,0,.35));}
+
+/* art overlay on shirt - artwork goes in center */
+.shirt-wrap{ position:relative; width:520px; }
+.shirt-art{
+  position:absolute; left:50%; top:46%; transform:translate(-50%,-50%);
+  width:280px; text-align:center;
+}
+.shirt-art .a-line1{
+  font-family:'Bungee',sans-serif; font-size:62px; line-height:.88;
+  color:var(--magenta); -webkit-text-stroke:2.5px var(--ink);
+  text-shadow:5px 5px 0 var(--ink);
+  display:inline-block; transform:rotate(-3deg);
+}
+.shirt-art .a-line2{
+  font-family:'Bungee',sans-serif; font-size:62px; line-height:.88;
+  color:var(--yellow); -webkit-text-stroke:2.5px var(--ink);
+  text-shadow:5px 5px 0 var(--ink);
+  display:inline-block; transform:rotate(2deg); margin-top:-4px;
+}
+.shirt-art .a-line3{
+  font-family:'Bungee',sans-serif; font-size:36px; line-height:.9;
+  color:var(--lime); -webkit-text-stroke:2px var(--ink);
+  text-shadow:3px 3px 0 var(--ink);
+  display:inline-block; transform:rotate(-1deg); margin-top:6px;
+}
+.shirt-art .a-sub{
+  font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.25em;
+  color:var(--cream); margin-top:8px; text-shadow:1px 1px 0 var(--ink);
+}
+.shirt-art.dark .a-sub{ color:var(--lime);}
+.shirt-art.light .a-sub{ color:var(--ink);}
+
+.shirt-art .splat{
+  position:absolute; pointer-events:none;
+}
+
+/* shirt details */
+.deets{
+  position:absolute; left:32px; bottom:28px; right:32px;
+  display:flex; justify-content:space-between; align-items:flex-end;
+  font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.12em;
+}
+.tee.dark .deets{ color:var(--cream);}
+.tee.light .deets{ color:var(--ink);}
+.deets b{display:block; font-family:'Bungee',sans-serif; font-size:18px; letter-spacing:.02em;}
+.tee.dark .deets b{ color:var(--yellow);}
+.tee.light .deets b{ color:var(--magenta);}
+
+/* ===== Detail row ===== */
+.detail{
+  display:grid; grid-template-columns: 1.1fr .9fr .9fr;
+  border-bottom:2px solid var(--ink);
+}
+.cell{
+  padding:28px;
+  border-right:2px solid var(--ink);
+  position:relative;
+}
+.cell:last-child{border-right:none}
+.cell h3{font-family:'Bungee',sans-serif; font-size:20px; margin:0 0 4px}
+.cell .lab{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.18em; opacity:.6; margin-bottom:16px}
+
+/* size chips */
+.sizes{ display:flex; gap:10px; margin-bottom:18px}
+.sz{
+  width:46px; height:46px; display:flex; align-items:center; justify-content:center;
+  font-family:'Bungee',sans-serif; font-size:15px;
+  border:2.5px solid var(--ink); background:var(--paper);
+  box-shadow:4px 4px 0 var(--ink);
+  cursor:pointer;
+}
+.sz.on{ background:var(--magenta); color:var(--cream); transform:rotate(-2deg)}
+.sz.off{ opacity:.4; text-decoration:line-through}
+
+.colors{display:flex; gap:10px;}
+.co{
+  width:42px; height:42px; border-radius:50%; border:2.5px solid var(--ink);
+  box-shadow:4px 4px 0 var(--ink); cursor:pointer; position:relative;
+}
+.co.on::after{
+  content:""; position:absolute; inset:-7px; border:2px dashed var(--ink); border-radius:50%;
+}
+.cta{
+  font-family:'Bungee',sans-serif; font-size:18px; letter-spacing:.02em;
+  padding:14px 22px; background:var(--ink); color:var(--lime);
+  border:2.5px solid var(--ink); box-shadow:6px 6px 0 var(--magenta);
+  display:inline-flex; align-items:center; gap:10px; cursor:pointer;
+  transform:rotate(-1deg); margin-top:18px;
+}
+.cta .arr{ font-family:'Bungee',sans-serif; color:var(--yellow)}
+
+/* care/spec list */
+.spec{ font-size:14px; line-height:1.7; }
+.spec li{ display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed rgba(0,0,0,.2); list-style:none;}
+.spec li b{font-family:'Bungee',sans-serif; font-weight:400; font-size:14px;}
+.spec ul{margin:0; padding:0}
+
+/* hangtag mockup */
+.hangtag{
+  position:relative;
+  width:200px; height:280px;
+  background:var(--cream);
+  border:2.5px solid var(--ink);
+  box-shadow:8px 8px 0 var(--ink);
+  transform:rotate(-4deg);
+  margin:10px auto 0;
+  padding:18px;
+  display:flex; flex-direction:column; justify-content:space-between;
+}
+.hangtag::before{
+  content:""; position:absolute; top:14px; left:50%; transform:translateX(-50%);
+  width:22px; height:22px; border-radius:50%;
+  background:var(--paper); border:2.5px solid var(--ink);
+}
+.hangtag::after{
+  content:""; position:absolute; top:-30px; left:calc(50% - 1px); width:2px; height:32px; background:var(--ink);
+  transform:rotate(8deg);
+}
+.hangtag .h-logo{
+  font-family:'Bungee',sans-serif; font-size:30px; line-height:.9; margin-top:30px;
+  color:var(--magenta); -webkit-text-stroke:1.5px var(--ink);
+}
+.hangtag .h-meta{
+  font-family:'Space Mono',monospace; font-size:10px; line-height:1.5;
+  border-top:2px dashed var(--ink); padding-top:8px;
+}
+.hangtag .h-bar{
+  display:flex; gap:2px; height:30px; margin:6px 0;
+}
+.hangtag .h-bar i{ display:block; background:var(--ink); width:2px; height:100%;}
+.hangtag .h-bar i:nth-child(2n){width:1px; height:80%}
+.hangtag .h-bar i:nth-child(3n){width:3px}
+.hangtag .h-bar i:nth-child(5n){width:1px}
+
+/* swatches strip */
+.swatches{
+  display:grid; grid-template-columns:repeat(6,1fr); border-bottom:2px solid var(--ink);
+}
+.sw{
+  aspect-ratio:1/.5; border-right:2px solid var(--ink);
+  padding:10px 14px; font-family:'Space Mono',monospace; font-size:11px;
+  display:flex; flex-direction:column; justify-content:space-between;
+}
+.sw:last-child{border-right:none}
+.sw b{font-family:'Bungee',sans-serif; font-size:14px}
+
+/* foot */
+.foot{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:16px 28px; background:var(--ink); color:var(--cream);
+  font-family:'Space Mono',monospace; font-size:12px;
+}
+.foot b{font-family:'Bungee',sans-serif; color:var(--lime); font-size:16px}
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- NAV -->
+  <div class="nav layer">
+    <div><b>WILDSTYLE</b> <span style="opacity:.6">// drops</span></div>
+    <div class="group">
+      <a href="Graffiti Template.html">SYSTEM</a>
+      <a href="Graffiti T-Shirt.html" class="on">T-SHIRT</a>
+      <a href="Graffiti Stickers.html">SKATE STICKERS</a>
+      <a href="Graffiti Web Hero.html">WEB HERO</a>
+    </div>
+  </div>
+
+  <!-- HEAD -->
+  <header class="head layer">
+    <span class="tk">// DROP 07 — SPRAY TEE COLLECTION</span>
+    <h1>WEAR <em>IT</em> <span>LOUD.</span></h1>
+    <div class="sub">
+      <p>
+        厚磅棉 240gsm，水性印花，手工排版的 <b>WILDSTYLE</b> 字體圖樣。
+        兩種主色：午夜黑、奶油原色。每件附編號吊牌與貼紙包。
+      </p>
+      <div class="right">
+        <span>STYLE NO.</span><b>WS-TEE-007</b>
+        <span>NTD 980 · 限量 200</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MOCKUPS -->
+  <section class="row layer">
+    <!-- DARK TEE -->
+    <div class="tee dark">
+      <div class="lbl">// 01 — MIDNIGHT</div>
+      <div class="price">$32</div>
+
+      <div class="shirt-wrap">
+        <!-- shirt silhouette -->
+        <svg class="shirt" viewBox="0 0 520 540" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="weaveD" width="3" height="3" patternUnits="userSpaceOnUse">
+              <rect width="3" height="3" fill="#1a1417"/>
+              <circle cx="1.5" cy="1.5" r=".5" fill="#2a2226"/>
+            </pattern>
+          </defs>
+          <!-- body -->
+          <path d="M120 80 L60 130 L20 250 L70 280 L80 510 L440 510 L450 280 L500 250 L460 130 L400 80 L340 60
+                   Q300 110 260 110 Q220 110 180 60 Z"
+                fill="url(#weaveD)" stroke="#000" stroke-width="3"/>
+          <!-- collar/neck -->
+          <path d="M190 70 Q260 130 330 70 Q300 100 260 100 Q220 100 190 70 Z" fill="#0a0807" stroke="#000" stroke-width="3"/>
+          <!-- shadows -->
+          <path d="M80 510 L70 280 L20 250 L60 130 L120 80 L180 60 Q200 90 220 100 L200 510 Z" fill="rgba(0,0,0,.18)"/>
+          <path d="M340 60 L400 80 L460 130 L500 250 L450 280 L440 510 L420 510 L432 280 L482 254 L444 134 L390 96 L334 76 Z" fill="rgba(255,255,255,.04)"/>
+          <!-- seam stitches -->
+          <path d="M180 60 Q220 110 260 110 Q300 110 340 60" stroke="#bfe636" stroke-width="1" fill="none" stroke-dasharray="3 4" opacity=".6"/>
+          <path d="M80 510 L90 280" stroke="#bfe636" stroke-width="1" fill="none" stroke-dasharray="3 4" opacity=".4"/>
+          <path d="M440 510 L430 280" stroke="#bfe636" stroke-width="1" fill="none" stroke-dasharray="3 4" opacity=".4"/>
+          <!-- sleeve cuff lines -->
+          <path d="M28 252 L78 282" stroke="#000" stroke-width="2" opacity=".7"/>
+          <path d="M492 252 L442 282" stroke="#000" stroke-width="2" opacity=".7"/>
+          <!-- hem -->
+          <path d="M80 500 L440 500" stroke="#000" stroke-width="2" opacity=".5"/>
+        </svg>
+
+        <!-- artwork -->
+        <div class="shirt-art dark">
+          <svg class="splat" style="top:-40px; left:-50px; width:80px;" viewBox="0 0 100 100">
+            <path d="M50 6 L60 32 L88 28 L70 50 L94 66 L66 70 L62 96 L48 76 L26 92 L30 66 L8 56 L30 42 L18 18 L42 28 Z"
+                  fill="#bfe636" stroke="#0d0b0a" stroke-width="3" stroke-linejoin="round"/>
+          </svg>
+          <svg class="splat" style="bottom:-30px; right:-60px; width:70px;" viewBox="0 0 100 100">
+            <path d="M58 6 L18 56 L46 56 L36 94 L82 38 L54 38 Z"
+                  fill="#ffd23a" stroke="#0d0b0a" stroke-width="3" stroke-linejoin="round"/>
+          </svg>
+          <span class="a-line1">WILD</span>
+          <span class="a-line2">STYLE</span>
+          <span class="a-line3">★ CREW ★</span>
+          <div class="a-sub">SPRAY · PRESS · WEAR</div>
+        </div>
+      </div>
+
+      <div class="deets">
+        <div>
+          <b>MIDNIGHT</b>
+          240GSM · 100% COTTON
+        </div>
+        <div style="text-align:right">
+          <b>SS / 26</b>
+          NO. 042 / 200
+        </div>
+      </div>
+    </div>
+
+    <!-- LIGHT TEE -->
+    <div class="tee light">
+      <div class="lbl">// 02 — CREAM</div>
+      <div class="price">$32</div>
+
+      <div class="shirt-wrap">
+        <svg class="shirt" viewBox="0 0 520 540" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="weaveL" width="3" height="3" patternUnits="userSpaceOnUse">
+              <rect width="3" height="3" fill="#f6efe2"/>
+              <circle cx="1.5" cy="1.5" r=".5" fill="#e6dcc8"/>
+            </pattern>
+          </defs>
+          <path d="M120 80 L60 130 L20 250 L70 280 L80 510 L440 510 L450 280 L500 250 L460 130 L400 80 L340 60
+                   Q300 110 260 110 Q220 110 180 60 Z"
+                fill="url(#weaveL)" stroke="#0d0b0a" stroke-width="3"/>
+          <path d="M190 70 Q260 130 330 70 Q300 100 260 100 Q220 100 190 70 Z" fill="#e6dcc8" stroke="#0d0b0a" stroke-width="3"/>
+          <path d="M80 510 L70 280 L20 250 L60 130 L120 80 L180 60 Q200 90 220 100 L200 510 Z" fill="rgba(0,0,0,.06)"/>
+          <path d="M340 60 L400 80 L460 130 L500 250 L450 280 L440 510 L420 510 L432 280 L482 254 L444 134 L390 96 L334 76 Z" fill="rgba(255,255,255,.4)"/>
+          <path d="M180 60 Q220 110 260 110 Q300 110 340 60" stroke="#ec1e7c" stroke-width="1" fill="none" stroke-dasharray="3 4" opacity=".7"/>
+          <path d="M28 252 L78 282" stroke="#0d0b0a" stroke-width="2" opacity=".4"/>
+          <path d="M492 252 L442 282" stroke="#0d0b0a" stroke-width="2" opacity=".4"/>
+        </svg>
+
+        <div class="shirt-art light">
+          <svg class="splat" style="top:-40px; right:-50px; width:80px;" viewBox="0 0 100 100">
+            <path d="M50 8 L60 36 L90 38 L66 56 L74 86 L50 70 L26 86 L34 56 L10 38 L40 36 Z"
+                  fill="#ec1e7c" stroke="#0d0b0a" stroke-width="3" stroke-linejoin="round"/>
+          </svg>
+          <svg class="splat" style="bottom:-30px; left:-50px; width:70px;" viewBox="0 0 100 100">
+            <path d="M50 6 L72 30 L96 50 L74 70 L66 96 L40 80 L14 96 L20 68 L4 46 L30 30 Z"
+                  fill="#26c6c9" stroke="#0d0b0a" stroke-width="3" stroke-linejoin="round"/>
+          </svg>
+          <span class="a-line1">WILD</span>
+          <span class="a-line2" style="color:#26c6c9">STYLE</span>
+          <span class="a-line3" style="color:#7a2fa6">★ CREW ★</span>
+          <div class="a-sub">SPRAY · PRESS · WEAR</div>
+        </div>
+      </div>
+
+      <div class="deets">
+        <div>
+          <b>CREAM</b>
+          240GSM · 100% COTTON
+        </div>
+        <div style="text-align:right">
+          <b>SS / 26</b>
+          NO. 042 / 200
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DETAILS -->
+  <section class="detail layer">
+    <div class="cell">
+      <h3>PICK A SIZE</h3>
+      <p class="lab">// REGULAR FIT — RUNS TRUE</p>
+      <div class="sizes">
+        <div class="sz off">XS</div>
+        <div class="sz">S</div>
+        <div class="sz on">M</div>
+        <div class="sz">L</div>
+        <div class="sz">XL</div>
+        <div class="sz">2XL</div>
+      </div>
+
+      <h3 style="margin-top:18px">PICK A COLOUR</h3>
+      <p class="lab">// 02 STOCK COLOURS</p>
+      <div class="colors">
+        <div class="co on" style="background:#0d0b0a"></div>
+        <div class="co" style="background:#f6efe2"></div>
+        <div class="co" style="background:#ec1e7c"></div>
+        <div class="co" style="background:#26c6c9"></div>
+        <div class="co" style="background:#bfe636"></div>
+      </div>
+
+      <button class="cta">ADD TO BASKET <span class="arr">→</span></button>
+    </div>
+
+    <div class="cell" style="background:#fffaee;">
+      <h3>SPECS</h3>
+      <p class="lab">// MADE IN TPE</p>
+      <ul class="spec">
+        <li><span>FABRIC</span><b>100% RING-SPUN COTTON</b></li>
+        <li><span>WEIGHT</span><b>240 GSM</b></li>
+        <li><span>PRINT</span><b>WATER-BASED SCREEN</b></li>
+        <li><span>FIT</span><b>BOXY / REGULAR</b></li>
+        <li><span>NECK</span><b>RIBBED 1×1</b></li>
+        <li><span>WASH</span><b>COLD · DO NOT TUMBLE</b></li>
+        <li><span>EDITION</span><b>200 NUMBERED</b></li>
+      </ul>
+    </div>
+
+    <div class="cell" style="background:var(--cyan);">
+      <h3>HANGTAG</h3>
+      <p class="lab">// EVERY TEE GETS ONE</p>
+
+      <div class="hangtag">
+        <div class="h-logo">WILD<br/>STYLE</div>
+        <div>
+          <div class="h-bar">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+          <div class="h-meta">
+            WS-TEE-007 / M / BLK<br/>
+            042 / 200<br/>
+            MADE IN TAIWAN
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SWATCH STRIP -->
+  <section class="swatches layer">
+    <div class="sw" style="background:#0d0b0a; color:#f6efe2"><b style="color:#bfe636">MIDNIGHT</b><span>#0D0B0A · 100% CO</span></div>
+    <div class="sw" style="background:#f6efe2"><b>CREAM</b><span>#F6EFE2 · 240GSM</span></div>
+    <div class="sw" style="background:#ec1e7c; color:#f6efe2"><b>HOT PINK</b><span>#EC1E7C</span></div>
+    <div class="sw" style="background:#26c6c9"><b>POOL</b><span>#26C6C9</span></div>
+    <div class="sw" style="background:#bfe636"><b>ACID</b><span>#BFE636</span></div>
+    <div class="sw" style="background:#ffd23a"><b>SUN</b><span>#FFD23A</span></div>
+  </section>
+
+  <div class="foot layer">
+    <div><b>WILDSTYLE</b> · SPRAY TEE COLLECTION · SS26</div>
+    <div>★ HAND-PRINTED IN TAIPEI ★ SHIPS WORLDWIDE</div>
+  </div>
+
+</div>
+</body>
+</html>

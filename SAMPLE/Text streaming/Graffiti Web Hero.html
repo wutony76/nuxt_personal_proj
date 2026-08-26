@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>WILDSTYLE — Web Hero</title>
+<meta name="viewport" content="width=1440, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Bungee+Shade&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#f6efe2; --paper:#fbf6ea; --ink:#0d0b0a;
+  --magenta:#ec1e7c; --lime:#bfe636; --cyan:#26c6c9;
+  --yellow:#ffd23a; --tangerine:#ff7a1a; --purple:#7a2fa6;
+}
+*{box-sizing:border-box}
+html,body{margin:0; background:#0d0b0a;}
+body{
+  font-family:'Space Grotesk',sans-serif; color:var(--ink);
+  background:
+    radial-gradient(1200px 800px at 50% 0%, #2a1a2e 0%, transparent 60%),
+    #0d0b0a;
+  min-height:100vh; padding:40px 0 80px;
+}
+.stage{
+  width:1440px; margin:0 auto; background:var(--paper);
+  border:2px solid var(--ink);
+  box-shadow:18px 18px 0 var(--ink), 18px 18px 0 4px var(--magenta);
+  position:relative; overflow:hidden;
+}
+.layer{position:relative; z-index:2}
+.stage::before{
+  content:""; position:absolute; inset:0;
+  background-image:
+    radial-gradient(rgba(13,11,10,.16) 1px, transparent 1.4px),
+    radial-gradient(rgba(13,11,10,.08) 1px, transparent 1.2px);
+  background-size:6px 6px, 11px 11px;
+  opacity:.35; mix-blend-mode:multiply; pointer-events:none; z-index:1;
+}
+
+.nav-top{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:14px 28px; background:var(--ink); color:var(--cream);
+  font-family:'Space Mono',monospace; font-size:13px;
+}
+.nav-top a{color:var(--cream); text-decoration:none; padding:6px 10px; border:2px solid transparent}
+.nav-top a.on{color:var(--magenta); border:2px solid var(--magenta); transform:rotate(-1deg)}
+.nav-top b{color:var(--yellow); font-family:'Bungee',sans-serif; font-size:18px; letter-spacing:.04em}
+.nav-top .group{display:flex; gap:6px;}
+
+/* HEADER NAV (the actual website nav) */
+.web-nav{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:22px 56px;
+  border-bottom:2px solid var(--ink);
+  background:var(--paper);
+  position:relative;
+}
+.web-nav .logo{
+  font-family:'Bungee',sans-serif; font-size:30px; color:var(--magenta);
+  -webkit-text-stroke:1.5px var(--ink);
+  letter-spacing:.02em;
+}
+.web-nav .links{
+  display:flex; gap:30px; font-family:'Space Mono',monospace; font-size:13px; letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.web-nav .links a{ color:var(--ink); text-decoration:none; padding:4px 2px; border-bottom:2px solid transparent;}
+.web-nav .links a.on{ border-bottom-color:var(--magenta); color:var(--magenta);}
+.web-nav .cart{
+  font-family:'Bungee',sans-serif; font-size:14px; padding:8px 14px;
+  border:2px solid var(--ink); background:var(--yellow); box-shadow:4px 4px 0 var(--ink);
+  display:flex; align-items:center; gap:8px;
+}
+.web-nav .cart .b{ background:var(--ink); color:var(--yellow); padding:2px 6px; border-radius:50%; font-size:11px;}
+
+/* HERO */
+.hero{
+  position:relative;
+  padding:60px 56px 80px;
+  border-bottom:2px solid var(--ink);
+  background:
+    linear-gradient(180deg, #fffaee 0%, #f3e9d2 100%);
+  overflow:hidden;
+}
+.hero .grid{
+  display:grid; grid-template-columns: 1.15fr .85fr; gap:40px; align-items:center;
+  position:relative; z-index:2;
+}
+
+.kicker{
+  display:inline-flex; align-items:center; gap:10px;
+  font-family:'Space Mono',monospace; font-size:12px; letter-spacing:.22em;
+  padding:7px 14px; background:var(--ink); color:var(--lime);
+  border:2px solid var(--ink); box-shadow:4px 4px 0 var(--magenta);
+  margin-bottom:22px; transform:rotate(-1deg);
+}
+.kicker .dot{ width:8px;height:8px;background:var(--magenta); border-radius:50%; box-shadow:0 0 0 2px var(--lime);}
+
+.hero h1{
+  font-family:'Bungee',sans-serif; font-size:172px; line-height:.85; margin:0;
+  letter-spacing:-.01em;
+}
+.hero h1 .r{display:block; position:relative;}
+.hero h1 .r1{ transform:rotate(-2deg);}
+.hero h1 .r2{ transform:rotate(1deg) translateX(36px); margin-top:-12px;}
+.hero h1 .r3{ transform:rotate(-1deg) translateX(8px); margin-top:-6px;}
+.hero h1 .t{
+  display:inline-block;
+  -webkit-text-stroke:3px var(--ink);
+  text-shadow:8px 8px 0 var(--ink);
+  paint-order:stroke fill;
+}
+.hero h1 .t.a{color:var(--magenta)}
+.hero h1 .t.b{color:var(--cyan)}
+.hero h1 .t.c{color:var(--lime)}
+.hero h1 .t.d{color:var(--yellow)}
+.hero h1 .t.e{color:var(--tangerine)}
+.hero h1 .t.f{color:var(--purple)}
+
+.hero p.lead{
+  margin:30px 0 0; max-width:520px;
+  font-size:19px; line-height:1.5;
+}
+.hero p.lead b{ background:var(--cyan); padding:0 6px; box-shadow:3px 3px 0 var(--ink); display:inline-block;}
+
+.cta-row{
+  display:flex; gap:18px; margin-top:28px; align-items:center; flex-wrap:wrap;
+}
+.btn{
+  font-family:'Bungee',sans-serif; font-size:18px; letter-spacing:.02em;
+  padding:16px 24px; border:2.5px solid var(--ink);
+  background:var(--magenta); color:var(--cream);
+  box-shadow:6px 6px 0 var(--ink);
+  display:inline-flex; align-items:center; gap:10px;
+  cursor:pointer; transform:rotate(-1deg);
+  transition: transform .15s, box-shadow .15s;
+}
+.btn:hover{ transform:rotate(-1deg) translate(-2px,-2px); box-shadow:8px 8px 0 var(--ink);}
+.btn.alt{ background:var(--ink); color:var(--lime); transform:rotate(1deg);}
+.btn .arr{ color:var(--yellow);}
+.btn.alt .arr{ color:var(--magenta);}
+
+.proof{
+  display:flex; align-items:center; gap:18px;
+  margin-top:34px;
+  font-family:'Space Mono',monospace; font-size:12px; letter-spacing:.08em;
+}
+.proof .stars{font-family:'Bungee',sans-serif; font-size:18px; color:var(--tangerine); letter-spacing:.05em;}
+.proof b{font-family:'Bungee',sans-serif; font-size:18px;}
+.proof .av{
+  display:flex;
+}
+.proof .av i{
+  display:block; width:34px; height:34px; border-radius:50%;
+  border:2.5px solid var(--ink); margin-left:-10px;
+}
+.proof .av i:first-child{margin-left:0}
+.proof .av i:nth-child(1){background:var(--magenta)}
+.proof .av i:nth-child(2){background:var(--cyan)}
+.proof .av i:nth-child(3){background:var(--lime)}
+.proof .av i:nth-child(4){background:var(--yellow)}
+.proof .av i:nth-child(5){background:var(--tangerine)}
+
+/* RIGHT SIDE - illustration block */
+.canvas{
+  position:relative;
+  aspect-ratio:1/1;
+  background:var(--cream);
+  border:3px solid var(--ink);
+  box-shadow:14px 14px 0 var(--ink);
+  overflow:hidden;
+}
+.canvas::before{
+  content:"";
+  position:absolute; inset:0;
+  background:
+    radial-gradient(circle at 30% 30%, var(--yellow) 0 18%, transparent 18%),
+    radial-gradient(circle at 75% 75%, var(--cyan) 0 24%, transparent 24%),
+    radial-gradient(circle at 80% 25%, var(--magenta) 0 16%, transparent 16%),
+    radial-gradient(circle at 20% 80%, var(--lime) 0 22%, transparent 22%);
+  filter: saturate(1.05);
+}
+.canvas .blob{position:absolute; pointer-events:none;}
+.canvas .copy{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  text-align:center;
+  font-family:'Bungee',sans-serif;
+}
+.canvas .copy .l1{ font-size:96px; color:var(--ink); -webkit-text-stroke:2px var(--ink); text-shadow:6px 6px 0 var(--cream); display:block; transform:rotate(-3deg)}
+.canvas .copy .l2{ font-size:96px; color:var(--magenta); -webkit-text-stroke:3px var(--ink); text-shadow:6px 6px 0 var(--ink); display:block; transform:rotate(2deg); margin-top:-12px;}
+.canvas .copy .l3{ font-family:'Space Mono',monospace; font-size:12px; color:var(--ink); letter-spacing:.3em; margin-top:8px; display:block;}
+
+.canvas .tagcard{
+  position:absolute; left:-12px; top:24px;
+  background:var(--ink); color:var(--lime);
+  font-family:'Bungee',sans-serif; font-size:13px; letter-spacing:.04em;
+  padding:8px 14px; transform:rotate(-6deg); border:2px solid var(--cream);
+  box-shadow:4px 4px 0 var(--magenta);
+}
+.canvas .pricecard{
+  position:absolute; right:-10px; bottom:32px;
+  background:var(--yellow); border:2.5px solid var(--ink); box-shadow:6px 6px 0 var(--ink);
+  padding:10px 14px; transform:rotate(8deg);
+}
+.canvas .pricecard b{ font-family:'Bungee',sans-serif; font-size:28px; display:block; line-height:1;}
+.canvas .pricecard span{font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.2em;}
+
+/* MARQUEE */
+.marquee{
+  background:var(--ink); color:var(--lime);
+  font-family:'Bungee',sans-serif; font-size:42px;
+  padding:14px 0; white-space:nowrap; overflow:hidden;
+  border-bottom:2px solid var(--ink);
+}
+.marquee span{display:inline-block; padding:0 22px;}
+.marquee .a{color:var(--magenta)}
+.marquee .b{color:var(--yellow)}
+.marquee .c{color:var(--cyan)}
+.marquee .s{color:var(--lime); padding:0 8px;}
+
+/* FEATURE STRIP */
+.feats{
+  display:grid; grid-template-columns: repeat(4, 1fr);
+  border-bottom:2px solid var(--ink);
+}
+.f{
+  padding:28px 24px; border-right:2px solid var(--ink); position:relative;
+}
+.f:last-child{border-right:none}
+.f .ic{
+  width:54px; height:54px; border:2.5px solid var(--ink); box-shadow:4px 4px 0 var(--ink);
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:14px; transform:rotate(-3deg);
+}
+.f:nth-child(1) .ic{background:var(--yellow)}
+.f:nth-child(2) .ic{background:var(--lime)}
+.f:nth-child(3) .ic{background:var(--cyan)}
+.f:nth-child(4) .ic{background:var(--magenta)}
+.f .ic svg{ width:32px; height:32px;}
+.f h4{font-family:'Bungee',sans-serif; font-size:18px; margin:0 0 4px}
+.f p{ font-size:14px; line-height:1.5; margin:0;}
+.f .num{
+  position:absolute; top:14px; right:16px;
+  font-family:'Bungee',sans-serif; font-size:14px;
+  color:rgba(0,0,0,.35);
+}
+
+/* DROPS PREVIEW */
+.drops{
+  padding:36px 56px 48px; border-bottom:2px solid var(--ink);
+}
+.drops .head{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;}
+.drops .head h2{ font-family:'Bungee',sans-serif; font-size:54px; margin:0; -webkit-text-stroke:2px var(--ink); color:var(--cyan); text-shadow:5px 5px 0 var(--ink);}
+.drops .head h2 em{ font-style:normal; color:var(--magenta);}
+.drops .head .view{ font-family:'Space Mono',monospace; font-size:12px; letter-spacing:.15em; text-decoration:underline;}
+
+.drop-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:22px;}
+.dcard{
+  border:2.5px solid var(--ink); background:var(--cream);
+  box-shadow:8px 8px 0 var(--ink); position:relative; overflow:hidden;
+}
+.dcard .ph{
+  height:200px; border-bottom:2.5px solid var(--ink); display:flex; align-items:center; justify-content:center;
+  font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.2em; color:rgba(0,0,0,.55);
+  position:relative;
+}
+.dcard:nth-child(1) .ph{background: repeating-linear-gradient(135deg, var(--magenta) 0 18px, #d11a6c 18px 20px);}
+.dcard:nth-child(2) .ph{background: repeating-linear-gradient(135deg, var(--cyan) 0 18px, #1ba9ac 18px 20px);}
+.dcard:nth-child(3) .ph{background: repeating-linear-gradient(135deg, var(--lime) 0 18px, #aacc2c 18px 20px);}
+.dcard .ph span{ background:var(--paper); padding:4px 10px; border:2px solid var(--ink); transform:rotate(-3deg)}
+.dcard .gb{ padding:14px 16px 18px;}
+.dcard h5{ font-family:'Bungee',sans-serif; font-size:18px; margin:0 0 4px;}
+.dcard p{ font-size:13px; margin:0 0 8px; color:#2a2422;}
+.dcard .row-b{ display:flex; justify-content:space-between; align-items:center;}
+.dcard .row-b b{ font-family:'Bungee',sans-serif; font-size:18px;}
+.dcard .row-b .pill{
+  font-family:'Space Mono',monospace; font-size:11px;
+  padding:4px 8px; background:var(--ink); color:var(--lime); border:2px solid var(--ink);
+}
+.dcard .price{
+  position:absolute; top:10px; right:10px;
+  background:var(--yellow); border:2px solid var(--ink);
+  padding:4px 8px; font-family:'Bungee',sans-serif; font-size:14px;
+  transform:rotate(6deg); box-shadow:3px 3px 0 var(--ink);
+}
+
+/* foot */
+.foot{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:18px 28px; background:var(--ink); color:var(--cream);
+  font-family:'Space Mono',monospace; font-size:12px;
+}
+.foot b{font-family:'Bungee',sans-serif; color:var(--magenta); font-size:16px;}
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- TOP META NAV -->
+  <div class="nav-top layer">
+    <div><b>WILDSTYLE</b> <span style="opacity:.6">// drops</span></div>
+    <div class="group">
+      <a href="Graffiti Template.html">SYSTEM</a>
+      <a href="Graffiti T-Shirt.html">T-SHIRT</a>
+      <a href="Graffiti Stickers.html">SKATE STICKERS</a>
+      <a href="Graffiti Web Hero.html" class="on">WEB HERO</a>
+    </div>
+  </div>
+
+  <!-- WEB NAV (in-page site nav) -->
+  <nav class="web-nav layer">
+    <div class="logo">WILDSTYLE™</div>
+    <div class="links">
+      <a href="#" class="on">Shop</a>
+      <a href="#">Drops</a>
+      <a href="#">Crew</a>
+      <a href="#">Zine</a>
+      <a href="#">Contact</a>
+    </div>
+    <div class="cart">CART <span class="b">3</span></div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero layer">
+    <div class="grid">
+      <div>
+        <span class="kicker"><span class="dot"></span>NEW DROP — SS / 26 — 0 DAYS LEFT</span>
+
+        <h1>
+          <span class="r r1"><span class="t a">PAINT</span></span>
+          <span class="r r2"><span class="t b">THE</span> <span class="t c">CITY</span></span>
+          <span class="r r3"><span class="t d">LOUD</span><span class="t f">!!</span></span>
+        </h1>
+
+        <p class="lead">
+          手工噴塗的 T 恤、防水滑板貼紙、限量插畫海報。
+          <b>200 件編號限定</b>，每一件都從台北的小工作室手出來——沒有再版。
+        </p>
+
+        <div class="cta-row">
+          <button class="btn">SHOP THE DROP <span class="arr">→</span></button>
+          <button class="btn alt">WATCH FILM <span class="arr">▶</span></button>
+        </div>
+
+        <div class="proof">
+          <div class="av"><i></i><i></i><i></i><i></i><i></i></div>
+          <div>
+            <span class="stars">★★★★★</span>
+            <b>4,200+</b> crew · "the loudest fit i own"
+          </div>
+        </div>
+      </div>
+
+      <div class="canvas">
+        <!-- decorative blobs -->
+        <svg class="blob" style="top:20px; right:24px; width:90px" viewBox="0 0 100 100">
+          <path d="M50 8 Q78 14 86 38 Q98 60 78 72 Q86 96 60 88 Q44 100 30 84 Q8 86 12 64 Q-2 48 14 32 Q22 8 50 8 Z"
+                fill="#ffd23a" stroke="#0d0b0a" stroke-width="4"/>
+        </svg>
+        <svg class="blob" style="bottom:60px; left:30px; width:110px" viewBox="0 0 100 100">
+          <path d="M50 6 L62 30 L92 32 L68 50 L80 80 L50 64 L22 84 L30 52 L8 32 L38 30 Z"
+                fill="#7a2fa6" stroke="#0d0b0a" stroke-width="4"/>
+        </svg>
+        <svg class="blob" style="top:48%; right:14px; width:80px" viewBox="0 0 100 100">
+          <path d="M58 6 L18 56 L46 56 L36 94 L82 38 L54 38 Z"
+                fill="#ec1e7c" stroke="#0d0b0a" stroke-width="4"/>
+        </svg>
+
+        <div class="tagcard">★ EDITION OF 200 ★</div>
+        <div class="pricecard">
+          <span>FROM</span>
+          <b>NT$ 280</b>
+        </div>
+
+        <div class="copy">
+          <span class="l1">SS</span>
+          <span class="l2">26</span>
+          <span class="l3">★ DROP / 09 ★</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MARQUEE -->
+  <div class="marquee layer">
+    <span>FREE STICKER</span><span class="s">★</span>
+    <span class="a">WITH EVERY ORDER</span><span class="s">✦</span>
+    <span class="b">SHIPS WORLDWIDE</span><span class="s">★</span>
+    <span class="c">200 NUMBERED</span><span class="s">✦</span>
+    <span>FREE STICKER</span><span class="s">★</span>
+    <span class="a">WITH EVERY ORDER</span>
+  </div>
+
+  <!-- FEATURE STRIP -->
+  <section class="feats layer">
+    <div class="f">
+      <div class="ic">
+        <svg viewBox="0 0 32 32"><path d="M16 3 L19 13 L29 13 L21 19 L24 29 L16 23 L8 29 L11 19 L3 13 L13 13 Z"
+              fill="#0d0b0a"/></svg>
+      </div>
+      <span class="num">01</span>
+      <h4>HAND-PRINTED</h4>
+      <p>每件 T 恤都在台北的小工作室手工拉版。慢，但每一道都很 fresh。</p>
+    </div>
+    <div class="f">
+      <div class="ic">
+        <svg viewBox="0 0 32 32"><path d="M20 3 L7 18 L15 18 L12 29 L26 13 L18 13 Z" fill="#0d0b0a"/></svg>
+      </div>
+      <span class="num">02</span>
+      <h4>SHIPS FAST</h4>
+      <p>下單後 48 小時備貨。國內 1–3 天到，國際 5–10 天。掉貨我們補。</p>
+    </div>
+    <div class="f">
+      <div class="ic">
+        <svg viewBox="0 0 32 32">
+          <circle cx="16" cy="16" r="12" fill="none" stroke="#0d0b0a" stroke-width="3"/>
+          <path d="M10 16 L14 20 L22 11" fill="none" stroke="#0d0b0a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="num">03</span>
+      <h4>NUMBERED</h4>
+      <p>每一件吊牌都寫上你的編號。200 之後就停產——下一輪就是新作品。</p>
+    </div>
+    <div class="f">
+      <div class="ic">
+        <svg viewBox="0 0 32 32">
+          <rect x="5" y="9" width="22" height="16" rx="2" fill="none" stroke="#0d0b0a" stroke-width="3"/>
+          <path d="M5 13 H27" stroke="#0d0b0a" stroke-width="3"/>
+        </svg>
+      </div>
+      <span class="num">04</span>
+      <h4>NO RESTOCK</h4>
+      <p>沒有再版。售完即止——買到就是你的，沒買到下次再來。</p>
+    </div>
+  </section>
+
+  <!-- DROPS PREVIEW -->
+  <section class="drops layer">
+    <div class="head">
+      <h2>THIS <em>WEEK'S</em> DROPS</h2>
+      <span class="view">VIEW ALL 12 →</span>
+    </div>
+
+    <div class="drop-grid">
+      <div class="dcard">
+        <div class="ph">
+          <span>[ TEE — MIDNIGHT ]</span>
+          <div class="price">$32</div>
+        </div>
+        <div class="gb">
+          <h5>SPRAY TEE — VOL.02</h5>
+          <p>240gsm 厚磅棉，水性印花。</p>
+          <div class="row-b">
+            <b>NT$ 980</b>
+            <span class="pill">★ HOT ★</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dcard">
+        <div class="ph">
+          <span>[ STICKER SHEET ]</span>
+          <div class="price">$9</div>
+        </div>
+        <div class="gb">
+          <h5>WILDSTYLE STICKER PACK</h5>
+          <p>9 張防水模切，貼板貼安全帽都行。</p>
+          <div class="row-b">
+            <b>NT$ 280</b>
+            <span class="pill">FREE W/ TEE</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dcard">
+        <div class="ph">
+          <span>[ POSTER A2 ]</span>
+          <div class="price">$18</div>
+        </div>
+        <div class="gb">
+          <h5>BLOCK PARTY POSTER</h5>
+          <p>A2 厚磅紙，手工編號 / 200。</p>
+          <div class="row-b">
+            <b>NT$ 540</b>
+            <span class="pill">★ LTD ★</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot layer">
+    <div><b>WILDSTYLE</b> · SS / 26 · HAND-MADE IN TAIPEI</div>
+    <div>★ ORIGINAL DESIGN — NO BRAND LIFTED ★</div>
+  </div>
+
+</div>
+</body>
+</html>

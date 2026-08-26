@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>現場人員管理 - 請假管理</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang TC", "Microsoft JhengHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: #f4f6f9;
+    color: #333;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* Top blue header */
+  .top-header {
+    background: #2b5a9e;
+    color: #fff;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    position: relative;
+  }
+  .top-header .brand {
+    font-size: 16px;
+    font-weight: 600;
+    margin-right: 40px;
+  }
+  .top-nav {
+    display: flex;
+    height: 100%;
+    align-items: stretch;
+  }
+  .top-nav .nav-item {
+    padding: 0 22px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    color: #d6e3f5;
+    cursor: pointer;
+    height: 100%;
+  }
+  .top-nav .nav-item.active {
+    background: #4880c0;
+    color: #fff;
+  }
+  .top-nav .nav-item:hover:not(.active) {
+    color: #fff;
+  }
+  .top-header .right-tools {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .icon-btn {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    cursor: pointer;
+    opacity: 0.95;
+  }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #5a4b3a;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    overflow: hidden;
+  }
+
+  /* Sub nav (員工名冊 / 分組管理 / 請假管理) */
+  .sub-nav {
+    background: #f4f6f9;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    padding: 0 22px;
+    gap: 28px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .sub-nav .item {
+    font-size: 13px;
+    color: #4a5868;
+    cursor: pointer;
+    padding: 8px 0;
+    position: relative;
+  }
+  .sub-nav .item.active {
+    color: #2b5a9e;
+    font-weight: 600;
+  }
+  .sub-nav .item.active::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    left: 0; right: 0;
+    height: 2px;
+    background: #2b5a9e;
+  }
+
+  /* Tabs (現場人員 / 監控組) */
+  .tabs {
+    background: #fff;
+    display: flex;
+    padding: 0 22px;
+    gap: 22px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .tabs .tab {
+    padding: 10px 4px;
+    font-size: 13px;
+    color: #666;
+    cursor: pointer;
+    position: relative;
+  }
+  .tabs .tab.active {
+    color: #2b5a9e;
+    font-weight: 600;
+  }
+  .tabs .tab.active::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    left: 0; right: 0;
+    height: 2px;
+    background: #2b5a9e;
+  }
+
+  /* Main content */
+  .content {
+    padding: 18px 22px;
+  }
+
+  .filter-row {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) auto auto;
+    gap: 14px 18px;
+    align-items: end;
+    margin-bottom: 14px;
+  }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: #4a5868;
+    margin-bottom: 6px;
+  }
+  .field input,
+  .field select {
+    width: 100%;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid #d6dbe2;
+    border-radius: 3px;
+    background: #fff;
+    font-size: 12px;
+    color: #333;
+    outline: none;
+  }
+  .field input::placeholder { color: #b3b8c0; }
+  .field select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%23a0a6af'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 24px;
+  }
+  .btn {
+    height: 30px;
+    padding: 0 14px;
+    border-radius: 3px;
+    font-size: 12px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: inherit;
+  }
+  .btn-search { background: #f08c2c; color: #fff; }
+  .btn-search:hover { background: #e07f1f; }
+  .btn-primary { background: #2f7bd9; color: #fff; }
+  .btn-primary:hover { background: #2769bd; }
+  .btn-cancel {
+    background: #3a3a3a;
+    color: #fff;
+    padding: 0 24px;
+    height: 32px;
+  }
+  .btn-cancel:hover { background: #555; }
+  .btn-confirm {
+    background: #2f7bd9;
+    color: #fff;
+    padding: 0 28px;
+    height: 32px;
+  }
+  .btn-confirm:hover { background: #2769bd; }
+
+  /* Table */
+  .table-wrap {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  thead th {
+    background: #eaf0f6;
+    color: #3a4a5e;
+    font-weight: 600;
+    text-align: left;
+    padding: 9px 14px;
+    border-bottom: 1px solid #e0e4ea;
+    font-size: 12px;
+  }
+  tbody td {
+    padding: 11px 14px;
+    border-bottom: 1px solid #eef0f3;
+    color: #4a5868;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #f7f9fb; }
+
+  .status-active { color: #e74c3c; font-weight: 600; }
+  .status-done { color: #8a93a0; }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+  }
+  .actions a {
+    color: #2f7bd9;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .actions a:hover { color: #2769bd; }
+
+  /* Modal */
+  .modal-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 28, 40, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal {
+    background: #fff;
+    border-radius: 4px;
+    width: 480px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+    overflow: hidden;
+  }
+  .modal-header {
+    padding: 14px 20px 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #2b3a4f;
+  }
+  .modal-body {
+    padding: 6px 20px 4px;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 18px;
+    margin-bottom: 14px;
+  }
+  .form-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .form-row label {
+    width: 56px;
+    flex-shrink: 0;
+    text-align: right;
+    font-size: 12px;
+    color: #4a5868;
+    line-height: 1.25;
+  }
+  .form-row .ctrl {
+    flex: 1;
+    min-width: 0;
+  }
+  .form-row .ctrl input,
+  .form-row .ctrl select {
+    width: 100%;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid #d6dbe2;
+    border-radius: 3px;
+    background: #fff;
+    font-size: 12px;
+    color: #333;
+    outline: none;
+    font-family: inherit;
+  }
+  .form-row .ctrl select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%23a0a6af'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 24px;
+  }
+  .form-row .ctrl input::placeholder,
+  .form-row .ctrl select { color: #b3b8c0; }
+  .form-row .ctrl select option { color: #333; }
+
+  .textarea-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    align-items: flex-start;
+  }
+  .textarea-row label {
+    width: 56px;
+    flex-shrink: 0;
+    text-align: right;
+    font-size: 12px;
+    color: #4a5868;
+    padding-top: 6px;
+  }
+  .textarea-row textarea {
+    flex: 1;
+    height: 90px;
+    padding: 8px 10px;
+    border: 1px solid #d6dbe2;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 12px;
+    color: #333;
+    resize: none;
+    outline: none;
+  }
+  .textarea-row textarea::placeholder { color: #b3b8c0; }
+
+  .modal-footer {
+    padding: 8px 20px 20px;
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  /* placeholder dropdown caret in filter selects shown as down arrow already */
+
+  /* Bell badge */
+  .bell { position: relative; }
+  .bell::after {
+    content: "";
+    position: absolute;
+    top: 1px; right: 1px;
+    width: 6px; height: 6px;
+    background: #ff4d4f;
+    border-radius: 50%;
+    border: 1px solid #2b5a9e;
+  }
+
+</style>
+</head>
+<body>
+
+  <!-- Top blue header -->
+  <header class="top-header">
+    <div class="brand">現場人員管理</div>
+    <nav class="top-nav">
+      <div class="nav-item active">人員管理</div>
+      <div class="nav-item">排班管理</div>
+      <div class="nav-item">設置</div>
+    </nav>
+    <div class="right-tools">
+      <span class="icon-btn bell" title="通知">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </span>
+      <span class="icon-btn" title="設定">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </span>
+      <span class="avatar" title="使用者">YT</span>
+    </div>
+  </header>
+
+  <!-- Sub nav -->
+  <div class="sub-nav">
+    <div class="item">員工名冊</div>
+    <div class="item">分組管理</div>
+    <div class="item active">請假管理</div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active">現場人員</div>
+    <div class="tab">監控組</div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- Filter row -->
+    <div class="filter-row">
+      <div class="field">
+        <label>姓名</label>
+        <input type="text" placeholder="請輸入姓名">
+      </div>
+      <div class="field">
+        <label>職位</label>
+        <select><option>請選擇職位</option></select>
+      </div>
+      <div class="field">
+        <label>假別</label>
+        <select><option>請選擇</option></select>
+      </div>
+      <div class="field">
+        <label>狀態</label>
+        <select><option>請選擇</option></select>
+      </div>
+      <div class="field">
+        <label>開始時間</label>
+        <input type="text" placeholder="請輸入日期 範例:20250813">
+      </div>
+      <div class="field">
+        <label>結束時間</label>
+        <input type="text" placeholder="請輸入日期 範例:20250813">
+      </div>
+      <button class="btn btn-search">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        查詢
+      </button>
+      <button class="btn btn-primary" id="openModalBtn">+ 新增假條</button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 14%;">姓名</th>
+            <th style="width: 11%;">職位</th>
+            <th style="width: 9%;">假別</th>
+            <th style="width: 9%;">狀態</th>
+            <th style="width: 14%;">開始時間</th>
+            <th style="width: 14%;">結束時間</th>
+            <th style="width: 14%;">更新時間</th>
+            <th style="width: 15%;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Name Name</td>
+            <td>值班經理</td>
+            <td>事假</td>
+            <td class="status-active">休假中</td>
+            <td>2026-04-20 09:00</td>
+            <td>2026-04-22 18:00</td>
+            <td>—</td>
+            <td>
+              <div class="actions">
+                <a>銷假</a><a>編輯</a><a>延長</a><a>刪除</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>Name Name</td>
+            <td>荷官</td>
+            <td>病假</td>
+            <td class="status-done">已結束</td>
+            <td>2026-04-20 09:00</td>
+            <td>2026-04-22 18:00</td>
+            <td>2026-04-22 18:00</td>
+            <td>
+              <div class="actions">
+                <a>銷假</a><a>編輯</a><a>延長</a><a>刪除</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>Name Name</td>
+            <td>荷官</td>
+            <td>特休</td>
+            <td class="status-done">已結束</td>
+            <td>2026-04-20 09:00</td>
+            <td>2026-04-22 18:00</td>
+            <td>2026-04-22 18:00</td>
+            <td>
+              <div class="actions">
+                <a>銷假</a><a>編輯</a><a>延長</a><a>刪除</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>Name Name</td>
+            <td>荷官</td>
+            <td>公假</td>
+            <td class="status-done">已結束</td>
+            <td>2026-04-20 09:00</td>
+            <td>2026-04-22 18:00</td>
+            <td>2026-04-22 18:00</td>
+            <td>
+              <div class="actions">
+                <a>銷假</a><a>編輯</a><a>延長</a><a>刪除</a>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-mask" id="modalMask">
+    <div class="modal">
+      <div class="modal-header">新增假條</div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-row">
+            <label>姓名</label>
+            <div class="ctrl">
+              <select><option>請選擇人員</option></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>職位</label>
+            <div class="ctrl">
+              <select><option>請選擇職位</option></select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>假別</label>
+            <div class="ctrl">
+              <select><option>請選擇假別</option></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>交班人<br>(選填)</label>
+            <div class="ctrl">
+              <input type="text" placeholder="請填寫姓名">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>開始日期</label>
+            <div class="ctrl">
+              <input type="text" placeholder="請輸入日期 範例:20250813">
+            </div>
+          </div>
+          <div class="form-row">
+            <label>結束日期</label>
+            <div class="ctrl">
+              <input type="text" placeholder="請輸入日期 範例:20250813">
+            </div>
+          </div>
+        </div>
+
+        <div class="textarea-row">
+          <label>請假事由</label>
+          <textarea placeholder="請假事由..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" id="cancelBtn">取消</button>
+        <button class="btn btn-confirm">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const mask = document.getElementById('modalMask');
+    document.getElementById('openModalBtn').addEventListener('click', () => {
+      mask.style.display = 'flex';
+    });
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+      mask.style.display = 'none';
+    });
+    mask.addEventListener('click', (e) => {
+      if (e.target === mask) mask.style.display = 'none';
+    });
+  </script>
+
+</body>
+</html>

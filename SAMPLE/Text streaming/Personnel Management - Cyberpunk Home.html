@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>NEXUS//OPS — 主控台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Share+Tech+Mono&family=Noto+Sans+TC:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0418;
+    --bg-2:#150826;
+    --panel:#1a0a2e;
+    --panel-2:#22103d;
+    --line:#3b1a5c;
+    --line-soft:#2a1146;
+    --magenta:#ff2bb8;
+    --magenta-2:#ff1a8c;
+    --magenta-deep:#a3127a;
+    --cyan:#26e0d3;
+    --cyan-2:#00d4ff;
+    --cyan-deep:#0a8a8a;
+    --yellow:#ffd84d;
+    --orange:#ff7a3a;
+    --red:#ff3860;
+    --green:#39ffa0;
+    --text:#f4e8ff;
+    --text-dim:#b78de0;
+    --text-mute:#6b4a8a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;image-rendering:pixelated}
+  html,body{height:100%}
+  body{
+    font-family:"VT323","Share Tech Mono",monospace;
+    background:
+      radial-gradient(1000px 600px at 80% -5%, rgba(255,43,184,0.18), transparent 65%),
+      radial-gradient(900px 500px at 0% 110%, rgba(38,224,211,0.14), transparent 65%),
+      linear-gradient(180deg, #0a0418 0%, #060210 100%);
+    color:var(--text);
+    font-size:18px;
+    min-height:100vh;
+    overflow-x:hidden;
+    letter-spacing:0.02em;
+  }
+  /* CRT scanlines */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:60;pointer-events:none;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0.18) 0,
+      rgba(0,0,0,0.18) 2px,
+      transparent 2px,
+      transparent 4px
+    );
+    mix-blend-mode: multiply;
+  }
+  /* Subtle vignette */
+  body::after{
+    content:"";position:fixed;inset:0;z-index:55;pointer-events:none;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+  }
+
+  /* Pixel font helpers */
+  .px{font-family:"Press Start 2P",monospace;letter-spacing:0.02em}
+  .mono{font-family:"VT323",monospace}
+
+  /* Pixel border util (chunky, no radius, with offset shadow) */
+  .pixel-box{
+    background: var(--panel);
+    border:3px solid #000;
+    box-shadow:
+      4px 4px 0 0 #000,
+      inset -2px -2px 0 0 rgba(0,0,0,0.4),
+      inset 2px 2px 0 0 rgba(255,255,255,0.04);
+    position:relative;
+  }
+  .pixel-box.cyan{ border-color: var(--cyan); box-shadow: 4px 4px 0 0 var(--cyan-deep), inset 0 0 0 1px #000; }
+  .pixel-box.magenta{ border-color: var(--magenta); box-shadow: 4px 4px 0 0 var(--magenta-deep), inset 0 0 0 1px #000; }
+  .pixel-box.yellow{ border-color: var(--yellow); box-shadow: 4px 4px 0 0 #8a6e1a, inset 0 0 0 1px #000; }
+
+  /* Top header */
+  .top-header{
+    position:relative; z-index:10;
+    background: #0a0418;
+    border-bottom: 4px solid var(--magenta);
+    box-shadow: 0 4px 0 0 #000, 0 8px 24px rgba(255,43,184,0.25);
+    height:64px;
+    display:flex;align-items:center;
+    padding:0 22px;
+  }
+  .brand{display:flex;align-items:center;gap:14px;margin-right:36px}
+  .logo-mark{
+    width:38px;height:38px;
+    background:
+      linear-gradient(135deg, var(--magenta) 0%, var(--cyan) 100%);
+    display:grid;place-items:center;
+    color:#0a0418;
+    font-family:"Press Start 2P",monospace;
+    font-size:14px;
+    border:3px solid #000;
+    box-shadow: 3px 3px 0 0 #000, inset 0 0 0 1px rgba(0,0,0,0.4);
+  }
+  .brand .name{
+    font-family:"Press Start 2P",monospace;
+    font-size:13px;
+    color:var(--cyan);
+    text-shadow:
+      2px 0 0 var(--magenta),
+      2px 2px 0 #000;
+    letter-spacing:0.05em;
+  }
+  .brand .sub{
+    font-family:"VT323",monospace;
+    color:var(--text-mute); font-size:14px;
+    letter-spacing:0.16em; margin-top:4px;
+  }
+  .top-nav{display:flex;height:100%;align-items:center;gap:0}
+  .nav-item{
+    height:64px; padding:0 20px;
+    display:flex; align-items:center;
+    font-family:"Press Start 2P",monospace;
+    font-size:9px;
+    color:var(--text-dim);
+    cursor:pointer;
+    letter-spacing:0.16em;
+    text-transform:uppercase;
+    border-right:2px solid #000;
+    border-left:2px solid transparent;
+  }
+  .nav-item:first-of-type{border-left:2px solid #000}
+  .nav-item:hover{color:#fff;background:rgba(255,43,184,0.1)}
+  .nav-item.active{
+    background: var(--magenta);
+    color:#fff;
+    text-shadow: 1px 1px 0 #000, 0 0 8px rgba(255,255,255,0.6);
+    border-top: 4px solid var(--cyan);
+    border-bottom: 4px solid var(--cyan-deep);
+    height:64px;
+  }
+
+  .right-tools{margin-left:auto; display:flex; align-items:center; gap:14px}
+  .status-pill{
+    display:flex;align-items:center;gap:8px;
+    font-family:"VT323",monospace;
+    color: var(--cyan); font-size:16px; letter-spacing:0.16em;
+    padding:6px 12px;
+    background:#000;
+    border:2px solid var(--cyan);
+    box-shadow: 2px 2px 0 0 #000;
+  }
+  .status-pill .dot{
+    width:8px;height:8px;background:var(--green);
+    box-shadow: 0 0 0 2px #000, 0 0 8px var(--green);
+    animation: blink 1s steps(2) infinite;
+  }
+  @keyframes blink{
+    0%,49%{opacity:1}
+    50%,100%{opacity:0.25}
+  }
+  .icon-btn{
+    width:34px;height:34px; display:grid;place-items:center;
+    border:2px solid #000;
+    background: var(--panel);
+    color: var(--cyan);
+    cursor:pointer;
+    box-shadow: 2px 2px 0 0 #000;
+    position:relative;
+  }
+  .icon-btn:hover{background:var(--panel-2); color:#fff}
+  .icon-btn svg{width:16px;height:16px}
+  .bell::after{
+    content:""; position:absolute; top:-3px; right:-3px;
+    width:10px;height:10px; background:var(--yellow);
+    border:2px solid #000;
+  }
+  .avatar{
+    width:38px;height:38px;
+    display:grid;place-items:center;
+    background: linear-gradient(135deg, var(--magenta), #6b0a3a);
+    color:#fff;
+    font-family:"Press Start 2P",monospace;
+    font-size:10px;
+    border:2px solid #000;
+    box-shadow: 2px 2px 0 0 #000;
+  }
+
+  /* Page */
+  .page{padding: 22px 28px 40px; position:relative; z-index:1}
+
+  /* HERO */
+  .hero{
+    position:relative;
+    height: 320px;
+    border:4px solid #000;
+    box-shadow: 6px 6px 0 0 var(--magenta-deep), 0 0 0 2px var(--magenta);
+    overflow:hidden;
+    background:#000;
+    margin-bottom: 28px;
+  }
+  .hero-canvas{
+    position:absolute; inset:0; width:100%; height:100%;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  .hero-overlay{
+    position:absolute; inset:0; pointer-events:none;
+    background:
+      linear-gradient(90deg, rgba(10,4,24,0.7) 0%, rgba(10,4,24,0.1) 35%, rgba(10,4,24,0.1) 65%, rgba(10,4,24,0.75) 100%),
+      linear-gradient(180deg, rgba(10,4,24,0.45) 0%, transparent 30%, rgba(10,4,24,0.55) 100%);
+  }
+  /* Sweeping searchlight beam */
+  .hero-beam{
+    position:absolute; top:-20%; left:-30%;
+    width:60%; height:140%;
+    background: linear-gradient(100deg, transparent 40%, rgba(38,224,211,0.18) 48%, rgba(255,43,184,0.22) 52%, transparent 60%);
+    filter: blur(2px);
+    transform: skewX(-25deg);
+    animation: beamSweep 7s linear infinite;
+    pointer-events:none;
+    mix-blend-mode: screen;
+  }
+  @keyframes beamSweep{
+    0%{ transform: translateX(-30%) skewX(-25deg); opacity:0; }
+    10%{ opacity:1; }
+    90%{ opacity:1; }
+    100%{ transform: translateX(260%) skewX(-25deg); opacity:0; }
+  }
+  /* Animated scanlines over hero */
+  .hero-scan{
+    position:absolute; inset:0; pointer-events:none;
+    background-image: repeating-linear-gradient(to bottom, rgba(0,0,0,0.32) 0, rgba(0,0,0,0.32) 2px, transparent 2px, transparent 4px);
+    animation: scanScroll 8s linear infinite;
+  }
+  @keyframes scanScroll{
+    from{ background-position: 0 0; }
+    to{ background-position: 0 16px; }
+  }
+  /* Flicker layer */
+  .hero-flicker{
+    position:absolute; inset:0; pointer-events:none;
+    background: rgba(255,43,184,0.04);
+    animation: heroFlicker 6s steps(1) infinite;
+    mix-blend-mode: screen;
+  }
+  @keyframes heroFlicker{
+    0%, 4%, 8%, 100%{ opacity:0; }
+    2%{ opacity:1; background: rgba(38,224,211,0.08); }
+    6%{ opacity:0.6; background: rgba(255,43,184,0.07); }
+    40%{ opacity:0; }
+    42%{ opacity:0.8; background: rgba(255,216,77,0.05); }
+    44%{ opacity:0; }
+  }
+  .hero-content{
+    position:relative; z-index:2;
+    height:100%; padding: 28px 36px;
+    display:flex; flex-direction:column; justify-content:space-between;
+  }
+  .hero-tag{
+    display:inline-flex;align-items:center;gap:10px;
+    font-family:"Press Start 2P",monospace; font-size:10px;
+    color: var(--yellow);
+    text-shadow: 2px 2px 0 #000;
+    background:#000;
+    border:2px solid var(--yellow);
+    padding: 8px 12px;
+    width:fit-content;
+    box-shadow: 3px 3px 0 0 #8a6e1a;
+  }
+  .hero-tag .blink-dot{
+    width:8px;height:8px;background:var(--yellow);
+    animation: blink 0.6s steps(2) infinite;
+  }
+  .hero h1{
+    font-family:"Press Start 2P",monospace;
+    font-size: 44px; line-height:1.15;
+    animation: titleGlitch 5s infinite;
+    color:#fff;
+    text-shadow:
+      3px 3px 0 var(--magenta),
+      6px 6px 0 var(--cyan),
+      9px 9px 0 #000;
+    max-width: 760px;
+  }
+  .hero h1 .accent{ color: var(--cyan); }
+  .hero .sub{
+    font-family:"VT323",monospace;
+    color: var(--text);
+    font-size:22px;
+    letter-spacing:0.06em;
+    max-width: 620px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  .hero-actions{display:flex;gap:14px}
+  .hero-stats{
+    display:flex; gap:18px;
+    font-family:"VT323",monospace;
+  }
+  .hero-stat{
+    background:#000;
+    border:2px solid var(--cyan);
+    padding:8px 14px;
+    box-shadow: 3px 3px 0 0 var(--cyan-deep);
+  }
+  .hero-stat .k{color:var(--cyan); font-size:14px; letter-spacing:0.14em; text-transform:uppercase}
+  .hero-stat .v{color:#fff; font-size:24px; line-height:1; font-family:"Press Start 2P",monospace; margin-top:6px}
+  .hero-stat.mag{border-color:var(--magenta); box-shadow:3px 3px 0 0 var(--magenta-deep)}
+  .hero-stat.mag .k{color:var(--magenta)}
+  .hero-stat.yel{border-color:var(--yellow); box-shadow:3px 3px 0 0 #8a6e1a}
+  .hero-stat.yel .k{color:var(--yellow)}
+
+  /* Pixel buttons */
+  .pbtn{
+    font-family:"Press Start 2P",monospace;
+    font-size:10px;
+    padding:14px 22px;
+    border:3px solid #000;
+    cursor:pointer;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:#0a0418;
+    box-shadow: 4px 4px 0 0 #000;
+    transition: transform .08s, box-shadow .08s;
+    display:inline-flex; align-items:center; gap:10px;
+  }
+  .pbtn:hover{ transform: translate(2px, 2px); box-shadow: 2px 2px 0 0 #000; }
+  .pbtn.cyan{ background: var(--cyan); }
+  .pbtn.cyan:hover{ background: var(--cyan-2); }
+  .pbtn.magenta{ background: var(--magenta); color:#fff; text-shadow: 1px 1px 0 #000; }
+  .pbtn.yellow{ background: var(--yellow); }
+  .pbtn.ghost{
+    background: transparent; color: var(--cyan);
+    border-color: var(--cyan);
+    box-shadow: 4px 4px 0 0 var(--cyan-deep);
+  }
+  .pbtn.ghost:hover{ background: rgba(38,224,211,0.1); color:#fff; }
+
+  /* Grid layouts */
+  .stats-row{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 28px;
+  }
+  .stat-card{
+    padding: 18px 18px 16px;
+    position:relative;
+  }
+  .stat-card .label{
+    font-family:"Press Start 2P",monospace;
+    font-size: 9px;
+    letter-spacing:0.14em;
+    color: var(--text-dim);
+    text-transform:uppercase;
+    margin-bottom: 14px;
+  }
+  .stat-card .value{
+    font-family:"Press Start 2P",monospace;
+    font-size: 30px;
+    color:#fff;
+    line-height:1;
+    text-shadow: 2px 2px 0 #000;
+  }
+  .stat-card.cyan .value{ color: var(--cyan); text-shadow: 2px 0 0 var(--magenta), 2px 2px 0 #000; }
+  .stat-card.magenta .value{ color: var(--magenta); text-shadow: 2px 0 0 var(--cyan), 2px 2px 0 #000; }
+  .stat-card.yellow .value{ color: var(--yellow); text-shadow: 2px 2px 0 #000; }
+  .stat-card.green .value{ color: var(--green); text-shadow: 2px 2px 0 #000; }
+  .stat-card .delta{
+    margin-top:12px;
+    font-family:"VT323",monospace;
+    font-size:16px; color: var(--text-mute);
+    letter-spacing:0.06em;
+    display:flex; align-items:center; gap:8px;
+  }
+  .stat-card .delta .up{color: var(--green)}
+  .stat-card .delta .dn{color: var(--red)}
+  .stat-card .corner{
+    position:absolute; top:0; right:0;
+    width:24px; height:24px;
+    background:
+      linear-gradient(135deg, transparent 50%, currentColor 50%);
+  }
+  .stat-card.cyan .corner{ color: var(--cyan); }
+  .stat-card.magenta .corner{ color: var(--magenta); }
+  .stat-card.yellow .corner{ color: var(--yellow); }
+  .stat-card.green .corner{ color: var(--green); }
+  /* mini sparkline made with chunky pixels */
+  .spark{
+    margin-top:14px; display:flex; gap:3px; align-items:flex-end; height:30px;
+  }
+  .spark .bar{ width:8px; background: currentColor; transform-origin: bottom; animation: barRise 0.9s cubic-bezier(.2,1.6,.4,1) backwards; }
+  .spark .bar:nth-child(1){animation-delay:.05s}
+  .spark .bar:nth-child(2){animation-delay:.12s}
+  .spark .bar:nth-child(3){animation-delay:.19s}
+  .spark .bar:nth-child(4){animation-delay:.26s}
+  .spark .bar:nth-child(5){animation-delay:.33s}
+  .spark .bar:nth-child(6){animation-delay:.40s}
+  .spark .bar:nth-child(7){animation-delay:.47s; animation: barRise 0.9s cubic-bezier(.2,1.6,.4,1) .47s backwards, barPulse 1.6s ease-in-out .47s infinite; }
+  @keyframes barRise{ from{transform: scaleY(0);} to{transform: scaleY(1);} }
+  @keyframes barPulse{ 0%,100%{filter: brightness(1);} 50%{filter: brightness(1.6) drop-shadow(0 0 4px currentColor);} }
+  @keyframes titleGlitch{
+    0%, 88%, 100%{ text-shadow: 3px 3px 0 var(--magenta), 6px 6px 0 var(--cyan), 9px 9px 0 #000; transform: translate(0,0); }
+    89%{ text-shadow: -3px 3px 0 var(--magenta), 6px 6px 0 var(--cyan), 9px 9px 0 #000; transform: translate(2px,-1px); }
+    90%{ text-shadow: 4px -2px 0 var(--magenta), -4px 6px 0 var(--cyan), 9px 9px 0 #000; transform: translate(-2px,1px); }
+    91%{ text-shadow: 3px 3px 0 var(--magenta), 6px 6px 0 var(--cyan), 9px 9px 0 #000; transform: translate(1px,0); }
+    93%{ text-shadow: -2px 4px 0 var(--magenta), 7px 5px 0 var(--cyan), 9px 9px 0 #000; transform: translate(-1px,1px); }
+  }
+  .stat-card.cyan .spark{color:var(--cyan)}
+  .stat-card.magenta .spark{color:var(--magenta)}
+  .stat-card.yellow .spark{color:var(--yellow)}
+  .stat-card.green .spark{color:var(--green)}
+
+  /* Main grid - left module + right column */
+  .main-grid{
+    display:grid;
+    grid-template-columns: 1fr 380px;
+    gap: 22px;
+    margin-bottom: 28px;
+  }
+
+  .panel-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 14px 18px;
+    background: #000;
+    border-bottom: 3px solid var(--magenta);
+  }
+  .panel-head .title{
+    font-family:"Press Start 2P",monospace;
+    font-size:11px;
+    color: var(--cyan);
+    letter-spacing:0.1em;
+    text-shadow: 2px 0 0 var(--magenta), 2px 2px 0 #000;
+  }
+  .panel-head .meta{
+    font-family:"VT323",monospace;
+    color: var(--text-mute); font-size:16px; letter-spacing:0.18em;
+  }
+  .panel-head .meta b{color:var(--yellow); font-weight:normal}
+
+  /* Shift roster */
+  .roster{
+    display:grid;
+    grid-template-columns: 70px repeat(6, 1fr);
+    font-family:"VT323",monospace;
+    font-size: 16px;
+  }
+  .roster .head, .roster .col-head{
+    background: rgba(38,224,211,0.08);
+    color: var(--cyan);
+    padding: 10px 8px;
+    text-align:center;
+    border-bottom: 2px solid var(--cyan);
+    font-family:"Press Start 2P",monospace;
+    font-size:8px;
+    letter-spacing:0.1em;
+  }
+  .roster .head{ background: rgba(255,43,184,0.1); color: var(--magenta); border-bottom-color: var(--magenta); }
+  .roster .cell{
+    padding: 10px 6px;
+    border-bottom: 2px solid #000;
+    border-right: 2px solid #000;
+    color: var(--text-dim);
+    text-align:center;
+    background: var(--panel);
+    min-height:54px;
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+  }
+  .roster .cell.row-label{
+    background: #000;
+    color: var(--yellow);
+    font-family:"Press Start 2P",monospace;
+    font-size:9px;
+    letter-spacing:0.06em;
+  }
+  .roster .chip{
+    display:inline-block; padding: 3px 8px;
+    font-family:"VT323",monospace; font-size:14px;
+    border:2px solid #000;
+    box-shadow: 2px 2px 0 0 #000;
+    color:#0a0418;
+    letter-spacing:0.06em;
+  }
+  .chip.cyan{ background: var(--cyan); }
+  .chip.magenta{ background: var(--magenta); color:#fff; text-shadow:1px 1px 0 #000 }
+  .chip.yellow{ background: var(--yellow); }
+  .chip.off{ background: var(--panel-2); color: var(--text-mute); border-color: var(--line); box-shadow:none; }
+
+  /* Activity log */
+  .activity{
+    padding: 0;
+    height: 100%;
+  }
+  .activity .feed{
+    padding: 4px 0;
+    max-height: 460px;
+    overflow:auto;
+  }
+  .activity .feed::-webkit-scrollbar{width:8px}
+  .activity .feed::-webkit-scrollbar-track{background:#000}
+  .activity .feed::-webkit-scrollbar-thumb{background:var(--magenta); border:2px solid #000}
+  .log-item.fresh{ animation: logFlash 1.4s ease-out; }
+  @keyframes logFlash{
+    0%{ background: rgba(57,255,160,0.25); transform: translateX(-8px); opacity:0; }
+    20%{ opacity:1; transform: translateX(0); }
+    100%{ background: transparent; }
+  }
+  .log-item{
+    display:grid;
+    grid-template-columns: 60px 1fr;
+    gap: 12px;
+    padding: 11px 14px;
+    border-bottom: 2px dashed var(--line);
+    font-family:"VT323",monospace;
+    font-size:16px;
+    align-items:start;
+  }
+  .log-item .ts{
+    color: var(--cyan);
+    font-family:"Share Tech Mono",monospace;
+    font-size:12px;
+    letter-spacing:0.06em;
+    padding-top: 3px;
+  }
+  .log-item .body{ color: var(--text); line-height:1.35 }
+  .log-item .body .who{ color: #fff; }
+  .log-item .body .act-leave{ color: var(--yellow); }
+  .log-item .body .act-edit{ color: var(--cyan); }
+  .log-item .body .act-new{ color: var(--green); }
+  .log-item .body .act-del{ color: var(--red); }
+  .log-item .body .act-shift{ color: var(--magenta); }
+
+  /* Quick actions */
+  .quick-actions{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .qa{
+    padding: 18px;
+    cursor:pointer;
+    display:flex;flex-direction:column;gap:10px;
+    transition: transform .08s, box-shadow .08s;
+  }
+  .qa:hover{transform: translate(-2px,-2px); box-shadow: 6px 6px 0 0 var(--magenta-deep), 0 0 0 2px var(--magenta);}
+  .qa .icon{
+    width:48px;height:48px;
+    background:#000;
+    border:3px solid currentColor;
+    display:grid;place-items:center;
+    color: var(--cyan);
+    box-shadow: 3px 3px 0 0 currentColor;
+  }
+  .qa .icon svg{width:24px;height:24px;color:#fff}
+  .qa.magenta .icon{color: var(--magenta)}
+  .qa.yellow .icon{color: var(--yellow)}
+  .qa.green .icon{color: var(--green)}
+  .qa .title{
+    font-family:"Press Start 2P",monospace; font-size: 11px;
+    color:#fff; letter-spacing: 0.06em;
+    text-shadow: 1px 1px 0 #000;
+  }
+  .qa .desc{
+    font-family:"VT323",monospace; font-size:15px; color: var(--text-dim); letter-spacing:0.04em;
+  }
+  .qa .arrow{
+    margin-top:auto;
+    font-family:"Press Start 2P",monospace; font-size:10px; color: var(--cyan);
+    letter-spacing:0.1em;
+  }
+  .qa.magenta .arrow{color: var(--magenta)}
+  .qa.yellow .arrow{color: var(--yellow)}
+  .qa.green .arrow{color: var(--green)}
+
+  /* On-duty roster cards row */
+  .duty-grid{
+    display:grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .person{
+    background: var(--panel);
+    border: 3px solid #000;
+    box-shadow: 4px 4px 0 0 #000;
+    padding: 14px;
+    position:relative;
+  }
+  .person .head{
+    display:flex; align-items:center; gap:10px; margin-bottom:10px;
+  }
+  .person .av{
+    width:42px;height:42px;
+    background: linear-gradient(135deg, var(--magenta), var(--cyan));
+    color:#000;
+    font-family:"Press Start 2P",monospace; font-size: 10px;
+    display:grid;place-items:center;
+    border:2px solid #000;
+    box-shadow: 2px 2px 0 0 #000;
+  }
+  .person .nm{
+    font-family:"Press Start 2P",monospace;
+    font-size: 9px; color:#fff;
+    letter-spacing:0.06em;
+    line-height:1.4;
+  }
+  .person .role{
+    font-family:"VT323",monospace;
+    color: var(--text-dim); font-size:14px; letter-spacing:0.1em;
+    margin-top:3px;
+  }
+  .person .id{
+    font-family:"Share Tech Mono",monospace;
+    font-size:11px; color:var(--cyan);
+    letter-spacing:0.06em;
+  }
+  .person .status{
+    margin-top:6px;
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:"VT323",monospace;
+    font-size:14px; letter-spacing:0.1em;
+    padding: 3px 8px;
+    background: #000;
+    border:2px solid var(--green);
+  }
+  .person .status .d{ width:8px;height:8px;background:var(--green); box-shadow:0 0 6px var(--green); animation: blink 1s steps(2) infinite; }
+  .person.alert .status{ border-color: var(--yellow); color: var(--yellow); }
+  .person.alert .status .d{ background: var(--yellow); box-shadow:0 0 6px var(--yellow) }
+  .person.off .status{ border-color: var(--magenta); color: var(--magenta); }
+  .person.off .status .d{ background: var(--magenta); box-shadow:0 0 6px var(--magenta) }
+  .person .station{
+    margin-top:10px;
+    font-family:"VT323",monospace; font-size:14px;
+    color: var(--text-mute); letter-spacing:0.08em;
+  }
+  .person .station b{ color: var(--cyan); font-weight:normal; }
+
+  /* Footer status bar */
+  .sysbar{
+    margin-top: 8px;
+    background:#000;
+    border:3px solid var(--cyan);
+    box-shadow: 4px 4px 0 0 var(--cyan-deep);
+    padding: 12px 18px;
+    display:flex; align-items:center; gap: 26px;
+    font-family:"VT323",monospace;
+    font-size:16px;
+    color: var(--text-dim);
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+  }
+  .sysbar .item{ display:flex; align-items:center; gap:10px; }
+  .sysbar .item b{ color: var(--cyan); font-weight:normal; }
+  .sysbar .item .led{ width:8px;height:8px;background:var(--green); box-shadow:0 0 6px var(--green); animation: blink 1s steps(2) infinite; }
+  .sysbar .pix-divider{
+    width:2px; height:18px; background: var(--line);
+  }
+
+  /* Section title */
+  .section-title{
+    font-family:"Press Start 2P",monospace;
+    font-size: 13px;
+    color: var(--cyan);
+    text-shadow: 2px 0 0 var(--magenta), 2px 2px 0 #000;
+    margin: 4px 0 16px;
+    letter-spacing:0.08em;
+    display:flex; align-items:center; gap: 12px;
+  }
+  .section-title::before{
+    content:""; display:inline-block;
+    width:12px; height:12px;
+    background: var(--magenta);
+    border:2px solid #000;
+    box-shadow: 2px 2px 0 0 var(--magenta-deep);
+  }
+  .section-title .small{
+    font-family:"VT323",monospace; font-size:16px;
+    color: var(--text-mute);
+    letter-spacing:0.16em;
+    margin-left: auto;
+    text-shadow: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="top-header">
+  <div class="brand">
+    <div class="logo-mark">N</div>
+    <div>
+      <div class="name">NEXUS//OPS</div>
+      <div class="sub">v2.4.7 · FIELD-CTRL</div>
+    </div>
+  </div>
+  <nav class="top-nav">
+    <div class="nav-item active">主控台</div>
+    <div class="nav-item">人員管理</div>
+    <div class="nav-item">排班管理</div>
+    <div class="nav-item">設置</div>
+  </nav>
+  <div class="right-tools">
+    <span class="status-pill"><span class="dot"></span> SYS.ONLINE</span>
+    <span class="icon-btn bell" title="通知">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </span>
+    <span class="icon-btn" title="設置">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </span>
+    <span class="avatar">YT</span>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- HERO -->
+  <section class="hero">
+    <canvas id="skyCanvas" class="hero-canvas"></canvas>
+    <canvas id="cityCanvas" class="hero-canvas"></canvas>
+    <canvas id="lightsCanvas" class="hero-canvas"></canvas>
+    <div class="hero-beam"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-flicker"></div>
+    <div class="hero-scan"></div>
+    <div class="hero-content">
+      <div>
+        <div class="hero-tag"><span class="blink-dot"></span> NIGHT.SHIFT · 03 // ACTIVE</span></div>
+      </div>
+      <div>
+        <h1>歡迎回來,<span class="accent">YT.</span></h1>
+        <div class="sub">// 24 名現場人員 · 5 人休假中 · 系統正常運行 · 時間 2026.04.20 02:14</div>
+      </div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap">
+        <div style="display:flex;gap:14px">
+          <button class="pbtn magenta">+ 新增假條</button>
+          <button class="pbtn ghost">查看排班</button>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat"><div class="k">在班</div><div class="v">19</div></div>
+          <div class="hero-stat mag"><div class="k">休假</div><div class="v">05</div></div>
+          <div class="hero-stat yel"><div class="k">待審</div><div class="v">03</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-card pixel-box cyan">
+      <div class="corner"></div>
+      <div class="label">總人數</div>
+      <div class="value">24</div>
+      <div class="delta"><span class="up">▲ 2</span> vs 上週</div>
+      <div class="spark">
+        <div class="bar" style="height:30%"></div>
+        <div class="bar" style="height:55%"></div>
+        <div class="bar" style="height:42%"></div>
+        <div class="bar" style="height:68%"></div>
+        <div class="bar" style="height:50%"></div>
+        <div class="bar" style="height:75%"></div>
+        <div class="bar" style="height:90%"></div>
+      </div>
+    </div>
+    <div class="stat-card pixel-box magenta">
+      <div class="corner"></div>
+      <div class="label">本週請假</div>
+      <div class="value">12</div>
+      <div class="delta"><span class="dn">▼ 3</span> vs 上週</div>
+      <div class="spark">
+        <div class="bar" style="height:80%"></div>
+        <div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:90%"></div>
+        <div class="bar" style="height:70%"></div>
+        <div class="bar" style="height:55%"></div>
+        <div class="bar" style="height:65%"></div>
+        <div class="bar" style="height:50%"></div>
+      </div>
+    </div>
+    <div class="stat-card pixel-box yellow">
+      <div class="corner"></div>
+      <div class="label">待審假條</div>
+      <div class="value">03</div>
+      <div class="delta">需 24 小時內處理</div>
+      <div class="spark">
+        <div class="bar" style="height:25%"></div>
+        <div class="bar" style="height:40%"></div>
+        <div class="bar" style="height:35%"></div>
+        <div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:45%"></div>
+        <div class="bar" style="height:30%"></div>
+        <div class="bar" style="height:50%"></div>
+      </div>
+    </div>
+    <div class="stat-card pixel-box" style="border-color:var(--green);box-shadow:4px 4px 0 0 #1c8a55, inset 0 0 0 1px #000">
+      <div class="corner" style="color:var(--green)"></div>
+      <div class="label">出勤率</div>
+      <div class="value" style="color:var(--green);text-shadow:2px 2px 0 #000">96%</div>
+      <div class="delta"><span class="up">▲ 1.2%</span> 月平均</div>
+      <div class="spark" style="color:var(--green)">
+        <div class="bar" style="height:70%"></div>
+        <div class="bar" style="height:78%"></div>
+        <div class="bar" style="height:82%"></div>
+        <div class="bar" style="height:88%"></div>
+        <div class="bar" style="height:85%"></div>
+        <div class="bar" style="height:92%"></div>
+        <div class="bar" style="height:96%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUICK ACTIONS -->
+  <div class="section-title">QUICK.ACTIONS <span class="small">// 快捷操作</span></div>
+  <div class="quick-actions">
+    <div class="qa pixel-box">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      </div>
+      <div class="title">新增假條</div>
+      <div class="desc">建立新請假申請,系統自動通知主管</div>
+      <div class="arrow">→ NEW.LEAVE</div>
+    </div>
+    <div class="qa pixel-box magenta">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="0"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      </div>
+      <div class="title">排班總覽</div>
+      <div class="desc">查看當週現場與監控組的排班</div>
+      <div class="arrow">→ SHIFT.VIEW</div>
+    </div>
+    <div class="qa pixel-box yellow">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <div class="title">員工名冊</div>
+      <div class="desc">瀏覽全體現場人員與聯絡資料</div>
+      <div class="arrow">→ STAFF.LIST</div>
+    </div>
+    <div class="qa pixel-box" style="border-color:var(--green)">
+      <div class="icon" style="color:var(--green)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg>
+      </div>
+      <div class="title">月報匯出</div>
+      <div class="desc">產生本月出勤統計與請假摘要</div>
+      <div class="arrow">→ EXPORT.CSV</div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+    <!-- LEFT: SHIFT ROSTER -->
+    <div class="pixel-box">
+      <div class="panel-head">
+        <div class="title">SHIFT.ROSTER // 本週排班</div>
+        <div class="meta">WEEK <b>16</b> · 2026.04.19 – 04.25</div>
+      </div>
+      <div class="roster">
+        <div class="head">時段</div>
+        <div class="col-head">一</div>
+        <div class="col-head">二</div>
+        <div class="col-head">三</div>
+        <div class="col-head">四</div>
+        <div class="col-head">五</div>
+        <div class="col-head">六</div>
+
+        <div class="cell row-label">早班<br>08–16</div>
+        <div class="cell"><span class="chip cyan">N1 N2</span></div>
+        <div class="cell"><span class="chip cyan">N1 N3</span></div>
+        <div class="cell"><span class="chip cyan">N2 N4</span></div>
+        <div class="cell"><span class="chip cyan">N3 N5</span></div>
+        <div class="cell"><span class="chip cyan">N4 N6</span></div>
+        <div class="cell"><span class="chip off">OFF</span></div>
+
+        <div class="cell row-label">中班<br>16–24</div>
+        <div class="cell"><span class="chip magenta">N7 N8</span></div>
+        <div class="cell"><span class="chip magenta">N7 N9</span></div>
+        <div class="cell"><span class="chip magenta">N8 N10</span></div>
+        <div class="cell"><span class="chip magenta">N9 N11</span></div>
+        <div class="cell"><span class="chip magenta">N10 N12</span></div>
+        <div class="cell"><span class="chip magenta">N11 N12</span></div>
+
+        <div class="cell row-label">夜班<br>00–08</div>
+        <div class="cell"><span class="chip yellow">N13 N14</span></div>
+        <div class="cell"><span class="chip yellow">N13 N15</span></div>
+        <div class="cell"><span class="chip yellow">N14 N16</span></div>
+        <div class="cell"><span class="chip yellow">N15 N17</span></div>
+        <div class="cell"><span class="chip yellow">N16 N18</span></div>
+        <div class="cell"><span class="chip yellow">N17 N18</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: ACTIVITY -->
+    <div class="pixel-box activity">
+      <div class="panel-head">
+        <div class="title">DATA.STREAM // 即時動態</div>
+        <div class="meta"><b>LIVE</b></div>
+      </div>
+      <div class="feed">
+        <div class="log-item">
+          <div class="ts">02:14</div>
+          <div class="body"><span class="who">陳俊宏</span> 提交了 <span class="act-leave">事假</span> 申請</div>
+        </div>
+        <div class="log-item">
+          <div class="ts">02:02</div>
+          <div class="body"><span class="who">林心怡</span> 的 <span class="act-leave">病假</span> 已自動 <span class="act-edit">結束</span></div>
+        </div>
+        <div class="log-item">
+          <div class="ts">01:48</div>
+          <div class="body"><span class="who">YT.OPERATOR</span> 核准了 <span class="act-new">3</span> 筆假條</div>
+        </div>
+        <div class="log-item">
+          <div class="ts">01:30</div>
+          <div class="body"><span class="who">黃柏軒</span> <span class="act-shift">換班</span> 至夜班 N16</div>
+        </div>
+        <div class="log-item">
+          <div class="ts">01:12</div>
+          <div class="body"><span class="who">蔡雅婷</span> 提交了 <span class="act-leave">特休</span> 申請</div>
+        </div>
+        <div class="log-item">
+          <div class="ts">00:55</div>
+          <div class="body">系統執行 <span class="act-edit">自動排班最佳化</span></div>
+        </div>
+        <div class="log-item">
+          <div class="ts">00:38</div>
+          <div class="body"><span class="who">王志強</span> 已 <span class="act-shift">打卡上班</span> · 監控組</div>
+        </div>
+        <div class="log-item">
+          <div class="ts">00:14</div>
+          <div class="body"><span class="who">YT.OPERATOR</span> <span class="act-del">刪除</span> 過期假條 #A0991</div>
+        </div>
+        <div class="log-item">
+          <div class="ts">23:50</div>
+          <div class="body"><span class="who">趙美玲</span> 提交了 <span class="act-leave">公假</span> 申請</div>
+        </div>
+        <div class="log-item">
+          <div class="ts">23:22</div>
+          <div class="body">新增人員 <span class="who">吳承翰</span> 至 <span class="act-new">荷官組</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DUTY ROSTER -->
+  <div class="section-title">ON.DUTY <span class="small">// 當前在班人員</span></div>
+  <div class="duty-grid">
+    <div class="person">
+      <div class="head">
+        <div class="av">N1</div>
+        <div>
+          <div class="nm">陳俊宏</div>
+          <div class="role">值班經理</div>
+        </div>
+      </div>
+      <div class="id">UID #A1042</div>
+      <div class="status"><span class="d"></span>ON.DUTY</div>
+      <div class="station">STATION › <b>主控室 A</b></div>
+    </div>
+    <div class="person">
+      <div class="head">
+        <div class="av">N7</div>
+        <div>
+          <div class="nm">王志強</div>
+          <div class="role">監控員</div>
+        </div>
+      </div>
+      <div class="id">UID #A1108</div>
+      <div class="status"><span class="d"></span>ON.DUTY</div>
+      <div class="station">STATION › <b>CCTV-03</b></div>
+    </div>
+    <div class="person alert">
+      <div class="head">
+        <div class="av">N9</div>
+        <div>
+          <div class="nm">趙美玲</div>
+          <div class="role">荷官</div>
+        </div>
+      </div>
+      <div class="id">UID #A1199</div>
+      <div class="status"><span class="d"></span>BREAK</div>
+      <div class="station">STATION › <b>桌台 B-04</b></div>
+    </div>
+    <div class="person">
+      <div class="head">
+        <div class="av">N12</div>
+        <div>
+          <div class="nm">吳承翰</div>
+          <div class="role">荷官</div>
+        </div>
+      </div>
+      <div class="id">UID #A1241</div>
+      <div class="status"><span class="d"></span>ON.DUTY</div>
+      <div class="station">STATION › <b>桌台 A-02</b></div>
+    </div>
+    <div class="person off">
+      <div class="head">
+        <div class="av">N2</div>
+        <div>
+          <div class="nm">林心怡</div>
+          <div class="role">荷官</div>
+        </div>
+      </div>
+      <div class="id">UID #A1188</div>
+      <div class="status"><span class="d"></span>OFF.LEAVE</div>
+      <div class="station">RESUME › <b>04.22 18:00</b></div>
+    </div>
+  </div>
+
+  <!-- SYS BAR -->
+  <div class="sysbar">
+    <div class="item"><span class="led"></span>CONN <b>STABLE</b></div>
+    <div class="pix-divider"></div>
+    <div class="item">PING <b>14 MS</b></div>
+    <div class="pix-divider"></div>
+    <div class="item">SHIFT <b>NIGHT.03</b></div>
+    <div class="pix-divider"></div>
+    <div class="item">SYNC <b>04:22:18 UTC+8</b></div>
+    <div class="pix-divider"></div>
+    <div class="item" style="margin-left:auto">USER › <b>YT.OPERATOR</b></div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  // ====== CANVASES ======
+  const W = 320, H = 64; // low internal res for chunky pixels (hero is 320px tall in CSS)
+  const sky = document.getElementById('skyCanvas');
+  const city = document.getElementById('cityCanvas');
+  const lights = document.getElementById('lightsCanvas');
+  if(!sky) return;
+  [sky, city, lights].forEach(c => { c.width = W; c.height = H; });
+  const sCtx = sky.getContext('2d');
+  const cCtx = city.getContext('2d');
+  const lCtx = lights.getContext('2d');
+  [sCtx, cCtx, lCtx].forEach(ctx => ctx.imageSmoothingEnabled = false);
+
+  // ===== SKY =====
+  const grd = sCtx.createLinearGradient(0,0,0,H);
+  grd.addColorStop(0,  '#0a0418');
+  grd.addColorStop(0.25,'#1a0530');
+  grd.addColorStop(0.55,'#4a0d56');
+  grd.addColorStop(0.85,'#a3127a');
+  grd.addColorStop(1,  '#ff2bb8');
+  sCtx.fillStyle = grd;
+  sCtx.fillRect(0,0,W,H);
+
+  // Stars
+  const stars = [];
+  for(let i=0;i<55;i++){
+    const x = Math.random()*W|0, y = Math.random()*H*0.55|0;
+    const c = ['#ffffff','#cfe8ff','#ffd0e8'][Math.random()*3|0];
+    sCtx.fillStyle = c;
+    sCtx.fillRect(x,y,1,1);
+    stars.push({x,y,c, twinkle: Math.random()<0.25});
+  }
+
+  // Moon
+  sCtx.fillStyle = '#ff7ab8';
+  sCtx.fillRect(36, 8, 9, 9);
+  sCtx.fillStyle = '#ffd0e8';
+  sCtx.fillRect(37, 9, 8, 8);
+  sCtx.fillStyle = '#ff7ab8';
+  sCtx.fillRect(40, 11, 3, 3);
+  sCtx.fillStyle = '#ffd0e8';
+  sCtx.fillRect(41, 12, 1, 1);
+
+  // ===== CITY (3 layers) =====
+  const flickers = []; // animatable windows
+
+  function drawBuilding(b, layer){
+    cCtx.fillStyle = b.color;
+    cCtx.fillRect(b.x, b.y, b.w, b.h);
+    // top accent
+    if(layer >= 1){
+      cCtx.fillStyle = b.accent;
+      cCtx.fillRect(b.x, b.y, b.w, 1);
+    }
+    // antenna
+    if(layer === 2 && b.w >= 7 && Math.random() < 0.55){
+      cCtx.fillStyle = '#0a0418';
+      cCtx.fillRect(b.x + (b.w>>1), b.y - (2+(Math.random()*3|0)), 1, 3);
+    }
+    // windows
+    const colors = layer === 0
+      ? ['#3d0a4a','#5a1268']
+      : layer === 1
+        ? ['#ffd84d','#ff2bb8','#26e0d3','#ffffff']
+        : ['#ffd84d','#26e0d3','#ff2bb8','#00d4ff','#ffffff','#ff7a3a'];
+    const wsize = layer === 0 ? 1 : 1;
+    const gapX = layer === 0 ? 2 : 2;
+    const gapY = layer === 0 ? 2 : 3;
+    for(let wy = b.y + 2; wy < b.y + b.h - 1; wy += gapY){
+      for(let wx = b.x + 1; wx < b.x + b.w - 1; wx += gapX){
+        if(Math.random() < (layer === 0 ? 0.25 : 0.55)){
+          const wc = colors[Math.random()*colors.length|0];
+          cCtx.fillStyle = wc;
+          cCtx.fillRect(wx, wy, wsize, 1);
+          // mark some for flicker
+          if(layer >= 1 && Math.random() < 0.18){
+            flickers.push({x: wx, y: wy, c: wc, on: true, t: Math.random()*60|0});
+          }
+        }
+      }
+    }
+  }
+
+  function genLayer(layer, baseY, minH, maxH, palette, accents){
+    let x = -2;
+    while(x < W + 2){
+      const bw = (layer === 0 ? 5 : layer === 1 ? 8 : 11) + (Math.random()*8|0);
+      const bh = minH + (Math.random()*(maxH-minH)|0);
+      const color = palette[Math.random()*palette.length|0];
+      const accent = accents[Math.random()*accents.length|0];
+      drawBuilding({x, y: baseY - bh, w: bw, h: bh + (H-baseY), color, accent}, layer);
+      x += bw + (Math.random()<0.3 ? 0 : 1);
+    }
+  }
+
+  // back
+  genLayer(0, 32, 8, 22, ['#2a0840','#3a0d52','#1a0530'], ['#a3127a','#4a0d56']);
+  // mid
+  genLayer(1, 44, 12, 28, ['#0d0420','#1a0530','#28083f'], ['#ff2bb8','#26e0d3','#ffd84d','#a3127a']);
+  // front
+  genLayer(2, 56, 14, 34, ['#050010','#0a0418','#15052e'], ['#ff2bb8','#26e0d3','#ffd84d','#00d4ff']);
+
+  // ground line
+  cCtx.fillStyle = '#000';
+  cCtx.fillRect(0, H-2, W, 2);
+  // street lights
+  for(let i=4;i<W;i+=18){
+    cCtx.fillStyle = '#ffd84d';
+    cCtx.fillRect(i, H-3, 1, 1);
+  }
+
+  // ===== ANIMATED LIGHTS LAYER =====
+  // vehicles moving low-horizon
+  const vehicles = [
+    {x: -10, y: H-3, c: '#ff2bb8', spd: 0.6},
+    {x: -60, y: H-3, c: '#26e0d3', spd: 0.4},
+    {x: -120, y: H-3, c: '#ffd84d', spd: 0.7},
+    {x: W+20, y: H-4, c: '#00d4ff', spd: -0.5},
+    {x: W+80, y: H-4, c: '#ff7a3a', spd: -0.55},
+  ];
+
+  // meteors
+  let meteor = null;
+  function maybeSpawnMeteor(){
+    if(meteor) return;
+    if(Math.random() < 0.012){
+      meteor = { x: Math.random()*W*0.6|0, y: -2, vx: 1.4, vy: 0.9, life: 0 };
+    }
+  }
+
+  // neon sign blink (a few extra big-window blocks)
+  const signs = [];
+  for(let i=0;i<6;i++){
+    signs.push({
+      x: 20 + (Math.random()*(W-50)|0),
+      y: 20 + (Math.random()*22|0),
+      w: 4 + (Math.random()*4|0),
+      h: 2,
+      c: ['#ff2bb8','#26e0d3','#ffd84d','#00d4ff'][i%4],
+      phase: Math.random()*60|0,
+      period: 50 + (Math.random()*60|0)
+    });
+  }
+
+  let frame = 0;
+  function tick(){
+    lCtx.clearRect(0,0,W,H);
+
+    // twinkle stars
+    if(frame % 4 === 0){
+      stars.forEach(s => {
+        if(s.twinkle && Math.random() < 0.15){
+          lCtx.fillStyle = Math.random()<0.5 ? '#ffffff' : '#26e0d3';
+          lCtx.fillRect(s.x, s.y, 1, 1);
+        }
+      });
+    }
+
+    // flicker windows
+    flickers.forEach(f => {
+      f.t--;
+      if(f.t <= 0){
+        f.on = Math.random() > 0.35;
+        f.t = 8 + (Math.random()*60|0);
+      }
+      if(f.on){
+        lCtx.fillStyle = f.c;
+        lCtx.fillRect(f.x, f.y, 1, 1);
+      } else {
+        // dark over the static window
+        lCtx.fillStyle = '#0a0418';
+        lCtx.fillRect(f.x, f.y, 1, 1);
+      }
+    });
+
+    // neon signs blink
+    signs.forEach(sg => {
+      const p = (frame + sg.phase) % sg.period;
+      const on = p < sg.period*0.7;
+      if(on){
+        lCtx.fillStyle = sg.c;
+        lCtx.fillRect(sg.x, sg.y, sg.w, sg.h);
+        // glow halo (1px expand at lower opacity)
+        lCtx.fillStyle = sg.c + '66';
+        lCtx.fillRect(sg.x-1, sg.y-1, sg.w+2, sg.h+2);
+      }
+    });
+
+    // vehicles
+    vehicles.forEach(v => {
+      v.x += v.spd;
+      if(v.spd > 0 && v.x > W+8) v.x = -8 - Math.random()*40;
+      if(v.spd < 0 && v.x < -8) v.x = W+8 + Math.random()*40;
+      lCtx.fillStyle = v.c;
+      lCtx.fillRect(v.x|0, v.y, 2, 1);
+      // trail
+      lCtx.fillStyle = v.c + '88';
+      lCtx.fillRect((v.x - 3*Math.sign(v.spd))|0, v.y, 1, 1);
+    });
+
+    // meteor
+    maybeSpawnMeteor();
+    if(meteor){
+      meteor.x += meteor.vx;
+      meteor.y += meteor.vy;
+      meteor.life++;
+      lCtx.fillStyle = '#ffffff';
+      lCtx.fillRect(meteor.x|0, meteor.y|0, 1, 1);
+      lCtx.fillStyle = '#ffd0e8cc';
+      lCtx.fillRect((meteor.x-meteor.vx)|0, (meteor.y-meteor.vy)|0, 1, 1);
+      lCtx.fillStyle = '#ff7ab888';
+      lCtx.fillRect((meteor.x-meteor.vx*2)|0, (meteor.y-meteor.vy*2)|0, 1, 1);
+      if(meteor.x > W || meteor.y > H || meteor.life > 120) meteor = null;
+    }
+
+    frame++;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // ====== COUNT-UP STATS ======
+  function countUp(el, target, dur=1400){
+    const isPercent = el.textContent.includes('%');
+    const pad = (el.textContent.replace('%','').length === 2 && target < 10);
+    const start = performance.now();
+    function step(now){
+      const t = Math.min(1, (now-start)/dur);
+      const eased = 1 - Math.pow(1-t, 3);
+      const v = Math.round(target * eased);
+      let txt = pad ? String(v).padStart(2,'0') : String(v);
+      if(isPercent) txt += '%';
+      el.textContent = txt;
+      if(t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  document.querySelectorAll('.stat-card .value, .hero-stat .v').forEach(el => {
+    const m = el.textContent.match(/(\d+)/);
+    if(!m) return;
+    const target = parseInt(m[1],10);
+    el.dataset.target = target;
+    el.textContent = el.textContent.includes('%') ? '0%' : '00';
+    setTimeout(()=> countUp(el, target), 200);
+  });
+
+  // ====== LIVE ACTIVITY FEED ======
+  const feed = document.querySelector('.activity .feed');
+  if(feed){
+    const pool = [
+      ['who','陳俊宏','act-leave','事假','申請更新'],
+      ['who','林心怡','act-shift','打卡上班','監控組 CCTV-02'],
+      ['who','黃柏軒','act-edit','編輯','個人資料'],
+      ['who','蔡雅婷','act-new','核准','假條 #A1311'],
+      ['who','王志強','act-shift','換班','至夜班 N18'],
+      ['who','趙美玲','act-leave','特休','延長 1 日'],
+      ['who','吳承翰','act-shift','打卡下班','桌台 A-02'],
+      ['sys',null,'act-edit','系統','重新計算出勤率'],
+      ['sys',null,'act-new','新增','監控組成員 #A1255'],
+      ['who','陳俊宏','act-del','取消','錯誤排班 #S0421'],
+    ];
+    function pad(n){return n<10?'0'+n:''+n}
+    function tickFeed(){
+      const now = new Date();
+      const ts = pad(now.getHours()) + ':' + pad(now.getMinutes());
+      const e = pool[Math.random()*pool.length|0];
+      const div = document.createElement('div');
+      div.className = 'log-item fresh';
+      const body = e[0] === 'sys'
+        ? `<span class="who">SYSTEM</span> 執行 <span class="${e[2]}">${e[3]}</span> · ${e[4]}`
+        : `<span class="who">${e[1]}</span> · <span class="${e[2]}">${e[3]}</span> ${e[4]}`;
+      div.innerHTML = `<div class="ts">${ts}</div><div class="body">${body}</div>`;
+      feed.insertBefore(div, feed.firstChild);
+      // cap length
+      while(feed.children.length > 14) feed.removeChild(feed.lastChild);
+      setTimeout(()=> div.classList.remove('fresh'), 1500);
+    }
+    setTimeout(()=> setInterval(tickFeed, 4500), 2500);
+  }
+
+  // ====== HERO STAT NUDGE ======
+  // Subtle periodic pulse for hero-stat numbers
+  const hv = document.querySelectorAll('.hero-stat .v');
+
+  // ====== LIVE CLOCK in sysbar ======
+  const syncItem = [...document.querySelectorAll('.sysbar .item b')].find(b => /UTC/.test(b.textContent));
+  if(syncItem){
+    function updClock(){
+      const d = new Date();
+      const t = [d.getHours(), d.getMinutes(), d.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+      syncItem.textContent = t + ' UTC+8';
+    }
+    updClock();
+    setInterval(updClock, 1000);
+  }
+})();
+</script>
+
+</body>
+</html>

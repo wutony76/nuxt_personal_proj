@@ -1,0 +1,1605 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>對沖局 · 紅運版 v2 · 海報排版</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;700;900&family=ZCOOL+XiaoWei&family=ZCOOL+KuaiLe&family=Ma+Shan+Zheng&family=Liu+Jian+Mao+Cao&family=Long+Cang&family=ZCOOL+QingKe+HuangYou&family=Space+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --red:        #d11e2a;
+  --red-deep:   #9a0a18;
+  --red-wine:   #5a0a14;
+  --red-ink:    #2e060c;
+  --red-bright: #e83a2c;
+  --red-blood:  #b01320;
+  --gold:       #f5c842;
+  --gold-deep:  #c89530;
+  --gold-bright:#ffe066;
+  --paper:      #fff5dc;
+  --paper-2:    #fbe7bd;
+  --paper-3:    #f5d59a;
+  --ivory:      #fff9e8;
+  --ink:        #1a0608;
+  --jade:       #2f6b4f;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--red-ink); }
+body {
+  font-family: 'Noto Serif TC', 'Songti TC', serif;
+  color: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'palt' 1;
+}
+.num { font-family: 'Space Grotesk', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+.brush { font-family: 'Ma Shan Zheng', 'ZCOOL XiaoWei', serif; }
+.kuai { font-family: 'ZCOOL KuaiLe', serif; }
+.bebas { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.05em; }
+
+.stage {
+  width: 1440px;
+  margin: 0 auto;
+  background: var(--red);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 80px rgba(0,0,0,0.5);
+}
+
+/* ===== SECTION 1 · POSTER HERO ===== */
+.poster {
+  position: relative;
+  height: 980px;
+  background:
+    radial-gradient(ellipse 1200px 800px at 30% 60%, #c01a26 0%, transparent 60%),
+    radial-gradient(ellipse 800px 600px at 90% 10%, #b81222 0%, transparent 60%),
+    var(--red);
+  overflow: hidden;
+  isolation: isolate;
+  clip-path: inset(0);
+}
+
+/* faint texture noise */
+.poster::before {
+  content:""; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(255,224,102,0.5), transparent),
+    radial-gradient(1px 1px at 32% 8%, rgba(255,224,102,0.4), transparent),
+    radial-gradient(2px 2px at 78% 22%, rgba(255,224,102,0.5), transparent),
+    radial-gradient(1px 1px at 50% 60%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(2px 2px at 20% 80%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 60% 90%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 88% 70%, rgba(255,224,102,0.4), transparent),
+    radial-gradient(2px 2px at 42% 38%, rgba(255,255,255,0.25), transparent),
+    radial-gradient(1px 1px at 8% 50%, rgba(255,255,255,0.3), transparent);
+  pointer-events: none;
+}
+
+/* TOP META BAR within poster */
+.poster .top {
+  position: absolute; top: 28px; left: 36px; right: 36px;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  z-index: 5;
+}
+.poster .top-left { display: flex; gap: 14px; align-items: center; color: var(--gold-bright); }
+.poster .top-left .horse-mark {
+  width: 36px; height: 36px;
+  background: var(--gold-bright);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><path d='M50 12 L46 8 L42 12 L36 14 L28 14 L20 18 L14 26 L12 32 L18 30 L14 38 L18 42 L14 50 L18 54 L24 50 L28 54 L32 48 L40 50 L46 44 L52 38 L56 30 L58 22 L54 14 Z' fill='black'/><circle cx='44' cy='18' r='2' fill='white'/></svg>") center / contain no-repeat;
+        mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><path d='M50 12 L46 8 L42 12 L36 14 L28 14 L20 18 L14 26 L12 32 L18 30 L14 38 L18 42 L14 50 L18 54 L24 50 L28 54 L32 48 L40 50 L46 44 L52 38 L56 30 L58 22 L54 14 Z' fill='black'/><circle cx='44' cy='18' r='2' fill='white'/></svg>") center / contain no-repeat;
+}
+.poster .top-left .bebas-2026 {
+  font-family: 'Bebas Neue';
+  font-size: 38px;
+  color: var(--gold-bright);
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+}
+.poster .top-left .bebas-2026 small {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.3em;
+  color: var(--paper-3);
+}
+.poster .top-left .date-stamp {
+  font-family: 'Bebas Neue';
+  font-size: 26px;
+  color: var(--paper);
+  letter-spacing: 0.08em;
+  padding-left: 14px;
+  border-left: 1.5px solid var(--gold);
+}
+.poster .top-left .date-stamp small {
+  display: block; font-size: 10px; letter-spacing: 0.25em; color: var(--paper-3);
+}
+
+.poster .top-right {
+  text-align: right; color: var(--gold-bright);
+}
+.poster .top-right .label-en {
+  font-family: 'Bebas Neue';
+  font-size: 52px;
+  color: var(--gold-bright);
+  line-height: 0.95;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.poster .top-right .label-en .sm {
+  display: block;
+  font-family: 'Bebas Neue';
+  font-size: 13px;
+  letter-spacing: 0.28em;
+  color: var(--paper);
+  margin-top: 4px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.poster .top-right .label-en .yr {
+  display: block;
+  font-family: 'Bebas Neue';
+  font-size: 52px;
+  color: var(--gold-bright);
+  line-height: 0.95;
+}
+
+/* BRUSH REVEAL with illustration */
+.scene-wrap {
+  position: absolute;
+  left: 100px; right: 100px;
+  top: 150px; height: 600px;
+  z-index: 2;
+}
+.scene-wrap .scene {
+  position: absolute; inset: 0;
+  /* the rough brush mask */
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1240 600' preserveAspectRatio='none'><path d='M40 60 Q200 30 380 50 Q560 70 760 40 Q940 20 1140 50 Q1200 60 1220 90 L1230 540 Q1100 580 920 560 Q740 540 540 570 Q340 600 160 580 Q60 570 30 540 Z' fill='black'/></svg>");
+          mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1240 600' preserveAspectRatio='none'><path d='M40 60 Q200 30 380 50 Q560 70 760 40 Q940 20 1140 50 Q1200 60 1220 90 L1230 540 Q1100 580 920 560 Q740 540 540 570 Q340 600 160 580 Q60 570 30 540 Z' fill='black'/></svg>");
+  -webkit-mask-size: 100% 100%;
+          mask-size: 100% 100%;
+  background:
+    linear-gradient(180deg, #6a4030 0%, #4a2820 30%, #2e160c 70%, #1c0a06 100%);
+  overflow: hidden;
+}
+
+/* brush stroke edges drawn over */
+.scene-wrap .brush-edge {
+  position: absolute; inset: -10px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* the "illustration" composed via CSS/SVG inside scene */
+.scene-inner {
+  position: absolute; inset: 0;
+  background:
+    /* soft warm fog */
+    radial-gradient(ellipse 600px 300px at 50% 60%, rgba(255,180,80,0.3), transparent 70%),
+    radial-gradient(ellipse 400px 200px at 30% 50%, rgba(232,58,44,0.25), transparent 70%),
+    radial-gradient(ellipse 400px 200px at 70% 50%, rgba(232,58,44,0.25), transparent 70%),
+    linear-gradient(180deg, #523028 0%, #321a14 100%);
+}
+
+/* tree silhouette */
+.scene-inner .tree {
+  position: absolute; inset: 0;
+  pointer-events: none;
+}
+
+/* falling snow */
+.snow {
+  position: absolute; inset: 0; pointer-events: none; z-index: 4;
+}
+.snow .flake {
+  position: absolute;
+  background: rgba(255,250,235,0.85);
+  border-radius: 50%;
+}
+
+/* GIANT brush calligraphy at bottom-right */
+.poster .big-brush {
+  position: absolute;
+  right: 40px;
+  bottom: 20px;
+  z-index: 6;
+  pointer-events: none;
+  width: 440px;
+  height: 440px;
+  display: grid; place-items: center;
+  overflow: visible;
+}
+/* ink splash behind the character */
+.poster .big-brush .splash {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  opacity: 0.78;
+  z-index: 0;
+}
+.poster .big-brush .ch {
+  position: relative;
+  z-index: 1;
+  font-family: 'Long Cang', 'Liu Jian Mao Cao', 'Ma Shan Zheng', cursive;
+  font-size: 230px;
+  line-height: 0.92;
+  color: var(--red-ink);
+  letter-spacing: -0.04em;
+  transform: rotate(-4deg) translateX(-6px);
+  writing-mode: vertical-rl;
+  filter:
+    drop-shadow(2px 3px 0 #4a0810)
+    drop-shadow(-1px 0 0 #2e060c)
+    drop-shadow(0 -1px 0 #2e060c);
+  background: linear-gradient(170deg, #1a0608 0%, #2e060c 45%, #4a0810 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+}
+.poster .big-brush .stamp-corner {
+  position: absolute;
+  right: -10px; top: 20px;
+  width: 64px; height: 64px;
+  background: var(--red-deep);
+  border: 2px solid var(--gold);
+  display: grid; place-items: center;
+  font-family: 'Ma Shan Zheng';
+  color: var(--gold-bright);
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-align: center;
+  transform: rotate(8deg);
+  z-index: 2;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 0 0 2px var(--red-deep);
+}
+.poster .big-brush .stamp-corner small {
+  display: block;
+  font-family: 'JetBrains Mono';
+  font-size: 7px;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  margin-top: 3px;
+}
+
+/* small seal stamp near brush */
+.poster .seal {
+  position: absolute;
+  right: 56px; bottom: 60px;
+  width: 90px; height: 90px;
+  z-index: 7;
+  background: var(--red-deep);
+  border: 4px double var(--gold);
+  border-radius: 6px;
+  display: grid; place-items: center;
+  transform: rotate(-8deg);
+  box-shadow: 0 0 0 2px var(--red-deep), 0 6px 20px rgba(0,0,0,0.4);
+}
+.poster .seal span {
+  font-family: 'Ma Shan Zheng'; color: var(--gold-bright);
+  font-size: 32px; line-height: 1; letter-spacing: 0.05em;
+  text-align: center;
+}
+.poster .seal small {
+  font-family: 'JetBrains Mono'; font-size: 9px; color: var(--gold);
+  letter-spacing: 0.15em; display:block; margin-top: 2px;
+}
+
+/* bottom-left poem / tagline */
+.poster .poem {
+  position: absolute;
+  left: 56px;
+  bottom: 60px;
+  z-index: 5;
+  color: var(--paper-2);
+}
+.poster .poem .ch {
+  font-family: 'Ma Shan Zheng', 'Noto Serif TC';
+  font-size: 22px;
+  line-height: 1.55;
+  letter-spacing: 0.18em;
+  color: var(--gold-bright);
+}
+.poster .poem .ln {
+  width: 60px; height: 1px;
+  background: var(--gold); margin: 14px 0;
+}
+.poster .poem .en {
+  font-family: 'JetBrains Mono';
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  color: var(--paper-3);
+  max-width: 280px;
+  line-height: 1.7;
+}
+
+/* horizontal series icons floating bottom */
+.poster .icons {
+  position: absolute;
+  left: 56px;
+  bottom: 220px;
+  z-index: 5;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.poster .icons .it {
+  display: flex; gap: 12px; align-items: center;
+}
+.poster .icons .it .dot {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  color: var(--red-deep);
+  display: grid; place-items: center;
+  font-family: 'Ma Shan Zheng'; font-size: 22px;
+  border: 2px solid var(--red-deep);
+  box-shadow: 0 0 0 2px var(--gold), 0 4px 8px rgba(0,0,0,0.3);
+}
+.poster .icons .it .txt {
+  color: var(--paper);
+  font-family: 'JetBrains Mono';
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.poster .icons .it .txt b { display: block; font-family: 'Ma Shan Zheng'; font-size: 16px; letter-spacing: 0.1em; color: var(--gold-bright); white-space: nowrap; }
+
+/* live numbers strip floating on the poster */
+.poster .nums-band {
+  position: absolute;
+  left: 56px;
+  bottom: 470px;
+  z-index: 6;
+  display: flex; gap: 6px; align-items: center;
+  background: rgba(0,0,0,0.45);
+  border: 1px solid var(--gold);
+  padding: 10px 14px;
+  backdrop-filter: blur(4px);
+}
+.poster .nums-band .lab {
+  font-family: 'JetBrains Mono'; font-size: 9px; letter-spacing: 0.25em;
+  color: var(--gold-bright); padding-right: 8px;
+}
+.poster .nums-band .ball {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--paper);
+  color: var(--red-deep);
+  border: 1.5px solid var(--gold);
+  font-family: 'Space Grotesk';
+  font-weight: 700; font-size: 13px;
+}
+.poster .nums-band .ball.gold { background: var(--gold-bright); color: var(--red-deep); }
+.poster .nums-band .live {
+  display: inline-flex; gap: 6px; align-items: center;
+  margin-left: 12px; padding-left: 12px; border-left: 1px dashed var(--gold);
+  font-family: 'JetBrains Mono'; font-size: 10px; color: var(--paper-2); letter-spacing: 0.2em;
+}
+.poster .nums-band .live::before {
+  content:""; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gold-bright); box-shadow: 0 0 6px var(--gold);
+}
+
+/* ===== Brush stroke divider ===== */
+.brush-divider {
+  height: 60px;
+  background: var(--red);
+  position: relative;
+  overflow: hidden;
+}
+.brush-divider .stroke {
+  position: absolute; left: -20px; right: -20px; top: 10px; height: 40px;
+  background:
+    linear-gradient(180deg, transparent 0%, var(--red-ink) 30%, var(--red-deep) 60%, transparent 100%);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1480 40' preserveAspectRatio='none'><path d='M10 18 Q40 8 80 14 Q140 22 200 10 Q260 4 340 16 Q420 26 500 14 Q560 6 640 18 Q720 28 800 14 Q880 6 960 18 Q1040 28 1120 14 Q1200 4 1280 18 Q1360 30 1440 16 L1470 14 L1470 28 L1440 30 Q1360 38 1280 28 Q1200 18 1120 30 Q1040 40 960 28 Q880 18 800 30 Q720 40 640 28 Q560 18 500 30 Q420 40 340 30 Q260 22 200 32 Q140 38 80 30 Q40 24 10 32 Z' fill='black'/></svg>") center / 100% 100% no-repeat;
+}
+.brush-divider .sealing {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; align-items: center; gap: 14px;
+}
+.brush-divider .sealing .ch {
+  font-family: 'Ma Shan Zheng';
+  font-size: 28px; color: var(--gold-bright); letter-spacing: 0.4em;
+}
+.brush-divider .sealing .num { font-family: 'JetBrains Mono'; font-size: 11px; color: var(--gold); letter-spacing: 0.3em; }
+
+/* ===== SECTION 2 · MODE COMPARE on poster bg ===== */
+.compare-band {
+  background:
+    radial-gradient(ellipse 700px 400px at 50% 0%, #8a0c1a 0%, transparent 60%),
+    var(--red-deep);
+  padding: 70px 36px 80px;
+  color: var(--paper);
+  position: relative;
+}
+
+.compare-head {
+  display: grid; grid-template-columns: 80px 1fr 200px;
+  gap: 32px; align-items: center;
+  margin-bottom: 40px;
+}
+.compare-head .vrail {
+  font-family: 'Ma Shan Zheng';
+  font-size: 32px;
+  line-height: 1.15;
+  color: var(--gold-bright);
+  letter-spacing: 0.08em;
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  height: 240px;
+}
+.compare-head .titleblock h2 {
+  font-family: 'Bebas Neue';
+  color: var(--paper);
+  font-size: 68px;
+  line-height: 0.9;
+  white-space: nowrap;
+}
+.compare-head .titleblock h2 span { color: var(--gold-bright); }
+.compare-head .titleblock .sub {
+  font-family: 'Noto Serif TC'; font-size: 14px; color: var(--paper-2);
+  margin-top: 8px; letter-spacing: 0.1em;
+}
+.compare-head .meta {
+  font-family: 'JetBrains Mono'; font-size: 10px;
+  text-align: right; color: var(--gold);
+  letter-spacing: 0.2em; line-height: 1.8;
+}
+
+.compare-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  position: relative;
+}
+.cmp {
+  padding: 32px 36px 36px;
+  position: relative;
+  border: 1.5px solid var(--gold);
+}
+.cmp.official {
+  background: var(--paper);
+  color: var(--red-ink);
+}
+.cmp.credit {
+  background: var(--red-ink);
+  color: var(--paper);
+}
+.cmp .seal-big {
+  position: absolute; top: -22px; left: 32px;
+  width: 70px; height: 70px;
+  background: var(--gold);
+  color: var(--red-deep);
+  display: grid; place-items: center;
+  border-radius: 50%;
+  font-family: 'Ma Shan Zheng';
+  font-size: 36px;
+  border: 3px solid var(--red-deep);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  transform: rotate(-6deg);
+}
+.cmp .seal-big.alt { background: var(--red); color: var(--gold-bright); border-color: var(--gold); }
+.cmp .mode-eye {
+  font-family: 'Bebas Neue';
+  font-size: 14px;
+  letter-spacing: 0.4em;
+  margin-top: 32px;
+}
+.cmp.official .mode-eye { color: var(--red); }
+.cmp.credit .mode-eye { color: var(--gold-bright); }
+.cmp h3 {
+  font-family: 'Ma Shan Zheng', 'Noto Serif TC';
+  font-size: 52px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  margin: 4px 0 8px;
+  line-height: 1;
+}
+.cmp.official h3 { color: var(--red-deep); }
+.cmp.credit h3 { color: var(--gold-bright); }
+.cmp .desc {
+  font-size: 13px; line-height: 1.85; letter-spacing: 0.04em;
+  margin-bottom: 22px; max-width: 480px;
+}
+.cmp.official .desc { color: #5a2a1f; }
+.cmp.credit .desc { color: var(--paper-2); }
+
+.cmp-rows { display: flex; flex-direction: column; }
+.cmp-row {
+  display: grid; grid-template-columns: 100px 1fr 1fr;
+  gap: 12px; padding: 11px 0;
+  border-bottom: 1px solid;
+  align-items: center;
+}
+.cmp.official .cmp-row { border-color: rgba(154,10,24,0.15); }
+.cmp.credit .cmp-row { border-color: rgba(245,200,66,0.18); }
+.cmp-row .k { font-family: 'JetBrains Mono'; font-size: 10px; letter-spacing: 0.22em; }
+.cmp.official .cmp-row .k { color: #a04030; }
+.cmp.credit .cmp-row .k { color: var(--gold); }
+.cmp-row .v { font-family: 'Noto Serif TC'; font-size: 14px; }
+.cmp-row .v.n { font-family: 'Space Grotesk'; font-weight: 600; }
+.cmp-row .v.big { font-size: 22px; font-weight: 700; font-family: 'Space Grotesk'; }
+.cmp.official .v.big { color: var(--red); }
+.cmp.credit .v.big { color: var(--gold-bright); }
+
+.cmp .chip-row {
+  display: flex; gap: 8px; margin-top: 18px;
+}
+.cmp .chip {
+  font-family: 'JetBrains Mono'; font-size: 10px;
+  padding: 5px 10px; letter-spacing: 0.2em;
+  border: 1px solid currentColor;
+}
+.cmp.official .chip { color: var(--red); }
+.cmp.credit .chip { color: var(--gold); }
+
+/* central VS stamp */
+.compare-grid .vs {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%) rotate(-12deg);
+  width: 100px; height: 100px;
+  background: radial-gradient(circle at 30% 30%, var(--gold-bright), var(--gold-deep));
+  border: 3px double var(--red-deep);
+  border-radius: 50%;
+  display: grid; place-items: center;
+  z-index: 5;
+  box-shadow: 0 0 0 4px var(--red-deep), 0 6px 18px rgba(0,0,0,0.45);
+}
+.compare-grid .vs .ch {
+  font-family: 'Ma Shan Zheng';
+  font-size: 42px;
+  color: var(--red-deep);
+  line-height: 0.85;
+}
+
+/* delta strip on red */
+.delta-strip {
+  margin-top: 30px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
+}
+.dc {
+  padding: 16px 18px;
+  background: var(--red-ink);
+  border: 1px solid var(--gold);
+  position: relative;
+}
+.dc .lab { font-family: 'JetBrains Mono'; font-size: 10px; color: var(--gold); letter-spacing: 0.25em; }
+.dc .v { font-family: 'Space Grotesk'; font-size: 26px; font-weight: 700; color: var(--gold-bright); margin-top: 4px; }
+.dc .sub { font-family: 'JetBrains Mono'; font-size: 9px; color: var(--paper-3); margin-top: 2px; letter-spacing: 0.15em; }
+
+/* ===== SECTION 3 · GAMES band ===== */
+.games-band {
+  background: var(--paper);
+  padding: 80px 36px 80px;
+  position: relative;
+  overflow: hidden;
+}
+.games-band::before {
+  content:""; position: absolute; top: 0; left: 0; right: 0; height: 80px;
+  background:
+    linear-gradient(180deg, var(--red-deep) 0%, transparent 100%);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 80' preserveAspectRatio='none'><path d='M0 0 L1440 0 L1440 30 Q1300 60 1100 40 Q900 20 700 50 Q500 70 300 50 Q150 40 0 50 Z' fill='black'/></svg>") center / 100% 100% no-repeat;
+}
+
+.games-head {
+  display: grid;
+  grid-template-columns: 120px 1fr 220px;
+  align-items: end;
+  gap: 28px;
+  margin-top: 30px;
+  margin-bottom: 40px;
+}
+.games-head .lt {
+  font-family: 'Ma Shan Zheng';
+  font-size: 36px;
+  color: var(--red-deep);
+  line-height: 1.15;
+  letter-spacing: 0.06em;
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  height: 260px;
+}
+.games-head .ct {
+  text-align: center;
+}
+.games-head .ct h2 {
+  font-family: 'Bebas Neue';
+  font-size: 86px;
+  color: var(--red-deep);
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.games-head .ct h2 .gold { color: var(--gold-deep); }
+.games-head .ct .sub {
+  font-family: 'JetBrains Mono'; font-size: 11px; color: #8a4a3a;
+  letter-spacing: 0.4em; margin-top: 10px;
+}
+.games-head .ct::before, .games-head .ct::after {
+  content:""; display: block; width: 50%; height: 2px;
+  background: var(--red); margin: 0 auto 18px;
+}
+.games-head .ct::after { margin: 18px auto 0; }
+.games-head .rt {
+  font-family: 'JetBrains Mono'; font-size: 11px; color: #a04030;
+  letter-spacing: 0.2em; text-align: right; line-height: 1.7;
+}
+
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+.gc {
+  background: var(--ivory);
+  border: 1.5px solid var(--red-deep);
+  position: relative;
+  padding: 40px 24px 24px;
+  overflow: hidden;
+  min-height: 440px;
+  display: flex; flex-direction: column;
+}
+.gc::before {
+  content:""; position: absolute; top: 0; left: 0; right: 0; height: 6px;
+  background: repeating-linear-gradient(90deg,
+    var(--red) 0 12px, var(--gold) 12px 14px, var(--red) 14px 26px, var(--gold) 26px 28px);
+}
+/* big chinese numeral in top-right corner */
+.gc .big-num {
+  position: absolute;
+  top: 8px; right: 14px;
+  font-family: 'Ma Shan Zheng';
+  font-size: 110px;
+  line-height: 0.85;
+  color: var(--paper-2);
+  z-index: 0;
+  pointer-events: none;
+}
+.gc .meta { font-family: 'JetBrains Mono'; font-size: 10px; letter-spacing: 0.3em; color: var(--gold-deep); position: relative; z-index: 1; }
+.gc h3 {
+  font-family: 'Ma Shan Zheng';
+  font-size: 44px;
+  line-height: 1;
+  color: var(--red-deep);
+  margin-top: 8px;
+  letter-spacing: 0.06em;
+  position: relative; z-index: 1;
+}
+.gc .en { font-family: 'Bebas Neue'; font-size: 16px; letter-spacing: 0.25em; color: #a04030; margin-top: 6px; position: relative; z-index: 1; }
+.gc .ribbon { display: inline-block; padding: 3px 10px; background: var(--red); color: var(--paper); font-family: 'JetBrains Mono'; font-size: 10px; letter-spacing: 0.2em; margin-top: 14px; position: relative; z-index: 1; }
+.gc p {
+  font-size: 12px; line-height: 1.75; color: #5a2a1f;
+  margin-top: 14px; letter-spacing: 0.04em;
+  position: relative; z-index: 1;
+}
+.gc .latest {
+  margin-top: auto; padding-top: 18px;
+  border-top: 1px dashed var(--gold-deep);
+  position: relative; z-index: 1;
+}
+.gc .lab-row {
+  font-family: 'JetBrains Mono'; font-size: 9px; letter-spacing: 0.25em;
+  display: flex; justify-content: space-between; color: #a04030;
+  margin-bottom: 10px;
+}
+.gc .balls { display: flex; gap: 5px; flex-wrap: wrap; }
+.gc .b {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: 'Space Grotesk'; font-weight: 700; font-size: 13px;
+  background: var(--red); color: var(--paper); border: 1.5px solid var(--gold);
+}
+.gc .b.gold { background: var(--gold); color: var(--red-deep); }
+.gc .b.dark { background: var(--red-ink); color: var(--gold-bright); }
+.gc .b.spec { background: radial-gradient(circle at 30% 30%, var(--gold-bright), var(--gold)); color: var(--red-deep); border-color: var(--red-deep); box-shadow: 0 0 8px rgba(245,200,66,0.5); }
+.gc .b.plus { background: transparent; color: var(--gold-deep); border: 1px dashed var(--gold-deep); font-size: 16px; }
+.gc .ks {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 16px;
+}
+.gc .ks div { display: flex; flex-direction: column; }
+.gc .ks .l { font-family: 'JetBrains Mono'; font-size: 9px; color: #a04030; letter-spacing: 0.2em; }
+.gc .ks .v { font-family: 'Space Grotesk'; font-size: 18px; font-weight: 700; color: var(--red-deep); }
+
+/* ===== SECTION 4 · PERIODIC ===== */
+.periodic-band {
+  background: var(--ivory);
+  padding: 70px 36px 80px;
+}
+.periodic-head {
+  display: grid; grid-template-columns: 1fr 100px; gap: 28px;
+  align-items: end; margin-bottom: 30px;
+  border-bottom: 2px solid var(--red);
+  padding-bottom: 18px;
+}
+.periodic-head .lt h2 {
+  font-family: 'Ma Shan Zheng'; font-size: 64px;
+  color: var(--red-deep); letter-spacing: 0.06em; line-height: 0.9;
+}
+.periodic-head .lt h2 small { display: inline-block; font-family: 'Bebas Neue'; font-size: 24px; color: var(--gold-deep); margin-left: 14px; letter-spacing: 0.2em; }
+.periodic-head .lt p {
+  font-family: 'JetBrains Mono'; font-size: 11px; color: #8a4a3a;
+  letter-spacing: 0.2em; margin-top: 6px;
+}
+.periodic-head .rt {
+  font-family: 'Bebas Neue'; font-size: 48px; color: var(--red);
+  text-align: right; line-height: 0.95;
+}
+.periodic-head .rt small {
+  display: block; font-family: 'JetBrains Mono'; font-size: 10px; color: #a04030;
+  letter-spacing: 0.25em;
+}
+
+.periodic {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  gap: 5px;
+}
+.cell {
+  aspect-ratio: 1 / 1.05;
+  border: 1px solid var(--paper-3);
+  padding: 6px 7px 5px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  position: relative;
+  transition: transform 0.15s;
+}
+.cell:hover { transform: translateY(-2px); border-color: var(--red); z-index: 2; box-shadow: 0 4px 12px rgba(200,32,44,0.25); }
+.cell .corner { font-family: 'JetBrains Mono'; font-size: 9px; display: flex; justify-content: space-between; letter-spacing: 0.05em; color: #8a4a3a; }
+.cell .sym { font-family: 'Space Grotesk'; font-weight: 700; font-size: 26px; line-height: 1; color: var(--red-deep); }
+.cell .name { font-family: 'Noto Serif TC'; font-size: 9px; letter-spacing: 0.1em; color: #8a4a3a; text-align: center; }
+.cell .delta { font-family: 'JetBrains Mono'; font-size: 9px; }
+.cell.gp-six  { background: linear-gradient(160deg, #ffeac0, #ffd680); }
+.cell.gp-time { background: linear-gradient(160deg, #ffd0c0, #ff9a85); }
+.cell.gp-pk   { background: linear-gradient(160deg, #ffe6c0, #f5b54a); }
+.cell.gp-pk .sym { color: #8a2a16; }
+.cell.gp-k3   { background: linear-gradient(160deg, #f5c0a8, #d96a4a); }
+.cell.gp-k3 .sym { color: #5a0a14; }
+.cell.gp-edge { background: linear-gradient(160deg, var(--red), var(--red-deep)); border-color: var(--gold-deep); }
+.cell.gp-edge .sym { color: var(--gold-bright); }
+.cell.gp-edge .name { color: var(--paper-2); }
+.cell.gp-edge .corner { color: var(--gold); }
+.cell.gp-rare { background: linear-gradient(160deg, var(--red-deep), var(--red-wine)); border-color: var(--gold); }
+.cell.gp-rare .sym { color: var(--gold-bright); }
+.cell.gp-rare .name { color: var(--paper-2); }
+.cell.gp-rare .corner { color: var(--gold); }
+.cell.gp-ash  { background: linear-gradient(160deg, #f5d59a, #d4a050); border-color: var(--gold-deep); }
+.cell.gp-ash .sym { color: var(--red-deep); }
+.red-up { color: var(--red); font-weight: 700; }
+.green-dn { color: var(--jade); font-weight: 700; }
+.cell.gp-edge .red-up, .cell.gp-rare .red-up { color: var(--gold-bright); }
+
+.legend {
+  display: flex; gap: 16px; margin-top: 18px;
+  font-family: 'JetBrains Mono'; font-size: 10px; letter-spacing: 0.2em;
+  color: #8a4a3a; text-transform: uppercase; flex-wrap: wrap;
+}
+.legend .item { display: flex; align-items: center; gap: 6px; }
+.legend .sw { width: 12px; height: 12px; border: 1px solid var(--paper-3); }
+
+/* ===== SECTION 5 · TREND ===== */
+.trend-band {
+  background:
+    radial-gradient(ellipse 800px 500px at 50% 50%, var(--red-deep) 0%, transparent 60%),
+    var(--red-ink);
+  padding: 70px 36px 80px;
+  color: var(--paper);
+  position: relative;
+}
+.trend-band::before {
+  content:""; position: absolute; top: 0; left: 0; right: 0; height: 60px;
+  background:
+    linear-gradient(180deg, var(--ivory) 0%, transparent 100%);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 60' preserveAspectRatio='none'><path d='M0 60 L1440 60 L1440 30 Q1280 0 1100 20 Q900 40 700 18 Q500 0 300 22 Q150 32 0 22 Z' fill='black'/></svg>") center / 100% 100% no-repeat;
+}
+.trend-head {
+  display: grid; grid-template-columns: 1fr auto; gap: 28px;
+  align-items: end; margin: 50px 0 30px;
+  border-bottom: 1px solid var(--gold);
+  padding-bottom: 18px;
+}
+.trend-head h2 {
+  font-family: 'Ma Shan Zheng'; font-size: 64px;
+  color: var(--gold-bright); line-height: 0.9; letter-spacing: 0.06em;
+}
+.trend-head h2 small { font-family: 'Bebas Neue'; font-size: 24px; color: var(--paper); margin-left: 14px; letter-spacing: 0.2em; }
+.trend-head .rt {
+  font-family: 'JetBrains Mono'; font-size: 11px; color: var(--paper-3); letter-spacing: 0.25em; text-align: right; line-height: 1.8;
+}
+
+.trend-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; }
+.panel {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--gold);
+  padding: 24px;
+  position: relative;
+}
+.panel::before {
+  content:""; position: absolute; top: -1px; left: -1px; width: 14px; height: 14px;
+  border-top: 2px solid var(--gold-bright); border-left: 2px solid var(--gold-bright);
+}
+.panel::after {
+  content:""; position: absolute; bottom: -1px; right: -1px; width: 14px; height: 14px;
+  border-bottom: 2px solid var(--gold-bright); border-right: 2px solid var(--gold-bright);
+}
+.panel-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding-bottom: 14px; border-bottom: 1px solid var(--gold);
+  margin-bottom: 16px;
+}
+.panel-head h4 { font-family: 'Ma Shan Zheng'; font-size: 24px; color: var(--gold-bright); letter-spacing: 0.1em; }
+.panel-head .tabs { display: flex; gap: 12px; font-family: 'JetBrains Mono'; font-size: 11px; letter-spacing: 0.2em; color: var(--paper-3); }
+.panel-head .tabs .tab.active { color: var(--gold-bright); border-bottom: 1px solid var(--gold); padding-bottom: 4px; }
+
+.trend-table {
+  display: grid;
+  grid-template-columns: 80px repeat(10, 1fr) 90px;
+  font-family: 'JetBrains Mono'; font-size: 11px;
+}
+.trend-table .th { background: rgba(0,0,0,0.4); padding: 8px 4px; text-align: center; color: var(--gold-bright); letter-spacing: 0.1em; border-bottom: 1px solid var(--gold); font-size: 10px; }
+.trend-table .tr-issue { background: rgba(0,0,0,0.18); padding: 8px; border-bottom: 1px solid rgba(245,200,66,0.15); color: var(--paper-3); font-size: 10px; display: flex; align-items: center; }
+.trend-table .tc { padding: 6px 0; text-align: center; border-bottom: 1px solid rgba(245,200,66,0.1); display: grid; place-items: center; font-size: 12px; color: rgba(255,245,220,0.25); }
+.trend-table .tc.hit { color: var(--paper); }
+.trend-table .tc.hit .dot-num { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: var(--red); border: 1px solid var(--gold); color: var(--paper); }
+.trend-table .tc.hit.big .dot-num { background: var(--gold); color: var(--red-deep); }
+.trend-table .tc.hit.spec .dot-num { background: var(--gold-bright); color: var(--red-deep); }
+.trend-table .tr-sum { padding: 6px 8px; text-align: right; border-bottom: 1px solid rgba(245,200,66,0.15); font-weight: 600; color: var(--gold-bright); }
+
+.odds-header {
+  display: grid; grid-template-columns: 1fr 90px 90px 90px;
+  gap: 12px; padding: 0 4px 8px; border-bottom: 1px solid var(--gold);
+  font-family: 'JetBrains Mono'; font-size: 10px; letter-spacing: 0.2em;
+  color: var(--gold); text-transform: uppercase;
+}
+.odds-header > div:not(:first-child) { text-align: right; }
+.odds-row {
+  display: grid; grid-template-columns: 1fr 90px 90px 90px;
+  gap: 12px; padding: 14px 4px; border-bottom: 1px solid rgba(245,200,66,0.2);
+  align-items: center;
+}
+.odds-row .name { font-family: 'Noto Serif TC'; font-size: 14px; color: var(--paper); }
+.odds-row .name .en { display: block; font-family: 'JetBrains Mono'; font-size: 9px; color: var(--paper-3); letter-spacing: 0.2em; margin-top: 2px; }
+.odds-row .val { font-family: 'Space Grotesk'; font-weight: 600; font-size: 17px; text-align: right; color: var(--paper-2); }
+.odds-row .val.up { color: var(--gold-bright); }
+.odds-row .val.dn { color: #7ad19f; }
+.odds-row .delta { font-family: 'JetBrains Mono'; font-size: 10px; text-align: right; }
+.odds-row .delta.up { color: var(--gold-bright); }
+.odds-row .delta.dn { color: #7ad19f; }
+
+/* ===== FOOTER ===== */
+.foot {
+  background: var(--red-ink);
+  color: var(--paper-3);
+  padding: 24px 36px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'JetBrains Mono'; font-size: 10px; letter-spacing: 0.25em;
+  border-top: 1px solid var(--gold);
+}
+.foot .copy { color: var(--gold); }
+
+.ticker {
+  background: var(--red-deep);
+  border-top: 2px solid var(--gold);
+  border-bottom: 2px solid var(--gold);
+  padding: 14px 36px;
+  display: flex; align-items: center; gap: 28px;
+  font-family: 'JetBrains Mono'; font-size: 11px; color: var(--paper-2);
+  letter-spacing: 0.15em; overflow: hidden;
+}
+.ticker .lbl { color: var(--gold-bright); font-family: 'Bebas Neue'; font-size: 16px; letter-spacing: 0.25em; }
+.ticker .it { display: inline-flex; gap: 8px; align-items: center; }
+.ticker .it .arrow { color: var(--gold-bright); }
+.ticker .it .arrow.dn { color: #7ad19f; }
+.ticker .div { color: var(--gold); }
+
+</style>
+</head>
+<body>
+
+<div class="stage" data-screen-label="01 Lottery · Poster">
+
+  <!-- ============ POSTER HERO ============ -->
+  <section class="poster" data-screen-label="01.1 Poster">
+
+    <!-- TOP META -->
+    <div class="top">
+      <div class="top-left">
+        <div class="horse-mark"></div>
+        <div class="bebas-2026">2026<small>DRAGON · 對沖局</small></div>
+        <div class="date-stamp">01.01<small>FIRST DRAW</small></div>
+      </div>
+      <div class="top-right">
+        <div class="label-en">
+          LOTTERY
+          <span class="sm">YEAR OF THE DRAGON · 2026</span>
+          <span class="yr">NEW YEAR</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BRUSH SCENE -->
+    <div class="scene-wrap">
+      <div class="scene">
+        <div class="scene-inner">
+          <!-- tree silhouette + lantern scene -->
+          <svg class="tree" viewBox="0 0 1240 600" preserveAspectRatio="xMidYMid slice">
+            <!-- branches across top -->
+            <g stroke="#1a0a06" fill="none" stroke-linecap="round">
+              <path d="M-50 80 Q200 120 400 90 Q620 60 820 110 Q1020 140 1290 90" stroke-width="14" opacity="0.9"/>
+              <path d="M120 70 Q150 30 180 50 M180 50 Q220 20 270 40 M270 40 Q310 10 360 30" stroke-width="6"/>
+              <path d="M500 90 Q540 50 580 70 M580 70 Q630 40 680 60" stroke-width="6"/>
+              <path d="M850 100 Q880 60 920 80 M920 80 Q960 50 1000 70 M1000 70 Q1040 40 1080 60" stroke-width="6"/>
+              <!-- secondary branches -->
+              <path d="M260 50 Q290 90 310 130" stroke-width="3"/>
+              <path d="M640 60 Q670 100 700 140" stroke-width="3"/>
+              <path d="M970 70 Q1000 120 1030 160" stroke-width="3"/>
+            </g>
+            <!-- snow on branches -->
+            <g fill="#fff5dc" opacity="0.85">
+              <path d="M-50 70 Q200 105 400 80 Q620 50 820 100 Q1020 130 1290 80 L1290 60 L-50 60 Z"/>
+            </g>
+
+            <!-- distant buildings -->
+            <g fill="#3a1a14" opacity="0.85">
+              <rect x="220" y="280" width="180" height="160"/>
+              <rect x="430" y="250" width="200" height="190"/>
+              <rect x="660" y="290" width="160" height="150"/>
+              <rect x="850" y="240" width="220" height="200"/>
+            </g>
+            <!-- roofs (slanted) -->
+            <g fill="#2a1008">
+              <polygon points="200,280 420,280 380,260 220,260"/>
+              <polygon points="410,250 660,250 620,225 450,225"/>
+              <polygon points="640,290 850,290 810,270 680,270"/>
+              <polygon points="830,240 1090,240 1050,215 870,215"/>
+            </g>
+            <!-- warm window glows -->
+            <g fill="#ffb858" opacity="0.9">
+              <rect x="240" y="310" width="20" height="34"/>
+              <rect x="280" y="310" width="20" height="34"/>
+              <rect x="320" y="310" width="20" height="34"/>
+              <rect x="360" y="310" width="20" height="34"/>
+              <rect x="450" y="280" width="22" height="40"/>
+              <rect x="490" y="280" width="22" height="40"/>
+              <rect x="540" y="280" width="22" height="40"/>
+              <rect x="590" y="280" width="22" height="40"/>
+              <rect x="680" y="320" width="20" height="34"/>
+              <rect x="720" y="320" width="20" height="34"/>
+              <rect x="760" y="320" width="20" height="34"/>
+              <rect x="870" y="270" width="22" height="42"/>
+              <rect x="910" y="270" width="22" height="42"/>
+              <rect x="950" y="270" width="22" height="42"/>
+              <rect x="990" y="270" width="22" height="42"/>
+              <rect x="1030" y="270" width="22" height="42"/>
+            </g>
+            <!-- shop banners -->
+            <g>
+              <rect x="240" y="380" width="50" height="60" fill="#c8202c"/>
+              <text x="265" y="400" fill="#f5c842" font-family="Ma Shan Zheng,serif" font-size="14" text-anchor="middle">福</text>
+              <text x="265" y="416" fill="#f5c842" font-family="Ma Shan Zheng,serif" font-size="14" text-anchor="middle">運</text>
+              <text x="265" y="432" fill="#f5c842" font-family="Ma Shan Zheng,serif" font-size="14" text-anchor="middle">堂</text>
+              <rect x="480" y="370" width="55" height="60" fill="#d11e2a"/>
+              <text x="507" y="392" fill="#f5c842" font-family="Ma Shan Zheng,serif" font-size="16" text-anchor="middle">六</text>
+              <text x="507" y="412" fill="#f5c842" font-family="Ma Shan Zheng,serif" font-size="16" text-anchor="middle">合</text>
+              <rect x="700" y="395" width="50" height="50" fill="#c8202c"/>
+              <text x="725" y="418" fill="#f5c842" font-family="Ma Shan Zheng,serif" font-size="14" text-anchor="middle">時</text>
+              <text x="725" y="434" fill="#f5c842" font-family="Ma Shan Zheng,serif" font-size="14" text-anchor="middle">時</text>
+              <rect x="920" y="365" width="60" height="68" fill="#d11e2a"/>
+              <text x="950" y="388" fill="#f5c842" font-family="Bebas Neue,serif" font-size="16" text-anchor="middle">PK</text>
+              <text x="950" y="406" fill="#f5c842" font-family="Bebas Neue,serif" font-size="18" text-anchor="middle">10</text>
+            </g>
+
+            <!-- hanging lanterns -->
+            <g>
+              <g transform="translate(180 130)">
+                <line x1="0" y1="-50" x2="0" y2="0" stroke="#1a0808" stroke-width="1"/>
+                <ellipse cx="0" cy="20" rx="32" ry="40" fill="#e83a2c"/>
+                <ellipse cx="0" cy="20" rx="32" ry="40" fill="none" stroke="#f5c842" stroke-width="2"/>
+                <rect x="-30" y="14" width="60" height="3" fill="#f5c842"/>
+                <rect x="-30" y="24" width="60" height="3" fill="#f5c842"/>
+                <line x1="-18" y1="60" x2="-18" y2="80" stroke="#f5c842" stroke-width="2"/>
+                <line x1="0" y1="60" x2="0" y2="84" stroke="#f5c842" stroke-width="2"/>
+                <line x1="18" y1="60" x2="18" y2="80" stroke="#f5c842" stroke-width="2"/>
+                <text y="26" fill="#ffe066" font-family="Ma Shan Zheng,serif" font-size="22" text-anchor="middle">福</text>
+              </g>
+              <g transform="translate(380 90)">
+                <line x1="0" y1="-30" x2="0" y2="0" stroke="#1a0808"/>
+                <ellipse cx="0" cy="18" rx="26" ry="34" fill="#d11e2a"/>
+                <ellipse cx="0" cy="18" rx="26" ry="34" fill="none" stroke="#f5c842" stroke-width="2"/>
+                <rect x="-24" y="14" width="48" height="2" fill="#f5c842"/>
+                <rect x="-24" y="22" width="48" height="2" fill="#f5c842"/>
+                <line x1="0" y1="50" x2="0" y2="70" stroke="#f5c842"/>
+                <text y="22" fill="#ffe066" font-family="Ma Shan Zheng,serif" font-size="18" text-anchor="middle">財</text>
+              </g>
+              <g transform="translate(620 150)">
+                <line x1="0" y1="-50" x2="0" y2="0" stroke="#1a0808"/>
+                <ellipse cx="0" cy="22" rx="36" ry="46" fill="#e83a2c"/>
+                <ellipse cx="0" cy="22" rx="36" ry="46" fill="none" stroke="#f5c842" stroke-width="2"/>
+                <rect x="-34" y="16" width="68" height="3" fill="#f5c842"/>
+                <rect x="-34" y="28" width="68" height="3" fill="#f5c842"/>
+                <line x1="0" y1="66" x2="0" y2="90" stroke="#f5c842" stroke-width="2"/>
+                <line x1="-18" y1="66" x2="-18" y2="84" stroke="#f5c842"/>
+                <line x1="18" y1="66" x2="18" y2="84" stroke="#f5c842"/>
+                <text y="28" fill="#ffe066" font-family="Ma Shan Zheng,serif" font-size="26" text-anchor="middle">運</text>
+              </g>
+              <g transform="translate(870 110)">
+                <line x1="0" y1="-30" x2="0" y2="0" stroke="#1a0808"/>
+                <ellipse cx="0" cy="20" rx="30" ry="38" fill="#d11e2a"/>
+                <ellipse cx="0" cy="20" rx="30" ry="38" fill="none" stroke="#f5c842" stroke-width="2"/>
+                <rect x="-28" y="14" width="56" height="2" fill="#f5c842"/>
+                <rect x="-28" y="24" width="56" height="2" fill="#f5c842"/>
+                <line x1="0" y1="56" x2="0" y2="78" stroke="#f5c842"/>
+                <text y="24" fill="#ffe066" font-family="Ma Shan Zheng,serif" font-size="22" text-anchor="middle">中</text>
+              </g>
+              <g transform="translate(1080 160)">
+                <line x1="0" y1="-50" x2="0" y2="0" stroke="#1a0808"/>
+                <ellipse cx="0" cy="22" rx="32" ry="42" fill="#e83a2c"/>
+                <ellipse cx="0" cy="22" rx="32" ry="42" fill="none" stroke="#f5c842" stroke-width="2"/>
+                <rect x="-30" y="16" width="60" height="3" fill="#f5c842"/>
+                <rect x="-30" y="26" width="60" height="3" fill="#f5c842"/>
+                <line x1="0" y1="62" x2="0" y2="84" stroke="#f5c842" stroke-width="2"/>
+                <text y="26" fill="#ffe066" font-family="Ma Shan Zheng,serif" font-size="22" text-anchor="middle">獎</text>
+              </g>
+            </g>
+
+            <!-- silhouette people on the ground -->
+            <g fill="#1a0808" opacity="0.95">
+              <path d="M280 540 Q280 510 290 500 Q298 488 296 478 Q296 470 290 470 Q284 470 284 478 Q282 488 290 498 Q284 510 282 540 Z"/>
+              <path d="M310 545 L320 545 L324 504 Q328 488 320 480 Q314 478 312 484 Q314 494 314 504 Z"/>
+              <path d="M360 548 Q360 516 370 502 Q378 490 380 480 Q380 472 374 472 Q368 474 370 482 Q368 494 374 504 Q368 514 364 548 Z"/>
+              <path d="M420 545 L432 545 L436 510 Q440 496 434 488 Q428 486 426 492 Q428 500 428 510 Z"/>
+              <path d="M530 552 Q530 520 540 506 Q548 494 548 484 Q548 476 542 476 Q536 478 538 486 Q536 498 542 508 Q536 518 532 552 Z"/>
+              <path d="M610 555 L622 555 L626 514 Q628 500 622 492 Q618 490 614 496 Q616 504 614 514 Z"/>
+              <path d="M700 558 Q700 528 712 514 Q720 502 720 492 Q720 484 712 484 Q706 486 708 494 Q706 506 712 516 Q706 524 702 558 Z"/>
+              <!-- scooter rider -->
+              <g transform="translate(770 540)">
+                <circle cx="0" cy="12" r="10" fill="#1a0808"/>
+                <circle cx="48" cy="12" r="10" fill="#1a0808"/>
+                <path d="M-4 12 L20 -16 L36 -16 L52 12 Z" fill="#d11e2a"/>
+                <circle cx="28" cy="-30" r="8" fill="#1a0808"/>
+                <path d="M22 -22 Q26 -30 32 -28 L42 -10 L34 -8 Z" fill="#3a1a14"/>
+              </g>
+            </g>
+          </svg>
+
+          <!-- snow -->
+          <div class="snow" id="snow-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIVE NUMBERS FLOATING -->
+    <div class="nums-band">
+      <span class="lab">LIVE · 061</span>
+      <div class="ball">07</div>
+      <div class="ball">13</div>
+      <div class="ball">22</div>
+      <div class="ball">31</div>
+      <div class="ball">44</div>
+      <div class="ball gold">49</div>
+      <span class="live">DRAW · 03:24:18</span>
+    </div>
+
+    <!-- 4 GAME ICONS LIST -->
+    <div class="icons">
+      <div class="it"><div class="dot">六</div><div class="txt"><b>六合彩</b>MARK · SIX</div></div>
+      <div class="it"><div class="dot">時</div><div class="txt"><b>時時彩</b>TIME · LOT</div></div>
+      <div class="it"><div class="dot">P</div><div class="txt"><b>PK10</b>RACING</div></div>
+      <div class="it"><div class="dot">骰</div><div class="txt"><b>K 3</b>DICE TRIO</div></div>
+    </div>
+
+    <!-- POEM bottom-left -->
+    <div class="poem">
+      <div class="ch">凡 局 皆 對 沖<br>萬 數 自 歸 平</div>
+      <div class="ln"></div>
+      <div class="en">A platform where every wager finds<br>its counterpart · Official × Credit · 2026</div>
+    </div>
+
+    <!-- GIANT BRUSH CHARACTER -->
+    <div class="big-brush">
+      <!-- wild ink splash backdrop -->
+      <svg class="splash" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet">
+        <g fill="#1a0608">
+          <!-- main blob -->
+          <path d="M80 160 Q40 120 80 90 Q130 70 180 100 Q220 60 280 90 Q330 80 340 130 Q370 180 320 220 Q360 270 300 310 Q260 360 200 330 Q140 360 90 320 Q40 290 60 240 Q30 200 80 160 Z" opacity="0.55"/>
+          <!-- scattered ink droplets -->
+          <circle cx="40" cy="180" r="6" opacity="0.5"/>
+          <circle cx="30" cy="260" r="4" opacity="0.4"/>
+          <circle cx="360" cy="100" r="5" opacity="0.5"/>
+          <circle cx="380" cy="200" r="3" opacity="0.4"/>
+          <circle cx="50" cy="330" r="5" opacity="0.5"/>
+          <circle cx="340" cy="340" r="4" opacity="0.4"/>
+          <circle cx="200" cy="40" r="4" opacity="0.4"/>
+          <circle cx="320" cy="50" r="3" opacity="0.4"/>
+          <ellipse cx="20" cy="220" rx="8" ry="3" opacity="0.4" transform="rotate(-30 20 220)"/>
+          <ellipse cx="380" cy="280" rx="7" ry="3" opacity="0.45" transform="rotate(45 380 280)"/>
+          <!-- brush flecks -->
+          <path d="M16 150 q12 -4 22 4 q-10 -1 -22 -4" opacity="0.5"/>
+          <path d="M380 160 q-12 -4 -22 4 q10 -1 22 -4" opacity="0.5"/>
+          <path d="M200 380 q-14 -2 -28 6 q14 0 28 -6" opacity="0.4"/>
+        </g>
+      </svg>
+      <div class="ch">對沖</div>
+      <div class="stamp-corner">印<small>SEAL</small></div>
+    </div>
+    <div class="seal"><div><span>印<br>章</span><small>OFFICIAL × CREDIT</small></div></div>
+  </section>
+
+  <!-- brush divider -->
+  <div class="brush-divider">
+    <div class="stroke"></div>
+    <div class="sealing">
+      <span class="num">∕ 02</span>
+      <span class="ch">模 式 對 沖</span>
+      <span class="num">OFFICIAL × CREDIT</span>
+    </div>
+  </div>
+
+  <!-- ============ MODE COMPARE ============ -->
+  <section class="compare-band" data-screen-label="02 Mode Compare">
+
+    <div class="compare-head">
+      <div class="vrail">官 信 對 沖</div>
+      <div class="titleblock">
+        <h2>OFFICIAL · vs · <span>CREDIT</span></h2>
+        <div class="sub">同彩種 · 同期次 · 賠率差異一覽 — 30 天滾動數據</div>
+      </div>
+      <div class="meta">
+        DATA · 30D ROLLING<br>
+        SAMPLE · 1,440 ISSUES<br>
+        SYNC · LIVE
+      </div>
+    </div>
+
+    <div class="compare-grid">
+      <div class="cmp official">
+        <div class="seal-big">官</div>
+        <div class="mode-eye">MODE · 01 · OFFICIAL</div>
+        <h3>官 方 模 式</h3>
+        <div class="desc">即下即扣 · 第三方支付通道實時鎖倉。下注額度按賬戶餘額為上限，所有派彩於開獎後 ≤ 60 秒到賬，無代理鏈路。</div>
+        <div class="cmp-rows">
+          <div class="cmp-row"><span class="k">SETTLE</span><span class="v">即時 · Realtime</span><span class="v n">≤ 60 s</span></div>
+          <div class="cmp-row"><span class="k">FUNDS</span><span class="v">先扣後賠</span><span class="v n">100%</span></div>
+          <div class="cmp-row"><span class="k">MIN BET</span><span class="v">¥ 2 / 注</span><span class="v n">∞ 上限</span></div>
+          <div class="cmp-row"><span class="k">六合 · 特</span><span class="v">SPEC · GRAND</span><span class="v big">1 : 49.8</span></div>
+          <div class="cmp-row"><span class="k">時時 · 大小</span><span class="v">BIG · SMALL</span><span class="v big">1 : 1.965</span></div>
+          <div class="cmp-row"><span class="k">PK10 · 冠</span><span class="v">CHAMPION</span><span class="v big">1 : 9.85</span></div>
+          <div class="cmp-row"><span class="k">K3 · 總和</span><span class="v">SUM · BIG</span><span class="v big">1 : 1.965</span></div>
+          <div class="cmp-row"><span class="k">REBATE</span><span class="v">不退</span><span class="v n">0.0%</span></div>
+          <div class="cmp-row"><span class="k">RISK</span><span class="v">無欠款 · 無代墊</span><span class="v n" style="color:var(--jade)">● 低</span></div>
+        </div>
+        <div class="chip-row">
+          <span class="chip">SETTLE · LIVE</span>
+          <span class="chip">KYC · L2</span>
+          <span class="chip">AUDIT · CHAIN</span>
+        </div>
+      </div>
+
+      <div class="cmp credit">
+        <div class="seal-big alt">信</div>
+        <div class="mode-eye">MODE · 02 · CREDIT</div>
+        <h3>信 用 模 式</h3>
+        <div class="desc">不墊資 · 週結月結。代理為會員開額度，按級數設定退水曲線；單注上限可放大至官方 8×，盈虧於結算日對沖。</div>
+        <div class="cmp-rows">
+          <div class="cmp-row"><span class="k">SETTLE</span><span class="v">週結 · T + 7</span><span class="v n">≤ 24 h</span></div>
+          <div class="cmp-row"><span class="k">FUNDS</span><span class="v">先賒後結</span><span class="v n">0 → 5M</span></div>
+          <div class="cmp-row"><span class="k">MIN BET</span><span class="v">¥ 10 / 注</span><span class="v n">放大 8×</span></div>
+          <div class="cmp-row"><span class="k">六合 · 特</span><span class="v">SPEC · GRAND</span><span class="v big">1 : 51.2</span></div>
+          <div class="cmp-row"><span class="k">時時 · 大小</span><span class="v">BIG · SMALL</span><span class="v big">1 : 1.985</span></div>
+          <div class="cmp-row"><span class="k">PK10 · 冠</span><span class="v">CHAMPION</span><span class="v big">1 : 9.95</span></div>
+          <div class="cmp-row"><span class="k">K3 · 總和</span><span class="v">SUM · BIG</span><span class="v big">1 : 1.985</span></div>
+          <div class="cmp-row"><span class="k">REBATE</span><span class="v">階梯返水</span><span class="v n">0.5 – 2.0%</span></div>
+          <div class="cmp-row"><span class="k">RISK</span><span class="v">需代理保證金</span><span class="v n" style="color:var(--gold-bright)">● 中</span></div>
+        </div>
+        <div class="chip-row">
+          <span class="chip">SETTLE · WEEKLY</span>
+          <span class="chip">AGENT · L3</span>
+          <span class="chip">REBATE · STEP</span>
+        </div>
+      </div>
+
+      <div class="vs"><span class="ch">對<br>沖</span></div>
+    </div>
+
+    <div class="delta-strip">
+      <div class="dc"><div class="lab">PAYOUT · DELTA</div><div class="v">+ 1.02 %</div><div class="sub">信用 vs 官方 · 30D</div></div>
+      <div class="dc"><div class="lab">REBATE · MAX</div><div class="v">2.00 %</div><div class="sub">階梯 · STEP 9</div></div>
+      <div class="dc"><div class="lab">CAP · ×</div><div class="v">× 8.0</div><div class="sub">最大放大倍率</div></div>
+      <div class="dc"><div class="lab">SETTLE · LAG</div><div class="v">T + 7 d</div><div class="sub">信用結算窗</div></div>
+      <div class="dc"><div class="lab">DISPUTE</div><div class="v">0.014 %</div><div class="sub">爭議比例 · 全平台</div></div>
+    </div>
+  </section>
+
+  <!-- ============ GAMES ============ -->
+  <section class="games-band" data-screen-label="03 Games">
+    <div class="games-head">
+      <div class="lt">四 式 同 局</div>
+      <div class="ct">
+        <h2>FOUR <span class="gold">×</span> GAMES</h2>
+        <div class="sub">六 合 · 時 時 · P K 10 · K 3</div>
+      </div>
+      <div class="rt">
+        即時派彩 ≤ 0.4s<br>
+        SOURCE · HK · CQ · BJ · JS<br>
+        ONLINE · 142 GAMES
+      </div>
+    </div>
+
+    <div class="games-grid">
+      <div class="gc">
+        <div class="big-num">壹</div>
+        <div class="meta">L · 01 / 六合</div>
+        <h3>六 合 彩</h3>
+        <div class="en">MARK · SIX</div>
+        <span class="ribbon">HK · 49 取 7</span>
+        <p>每週三場 · 含特別號。複式、膽拖、連肖、生肖、合數，賠付公式可於規則頁查閱。</p>
+        <div class="latest">
+          <div class="lab-row"><span>近期 · 2026/061</span><span>10:30 PM</span></div>
+          <div class="balls">
+            <div class="b">07</div><div class="b dark">13</div><div class="b">22</div>
+            <div class="b dark">31</div><div class="b">36</div><div class="b gold">44</div>
+            <div class="b plus">+</div><div class="b spec">49</div>
+          </div>
+          <div class="ks">
+            <div><span class="l">期</span><span class="v">061</span></div>
+            <div><span class="l">和</span><span class="v">202</span></div>
+            <div><span class="l">特</span><span class="v">49</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gc">
+        <div class="big-num">貳</div>
+        <div class="meta">L · 02 / 時時</div>
+        <h3>時 時 彩</h3>
+        <div class="en">TIME · LOTTERY</div>
+        <span class="ribbon">5 MIN · 五位</span>
+        <p>每 5 分鐘一期 · 五位 0-9。定位膽、組選、跨度、龍虎，毫秒級開盤倒數。</p>
+        <div class="latest">
+          <div class="lab-row"><span>第 20260512 · 178</span><span>14:25</span></div>
+          <div class="balls">
+            <div class="b">3</div><div class="b">8</div><div class="b">2</div>
+            <div class="b">9</div><div class="b">1</div>
+          </div>
+          <div class="ks">
+            <div><span class="l">和值</span><span class="v">23</span></div>
+            <div><span class="l">跨度</span><span class="v">8</span></div>
+            <div><span class="l">龍虎</span><span class="v">虎</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gc">
+        <div class="big-num">參</div>
+        <div class="meta">L · 03 / PK10</div>
+        <h3>P K 10</h3>
+        <div class="en">RACING · 10</div>
+        <span class="ribbon">10 號賽車 · 5 分鐘</span>
+        <p>冠亞和、單雙、大小、龍虎、定位三七，車道走勢即時生成。</p>
+        <div class="latest">
+          <div class="lab-row"><span>第 1245128 期</span><span>14:23</span></div>
+          <div class="balls">
+            <div class="b gold">04</div><div class="b gold">09</div><div class="b gold">02</div>
+            <div class="b">07</div><div class="b">01</div><div class="b">10</div>
+            <div class="b dark">05</div><div class="b dark">08</div><div class="b dark">03</div>
+            <div class="b dark">06</div>
+          </div>
+          <div class="ks">
+            <div><span class="l">冠亞和</span><span class="v">13</span></div>
+            <div><span class="l">大小</span><span class="v">大</span></div>
+            <div><span class="l">龍虎</span><span class="v">龍</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gc">
+        <div class="big-num">肆</div>
+        <div class="meta">L · 04 / K3</div>
+        <h3>K · 3</h3>
+        <div class="en">DICE · TRIO</div>
+        <span class="ribbon">三粒骰 · 5 分鐘</span>
+        <p>總和大小、三軍、圍骰、長牌、短牌；圖形化骰盅動畫，公正性可實時校驗。</p>
+        <div class="latest">
+          <div class="lab-row"><span>第 KS · 2620 期</span><span>14:21</span></div>
+          <div class="balls">
+            <div class="b">4</div><div class="b">5</div><div class="b">6</div>
+            <div class="b plus">∑</div><div class="b spec">15</div>
+          </div>
+          <div class="ks">
+            <div><span class="l">總和</span><span class="v">15</span></div>
+            <div><span class="l">大小</span><span class="v">大</span></div>
+            <div><span class="l">類型</span><span class="v">順子</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PERIODIC ============ -->
+  <section class="periodic-band" data-screen-label="04 Periodic">
+    <div class="periodic-head">
+      <div class="lt">
+        <h2>號 碼 週 期 表<small>PERIODIC · ATLAS</small></h2>
+        <p>SAMPLE · 2026.04.12 → 05.12 · N = 1,440 issues · refresh 15 s</p>
+      </div>
+      <div class="rt">84<small>CELLS</small></div>
+    </div>
+
+    <div class="periodic" id="periodic"></div>
+
+    <div class="legend">
+      <div class="item"><span class="sw" style="background:linear-gradient(160deg,#ffeac0,#ffd680)"></span>六合彩 · MARK SIX</div>
+      <div class="item"><span class="sw" style="background:linear-gradient(160deg,#ffd0c0,#ff9a85)"></span>時時彩 · TIME LOT</div>
+      <div class="item"><span class="sw" style="background:linear-gradient(160deg,#ffe6c0,#f5b54a)"></span>PK10 · RACING</div>
+      <div class="item"><span class="sw" style="background:linear-gradient(160deg,#f5c0a8,#d96a4a)"></span>K3 · DICE</div>
+      <div class="item"><span class="sw" style="background:linear-gradient(160deg,#d11e2a,#9a0a18)"></span>邊角 · EDGE</div>
+      <div class="item"><span class="sw" style="background:linear-gradient(160deg,#9a0a18,#5a0a14);border-color:var(--gold)"></span>稀位 · RARE</div>
+      <div class="item" style="margin-left:auto"><span class="red-up">▲</span> 熱號</div>
+      <div class="item"><span class="green-dn">▼</span> 冷號</div>
+    </div>
+  </section>
+
+  <!-- ============ TREND + ODDS ============ -->
+  <section class="trend-band" data-screen-label="05 Trend">
+    <div class="trend-head">
+      <h2>走 勢 · 賠 率<small>LIVE · DESK</small></h2>
+      <div class="rt">
+        TICK · 1 s · 144 INSTRUMENTS<br>
+        SYNC · OK · DRIFT 0.04 ms
+      </div>
+    </div>
+
+    <div class="trend-grid">
+      <div class="panel">
+        <div class="panel-head">
+          <h4>時時彩 · 個位連珠</h4>
+          <div class="tabs">
+            <span class="tab">萬</span><span class="tab">千</span><span class="tab">百</span>
+            <span class="tab">十</span><span class="tab active">個</span><span class="tab">和值</span>
+          </div>
+        </div>
+        <div class="trend-table" id="trend-table"></div>
+        <div style="display:flex;gap:24px;margin-top:18px;font-family:'JetBrains Mono';font-size:11px;color:var(--gold);letter-spacing:0.2em">
+          <span>STREAK · 7 (= 4)</span>
+          <span>HOT · 8 (28%) · 3 (24%)</span>
+          <span>COLD · 0 (4%) · 9 (8%)</span>
+          <span>SD · 2.847</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h4>實時賠率</h4>
+          <div class="tabs">
+            <span class="tab active">六合</span><span class="tab">時時</span>
+            <span class="tab">PK10</span><span class="tab">K3</span>
+          </div>
+        </div>
+        <div class="odds-header">
+          <div>玩法</div><div>官方</div><div>信用</div><div>差</div>
+        </div>
+        <div class="odds-list">
+          <div class="odds-row"><div class="name">特碼 · 一等獎<span class="en">SPEC · GRAND</span></div><div class="val">49.80</div><div class="val up">51.20</div><div class="delta up">+ 1.40</div></div>
+          <div class="odds-row"><div class="name">特碼 · 大<span class="en">SPEC · BIG</span></div><div class="val">1.92</div><div class="val up">1.95</div><div class="delta up">+ 0.03</div></div>
+          <div class="odds-row"><div class="name">特碼 · 小<span class="en">SPEC · SMALL</span></div><div class="val">1.94</div><div class="val up">1.96</div><div class="delta up">+ 0.02</div></div>
+          <div class="odds-row"><div class="name">特碼 · 單<span class="en">SPEC · ODD</span></div><div class="val">1.93</div><div class="val up">1.95</div><div class="delta up">+ 0.02</div></div>
+          <div class="odds-row"><div class="name">特碼 · 雙<span class="en">SPEC · EVEN</span></div><div class="val">1.93</div><div class="val dn">1.92</div><div class="delta dn">– 0.01</div></div>
+          <div class="odds-row"><div class="name">合肖 · 二肖<span class="en">PAIR · ZODIAC</span></div><div class="val">5.20</div><div class="val up">5.45</div><div class="delta up">+ 0.25</div></div>
+          <div class="odds-row"><div class="name">連碼 · 三中三<span class="en">TRIPLE · CHAIN</span></div><div class="val">42.00</div><div class="val up">45.50</div><div class="delta up">+ 3.50</div></div>
+          <div class="odds-row" style="border-bottom:none"><div class="name">尾數 · 0 尾<span class="en">TAIL · 0</span></div><div class="val">10.20</div><div class="val up">10.85</div><div class="delta up">+ 0.65</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TICKER -->
+  <div class="ticker">
+    <span class="lbl">▍ TICKER</span>
+    <span class="it">六合 061 / <span class="arrow">▲</span> 大 1.95</span>
+    <span class="div">◆</span>
+    <span class="it">時時 178 / <span class="arrow dn">▼</span> 龍 2.04</span>
+    <span class="div">◆</span>
+    <span class="it">PK10 / <span class="arrow">▲</span> 冠 9.95</span>
+    <span class="div">◆</span>
+    <span class="it">K3 2620 / <span class="arrow">▲</span> 圍 180.0</span>
+    <span class="div">◆</span>
+    <span class="it">USDT / CNY 7.21</span>
+    <span class="div">◆</span>
+    <span class="it">水位 96.4%</span>
+    <span class="div">◆</span>
+    <span class="it">代理 482</span>
+  </div>
+
+  <div class="foot">
+    <span>對 沖 局 · DUI CHONG JU · 紅 運 海 報 版</span>
+    <span class="copy">© 2026 · DEMO · NO REAL WAGER</span>
+    <span>BUILD · 26.05.13 · v2</span>
+  </div>
+
+</div>
+
+
+<!-- React + Babel -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<script>
+/* ====== snow particles ====== */
+(function(){
+  const snow = document.getElementById('snow-1');
+  if (!snow) return;
+  const N = 60;
+  let html = '';
+  for (let i=0;i<N;i++){
+    const x = Math.random()*100;
+    const y = Math.random()*100;
+    const s = 1 + Math.random()*3;
+    const op = 0.3 + Math.random()*0.6;
+    html += `<div class="flake" style="left:${x}%;top:${y}%;width:${s}px;height:${s}px;opacity:${op}"></div>`;
+  }
+  snow.innerHTML = html;
+})();
+
+/* ====== periodic ====== */
+const NAMES = {
+  six:  ['特一','正一','正二','正三','正四','正五','正六','合肖','連肖','生肖','尾數','三全','二全','半全'],
+  time: ['萬位','千位','百位','十位','個位','和值','跨度','龍虎','大小','單雙','組三','組六','直選','五星'],
+  pk:   ['冠軍','亞軍','季軍','第四','第五','第六','第七','第八','第九','第十','冠亞和','大小','單雙','龍虎'],
+  k3:   ['一骰','二骰','三骰','總和','大小','單雙','三軍','圍骰','長牌','短牌','對子','順子','豹子','點數'],
+};
+const SYMBOLS = {
+  six:  ['T','Z₁','Z₂','Z₃','Z₄','Z₅','Z₆','He','Lx','Sx','Ws','Sa','Er','Bn'],
+  time: ['W','Q','B','S','G','Hz','Kd','Lt','Ds','Dx','Z₃','Z₆','Zx','Wx'],
+  pk:   ['G','Y','J','D₄','D₅','D₆','D₇','D₈','D₉','D₁₀','Gy','Ds','Dx','Lt'],
+  k3:   ['S₁','S₂','S₃','Σ','Ds','Dx','Sj','Ws','Cp','Dp','Du','Sh','Bz','Pn'],
+};
+const GROUPS = { six:'gp-six', time:'gp-time', pk:'gp-pk', k3:'gp-k3' };
+(function buildPeriodic(){
+  const order = ['six','time','pk','k3'];
+  let cells = [];
+  order.forEach((g, gi) => {
+    for (let i = 0; i < 14; i++) {
+      cells.push({
+        sym: SYMBOLS[g][i], name: NAMES[g][i],
+        no: String((gi*14 + i + 1)).padStart(2,'0'),
+        kind: GROUPS[g],
+        trend: +(Math.random()*6 - 3).toFixed(1),
+        freq: Math.floor(Math.random()*40 + 5),
+      });
+    }
+  });
+  const edgeN = ['色波','半波','尾大','尾小','合大','合小','頭數','尾數','合單','合雙','過關','滾雪','連贏','破格'];
+  const edgeS = ['Cb','Bb','Td','Tx','Hd','Hx','Ts','Ws','Hu','Hd','Gg','Gx','Lr','Pg'];
+  for (let i=0;i<14;i++){
+    cells.push({sym:edgeS[i],name:edgeN[i],no:String(56+i+1).padStart(2,'0'),kind:'gp-edge',trend:+(Math.random()*6-3).toFixed(1),freq:Math.floor(Math.random()*30+5)});
+  }
+  const rareN = ['豹子','對子','順子','圍骰','三同','半順','跨九','跨零','全大','全小','全單','全雙','清一','黑馬'];
+  const rareS = ['Bz','Du','Sh','Ws','Ts','Hs','K₉','K₀','Qd','Qx','Qu','Qe','Qy','Hm'];
+  for (let i=0;i<14;i++){
+    const k = (i % 3 === 0) ? 'gp-rare' : ((i % 2) ? 'gp-ash' : 'gp-edge');
+    cells.push({sym:rareS[i],name:rareN[i],no:String(70+i+1).padStart(2,'0'),kind:k,trend:+(Math.random()*6-3).toFixed(1),freq:Math.floor(Math.random()*25+3)});
+  }
+  document.getElementById('periodic').innerHTML = cells.map(c=>{
+    const up = c.trend > 0;
+    const arrow = up ? '▲' : '▼';
+    const cls = up ? 'red-up' : 'green-dn';
+    const sign = up ? '+' : '';
+    return `<div class="cell ${c.kind}">
+      <div class="corner"><span>${c.no}</span><span class="${cls}">${arrow}${sign}${c.trend.toFixed(1)}</span></div>
+      <div class="sym">${c.sym}</div>
+      <div class="name">${c.name}</div>
+      <div class="delta"><span class="${cls}">${c.freq}%</span></div>
+    </div>`;
+  }).join('');
+})();
+
+/* ====== trend ====== */
+(function buildTrend(){
+  const tbl = document.getElementById('trend-table');
+  let html = `<div class="th">期號</div>`;
+  for (let i=0;i<10;i++) html += `<div class="th">${i}</div>`;
+  html += `<div class="th">和 · 距</div>`;
+  for (let r = 0; r < 14; r++) {
+    const issue = 178 - r;
+    const hit = Math.floor(Math.random()*10);
+    html += `<div class="tr-issue">26·05·12 · ${String(issue).padStart(3,'0')}</div>`;
+    for (let i = 0; i < 10; i++) {
+      if (i === hit) {
+        const tag = (i >= 5) ? 'big' : '';
+        html += `<div class="tc hit ${tag}"><span class="dot-num">${i}</span></div>`;
+      } else {
+        html += `<div class="tc">${i}</div>`;
+      }
+    }
+    const dist = Math.floor(Math.random()*5)+1;
+    html += `<div class="tr-sum">${hit} · ${dist}</div>`;
+  }
+  tbl.innerHTML = html;
+})();
+</script>
+
+<!-- Tweaks -->
+<script type="text/babel">
+const { useState, useEffect } = React;
+const TWEAKS_DEFAULT = /*EDITMODE-BEGIN*/{
+  "bigBrush": "對沖",
+  "brushFont": "long",
+  "showSnow": true,
+  "showScene": true,
+  "redIntensity": "vivid"
+}/*EDITMODE-END*/;
+function TweaksApp() {
+  const [t, setTweak] = useTweaks(TWEAKS_DEFAULT);
+  useEffect(() => {
+    const ch = document.querySelector('.big-brush .ch');
+    if (ch) {
+      ch.textContent = t.bigBrush || '對沖';
+      const fontMap = {
+        long:  "'Long Cang','Liu Jian Mao Cao','Ma Shan Zheng',cursive",
+        liu:   "'Liu Jian Mao Cao','Long Cang','Ma Shan Zheng',cursive",
+        ma:    "'Ma Shan Zheng','Long Cang',serif",
+        qing:  "'ZCOOL QingKe HuangYou','Ma Shan Zheng',serif",
+      };
+      ch.style.fontFamily = fontMap[t.brushFont] || fontMap.long;
+    }
+    document.querySelectorAll('.snow').forEach(el => el.style.display = t.showSnow ? '' : 'none');
+    document.querySelectorAll('.scene-wrap').forEach(el => el.style.display = t.showScene ? '' : 'none');
+    const map = {
+      vivid: { red:'#d11e2a', deep:'#9a0a18' },
+      classic: { red:'#a01622', deep:'#6b0e14' },
+      crimson: { red:'#dc2626', deep:'#9b1c1c' },
+    };
+    const c = map[t.redIntensity] || map.vivid;
+    document.documentElement.style.setProperty('--red', c.red);
+    document.documentElement.style.setProperty('--red-deep', c.deep);
+  }, [t]);
+  return (
+    <TweaksPanel title="Tweaks · 海報版">
+      <TweakSection title="海報主字">
+        <TweakRadio label="主筆字"
+          value={t.bigBrush}
+          options={[
+            {label:'對沖', value:'對沖'},
+            {label:'獎', value:'獎'},
+            {label:'彩', value:'彩'},
+            {label:'運', value:'運'},
+            {label:'局', value:'局'},
+            {label:'福', value:'福'},
+          ]}
+          onChange={v => setTweak('bigBrush', v)} />
+        <TweakRadio label="書法字體"
+          value={t.brushFont}
+          options={[
+            {label:'龍藏', value:'long'},
+            {label:'劉建毛草', value:'liu'},
+            {label:'馬善政', value:'ma'},
+            {label:'青柯', value:'qing'},
+          ]}
+          onChange={v => setTweak('brushFont', v)} />
+      </TweakSection>
+      <TweakSection title="場景">
+        <TweakToggle label="下雪" value={t.showSnow} onChange={v => setTweak('showSnow', v)} />
+        <TweakToggle label="街景" value={t.showScene} onChange={v => setTweak('showScene', v)} />
+      </TweakSection>
+      <TweakSection title="紅度">
+        <TweakRadio label="基調" value={t.redIntensity}
+          options={[
+            {label:'鮮紅', value:'vivid'},
+            {label:'古紅', value:'classic'},
+            {label:'朱紅', value:'crimson'},
+          ]}
+          onChange={v => setTweak('redIntensity', v)} />
+      </TweakSection>
+    </TweaksPanel>
+  );
+}
+const mount = document.createElement('div');
+document.body.appendChild(mount);
+ReactDOM.createRoot(mount).render(<TweaksApp />);
+</script>
+
+</body>
+</html>

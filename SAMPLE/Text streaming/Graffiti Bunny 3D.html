@@ -1,0 +1,895 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>WILDSTYLE — Bunny 3D</title>
+<meta name="viewport" content="width=1100, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Permanent+Marker&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0a0808;
+  --cream:#f6efe2;
+  --magenta:#ec1e7c;
+  --pink:#ff5a8c;
+  --pink-soft:#ffb3cd;
+  --lime:#c8ff2d;
+  --cyan:#26c6c9;
+  --yellow:#ffd23a;
+  --tangerine:#ff7a1a;
+  --purple:#7a2fa6;
+  --teal:#13b8b8;
+  --blue:#3aa9c8;
+  --red-eye:#ff3a44;
+}
+*{box-sizing:border-box}
+html,body{margin:0; background:#070607;}
+body{
+  font-family:'Space Mono',monospace; color:var(--cream);
+  min-height:100vh; padding:40px 0 80px;
+}
+.nav-top{
+  width:1100px; margin:0 auto 18px; display:flex; justify-content:space-between; align-items:center;
+  padding:14px 22px; background:#000; color:var(--cream);
+  font-size:12px;
+  border:2px solid var(--ink);
+  box-shadow:8px 8px 0 var(--magenta);
+}
+.nav-top a{color:var(--cream); text-decoration:none; padding:6px 10px; border:2px solid transparent}
+.nav-top a.on{color:var(--lime); border:2px solid var(--lime);}
+.nav-top b{color:var(--lime); font-family:'Bungee',sans-serif; font-size:18px; letter-spacing:.04em}
+.nav-top .group{display:flex; gap:6px; flex-wrap:wrap;}
+
+.stage{
+  width:1100px; margin:0 auto;
+  background:
+    radial-gradient(900px 700px at 50% 40%, #2a1326 0%, transparent 70%),
+    linear-gradient(180deg, #161018 0%, #0c080d 100%);
+  border:3px solid var(--ink);
+  box-shadow:18px 18px 0 var(--ink), 18px 18px 0 4px var(--magenta);
+  position:relative; overflow:hidden;
+  padding:34px 40px 50px;
+}
+/* paper grid background */
+.stage::before{
+  content:""; position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events:none;
+}
+.stage::after{
+  content:""; position:absolute; inset:0;
+  background-image:
+    radial-gradient(rgba(255,255,255,.035) 1px, transparent 1.4px),
+    radial-gradient(rgba(0,0,0,.4) 1px, transparent 1.2px);
+  background-size: 5px 5px, 9px 9px;
+  mix-blend-mode:overlay; opacity:.6;
+  pointer-events:none;
+}
+.layer{ position:relative; z-index:2;}
+
+/* HEADER STRIP */
+.head{
+  display:flex; justify-content:space-between; align-items:flex-end;
+  margin-bottom:8px;
+}
+.head .kicker{
+  display:inline-flex; align-items:center; gap:10px;
+  font-size:11px; letter-spacing:.22em;
+  padding:7px 12px; background:#000; color:var(--lime);
+  border:2px solid var(--lime); box-shadow:4px 4px 0 var(--magenta);
+  transform:rotate(-1deg);
+}
+.head .kicker .dot{ width:8px;height:8px;background:var(--pink); border-radius:50%; box-shadow:0 0 0 2px var(--lime);}
+.head .meta{
+  font-size:10px; letter-spacing:.15em; color:rgba(255,255,255,.55);
+  text-align:right; line-height:1.7;
+}
+.head .meta b{color:var(--lime);}
+
+/* TITLE */
+.title{
+  text-align:center;
+  margin: 14px 0 10px;
+  font-family:'Bungee',sans-serif;
+  font-size:88px; line-height:.86; letter-spacing:-.005em;
+}
+.title .line{ display:block;}
+.title .l1{ transform:rotate(-2deg);}
+.title .l2{ transform:rotate(1.2deg) translateX(20px); margin-top:-4px;}
+.title .t{
+  display:inline-block;
+  -webkit-text-stroke:4px var(--ink);
+  paint-order:stroke fill;
+  text-shadow: 6px 6px 0 var(--ink), 12px 12px 0 rgba(0,0,0,.4);
+}
+.title .a{color:var(--pink);}
+.title .b{color:var(--yellow);}
+.title .c{color:var(--cyan);}
+.title .d{color:var(--lime);}
+
+/* CHARACTER STAGE */
+.char-wrap{
+  position:relative;
+  width:900px; height:900px;
+  margin: 0 auto;
+}
+.char-wrap svg.char{
+  width:100%; height:100%; display:block;
+  filter: drop-shadow(0 30px 30px rgba(0,0,0,.55));
+}
+
+/* corner badges */
+.badge{
+  position:absolute; z-index:6;
+  background:#000; border:2px solid var(--ink);
+  padding:8px 12px; font-size:10px; letter-spacing:.18em;
+  box-shadow:5px 5px 0 var(--ink);
+}
+.badge.b1{ top:18px; left:18px; color:var(--lime); border-color:var(--lime); transform:rotate(-4deg);}
+.badge.b2{ top:18px; right:18px; color:var(--pink); border-color:var(--pink); transform:rotate(4deg);}
+.badge.b3{ bottom:14px; left:30px; color:var(--cyan); border-color:var(--cyan); transform:rotate(-2deg);}
+.badge.b4{ bottom:14px; right:30px; color:var(--yellow); border-color:var(--yellow); transform:rotate(3deg);}
+
+/* CAPTION row */
+.caption{
+  display:flex; justify-content:space-between; align-items:center;
+  margin-top:14px;
+  font-size:11px; letter-spacing:.18em;
+  color:rgba(255,255,255,.65);
+}
+.caption b{
+  font-family:'Bungee',sans-serif; color:var(--lime); font-size:14px;
+  letter-spacing:.04em;
+}
+.swatches{ display:flex; gap:6px; align-items:center;}
+.swatches i{
+  display:inline-block; width:16px; height:16px;
+  border:1.5px solid var(--ink); box-shadow:2px 2px 0 var(--ink);
+}
+</style>
+</head>
+<body>
+
+  <!-- nav for jumping between files -->
+  <div class="nav-top">
+    <div><b>WILDSTYLE</b> <span style="opacity:.6">// drops</span></div>
+    <div class="group">
+      <a href="Graffiti Template.html">SYSTEM</a>
+      <a href="Graffiti T-Shirt.html">T-SHIRT</a>
+      <a href="Graffiti Stickers.html">STICKERS</a>
+      <a href="Graffiti Web Hero.html">WEB HERO</a>
+      <a href="Graffiti Bunny Hero.html">BUNNY HERO</a>
+      <a href="Graffiti Bunny 3D.html" class="on">BUNNY 3D</a>
+    </div>
+  </div>
+
+<div class="stage">
+
+  <div class="head layer">
+    <span class="kicker"><span class="dot"></span>HOPPY EATS — CHARACTER STUDY · 3D PUSH</span>
+    <div class="meta">
+      VOL <b>02</b> · ORIGINAL ILLUSTRATION<br/>
+      DIMENSIONAL · GRADIENT · CEL-SHADE
+    </div>
+  </div>
+
+  <h1 class="title layer">
+    <span class="line l1"><span class="t a">STREET</span> <span class="t b">HOP</span></span>
+    <span class="line l2"><span class="t c">CLUB</span> <span class="t d">'26</span></span>
+  </h1>
+
+  <div class="char-wrap layer">
+
+    <div class="badge b1">CHAR · 001</div>
+    <div class="badge b2">HOPPY™</div>
+    <div class="badge b3">★ ORIGINAL ART ★</div>
+    <div class="badge b4">VOL 02 · SS26</div>
+
+    <!-- =================== MAIN CHARACTER SVG (3D) =================== -->
+    <svg class="char" viewBox="0 0 900 900" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- FUR gradients -->
+        <linearGradient id="furFace" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ffffff"/>
+          <stop offset=".45" stop-color="#dcd8e8"/>
+          <stop offset="1" stop-color="#776a8a"/>
+        </linearGradient>
+        <radialGradient id="furCheek" cx=".5" cy=".5" r=".55">
+          <stop offset="0" stop-color="#ffffff"/>
+          <stop offset=".55" stop-color="#d6cee2"/>
+          <stop offset="1" stop-color="#6d6184" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="earOuter" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#f3eef6"/>
+          <stop offset="1" stop-color="#5c5172"/>
+        </linearGradient>
+        <linearGradient id="earInner" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ff4a86"/>
+          <stop offset="1" stop-color="#a4174a"/>
+        </linearGradient>
+
+        <!-- HOODIE blue -->
+        <linearGradient id="hoodFront" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#5cd3ed"/>
+          <stop offset=".5" stop-color="#1e8fb3"/>
+          <stop offset="1" stop-color="#0a4b66"/>
+        </linearGradient>
+        <linearGradient id="hoodSide" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#0a4b66"/>
+          <stop offset="1" stop-color="#1e8fb3"/>
+        </linearGradient>
+        <radialGradient id="hoodHi" cx=".4" cy=".2" r=".7">
+          <stop offset="0" stop-color="#bff1ff" stop-opacity=".85"/>
+          <stop offset=".6" stop-color="#bff1ff" stop-opacity="0"/>
+        </radialGradient>
+
+        <!-- gold chain -->
+        <linearGradient id="goldG" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fff2a8"/>
+          <stop offset=".5" stop-color="#f7c92b"/>
+          <stop offset="1" stop-color="#8a5c10"/>
+        </linearGradient>
+        <radialGradient id="goldShine" cx=".5" cy=".4" r=".5">
+          <stop offset="0" stop-color="#ffffff" stop-opacity=".95"/>
+          <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+        </radialGradient>
+
+        <!-- pants red -->
+        <linearGradient id="pants" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ee2a3a"/>
+          <stop offset="1" stop-color="#6b0a13"/>
+        </linearGradient>
+
+        <!-- controller -->
+        <linearGradient id="ctrlBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#3a3340"/>
+          <stop offset="1" stop-color="#0a0808"/>
+        </linearGradient>
+
+        <!-- eyes -->
+        <radialGradient id="eyeGreen" cx=".4" cy=".4" r=".7">
+          <stop offset="0" stop-color="#d3ff5e"/>
+          <stop offset=".5" stop-color="#3aab28"/>
+          <stop offset="1" stop-color="#0c4408"/>
+        </radialGradient>
+        <radialGradient id="eyeRed" cx=".4" cy=".4" r=".7">
+          <stop offset="0" stop-color="#ffb3b3"/>
+          <stop offset=".5" stop-color="#ff3a44"/>
+          <stop offset="1" stop-color="#5b0008"/>
+        </radialGradient>
+
+        <!-- floor shadow -->
+        <radialGradient id="floor" cx=".5" cy=".5" r=".5">
+          <stop offset="0" stop-color="#000" stop-opacity=".7"/>
+          <stop offset="1" stop-color="#000" stop-opacity="0"/>
+        </radialGradient>
+
+        <!-- background star/lightning -->
+        <linearGradient id="boltY" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fff27a"/>
+          <stop offset="1" stop-color="#ffaa00"/>
+        </linearGradient>
+        <linearGradient id="boltP" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ff5a8c"/>
+          <stop offset="1" stop-color="#7a1240"/>
+        </linearGradient>
+        <linearGradient id="potion" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#a8ff5a"/>
+          <stop offset="1" stop-color="#2a6a0c"/>
+        </linearGradient>
+
+        <!-- soft fur noise -->
+        <filter id="grain" x="-5%" y="-5%" width="110%" height="110%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3"/>
+          <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .15 0"/>
+          <feComposite in2="SourceGraphic" operator="in"/>
+        </filter>
+      </defs>
+
+      <!-- ============ BACKGROUND GRAFFITI BURST ============ -->
+      <g opacity=".95">
+        <!-- big yellow lightning bolt left -->
+        <path d="M120 220 L240 200 L210 320 L290 330 L180 520 L230 410 L150 400 Z"
+              fill="url(#boltY)" stroke="#0a0808" stroke-width="7" stroke-linejoin="round"/>
+        <path d="M150 240 L210 230" stroke="#fff8c0" stroke-width="5" opacity=".7"/>
+        <!-- big yellow lightning bolt right -->
+        <path d="M770 200 L660 180 L700 310 L620 320 L740 520 L680 400 L760 390 Z"
+              fill="url(#boltY)" stroke="#0a0808" stroke-width="7" stroke-linejoin="round"/>
+        <path d="M740 220 L690 210" stroke="#fff8c0" stroke-width="5" opacity=".7"/>
+
+        <!-- magenta/pink slash back -->
+        <path d="M80 360 L220 300 L260 420 L120 480 Z"
+              fill="url(#boltP)" stroke="#0a0808" stroke-width="6" opacity=".85"/>
+        <path d="M820 360 L680 300 L640 420 L780 480 Z"
+              fill="url(#boltP)" stroke="#0a0808" stroke-width="6" opacity=".85"/>
+
+        <!-- cyan zaps -->
+        <path d="M300 140 L340 120 L320 180 L360 170 L310 260 L340 200 L300 210 Z"
+              fill="#26c6c9" stroke="#0a0808" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M600 140 L560 120 L580 180 L540 170 L590 260 L560 200 L600 210 Z"
+              fill="#26c6c9" stroke="#0a0808" stroke-width="5" stroke-linejoin="round"/>
+
+        <!-- arrow/letter Z -->
+        <path d="M170 540 L260 540 L200 620 L290 620" fill="none" stroke="#ffd23a" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="M730 540 L640 540 L700 620 L610 620" fill="none" stroke="#ffd23a" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+
+        <!-- splatter dots -->
+        <circle cx="160" cy="170" r="10" fill="#c8ff2d" stroke="#0a0808" stroke-width="3"/>
+        <circle cx="740" cy="170" r="10" fill="#c8ff2d" stroke="#0a0808" stroke-width="3"/>
+        <circle cx="250" cy="600" r="8" fill="#ec1e7c" stroke="#0a0808" stroke-width="3"/>
+        <circle cx="650" cy="600" r="8" fill="#ec1e7c" stroke="#0a0808" stroke-width="3"/>
+
+        <!-- money / coins on floor -->
+        <g transform="translate(180 720)">
+          <ellipse cx="40" cy="20" rx="40" ry="14" fill="#f7c92b" stroke="#0a0808" stroke-width="4"/>
+          <ellipse cx="40" cy="16" rx="40" ry="14" fill="#ffea8a" stroke="#0a0808" stroke-width="4"/>
+          <text x="40" y="22" text-anchor="middle" font-family="Bungee" font-size="14" fill="#0a0808">$</text>
+        </g>
+        <g transform="translate(640 730) rotate(8)">
+          <ellipse cx="40" cy="20" rx="44" ry="15" fill="#f7c92b" stroke="#0a0808" stroke-width="4"/>
+          <ellipse cx="40" cy="16" rx="44" ry="15" fill="#ffea8a" stroke="#0a0808" stroke-width="4"/>
+          <text x="40" y="22" text-anchor="middle" font-family="Bungee" font-size="14" fill="#0a0808">$</text>
+        </g>
+
+        <!-- side companion: potion -->
+        <g transform="translate(700 470) rotate(8)">
+          <path d="M30 0 L60 0 L60 20 L70 30 L70 90 Q70 110 45 110 Q20 110 20 90 L20 30 L30 20 Z"
+                fill="url(#potion)" stroke="#0a0808" stroke-width="5"/>
+          <ellipse cx="45" cy="38" rx="14" ry="6" fill="#e8ffb0" opacity=".7"/>
+          <circle cx="35" cy="70" r="6" fill="#0a0808"/>
+          <circle cx="55" cy="76" r="3" fill="#0a0808"/>
+          <path d="M30 0 L60 0 L60 -8 L30 -8 Z" fill="#0a0808"/>
+          <!-- evil face -->
+          <path d="M36 84 Q45 78 54 84" stroke="#0a0808" stroke-width="3" fill="none"/>
+        </g>
+
+        <!-- left companion: cactus tag -->
+        <g transform="translate(140 600) rotate(-6)">
+          <path d="M30 0 Q10 0 10 30 Q10 80 28 80 L40 80 L40 60 Q40 50 50 50 Q60 50 60 60 L60 80 L72 80 Q90 80 90 30 Q90 0 70 0 Q60 0 60 14 L60 26 Q60 36 50 36 Q40 36 40 26 L40 14 Q40 0 30 0 Z"
+                fill="#5fb13e" stroke="#0a0808" stroke-width="5"/>
+          <path d="M16 18 L24 18 M16 36 L24 36 M76 18 L84 18 M76 36 L84 36 M44 70 L56 70"
+                stroke="#0a0808" stroke-width="3" stroke-linecap="round" opacity=".5"/>
+        </g>
+      </g>
+
+      <!-- floor shadow ellipse -->
+      <ellipse cx="450" cy="830" rx="280" ry="28" fill="url(#floor)"/>
+
+      <!-- ============ CHARACTER ============ -->
+
+      <!-- ====== EARS (behind hood) ====== -->
+      <!-- LEFT EAR -->
+      <g>
+        <path d="M295 110
+                 Q258 80 270 50
+                 Q288 18 320 30
+                 Q352 50 360 130
+                 Q368 210 348 260
+                 Q322 268 304 250
+                 Q294 200 295 110 Z"
+              fill="url(#earOuter)" stroke="#0a0808" stroke-width="7" stroke-linejoin="round"/>
+        <!-- shadow side -->
+        <path d="M295 110 Q300 200 320 250 Q316 256 310 254 Q294 200 295 110 Z" fill="#1f1828" opacity=".5"/>
+        <!-- inner pink -->
+        <path d="M312 110
+                 Q302 80 316 60
+                 Q336 56 344 110
+                 Q354 200 340 244
+                 Q326 250 318 240
+                 Q310 200 312 110 Z"
+              fill="url(#earInner)" stroke="#0a0808" stroke-width="4.5" stroke-linejoin="round"/>
+        <!-- inner highlight -->
+        <path d="M320 110 Q314 84 326 76 Q328 110 332 200 Q322 220 320 200 Q316 150 320 110 Z" fill="#ffd0e1" opacity=".55"/>
+        <!-- ear notch / piercing -->
+        <circle cx="330" cy="80" r="5" fill="#ffd23a" stroke="#0a0808" stroke-width="2.5"/>
+      </g>
+
+      <!-- RIGHT EAR -->
+      <g>
+        <path d="M605 110
+                 Q642 80 630 50
+                 Q612 18 580 30
+                 Q548 50 540 130
+                 Q532 210 552 260
+                 Q578 268 596 250
+                 Q606 200 605 110 Z"
+              fill="url(#earOuter)" stroke="#0a0808" stroke-width="7" stroke-linejoin="round"/>
+        <path d="M605 110 Q600 200 580 250 Q584 256 590 254 Q606 200 605 110 Z" fill="#1f1828" opacity=".5"/>
+        <path d="M588 110
+                 Q598 80 584 60
+                 Q564 56 556 110
+                 Q546 200 560 244
+                 Q574 250 582 240
+                 Q590 200 588 110 Z"
+              fill="url(#earInner)" stroke="#0a0808" stroke-width="4.5" stroke-linejoin="round"/>
+        <path d="M580 110 Q586 84 574 76 Q572 110 568 200 Q578 220 580 200 Q584 150 580 110 Z" fill="#ffd0e1" opacity=".55"/>
+      </g>
+
+      <!-- ====== HOODIE BODY (behind head) ====== -->
+      <!-- pants/legs sitting cross -->
+      <g>
+        <!-- left thigh -->
+        <path d="M250 700
+                 Q220 650 252 600
+                 Q300 570 360 580
+                 Q390 600 380 660
+                 Q360 720 320 728
+                 Q280 730 250 700 Z"
+              fill="url(#pants)" stroke="#0a0808" stroke-width="7" stroke-linejoin="round"/>
+        <!-- right thigh -->
+        <path d="M650 700
+                 Q680 650 648 600
+                 Q600 570 540 580
+                 Q510 600 520 660
+                 Q540 720 580 728
+                 Q620 730 650 700 Z"
+              fill="url(#pants)" stroke="#0a0808" stroke-width="7" stroke-linejoin="round"/>
+        <!-- highlight -->
+        <path d="M280 620 Q310 600 350 600" stroke="#ff8b94" stroke-width="6" fill="none" opacity=".7" stroke-linecap="round"/>
+        <path d="M620 620 Q590 600 550 600" stroke="#ff8b94" stroke-width="6" fill="none" opacity=".7" stroke-linecap="round"/>
+        <!-- crotch shadow -->
+        <path d="M400 700 Q450 720 500 700 L490 740 Q450 750 410 740 Z" fill="#3a040a" opacity=".7"/>
+        <!-- pants drawstring -->
+        <path d="M430 690 Q440 720 432 750" stroke="#0a0808" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path d="M470 690 Q460 720 468 750" stroke="#0a0808" stroke-width="5" fill="none" stroke-linecap="round"/>
+      </g>
+
+      <!-- BARE FEET (cartoon, soles facing out) -->
+      <g>
+        <!-- left foot -->
+        <g transform="translate(140 660)">
+          <ellipse cx="80" cy="80" rx="92" ry="62" fill="url(#furFace)" stroke="#0a0808" stroke-width="7"/>
+          <!-- sole -->
+          <ellipse cx="80" cy="86" rx="72" ry="48" fill="#ff7aa8" stroke="#0a0808" stroke-width="5"/>
+          <!-- toe pads -->
+          <ellipse cx="36" cy="46" rx="14" ry="12" fill="#ff5a8c" stroke="#0a0808" stroke-width="4"/>
+          <ellipse cx="60" cy="32" rx="12" ry="11" fill="#ff5a8c" stroke="#0a0808" stroke-width="4"/>
+          <ellipse cx="84" cy="28" rx="11" ry="10" fill="#ff5a8c" stroke="#0a0808" stroke-width="4"/>
+          <ellipse cx="108" cy="32" rx="10" ry="9" fill="#ff5a8c" stroke="#0a0808" stroke-width="4"/>
+          <ellipse cx="128" cy="42" rx="9" ry="8" fill="#ff5a8c" stroke="#0a0808" stroke-width="4"/>
+          <!-- claws -->
+          <path d="M30 34 L36 24 L42 34" fill="#0a0808"/>
+          <path d="M54 20 L60 10 L66 20" fill="#0a0808"/>
+          <path d="M78 16 L84 8 L90 16" fill="#0a0808"/>
+          <!-- shadow rim -->
+          <path d="M10 90 Q80 130 152 92" stroke="#1f1828" stroke-width="5" fill="none" opacity=".4"/>
+        </g>
+
+        <!-- right foot -->
+        <g transform="translate(580 660)">
+          <ellipse cx="80" cy="80" rx="92" ry="62" fill="url(#furFace)" stroke="#0a0808" stroke-width="7"/>
+          <ellipse cx="80" cy="86" rx="72" ry="48" fill="#ff7aa8" stroke="#0a0808" stroke-width="5"/>
+          <ellipse cx="124" cy="46" rx="14" ry="12" fill="#ff5a8c" stroke="#0a0808" stroke-width="4"/>
+          <ellipse cx="100" cy="32" rx="12" ry="11" fill="#ff5a8c" stroke="#0a0808" stroke-width="4"/>
+          <ellipse cx="76" cy="28" rx="11" ry="10" fill="#ff5a8c" stroke="#0a0808" stroke-width="4"/>
+          <ellipse cx="52" cy="32" rx="10" ry="9" fill="#ff5a8c" stroke="#0a0808" stroke-width="4"/>
+          <ellipse cx="32" cy="42" rx="9" ry="8" fill="#ff5a8c" stroke="#0a0808" stroke-width="4"/>
+          <path d="M124 34 L130 24 L136 34" fill="#0a0808"/>
+          <path d="M100 20 L106 10 L112 20" fill="#0a0808"/>
+          <path d="M72 16 L78 8 L84 16" fill="#0a0808"/>
+          <path d="M10 90 Q80 130 152 92" stroke="#1f1828" stroke-width="5" fill="none" opacity=".4"/>
+        </g>
+      </g>
+
+      <!-- TORSO HOODIE -->
+      <g>
+        <!-- back/shadow layer -->
+        <path d="M180 660
+                 Q170 520 250 460
+                 Q330 420 450 420
+                 Q570 420 650 460
+                 Q730 520 720 660
+                 Q700 720 650 730
+                 L250 730
+                 Q200 720 180 660 Z"
+              fill="#0a4b66" stroke="#0a0808" stroke-width="7" stroke-linejoin="round"/>
+        <!-- front gradient -->
+        <path d="M210 660
+                 Q200 520 280 480
+                 Q360 446 450 446
+                 Q540 446 620 480
+                 Q700 520 690 660
+                 Q670 716 640 720
+                 L260 720
+                 Q230 716 210 660 Z"
+              fill="url(#hoodFront)" stroke="#0a0808" stroke-width="6" stroke-linejoin="round" stroke-linejoin="round"/>
+        <!-- side darks -->
+        <path d="M210 660 Q200 540 260 490 Q260 600 250 680 Z" fill="#08384c" opacity=".55"/>
+        <path d="M690 660 Q700 540 640 490 Q640 600 650 680 Z" fill="#08384c" opacity=".55"/>
+        <!-- belly highlight -->
+        <path d="M320 580 Q360 560 420 560" stroke="#bff1ff" stroke-width="6" fill="none" opacity=".7" stroke-linecap="round"/>
+        <path d="M340 620 Q380 605 430 610" stroke="#bff1ff" stroke-width="4" fill="none" opacity=".5" stroke-linecap="round"/>
+
+        <!-- hoodie pocket -->
+        <path d="M310 620 Q450 640 590 620 L570 700 Q450 720 330 700 Z"
+              fill="#0a4b66" stroke="#0a0808" stroke-width="5"/>
+        <path d="M310 620 Q450 640 590 620" stroke="#0a0808" stroke-width="4" fill="none"/>
+        <path d="M315 624 Q450 644 585 624" stroke="#bff1ff" stroke-width="2.5" fill="none" opacity=".4"/>
+
+        <!-- side seam darks -->
+        <path d="M270 480 Q260 580 270 690" stroke="#0a0808" stroke-width="2.5" fill="none" opacity=".4"/>
+        <path d="M630 480 Q640 580 630 690" stroke="#0a0808" stroke-width="2.5" fill="none" opacity=".4"/>
+      </g>
+
+      <!-- ====== HEAD ====== -->
+      <!-- HOOD BACK (behind head) -->
+      <g>
+        <path d="M210 360
+                 Q190 200 360 180
+                 Q450 170 540 180
+                 Q710 200 690 360
+                 Q680 460 600 490
+                 Q450 510 300 490
+                 Q220 460 210 360 Z"
+              fill="url(#hoodSide)" stroke="#0a0808" stroke-width="7"/>
+        <!-- shadow underside on neck -->
+        <path d="M280 470 Q450 510 620 470 L600 490 Q450 510 300 490 Z" fill="#08384c"/>
+      </g>
+
+      <!-- HEAD (fur) -->
+      <g>
+        <!-- main head shape -->
+        <path d="M270 380
+                 Q260 220 450 220
+                 Q640 220 630 380
+                 Q620 480 540 510
+                 Q450 530 360 510
+                 Q280 480 270 380 Z"
+              fill="url(#furFace)" stroke="#0a0808" stroke-width="7"/>
+        <!-- side shadow -->
+        <path d="M270 380 Q280 460 350 500 Q300 480 280 440 Q270 410 270 380 Z" fill="#1f1828" opacity=".25"/>
+        <path d="M630 380 Q620 460 550 500 Q600 480 620 440 Q630 410 630 380 Z" fill="#1f1828" opacity=".25"/>
+        <!-- forehead shadow under hood -->
+        <path d="M270 320 Q450 250 630 320 Q630 360 590 350 Q450 320 310 350 Q270 360 270 320 Z" fill="#1f1828" opacity=".55"/>
+        <!-- fur tufts -->
+        <path d="M280 470 Q300 490 320 480" stroke="#0a0808" stroke-width="4" fill="none"/>
+        <path d="M580 480 Q600 490 620 470" stroke="#0a0808" stroke-width="4" fill="none"/>
+        <!-- cheek fluff bumps -->
+        <path d="M295 440 Q310 458 325 450 Q318 470 305 470 Q294 462 295 440 Z" fill="url(#furFace)" stroke="#0a0808" stroke-width="5"/>
+        <path d="M605 440 Q590 458 575 450 Q582 470 595 470 Q606 462 605 440 Z" fill="url(#furFace)" stroke="#0a0808" stroke-width="5"/>
+      </g>
+
+      <!-- HOOD FRONT (frames face) -->
+      <g>
+        <!-- big hood front mouth -->
+        <path d="M205 365
+                 Q190 200 360 175
+                 Q450 165 540 175
+                 Q710 200 695 365
+                 Q670 320 620 290
+                 Q580 230 450 230
+                 Q320 230 280 290
+                 Q230 320 205 365 Z"
+              fill="#1e8fb3" stroke="#0a0808" stroke-width="7" stroke-linejoin="round"/>
+        <!-- hood face inner shadow (cast on fur) -->
+        <path d="M260 320 Q320 280 360 270 Q450 260 540 270 Q580 280 640 320 Q640 360 580 370 Q450 350 320 370 Q260 360 260 320 Z" fill="#08384c" opacity=".45"/>
+        <!-- hood shine -->
+        <ellipse cx="370" cy="220" rx="160" ry="40" fill="url(#hoodHi)"/>
+        <!-- hood brim crease -->
+        <path d="M260 290 Q450 230 640 290" stroke="#0a0808" stroke-width="3.5" fill="none" opacity=".5"/>
+        <!-- hood seam at top -->
+        <path d="M300 200 Q450 178 600 200" stroke="#bff1ff" stroke-width="3" fill="none" opacity=".4"/>
+
+        <!-- gold band at hood top -->
+        <path d="M360 168 L540 168 Q548 178 540 188 L360 188 Q352 178 360 168 Z"
+              fill="url(#goldG)" stroke="#0a0808" stroke-width="5"/>
+        <ellipse cx="450" cy="170" rx="60" ry="4" fill="#fff6c0" opacity=".7"/>
+        <text x="450" y="186" text-anchor="middle" font-family="Bungee" font-size="14" fill="#5a3b08">HOPPY</text>
+      </g>
+
+      <!-- HEADPHONES -->
+      <g>
+        <!-- band -->
+        <path d="M250 290 Q450 200 650 290" stroke="#0a0808" stroke-width="14" fill="none" stroke-linecap="round"/>
+        <path d="M250 290 Q450 200 650 290" stroke="#3a3340" stroke-width="9" fill="none" stroke-linecap="round"/>
+        <path d="M280 268 Q450 200 620 268" stroke="#5cd3ed" stroke-width="3" fill="none" stroke-linecap="round" opacity=".5"/>
+        <!-- left cup -->
+        <g>
+          <ellipse cx="248" cy="350" rx="44" ry="56" fill="#0a0808"/>
+          <ellipse cx="248" cy="350" rx="40" ry="52" fill="#3a3340" stroke="#0a0808" stroke-width="4"/>
+          <ellipse cx="248" cy="350" rx="26" ry="34" fill="#0a0808" stroke="#0a0808" stroke-width="3"/>
+          <ellipse cx="248" cy="350" rx="20" ry="28" fill="url(#earInner)" stroke="#0a0808" stroke-width="3"/>
+          <ellipse cx="240" cy="338" rx="6" ry="10" fill="#ffd0e1" opacity=".7"/>
+          <!-- side mount -->
+          <rect x="244" y="288" width="8" height="20" fill="#0a0808"/>
+          <!-- speck highlight -->
+          <ellipse cx="220" cy="320" rx="8" ry="14" fill="#a4ecff" opacity=".35"/>
+        </g>
+        <!-- right cup -->
+        <g>
+          <ellipse cx="652" cy="350" rx="44" ry="56" fill="#0a0808"/>
+          <ellipse cx="652" cy="350" rx="40" ry="52" fill="#3a3340" stroke="#0a0808" stroke-width="4"/>
+          <ellipse cx="652" cy="350" rx="26" ry="34" fill="#0a0808" stroke="#0a0808" stroke-width="3"/>
+          <ellipse cx="652" cy="350" rx="20" ry="28" fill="url(#earInner)" stroke="#0a0808" stroke-width="3"/>
+          <ellipse cx="660" cy="338" rx="6" ry="10" fill="#ffd0e1" opacity=".7"/>
+          <rect x="648" y="288" width="8" height="20" fill="#0a0808"/>
+          <ellipse cx="680" cy="320" rx="8" ry="14" fill="#a4ecff" opacity=".35"/>
+        </g>
+      </g>
+
+      <!-- ===== FACE ===== -->
+      <!-- nose bridge shadow on face -->
+      <path d="M420 380 Q450 386 480 380 L470 430 Q450 436 430 430 Z" fill="#c7bed5" opacity=".55"/>
+
+      <!-- EYEBROWS -->
+      <!-- left brow (angry) -->
+      <path d="M328 348 L412 374" stroke="#0a0808" stroke-width="11" stroke-linecap="round"/>
+      <path d="M328 348 L412 374" stroke="#3a3340" stroke-width="6" stroke-linecap="round"/>
+      <!-- right brow (raised, mischief) -->
+      <path d="M572 348 L488 374" stroke="#0a0808" stroke-width="11" stroke-linecap="round"/>
+      <path d="M572 348 L488 374" stroke="#3a3340" stroke-width="6" stroke-linecap="round"/>
+
+      <!-- EYES -->
+      <!-- left eye (green) -->
+      <g>
+        <path d="M330 390
+                 Q360 376 408 384
+                 Q418 418 388 432
+                 Q344 432 330 410 Z"
+              fill="#fbf6ea" stroke="#0a0808" stroke-width="6"/>
+        <!-- iris -->
+        <ellipse cx="378" cy="410" rx="22" ry="24" fill="url(#eyeGreen)" stroke="#0a0808" stroke-width="4"/>
+        <!-- pupil -->
+        <ellipse cx="378" cy="410" rx="9" ry="14" fill="#0a0808"/>
+        <!-- highlights -->
+        <circle cx="384" cy="402" r="5" fill="#fbf6ea"/>
+        <circle cx="370" cy="418" r="2.5" fill="#fbf6ea"/>
+        <!-- bottom shadow -->
+        <path d="M334 414 Q372 430 412 414 Q400 432 378 434 Q352 432 334 414 Z" fill="#1f1828" opacity=".25"/>
+      </g>
+
+      <!-- right eye (red, evil) -->
+      <g>
+        <path d="M570 390
+                 Q540 376 492 384
+                 Q482 418 512 432
+                 Q556 432 570 410 Z"
+              fill="#fbf6ea" stroke="#0a0808" stroke-width="6"/>
+        <ellipse cx="522" cy="410" rx="22" ry="24" fill="url(#eyeRed)" stroke="#0a0808" stroke-width="4"/>
+        <ellipse cx="522" cy="410" rx="9" ry="14" fill="#0a0808"/>
+        <circle cx="528" cy="402" r="5" fill="#fbf6ea"/>
+        <circle cx="514" cy="418" r="2.5" fill="#fbf6ea"/>
+        <path d="M566 414 Q528 430 488 414 Q500 432 522 434 Q548 432 566 414 Z" fill="#1f1828" opacity=".25"/>
+        <!-- glow -->
+        <circle cx="522" cy="410" r="30" fill="#ff3a44" opacity=".18"/>
+      </g>
+
+      <!-- NOSE (3D pink ball) -->
+      <g>
+        <ellipse cx="450" cy="455" rx="22" ry="16" fill="#ec1e7c" stroke="#0a0808" stroke-width="5"/>
+        <ellipse cx="446" cy="450" rx="9" ry="6" fill="#ff9ec1" opacity=".9"/>
+        <ellipse cx="443" cy="448" rx="3" ry="2" fill="#fff" opacity=".95"/>
+        <!-- nose to mouth line -->
+        <path d="M450 472 L450 488" stroke="#0a0808" stroke-width="4" stroke-linecap="round"/>
+      </g>
+
+      <!-- MOUTH (evil grin with fangs) -->
+      <g>
+        <!-- mouth outline -->
+        <path d="M340 490
+                 Q400 540 450 532
+                 Q500 540 560 490
+                 Q540 560 450 568
+                 Q360 560 340 490 Z"
+              fill="#1f1828" stroke="#0a0808" stroke-width="6" stroke-linejoin="round"/>
+        <!-- inner red -->
+        <path d="M380 510 Q420 540 450 538 Q480 540 520 510 Q500 552 450 558 Q400 552 380 510 Z"
+              fill="#8a0a1a"/>
+        <!-- top teeth row -->
+        <path d="M348 492
+                 L378 502 L390 492 L412 504 L432 492 L450 506 L470 492 L490 504 L510 492 L522 502 L552 492
+                 Q540 528 450 532 Q360 528 348 492 Z"
+              fill="#f3e3c3" stroke="#0a0808" stroke-width="4" stroke-linejoin="round"/>
+        <!-- fangs -->
+        <path d="M412 504 L420 532 L428 504 Z" fill="#fbf6ea" stroke="#0a0808" stroke-width="3"/>
+        <path d="M472 504 L480 532 L488 504 Z" fill="#fbf6ea" stroke="#0a0808" stroke-width="3"/>
+        <!-- tooth shadow -->
+        <path d="M350 492 Q450 510 550 492 L548 500 Q450 514 352 500 Z" fill="#c9b890" opacity=".7"/>
+        <!-- tongue -->
+        <path d="M420 540 Q450 558 480 540 Q472 562 450 564 Q428 562 420 540 Z" fill="#ec1e7c" stroke="#0a0808" stroke-width="3"/>
+        <path d="M450 544 L450 558" stroke="#7a1240" stroke-width="2.5"/>
+      </g>
+
+      <!-- WHISKERS -->
+      <g stroke="#0a0808" stroke-width="3" stroke-linecap="round" fill="none">
+        <path d="M310 470 L380 480"/>
+        <path d="M308 488 L380 492"/>
+        <path d="M312 506 L382 504"/>
+        <path d="M590 470 L520 480"/>
+        <path d="M592 488 L520 492"/>
+        <path d="M588 506 L518 504"/>
+      </g>
+
+      <!-- GOLD CHAIN -->
+      <g>
+        <!-- chain body multiple links -->
+        <path d="M330 560 Q450 640 570 560" stroke="#0a0808" stroke-width="18" fill="none" stroke-linecap="round"/>
+        <path d="M330 560 Q450 640 570 560" stroke="url(#goldG)" stroke-width="13" fill="none" stroke-linecap="round"/>
+        <path d="M330 560 Q450 640 570 560" stroke="#0a0808" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="2 10"/>
+        <!-- bunny head pendant -->
+        <g transform="translate(420 622)">
+          <!-- pendant base -->
+          <path d="M30 0 L0 30 L8 70 L52 70 L60 30 Z" fill="url(#goldG)" stroke="#0a0808" stroke-width="5" stroke-linejoin="round"/>
+          <!-- shine -->
+          <path d="M30 4 L10 28 L16 64" stroke="#fff6c0" stroke-width="4" fill="none" opacity=".7"/>
+          <!-- bunny silhouette on pendant -->
+          <g transform="translate(18 14)">
+            <ellipse cx="12" cy="34" rx="10" ry="14" fill="#0a0808"/>
+            <ellipse cx="8" cy="14" rx="4" ry="12" fill="#0a0808"/>
+            <ellipse cx="16" cy="14" rx="4" ry="12" fill="#0a0808"/>
+          </g>
+        </g>
+        <!-- chain loop top -->
+        <circle cx="450" cy="618" r="6" fill="url(#goldG)" stroke="#0a0808" stroke-width="3"/>
+      </g>
+
+      <!-- ====== ARMS + CONTROLLER ====== -->
+      <g>
+        <!-- LEFT ARM (hoodie sleeve) -->
+        <path d="M220 540
+                 Q200 580 240 640
+                 Q300 700 380 690
+                 Q400 670 380 650
+                 Q330 640 290 600
+                 Q260 560 252 530
+                 Q240 510 220 540 Z"
+              fill="url(#hoodFront)" stroke="#0a0808" stroke-width="7" stroke-linejoin="round"/>
+        <path d="M226 552 Q220 590 244 632" stroke="#bff1ff" stroke-width="5" fill="none" opacity=".5" stroke-linecap="round"/>
+
+        <!-- RIGHT ARM -->
+        <path d="M680 540
+                 Q700 580 660 640
+                 Q600 700 520 690
+                 Q500 670 520 650
+                 Q570 640 610 600
+                 Q640 560 648 530
+                 Q660 510 680 540 Z"
+              fill="url(#hoodFront)" stroke="#0a0808" stroke-width="7" stroke-linejoin="round"/>
+        <path d="M674 552 Q680 590 656 632" stroke="#bff1ff" stroke-width="5" fill="none" opacity=".5" stroke-linecap="round"/>
+
+        <!-- sleeve cuffs ribbed -->
+        <path d="M340 678 L420 692 L412 712 L340 700 Z" fill="#0a4b66" stroke="#0a0808" stroke-width="4"/>
+        <path d="M348 686 L408 698 M348 696 L408 708" stroke="#0a0808" stroke-width="2" opacity=".6"/>
+        <path d="M560 678 L480 692 L488 712 L560 700 Z" fill="#0a4b66" stroke="#0a0808" stroke-width="4"/>
+        <path d="M552 686 L492 698 M552 696 L492 708" stroke="#0a0808" stroke-width="2" opacity=".6"/>
+
+        <!-- LEFT HAND (fur paw) -->
+        <g>
+          <ellipse cx="380" cy="700" rx="46" ry="36" fill="url(#furFace)" stroke="#0a0808" stroke-width="6"/>
+          <!-- thumb -->
+          <ellipse cx="346" cy="690" rx="14" ry="11" fill="url(#furFace)" stroke="#0a0808" stroke-width="5"/>
+          <!-- knuckles -->
+          <ellipse cx="370" cy="676" rx="10" ry="8" fill="#1f1828" opacity=".25"/>
+          <ellipse cx="386" cy="676" rx="10" ry="8" fill="#1f1828" opacity=".25"/>
+          <ellipse cx="402" cy="676" rx="10" ry="8" fill="#1f1828" opacity=".25"/>
+        </g>
+        <!-- RIGHT HAND -->
+        <g>
+          <ellipse cx="520" cy="700" rx="46" ry="36" fill="url(#furFace)" stroke="#0a0808" stroke-width="6"/>
+          <ellipse cx="554" cy="690" rx="14" ry="11" fill="url(#furFace)" stroke="#0a0808" stroke-width="5"/>
+          <ellipse cx="498" cy="676" rx="10" ry="8" fill="#1f1828" opacity=".25"/>
+          <ellipse cx="514" cy="676" rx="10" ry="8" fill="#1f1828" opacity=".25"/>
+          <ellipse cx="530" cy="676" rx="10" ry="8" fill="#1f1828" opacity=".25"/>
+        </g>
+
+        <!-- CONTROLLER (between hands) -->
+        <g>
+          <!-- back/shadow -->
+          <path d="M376 682
+                   Q360 670 358 696
+                   Q372 736 416 736
+                   L484 736
+                   Q528 736 542 696
+                   Q540 670 524 682
+                   Q510 666 484 678
+                   L416 678
+                   Q390 666 376 682 Z"
+                fill="#0a0808"/>
+          <!-- body -->
+          <path d="M378 686
+                   Q364 676 364 694
+                   Q376 728 416 728
+                   L484 728
+                   Q524 728 536 694
+                   Q536 676 522 686
+                   Q508 672 484 682
+                   L416 682
+                   Q392 672 378 686 Z"
+                fill="url(#ctrlBody)" stroke="#0a0808" stroke-width="3"/>
+          <!-- top highlight -->
+          <path d="M384 684 Q420 678 480 678 Q516 680 524 686" stroke="#a4a0b0" stroke-width="2.5" fill="none" opacity=".7"/>
+          <!-- d-pad -->
+          <g transform="translate(388 690)">
+            <path d="M10 6 L18 6 L18 -2 L26 -2 L26 6 L34 6 L34 14 L26 14 L26 22 L18 22 L18 14 L10 14 Z" fill="#fbf6ea" stroke="#0a0808" stroke-width="2"/>
+          </g>
+          <!-- ABXY buttons -->
+          <circle cx="488" cy="694" r="6" fill="#ffd23a" stroke="#0a0808" stroke-width="2"/>
+          <circle cx="502" cy="704" r="6" fill="#ec1e7c" stroke="#0a0808" stroke-width="2"/>
+          <circle cx="488" cy="714" r="6" fill="#26c6c9" stroke="#0a0808" stroke-width="2"/>
+          <circle cx="474" cy="704" r="6" fill="#bfe636" stroke="#0a0808" stroke-width="2"/>
+          <!-- joysticks -->
+          <circle cx="426" cy="710" r="9" fill="#1c1820" stroke="#0a0808" stroke-width="2.5"/>
+          <circle cx="426" cy="710" r="4" fill="#3a3340"/>
+          <circle cx="458" cy="710" r="9" fill="#1c1820" stroke="#0a0808" stroke-width="2.5"/>
+          <circle cx="458" cy="710" r="4" fill="#3a3340"/>
+          <!-- LED -->
+          <circle cx="450" cy="688" r="2.5" fill="#ec1e7c"/>
+          <!-- cable -->
+          <path d="M450 738 Q450 760 470 768 Q500 776 482 800 Q464 820 480 840"
+                stroke="#ec1e7c" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M450 738 Q450 760 470 768 Q500 776 482 800 Q464 820 480 840"
+                stroke="#0a0808" stroke-width="2" fill="none" stroke-linecap="round" stroke-dasharray="2 6" opacity=".7"/>
+        </g>
+      </g>
+
+      <!-- ====== HOOD STRINGS (in front) ====== -->
+      <g>
+        <path d="M408 520 Q412 580 422 626 L416 638" stroke="#0a0808" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M408 520 Q412 580 422 626 L416 638" stroke="#3a3340" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M492 520 Q488 580 478 626 L484 638" stroke="#0a0808" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M492 520 Q488 580 478 626 L484 638" stroke="#3a3340" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <!-- aglets gold -->
+        <g transform="translate(414 638)">
+          <rect x="-7" y="0" width="14" height="20" rx="3" fill="url(#goldG)" stroke="#0a0808" stroke-width="3"/>
+          <path d="M-5 4 L-5 14" stroke="#fff6c0" stroke-width="2"/>
+        </g>
+        <g transform="translate(482 638)">
+          <rect x="-7" y="0" width="14" height="20" rx="3" fill="url(#goldG)" stroke="#0a0808" stroke-width="3"/>
+          <path d="M-5 4 L-5 14" stroke="#fff6c0" stroke-width="2"/>
+        </g>
+      </g>
+
+      <!-- sparkle accents -->
+      <g>
+        <path d="M268 120 L274 134 L290 138 L274 142 L268 158 L262 142 L246 138 L262 134 Z"
+              fill="#fff6c0" stroke="#0a0808" stroke-width="2.5"/>
+        <path d="M650 130 L654 142 L666 146 L654 150 L650 162 L646 150 L634 146 L646 142 Z"
+              fill="#fff6c0" stroke="#0a0808" stroke-width="2.5"/>
+        <path d="M828 470 L832 480 L842 482 L832 484 L828 494 L824 484 L814 482 L824 480 Z"
+              fill="#bff1ff" stroke="#0a0808" stroke-width="2"/>
+      </g>
+
+      <!-- spray drip on the ground left of feet -->
+      <g transform="translate(310 800)">
+        <path d="M0 0 Q20 -10 40 0 L40 18 Q40 30 28 32 L24 50 Q20 56 16 50 L12 30 Q0 28 0 18 Z"
+              fill="#ec1e7c" stroke="#0a0808" stroke-width="4"/>
+      </g>
+      <g transform="translate(540 808)">
+        <path d="M0 0 Q20 -10 40 0 L40 16 Q40 28 28 30 L24 42 Q20 48 16 42 L12 28 Q0 26 0 16 Z"
+              fill="#c8ff2d" stroke="#0a0808" stroke-width="4"/>
+      </g>
+
+      <!-- TP corner stamp -->
+      <g transform="translate(40 40)">
+        <rect x="0" y="0" width="62" height="62" fill="none" stroke="#fff" stroke-width="2.5" opacity=".25"/>
+        <text x="31" y="36" text-anchor="middle" font-family="Bungee" font-size="22" fill="#fff" opacity=".25">HE</text>
+        <text x="31" y="54" text-anchor="middle" font-family="Space Mono" font-size="8" fill="#fff" opacity=".25">STREET</text>
+      </g>
+      <g transform="translate(798 40)">
+        <rect x="0" y="0" width="62" height="62" fill="none" stroke="#fff" stroke-width="2.5" opacity=".25"/>
+        <text x="31" y="36" text-anchor="middle" font-family="Bungee" font-size="22" fill="#fff" opacity=".25">HE</text>
+        <text x="31" y="54" text-anchor="middle" font-family="Space Mono" font-size="8" fill="#fff" opacity=".25">STREET</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="caption layer">
+    <div>HOPPY <b>3D</b> · ORIGINAL CHARACTER · NOT FOR RESALE</div>
+    <div class="swatches">
+      PALETTE
+      <i style="background:#1e8fb3"></i>
+      <i style="background:#ec1e7c"></i>
+      <i style="background:#ffd23a"></i>
+      <i style="background:#c8ff2d"></i>
+      <i style="background:#ee2a3a"></i>
+      <i style="background:#0a0808"></i>
+    </div>
+    <div>BUILT WITH SVG · GRADIENT · MULTI-PASS SHADE</div>
+  </div>
+
+</div>
+</body>
+</html>

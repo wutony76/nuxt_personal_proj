@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>WILDSTYLE — 街頭插畫樣板系統</title>
+<meta name="viewport" content="width=1440, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Bungee+Shade&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#f6efe2;
+    --ink:#0d0b0a;
+    --paper:#fbf6ea;
+    --magenta:#ec1e7c;
+    --lime:#bfe636;
+    --cyan:#26c6c9;
+    --yellow:#ffd23a;
+    --tangerine:#ff7a1a;
+    --purple:#6a2a8a;
+    --deep:#1a1417;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#1a1417;}
+  body{
+    font-family:'Space Grotesk',sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 800px at 10% 0%, #2a1a2e 0%, transparent 60%),
+      radial-gradient(1000px 700px at 100% 100%, #16313a 0%, transparent 55%),
+      #0d0b0a;
+    min-height:100vh;
+    padding:40px 0 80px;
+  }
+  .stage{
+    width:1440px;
+    margin:0 auto;
+    background:var(--paper);
+    position:relative;
+    overflow:hidden;
+    border:2px solid var(--ink);
+    box-shadow:18px 18px 0 var(--ink), 18px 18px 0 4px var(--magenta);
+  }
+  /* paper texture */
+  .stage::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      radial-gradient(rgba(13,11,10,.18) 1px, transparent 1.4px),
+      radial-gradient(rgba(13,11,10,.10) 1px, transparent 1.2px);
+    background-size: 6px 6px, 11px 11px;
+    background-position: 0 0, 3px 3px;
+    opacity:.35;
+    pointer-events:none;
+    mix-blend-mode:multiply;
+    z-index:1;
+  }
+  .layer{position:relative; z-index:2}
+
+  /* ===== TOP BAR ===== */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 28px;
+    border-bottom:2px solid var(--ink);
+    background:var(--ink);
+    color:var(--cream);
+    font-family:'Space Mono',monospace;
+    font-size:13px;
+    letter-spacing:.04em;
+  }
+  .topbar .dots{display:flex; gap:8px}
+  .topbar .dots i{width:12px;height:12px;border-radius:50%;display:block;border:1.5px solid var(--cream)}
+  .topbar .dots i:nth-child(1){background:var(--magenta)}
+  .topbar .dots i:nth-child(2){background:var(--yellow)}
+  .topbar .dots i:nth-child(3){background:var(--lime)}
+  .topbar .meta{display:flex;gap:22px;opacity:.85}
+  .topbar .meta b{color:var(--yellow);font-weight:700}
+
+  /* ===== HERO ===== */
+  .hero{
+    position:relative;
+    padding:48px 56px 32px;
+    border-bottom:2px solid var(--ink);
+    overflow:hidden;
+    background:
+      linear-gradient(180deg, #fffaee 0%, #f3e9d2 100%);
+  }
+  .hero .ticker{
+    font-family:'Space Mono',monospace;
+    font-size:12px; letter-spacing:.2em;
+    color:var(--ink);
+    background:var(--yellow);
+    display:inline-block;
+    padding:6px 14px;
+    border:2px solid var(--ink);
+    transform:rotate(-2deg);
+    box-shadow:4px 4px 0 var(--ink);
+    margin-bottom:18px;
+  }
+  .wild{
+    font-family:'Bungee',sans-serif;
+    line-height:.88;
+    font-size:248px;
+    letter-spacing:-.02em;
+    margin:0;
+    position:relative;
+  }
+  .wild .row{display:block; position:relative;}
+  .wild .row.r1{ transform: rotate(-3deg) translateX(-6px); }
+  .wild .row.r2{ transform: rotate(2deg) translateX(46px); margin-top:-22px;}
+  .tag{
+    position:relative;
+    display:inline-block;
+    -webkit-text-stroke: 3px var(--ink);
+    text-shadow:
+      8px 8px 0 var(--ink),
+      8px 8px 0 0 var(--ink);
+    color:var(--magenta);
+    paint-order:stroke fill;
+  }
+  .tag.b{ color:var(--cyan); }
+  .tag.c{ color:var(--lime); }
+  .tag.d{ color:var(--yellow); }
+  .tag.e{ color:var(--tangerine); }
+  .tag.f{ color:var(--purple); color:#7a2fa6;}
+
+  .hero-sub{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    margin-top:28px; gap:40px;
+  }
+  .hero-sub p{
+    max-width:520px;
+    font-size:18px; line-height:1.45;
+    color:var(--ink);
+    margin:0;
+  }
+  .hero-sub p b{ background:var(--lime); padding:0 6px; box-shadow:3px 3px 0 var(--ink); display:inline-block; transform:rotate(-1deg);}
+  .crew{
+    font-family:'Space Mono',monospace;
+    font-size:12px;
+    text-align:right;
+    line-height:1.6;
+  }
+  .crew b{display:block;font-family:'Bungee',sans-serif; font-size:22px; color:var(--magenta); -webkit-text-stroke:1.5px var(--ink);}
+
+  /* paint drips (svg) overlays */
+  .drip{position:absolute; pointer-events:none}
+
+  /* splatter stickers in hero */
+  .splat{position:absolute; pointer-events:none}
+
+  /* ===== POSTER ROW ===== */
+  .grid{
+    display:grid;
+    grid-template-columns: 1.1fr .9fr;
+    gap:0;
+    border-bottom:2px solid var(--ink);
+  }
+  .poster{
+    position:relative;
+    padding:40px;
+    background:var(--magenta);
+    color:var(--cream);
+    border-right:2px solid var(--ink);
+    overflow:hidden;
+    min-height:580px;
+  }
+  .poster .pttl{
+    font-family:'Bungee',sans-serif;
+    font-size:120px; line-height:.9; color:var(--yellow);
+    -webkit-text-stroke:3px var(--ink);
+    text-shadow: 6px 6px 0 var(--ink);
+    margin:0;
+  }
+  .poster .pttl em{ font-style:normal; color:var(--lime); display:block; transform:translateX(40px) rotate(-2deg);}
+  .poster .pttl span{ color:var(--cyan); display:block;}
+  .poster .pmeta{
+    position:absolute; bottom:30px; left:40px; right:40px;
+    display:flex; justify-content:space-between; align-items:flex-end;
+    font-family:'Space Mono',monospace; font-size:13px; color:var(--cream);
+  }
+  .poster .pmeta .when b{display:block; font-family:'Bungee',sans-serif; font-size:32px; color:var(--cream); letter-spacing:-.01em;}
+  .poster .stamp{
+    position:absolute; top:30px; right:30px;
+    background:var(--ink); color:var(--lime);
+    font-family:'Bungee',sans-serif; font-size:14px;
+    padding:8px 12px; border:2px solid var(--cream);
+    transform:rotate(8deg);
+    letter-spacing:.06em;
+  }
+  .poster::after{
+    content:""; position:absolute; inset:0;
+    background:
+      radial-gradient(circle at 20% 80%, rgba(13,11,10,.18), transparent 30%),
+      radial-gradient(circle at 90% 20%, rgba(13,11,10,.14), transparent 35%);
+    pointer-events:none;
+  }
+
+  .sticker-board{
+    position:relative;
+    padding:32px;
+    background:
+      repeating-linear-gradient(45deg, #f6efe2 0 22px, #efe5d1 22px 24px);
+    overflow:hidden;
+  }
+  .sb-title{
+    font-family:'Bungee',sans-serif; font-size:22px; margin:0 0 8px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .sb-title::before{content:""; width:14px;height:14px;background:var(--magenta);border:2px solid var(--ink); display:inline-block; transform:rotate(45deg);}
+  .sb-sub{font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.15em; color:var(--ink); opacity:.7; margin:0 0 22px;}
+  .stickers{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:14px;
+  }
+  .stk{
+    position:relative;
+    aspect-ratio:1/1;
+    display:flex; align-items:center; justify-content:center;
+    border:2px solid var(--ink);
+    box-shadow:5px 5px 0 var(--ink);
+    background:var(--paper);
+    overflow:visible;
+  }
+  .stk svg{ width:90%; height:90%}
+  .stk:nth-child(1){transform:rotate(-4deg); background:var(--yellow)}
+  .stk:nth-child(2){transform:rotate(3deg); background:var(--cyan)}
+  .stk:nth-child(3){transform:rotate(-2deg); background:var(--lime)}
+  .stk:nth-child(4){transform:rotate(5deg); background:var(--tangerine)}
+  .stk:nth-child(5){transform:rotate(-3deg); background:var(--magenta)}
+  .stk:nth-child(6){transform:rotate(2deg); background:#7a2fa6; color:var(--cream)}
+
+  /* ===== COMPONENTS ===== */
+  .components{
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    border-bottom:2px solid var(--ink);
+  }
+  .panel{
+    padding:32px 28px;
+    border-right:2px solid var(--ink);
+    position:relative;
+    overflow:hidden;
+  }
+  .panel:last-child{border-right:none}
+  .panel h3{
+    font-family:'Bungee',sans-serif; font-size:18px; margin:0 0 4px;
+    letter-spacing:.01em;
+  }
+  .panel .label{
+    font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--ink); opacity:.6; margin-bottom:18px;
+  }
+
+  /* buttons */
+  .btn{
+    font-family:'Bungee',sans-serif;
+    display:inline-flex; align-items:center; gap:10px;
+    padding:14px 22px;
+    border:2.5px solid var(--ink);
+    background:var(--magenta);
+    color:var(--cream);
+    box-shadow:6px 6px 0 var(--ink);
+    cursor:pointer;
+    font-size:16px; letter-spacing:.02em;
+    transform:rotate(-1deg);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover{ transform:rotate(-1deg) translate(-2px,-2px); box-shadow:8px 8px 0 var(--ink);}
+  .btn.alt{background:var(--cyan); color:var(--ink); transform:rotate(1.5deg)}
+  .btn.ghost{background:var(--paper); color:var(--ink); transform:rotate(0deg)}
+  .btn .dot{width:10px;height:10px;background:var(--yellow); border:2px solid var(--ink); border-radius:50%;}
+  .btn-row{display:flex; flex-wrap:wrap; gap:18px 26px; align-items:center}
+
+  /* badges */
+  .badges{display:flex; flex-wrap:wrap; gap:10px}
+  .badge{
+    font-family:'Space Mono',monospace; font-weight:700;
+    font-size:12px; letter-spacing:.06em;
+    padding:6px 10px;
+    border:2px solid var(--ink);
+    background:var(--lime);
+    box-shadow:3px 3px 0 var(--ink);
+    text-transform:uppercase;
+    transform:rotate(-2deg);
+  }
+  .badge.b{background:var(--yellow); transform:rotate(1deg)}
+  .badge.c{background:var(--cyan); transform:rotate(-1deg)}
+  .badge.d{background:var(--tangerine); color:var(--cream); transform:rotate(2deg)}
+  .badge.e{background:var(--ink); color:var(--lime); transform:rotate(-1deg)}
+
+  /* tag chips */
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
+  .chip{
+    font-family:'Space Grotesk',sans-serif; font-weight:500;
+    font-size:13px;
+    padding:6px 12px;
+    border-radius:999px;
+    border:2px solid var(--ink);
+    background:var(--paper);
+  }
+  .chip.on{background:var(--magenta); color:var(--cream)}
+
+  /* card */
+  .gcard{
+    border:2.5px solid var(--ink);
+    background:var(--cream);
+    box-shadow:8px 8px 0 var(--ink);
+    position:relative;
+    overflow:hidden;
+  }
+  .gcard .ph{
+    height:170px;
+    background:
+      repeating-linear-gradient(135deg, var(--cyan) 0 16px, #1ba9ac 16px 18px);
+    border-bottom:2.5px solid var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Mono',monospace; font-size:11px; color:rgba(13,11,10,.55); letter-spacing:.2em;
+    position:relative;
+  }
+  .gcard .ph::after{
+    content:""; position:absolute; bottom:-2px; left:0; right:0; height:18px;
+    background:
+      radial-gradient(circle at 10% 0, var(--cyan) 6px, transparent 7px) 0 0/24px 18px,
+      radial-gradient(circle at 50% 0, var(--cyan) 8px, transparent 9px) 12px 0/24px 18px;
+    border-bottom:2.5px solid var(--ink);
+  }
+  .gcard .gb{ padding:14px 16px 18px;}
+  .gcard h4{font-family:'Bungee',sans-serif; font-size:18px; margin:0 0 4px}
+  .gcard p{font-size:13px; margin:0; line-height:1.4; color:#2a2422}
+  .gcard .price{
+    position:absolute; top:10px; right:10px;
+    background:var(--yellow); border:2px solid var(--ink);
+    padding:4px 8px; font-family:'Bungee',sans-serif; font-size:14px;
+    transform:rotate(6deg); box-shadow:3px 3px 0 var(--ink);
+  }
+
+  /* form input */
+  .input{
+    display:flex; align-items:center; gap:0;
+    border:2.5px solid var(--ink);
+    background:var(--paper);
+    box-shadow:5px 5px 0 var(--ink);
+    overflow:hidden;
+    margin-top:6px;
+  }
+  .input input{
+    flex:1; border:none; background:transparent; outline:none;
+    padding:12px 14px; font-family:'Space Grotesk',sans-serif; font-size:15px;
+  }
+  .input button{
+    border:none; background:var(--ink); color:var(--lime);
+    font-family:'Bungee',sans-serif; font-size:14px;
+    padding:12px 16px; cursor:pointer;
+    border-left:2.5px solid var(--ink);
+  }
+
+  /* alert */
+  .alert{
+    margin-top:18px;
+    border:2.5px solid var(--ink);
+    background:var(--yellow);
+    padding:12px 14px;
+    box-shadow:5px 5px 0 var(--ink);
+    font-size:13.5px;
+    display:flex; gap:10px; align-items:flex-start;
+  }
+  .alert .bang{
+    flex:0 0 28px; height:28px; background:var(--ink); color:var(--yellow);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Bungee',sans-serif; font-size:18px;
+    transform:rotate(-6deg);
+  }
+
+  /* ===== COLORS & TYPE ===== */
+  .palette{
+    display:grid; grid-template-columns: repeat(6,1fr);
+    border-bottom:2px solid var(--ink);
+  }
+  .sw{
+    aspect-ratio:1/.9;
+    border-right:2px solid var(--ink);
+    padding:14px;
+    color:var(--ink);
+    font-family:'Space Mono',monospace; font-size:11px;
+    display:flex; flex-direction:column; justify-content:space-between;
+    position:relative;
+  }
+  .sw:last-child{border-right:none}
+  .sw b{font-family:'Bungee',sans-serif; font-size:18px; letter-spacing:.02em;}
+  .sw .hex{opacity:.7}
+  .sw.dark{color:var(--cream)}
+  .sw .num{position:absolute; top:10px; right:12px; opacity:.6; font-weight:700}
+
+  .typezone{
+    display:grid; grid-template-columns: 1.4fr 1fr;
+    border-bottom:2px solid var(--ink);
+  }
+  .type-main{
+    padding:36px 40px;
+    border-right:2px solid var(--ink);
+    background:var(--paper);
+  }
+  .type-main .kicker{font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.2em; opacity:.6; margin-bottom:8px}
+  .type-main .specA{font-family:'Bungee',sans-serif; font-size:84px; line-height:.9; margin:0; -webkit-text-stroke:2px var(--ink); color:var(--magenta); text-shadow:4px 4px 0 var(--ink);}
+  .type-main .specB{font-family:'Bungee Shade',cursive; font-size:62px; line-height:.95; margin:10px 0 0; color:var(--ink)}
+  .type-main .specC{font-family:'Space Grotesk',sans-serif; font-size:18px; max-width:560px; line-height:1.5; margin:18px 0 0;}
+  .type-main .specC b{background:var(--cyan); padding:0 4px;}
+
+  .type-side{
+    padding:28px;
+    background:var(--ink);
+    color:var(--cream);
+  }
+  .type-side h3{font-family:'Bungee',sans-serif; font-size:18px; margin:0 0 4px; color:var(--lime)}
+  .type-side .label{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.18em; opacity:.6; margin-bottom:14px}
+  .type-row{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:10px 0;
+    border-bottom:1px dashed rgba(246,239,226,.25);
+    font-family:'Space Mono',monospace; font-size:12px;
+  }
+  .type-row b{font-family:'Bungee',sans-serif; font-size:18px; color:var(--cream);}
+  .type-row.s b{font-size:14px}
+  .type-row.l b{font-size:26px}
+  .type-row.xl b{font-size:34px}
+
+  /* ===== FOOTER MARQUEE ===== */
+  .marquee{
+    background:var(--ink); color:var(--lime);
+    font-family:'Bungee',sans-serif; font-size:48px;
+    padding:18px 0; white-space:nowrap; overflow:hidden;
+    border-top:2px solid var(--ink);
+    letter-spacing:.02em;
+  }
+  .marquee span{display:inline-block; padding:0 22px}
+  .marquee span.alt{color:var(--magenta)}
+  .marquee span.alt2{color:var(--yellow)}
+  .marquee span.alt3{color:var(--cyan)}
+  .marquee .star{color:var(--lime); padding:0 8px}
+
+  /* footer */
+  .foot{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:18px 28px;
+    background:var(--cream);
+    font-family:'Space Mono',monospace; font-size:12px;
+    border-top:2px solid var(--ink);
+  }
+  .foot .lic{display:flex; gap:18px}
+  .foot .lic b{font-family:'Bungee',sans-serif; font-size:16px}
+
+  /* drips */
+  .drip-row{
+    display:block;
+    width:100%; height:32px;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- TOP BAR -->
+  <div class="topbar layer">
+    <div class="dots"><i></i><i></i><i></i></div>
+    <div class="meta">
+      <span>SYSTEM // <b>WILDSTYLE.01</b></span>
+      <span>VOL_026 / SS26</span>
+      <span>FOR_DEMO_ONLY</span>
+    </div>
+    <div>★ ORIGINAL DESIGN — NO BRAND LIFTED ★</div>
+  </div>
+
+  <!-- HERO -->
+  <section class="hero layer">
+    <!-- decorative splats -->
+    <svg class="splat" style="top:30px; left:30px; width:90px;" viewBox="0 0 100 100">
+      <path d="M50 6 L60 32 L88 28 L70 50 L94 66 L66 70 L62 96 L48 76 L26 92 L30 66 L8 56 L30 42 L18 18 L42 28 Z"
+            fill="#bfe636" stroke="#0d0b0a" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="50" cy="52" r="8" fill="#0d0b0a"/>
+    </svg>
+    <svg class="splat" style="top:60px; right:60px; width:120px;" viewBox="0 0 120 120">
+      <path d="M60 8 Q88 18 92 48 Q110 60 96 80 Q104 104 78 102 Q60 116 44 100 Q20 108 18 86 Q4 70 18 52 Q14 26 40 24 Q48 6 60 8 Z"
+            fill="#26c6c9" stroke="#0d0b0a" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="60" cy="56" r="22" fill="#fbf6ea" stroke="#0d0b0a" stroke-width="3"/>
+      <circle cx="60" cy="56" r="9" fill="#ec1e7c"/>
+    </svg>
+    <svg class="splat" style="top:240px; right:30px; width:70px;" viewBox="0 0 60 60">
+      <path d="M30 4 L36 24 L56 28 L40 42 L46 58 L30 50 L14 58 L20 42 L4 28 L24 24 Z" fill="#ffd23a" stroke="#0d0b0a" stroke-width="2.5"/>
+    </svg>
+
+    <span class="ticker">// WILDSTYLE TEMPLATE SYSTEM — 街頭插畫 v1</span>
+
+    <h1 class="wild">
+      <span class="row r1">
+        <span class="tag">WILD</span><span class="tag b">★</span><span class="tag c">STYLE</span>
+      </span>
+      <span class="row r2">
+        <span class="tag d">TEM</span><span class="tag e">PLATE</span><span class="tag f">!!</span>
+      </span>
+    </h1>
+
+    <div class="hero-sub">
+      <p>
+        高飽和、強筆觸的<b>插畫風樣板</b>。把噴漆滴流、貼紙幾何與粗體 BLOCK
+        字結合，給你一套敢用、敢喊、敢被看見的設計起手式。
+      </p>
+      <div class="crew">
+        <b>CREW / 04</b>
+        ART DIR — RIKO<br/>
+        TYPE — BENZO<br/>
+        ILLUS — CHARM<br/>
+        BUILD — STATIC
+      </div>
+    </div>
+  </section>
+
+  <!-- drip row separating hero -->
+  <svg class="drip-row layer" viewBox="0 0 1440 40" preserveAspectRatio="none">
+    <path d="M0 0 H1440 V18 C1420 18 1418 36 1400 36 C1382 36 1380 14 1360 14
+             C1340 14 1338 30 1320 30 C1300 30 1300 12 1278 12
+             C1256 12 1256 38 1232 38 C1208 38 1208 16 1186 16
+             C1164 16 1164 32 1140 32 C1116 32 1116 12 1090 12
+             C1064 12 1064 36 1040 36 C1016 36 1016 12 992 12
+             C968 12 968 30 944 30 C920 30 920 12 894 12 C868 12 868 38 840 38
+             C812 38 812 14 786 14 C760 14 760 30 736 30 C712 30 712 12 686 12
+             C660 12 660 36 634 36 C608 36 608 14 582 14 C556 14 556 30 530 30
+             C504 30 504 12 478 12 C452 12 452 36 426 36 C400 36 400 14 374 14
+             C348 14 348 30 322 30 C296 30 296 12 270 12 C244 12 244 36 218 36
+             C192 36 192 14 166 14 C140 14 140 30 114 30 C88 30 88 12 62 12
+             C36 12 36 36 0 36 Z"
+          fill="#1a1417" />
+  </svg>
+
+  <!-- POSTER + STICKERS -->
+  <section class="grid layer">
+    <div class="poster">
+      <div class="stamp">★ ZINE #07 ★</div>
+      <h2 class="pttl">
+        BLOCK<em>PARTY</em><span>FRIDAY</span>
+      </h2>
+
+      <!-- big sticker glyph -->
+      <svg style="position:absolute; left:42%; top:42%; width:280px;" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="78" fill="#bfe636" stroke="#0d0b0a" stroke-width="5"/>
+        <circle cx="100" cy="100" r="56" fill="#fbf6ea" stroke="#0d0b0a" stroke-width="4"/>
+        <text x="100" y="118" text-anchor="middle" font-family="Bungee" font-size="58" fill="#ec1e7c" stroke="#0d0b0a" stroke-width="3" paint-order="stroke fill">WS</text>
+      </svg>
+
+      <div class="pmeta">
+        <div class="when">
+          <span>06 / SEP / 26 — DOORS 21:00</span>
+          <b>WAREHOUSE 14</b>
+        </div>
+        <div style="text-align:right">
+          <span>SUPPORT BY</span><br/>
+          <b style="font-family:'Bungee',sans-serif; font-size:18px; color:var(--lime); -webkit-text-stroke:1.5px var(--ink);">CHARM × BENZO</b>
+        </div>
+      </div>
+
+      <!-- drips on poster bottom -->
+      <svg style="position:absolute; left:0; right:0; bottom:-2px; width:100%; height:38px;" viewBox="0 0 800 40" preserveAspectRatio="none">
+        <path d="M0 0 H800 V40 H780 V18 H760 V36 H740 V14 H720 V40 H700 V20 H680 V36 H660 V12 H640 V40 H620 V18 H600 V32 H580 V14 H560 V40 H540 V18 H520 V36 H500 V12 H480 V40 H460 V20 H440 V32 H420 V14 H400 V40 H380 V18 H360 V36 H340 V14 H320 V40 H300 V20 H280 V36 H260 V12 H240 V40 H220 V18 H200 V32 H180 V14 H160 V40 H140 V18 H120 V36 H100 V14 H80 V40 H60 V20 H40 V36 H20 V12 H0 Z"
+              fill="#ec1e7c"/>
+      </svg>
+    </div>
+
+    <div class="sticker-board">
+      <h3 class="sb-title">Sticker Pack</h3>
+      <p class="sb-sub">// 06 SHAPES — DROP ANYWHERE</p>
+
+      <div class="stickers">
+        <!-- 1: star -->
+        <div class="stk">
+          <svg viewBox="0 0 100 100">
+            <path d="M50 8 L60 36 L90 38 L66 56 L74 86 L50 70 L26 86 L34 56 L10 38 L40 36 Z"
+                  fill="#ec1e7c" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"/>
+            <circle cx="50" cy="50" r="6" fill="#0d0b0a"/>
+          </svg>
+        </div>
+        <!-- 2: eye -->
+        <div class="stk">
+          <svg viewBox="0 0 100 100">
+            <path d="M8 50 Q30 18 50 18 Q70 18 92 50 Q70 82 50 82 Q30 82 8 50 Z" fill="#fbf6ea" stroke="#0d0b0a" stroke-width="4"/>
+            <circle cx="50" cy="50" r="18" fill="#ec1e7c" stroke="#0d0b0a" stroke-width="3.5"/>
+            <circle cx="55" cy="46" r="4" fill="#fbf6ea"/>
+          </svg>
+        </div>
+        <!-- 3: lightning -->
+        <div class="stk">
+          <svg viewBox="0 0 100 100">
+            <path d="M58 6 L18 56 L46 56 L36 94 L82 38 L54 38 Z"
+                  fill="#ffd23a" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <!-- 4: bubble -->
+        <div class="stk">
+          <svg viewBox="0 0 100 100">
+            <path d="M18 22 Q18 10 32 10 H74 Q86 10 86 24 V58 Q86 70 74 70 H46 L26 88 L32 70 Q18 70 18 58 Z"
+                  fill="#26c6c9" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"/>
+            <text x="52" y="46" text-anchor="middle" font-family="Bungee" font-size="22" fill="#0d0b0a">YO!</text>
+          </svg>
+        </div>
+        <!-- 5: gear/flower -->
+        <div class="stk">
+          <svg viewBox="0 0 100 100">
+            <path d="M50 8 L60 22 L78 18 L78 38 L92 50 L78 62 L78 82 L60 78 L50 92 L40 78 L22 82 L22 62 L8 50 L22 38 L22 18 L40 22 Z"
+                  fill="#fbf6ea" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"/>
+            <circle cx="50" cy="50" r="14" fill="#ec1e7c" stroke="#0d0b0a" stroke-width="3.5"/>
+          </svg>
+        </div>
+        <!-- 6: arrow -->
+        <div class="stk">
+          <svg viewBox="0 0 100 100">
+            <path d="M14 38 H56 V20 L92 50 L56 80 V62 H14 Z"
+                  fill="#bfe636" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPONENTS -->
+  <section class="components layer">
+    <div class="panel">
+      <h3>BUTTONS</h3>
+      <p class="label">// PRESS HARD</p>
+      <div class="btn-row">
+        <button class="btn">SMASH IT <span class="dot"></span></button>
+        <button class="btn alt">REMIX</button>
+        <button class="btn ghost">CANCEL</button>
+      </div>
+
+      <h3 style="margin-top:28px">BADGES</h3>
+      <p class="label">// LOUD LABELS</p>
+      <div class="badges">
+        <span class="badge">NEW DROP</span>
+        <span class="badge b">SS / 26</span>
+        <span class="badge c">LIVE</span>
+        <span class="badge d">FIRE 🔥</span>
+        <span class="badge e">★ LTD ★</span>
+      </div>
+
+      <div class="chips">
+        <span class="chip on">ALL</span>
+        <span class="chip">TYPE</span>
+        <span class="chip">PAINT</span>
+        <span class="chip">STICKERS</span>
+        <span class="chip">POSTERS</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>EVENT CARD</h3>
+      <p class="label">// PRODUCT / DROP</p>
+      <div class="gcard">
+        <div class="ph">[ PHOTO — DROP IMAGE HERE ]
+          <div class="price">$24</div>
+        </div>
+        <div class="gb">
+          <h4>SPRAY TEE — VOL.02</h4>
+          <p>厚磅棉、雙線車工。每件編號限量，附手寫貼紙一張。</p>
+        </div>
+      </div>
+
+      <div class="alert">
+        <span class="bang">!</span>
+        <span>剩 <b>12</b> 件。下單後 48 小時手工噴塗，預計 7 天內出貨。</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>NEWSLETTER</h3>
+      <p class="label">// JOIN THE CREW</p>
+      <p style="font-size:14.5px; margin:0 0 4px;">每兩週一封，街頭、字體與小眾噴漆品牌。</p>
+      <div class="input">
+        <input placeholder="your@email.crew" />
+        <button>GO</button>
+      </div>
+
+      <h3 style="margin-top:28px">STATS</h3>
+      <p class="label">// THIS QUARTER</p>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div style="border:2px solid var(--ink); padding:10px 12px; background:var(--yellow); box-shadow:4px 4px 0 var(--ink);">
+          <div style="font-family:'Bungee',sans-serif; font-size:32px; line-height:1;">04K</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; opacity:.7;">CREW MEMBERS</div>
+        </div>
+        <div style="border:2px solid var(--ink); padding:10px 12px; background:var(--lime); box-shadow:4px 4px 0 var(--ink);">
+          <div style="font-family:'Bungee',sans-serif; font-size:32px; line-height:1;">128</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; opacity:.7;">DROPS SHIPPED</div>
+        </div>
+        <div style="border:2px solid var(--ink); padding:10px 12px; background:var(--cyan); box-shadow:4px 4px 0 var(--ink);">
+          <div style="font-family:'Bungee',sans-serif; font-size:32px; line-height:1;">+62%</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; opacity:.7;">REORDER RATE</div>
+        </div>
+        <div style="border:2px solid var(--ink); padding:10px 12px; background:var(--tangerine); color:var(--cream); box-shadow:4px 4px 0 var(--ink);">
+          <div style="font-family:'Bungee',sans-serif; font-size:32px; line-height:1;">★★★★★</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; opacity:.85;">CREW SCORE</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PALETTE -->
+  <section class="palette layer">
+    <div class="sw" style="background:#ec1e7c; color:#fbf6ea"><span class="num">01</span><b>MAGENTA</b><span class="hex">#EC1E7C</span></div>
+    <div class="sw" style="background:#bfe636"><span class="num">02</span><b>ACID LIME</b><span class="hex">#BFE636</span></div>
+    <div class="sw" style="background:#26c6c9"><span class="num">03</span><b>CYAN</b><span class="hex">#26C6C9</span></div>
+    <div class="sw" style="background:#ffd23a"><span class="num">04</span><b>SUN</b><span class="hex">#FFD23A</span></div>
+    <div class="sw" style="background:#ff7a1a; color:#fbf6ea"><span class="num">05</span><b>TANGERINE</b><span class="hex">#FF7A1A</span></div>
+    <div class="sw dark" style="background:#0d0b0a"><span class="num">06</span><b style="color:#bfe636">INK</b><span class="hex">#0D0B0A</span></div>
+  </section>
+
+  <!-- TYPE -->
+  <section class="typezone layer">
+    <div class="type-main">
+      <div class="kicker">// TYPE SYSTEM — DISPLAY / BODY / MONO</div>
+      <h2 class="specA">PAINT IT.</h2>
+      <h3 class="specB">街頭就是版面</h3>
+      <p class="specC">
+        標題用 <b>Bungee</b>，粗到鎖住視線。內文走 <b>Space Grotesk</b>，乾淨好讀。
+        備註與標記交給 <b>Space Mono</b>，給設計一點工程氣味。
+      </p>
+    </div>
+    <div class="type-side">
+      <h3>SCALE</h3>
+      <div class="label">// MODULAR / 1.333</div>
+      <div class="type-row xl"><b>Aa</b><span>DISPLAY · 84 / 72</span></div>
+      <div class="type-row l"><b>Aa</b><span>H1 · 48 / 1.0</span></div>
+      <div class="type-row"><b>Aa</b><span>H2 · 28 / 1.1</span></div>
+      <div class="type-row s"><b>Aa</b><span>BODY · 16 / 1.5</span></div>
+      <div class="type-row s"><b>Aa</b><span>CAPTION · 12 / 1.4</span></div>
+    </div>
+  </section>
+
+  <!-- MARQUEE -->
+  <div class="marquee layer">
+    <span>WILDSTYLE</span><span class="star">★</span>
+    <span class="alt">BLOCK PARTY</span><span class="star">✦</span>
+    <span class="alt2">SS / 26</span><span class="star">★</span>
+    <span class="alt3">PAINT LOUD</span><span class="star">✦</span>
+    <span>WILDSTYLE</span><span class="star">★</span>
+    <span class="alt">BLOCK PARTY</span><span class="star">✦</span>
+    <span class="alt2">SS / 26</span>
+  </div>
+
+  <div class="foot layer">
+    <div class="lic">
+      <span><b>WILDSTYLE</b> — TEMPLATE SYSTEM</span>
+      <span>v1.0 · 2026</span>
+    </div>
+    <div>★ ORIGINAL ILLUSTRATION — NOT AFFILIATED WITH ANY BRAND ★</div>
+  </div>
+
+</div>
+</body>
+</html>

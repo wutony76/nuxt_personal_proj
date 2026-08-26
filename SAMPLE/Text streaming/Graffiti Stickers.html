@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>WILDSTYLE — Skate Stickers</title>
+<meta name="viewport" content="width=1440, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Bungee+Shade&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#f6efe2; --paper:#fbf6ea; --ink:#0d0b0a;
+  --magenta:#ec1e7c; --lime:#bfe636; --cyan:#26c6c9;
+  --yellow:#ffd23a; --tangerine:#ff7a1a; --purple:#7a2fa6;
+}
+*{box-sizing:border-box}
+html,body{margin:0; background:#0d0b0a;}
+body{
+  font-family:'Space Grotesk',sans-serif; color:var(--ink);
+  background:
+    radial-gradient(1100px 700px at 100% 0%, #1a3030 0%, transparent 60%),
+    radial-gradient(900px 600px at 0% 100%, #2a1a2e 0%, transparent 55%),
+    #0d0b0a;
+  min-height:100vh; padding:40px 0 80px;
+}
+.stage{
+  width:1440px; margin:0 auto; background:var(--paper);
+  border:2px solid var(--ink);
+  box-shadow:18px 18px 0 var(--ink), 18px 18px 0 4px var(--cyan);
+  position:relative; overflow:hidden;
+}
+.stage::before{
+  content:""; position:absolute; inset:0;
+  background-image:
+    radial-gradient(rgba(13,11,10,.18) 1px, transparent 1.4px),
+    radial-gradient(rgba(13,11,10,.10) 1px, transparent 1.2px);
+  background-size:6px 6px, 11px 11px; background-position:0 0, 3px 3px;
+  opacity:.35; mix-blend-mode:multiply; pointer-events:none; z-index:1;
+}
+.layer{position:relative; z-index:2}
+
+.nav{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:14px 28px; background:var(--ink); color:var(--cream);
+  font-family:'Space Mono',monospace; font-size:13px;
+}
+.nav a{color:var(--cream); text-decoration:none; padding:6px 10px; border:2px solid transparent}
+.nav a.on{color:var(--cyan); border:2px solid var(--cyan); transform:rotate(-1deg)}
+.nav b{color:var(--yellow); font-family:'Bungee',sans-serif; font-size:18px; letter-spacing:.04em}
+.nav .group{display:flex; gap:6px;}
+
+/* HEAD */
+.head{
+  padding:36px 56px 28px; border-bottom:2px solid var(--ink);
+  background:linear-gradient(180deg,#fffaee,#f3e9d2);
+  position:relative; overflow:hidden;
+}
+.head .tk{
+  display:inline-block; font-family:'Space Mono',monospace; font-size:12px;
+  letter-spacing:.2em; background:var(--lime); color:var(--ink);
+  padding:6px 14px; border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink);
+  transform:rotate(-2deg); margin-bottom:10px;
+}
+.head h1{
+  font-family:'Bungee',sans-serif; font-size:132px; line-height:.9; margin:0;
+  -webkit-text-stroke:3px var(--ink); color:var(--cyan);
+  text-shadow:8px 8px 0 var(--ink);
+}
+.head h1 em{ font-style:normal; color:var(--tangerine); display:inline-block; transform:rotate(-3deg);}
+.head h1 span{ color:var(--magenta);}
+.head .sub{ display:flex; justify-content:space-between; align-items:flex-end; margin-top:18px;}
+.head .sub p{font-size:18px; max-width:560px; margin:0; line-height:1.45;}
+.head .sub p b{background:var(--yellow); padding:0 6px; box-shadow:3px 3px 0 var(--ink); display:inline-block;}
+.head .right{font-family:'Space Mono',monospace; font-size:12px; text-align:right;}
+.head .right b{font-family:'Bungee',sans-serif; font-size:22px; color:var(--magenta); -webkit-text-stroke:1.5px var(--ink); display:block;}
+
+/* MAIN GRID */
+.main{
+  display:grid; grid-template-columns: 1.05fr .95fr;
+  border-bottom:2px solid var(--ink);
+}
+
+/* skateboard column */
+.deck-col{
+  position:relative;
+  padding:40px 24px;
+  border-right:2px solid var(--ink);
+  background:
+    repeating-linear-gradient(45deg, #2a2226 0 24px, #1f181c 24px 26px);
+  min-height:840px;
+  overflow:hidden;
+}
+.deck-col .lbl{
+  position:absolute; top:18px; left:20px;
+  font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.2em;
+  padding:4px 10px; border:2px solid var(--lime); color:var(--lime);
+  background:rgba(0,0,0,.4);
+}
+.deck-col .meta-r{
+  position:absolute; top:18px; right:20px;
+  font-family:'Space Mono',monospace; font-size:11px; color:var(--cream); text-align:right;
+}
+.deck-col .meta-r b{font-family:'Bungee',sans-serif; font-size:16px; color:var(--yellow); display:block;}
+
+.deck-wrap{
+  width:340px; margin:30px auto 0; position:relative;
+}
+.deck{
+  filter: drop-shadow(10px 14px 0 rgba(0,0,0,.5));
+}
+
+/* deck stickers absolutely positioned */
+.deck-stk{position:absolute; pointer-events:none; }
+
+.deck-caption{
+  position:absolute; left:0; right:0; bottom:24px;
+  text-align:center; color:var(--cream);
+  font-family:'Space Mono',monospace; font-size:12px; letter-spacing:.18em;
+}
+.deck-caption b{display:block; font-family:'Bungee',sans-serif; font-size:24px; color:var(--lime); letter-spacing:.02em;}
+
+/* sticker sheet column */
+.sheet-col{
+  position:relative;
+  padding:30px;
+  background:var(--paper);
+}
+.sheet-col h2{font-family:'Bungee',sans-serif; font-size:28px; margin:0 0 4px;}
+.sheet-col .lab{font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.2em; opacity:.6; margin-bottom:18px;}
+
+.sheet{
+  position:relative;
+  background:var(--cream);
+  border:2.5px solid var(--ink);
+  box-shadow:8px 8px 0 var(--ink);
+  padding:18px;
+  background-image:
+    linear-gradient(90deg, rgba(0,0,0,.06) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(0,0,0,.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.sheet::before{
+  content:"";
+  position:absolute; inset:8px;
+  border:2px dashed rgba(0,0,0,.35);
+  pointer-events:none;
+}
+.sheet-head{
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:10px;
+  font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.18em; color:var(--ink);
+}
+.sheet-head b{font-family:'Bungee',sans-serif; font-size:14px; letter-spacing:.04em;}
+.sheet-grid{
+  display:grid; grid-template-columns: repeat(3, 1fr);
+  gap:14px;
+  margin-top:6px;
+}
+.cell{
+  aspect-ratio:1/1; display:flex; align-items:center; justify-content:center;
+  position:relative; overflow:visible;
+}
+.cell svg{ width:88%; height:88%;}
+.cell::after{
+  content:""; position:absolute; inset:-4px;
+  border:1.5px dashed rgba(0,0,0,.4);
+  border-radius:6px;
+  pointer-events:none;
+}
+.cell.lg{ grid-column: span 2; aspect-ratio: 2/1;}
+.cell.lg svg{ height:88%}
+
+.sheet-foot{
+  display:flex; justify-content:space-between; align-items:center;
+  margin-top:14px; padding-top:10px; border-top:2px dashed rgba(0,0,0,.4);
+  font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.15em;
+}
+.sheet-foot b{font-family:'Bungee',sans-serif; font-size:13px;}
+
+/* details below */
+.below{
+  display:grid; grid-template-columns: 1fr 1fr 1fr;
+  border-bottom:2px solid var(--ink);
+}
+.tile{
+  padding:26px; border-right:2px solid var(--ink); position:relative;
+}
+.tile:last-child{border-right:none}
+.tile h3{font-family:'Bungee',sans-serif; font-size:18px; margin:0 0 4px;}
+.tile .l{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.2em; opacity:.6; margin-bottom:14px;}
+.tile p{font-size:14px; line-height:1.5; margin:0;}
+
+.kv{ display:flex; justify-content:space-between; padding:6px 0; font-size:13px; border-bottom:1px dashed rgba(0,0,0,.2)}
+.kv b{font-family:'Bungee',sans-serif; font-weight:400; font-size:14px;}
+
+.cta{
+  font-family:'Bungee',sans-serif; font-size:18px;
+  padding:14px 22px; background:var(--magenta); color:var(--cream);
+  border:2.5px solid var(--ink); box-shadow:6px 6px 0 var(--ink);
+  display:inline-flex; gap:10px; cursor:pointer; transform:rotate(-1deg); margin-top:14px;
+}
+.cta .arr{color:var(--yellow)}
+
+.foot{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:16px 28px; background:var(--ink); color:var(--cream);
+  font-family:'Space Mono',monospace; font-size:12px;
+}
+.foot b{font-family:'Bungee',sans-serif; color:var(--cyan); font-size:16px;}
+
+/* tile 3 - mini deck mockups */
+.minideck{
+  display:flex; gap:10px; align-items:flex-start; margin-top:6px;
+}
+.md{
+  width:64px; height:160px; border:2px solid var(--ink); box-shadow:3px 3px 0 var(--ink);
+  border-radius:30px / 18px;
+  position:relative;
+}
+.md::before, .md::after{
+  content:""; position:absolute; left:50%; transform:translateX(-50%);
+  width:18px; height:6px; background:var(--ink); border-radius:3px;
+}
+.md::before{ top:14px}
+.md::after{ bottom:14px}
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <div class="nav layer">
+    <div><b>WILDSTYLE</b> <span style="opacity:.6">// drops</span></div>
+    <div class="group">
+      <a href="Graffiti Template.html">SYSTEM</a>
+      <a href="Graffiti T-Shirt.html">T-SHIRT</a>
+      <a href="Graffiti Stickers.html" class="on">SKATE STICKERS</a>
+      <a href="Graffiti Web Hero.html">WEB HERO</a>
+    </div>
+  </div>
+
+  <!-- HEAD -->
+  <header class="head layer">
+    <span class="tk">// DROP 09 — DIE-CUT VINYL PACK</span>
+    <h1>STICK <em>EM</em> <span>UP.</span></h1>
+    <div class="sub">
+      <p>
+        12 張防水 PVC 模切貼紙，<b>耐曬抗刮</b>。版面包含星形、閃電、對話泡泡、貓眼、條碼字標——
+        貼在板底、安全帽、筆電、冰箱、路標都很有事。
+      </p>
+      <div class="right">
+        <span>STYLE NO.</span><b>WS-STK-009</b>
+        <span>NTD 280 / PACK</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <section class="main layer">
+    <!-- DECK -->
+    <div class="deck-col">
+      <div class="lbl">// 01 — APPLIED ON DECK</div>
+      <div class="meta-r">
+        DECK 8.25" · CANADIAN MAPLE<br/>
+        <b>RIDE OR HANG</b>
+      </div>
+
+      <div class="deck-wrap">
+        <!-- skateboard (bottom view) -->
+        <svg class="deck" viewBox="0 0 340 800" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="wood" x="0" y="0" width="340" height="800" patternUnits="userSpaceOnUse">
+              <rect width="340" height="800" fill="#ec1e7c"/>
+              <!-- vertical wood streaks subtle -->
+              <path d="M0 0 L340 800" stroke="rgba(0,0,0,.05)" stroke-width="6"/>
+            </pattern>
+            <linearGradient id="dgrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#7a2fa6"/>
+              <stop offset=".5" stop-color="#ec1e7c"/>
+              <stop offset="1" stop-color="#ff7a1a"/>
+            </linearGradient>
+          </defs>
+          <!-- deck shape -->
+          <path d="M170 8
+                   C 250 8 312 60 312 130
+                   L 312 670
+                   C 312 740 250 792 170 792
+                   C 90 792 28 740 28 670
+                   L 28 130
+                   C 28 60 90 8 170 8 Z"
+                fill="url(#dgrad)" stroke="#0d0b0a" stroke-width="5"/>
+          <!-- wheel wells -->
+          <ellipse cx="170" cy="180" rx="120" ry="14" fill="rgba(0,0,0,.18)"/>
+          <ellipse cx="170" cy="620" rx="120" ry="14" fill="rgba(0,0,0,.18)"/>
+          <!-- mounting holes -->
+          <circle cx="120" cy="120" r="4" fill="#0d0b0a"/>
+          <circle cx="220" cy="120" r="4" fill="#0d0b0a"/>
+          <circle cx="120" cy="200" r="4" fill="#0d0b0a"/>
+          <circle cx="220" cy="200" r="4" fill="#0d0b0a"/>
+          <circle cx="120" cy="600" r="4" fill="#0d0b0a"/>
+          <circle cx="220" cy="600" r="4" fill="#0d0b0a"/>
+          <circle cx="120" cy="680" r="4" fill="#0d0b0a"/>
+          <circle cx="220" cy="680" r="4" fill="#0d0b0a"/>
+
+          <!-- center text (printed) -->
+          <text x="170" y="380" text-anchor="middle"
+                font-family="Bungee" font-size="64" fill="#bfe636"
+                stroke="#0d0b0a" stroke-width="3" paint-order="stroke fill"
+                transform="rotate(-90 170 380)">WILD</text>
+          <text x="170" y="500" text-anchor="middle"
+                font-family="Bungee" font-size="64" fill="#26c6c9"
+                stroke="#0d0b0a" stroke-width="3" paint-order="stroke fill"
+                transform="rotate(-90 170 500)">STYLE</text>
+        </svg>
+
+        <!-- applied stickers overlay -->
+        <svg class="deck-stk" style="top:48px; left:-30px; width:120px;" viewBox="0 0 100 100">
+          <path d="M50 8 L60 36 L90 38 L66 56 L74 86 L50 70 L26 86 L34 56 L10 38 L40 36 Z"
+                fill="#ffd23a" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"
+                transform="rotate(-18 50 50)"/>
+          <circle cx="50" cy="50" r="6" fill="#0d0b0a" transform="rotate(-18 50 50)"/>
+        </svg>
+
+        <svg class="deck-stk" style="top:60px; right:-40px; width:110px;" viewBox="0 0 100 100">
+          <path d="M58 6 L18 56 L46 56 L36 94 L82 38 L54 38 Z"
+                fill="#bfe636" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"
+                transform="rotate(14 50 50)"/>
+        </svg>
+
+        <svg class="deck-stk" style="top:240px; left:-20px; width:96px;" viewBox="0 0 100 100">
+          <path d="M18 22 Q18 10 32 10 H74 Q86 10 86 24 V58 Q86 70 74 70 H46 L26 88 L32 70 Q18 70 18 58 Z"
+                fill="#26c6c9" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"
+                transform="rotate(-10 50 50)"/>
+          <text x="52" y="46" text-anchor="middle" font-family="Bungee" font-size="22" fill="#0d0b0a" transform="rotate(-10 50 50)">YO!</text>
+        </svg>
+
+        <svg class="deck-stk" style="bottom:200px; right:-30px; width:104px;" viewBox="0 0 100 100">
+          <path d="M8 50 Q30 18 50 18 Q70 18 92 50 Q70 82 50 82 Q30 82 8 50 Z" fill="#fbf6ea" stroke="#0d0b0a" stroke-width="4"/>
+          <circle cx="50" cy="50" r="18" fill="#ec1e7c" stroke="#0d0b0a" stroke-width="3.5"/>
+          <circle cx="55" cy="46" r="4" fill="#fbf6ea"/>
+        </svg>
+
+        <svg class="deck-stk" style="bottom:80px; left:-10px; width:110px;" viewBox="0 0 120 60">
+          <path d="M6 10 H114 V50 H6 Z" fill="#0d0b0a" stroke="#0d0b0a" stroke-width="3" transform="rotate(-12 60 30)"/>
+          <text x="60" y="40" text-anchor="middle" font-family="Bungee" font-size="24" fill="#bfe636" transform="rotate(-12 60 30)">WILD</text>
+        </svg>
+
+        <div class="deck-caption">
+          <b>HOW WE RIDE</b>
+          // SLAP, RIDE, RE-SLAP
+        </div>
+      </div>
+    </div>
+
+    <!-- STICKER SHEET -->
+    <div class="sheet-col">
+      <h2>STICKER SHEET / 9 PCS</h2>
+      <p class="lab">// PEEL THE BACKING — STICK ANYWHERE</p>
+
+      <div class="sheet">
+        <div class="sheet-head">
+          <span>WS-STK-009 / VOL.01</span>
+          <b>WILDSTYLE PACK</b>
+          <span>// PVC + UV LAM</span>
+        </div>
+
+        <div class="sheet-grid">
+          <!-- 1: tag bubble -->
+          <div class="cell">
+            <svg viewBox="0 0 100 100">
+              <path d="M18 22 Q18 10 32 10 H74 Q86 10 86 24 V58 Q86 70 74 70 H46 L26 88 L32 70 Q18 70 18 58 Z"
+                    fill="#ec1e7c" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"/>
+              <text x="52" y="46" text-anchor="middle" font-family="Bungee" font-size="20" fill="#fbf6ea">WILD</text>
+              <text x="52" y="62" text-anchor="middle" font-family="Bungee" font-size="14" fill="#ffd23a">!!</text>
+            </svg>
+          </div>
+          <!-- 2: star -->
+          <div class="cell">
+            <svg viewBox="0 0 100 100">
+              <path d="M50 8 L60 36 L90 38 L66 56 L74 86 L50 70 L26 86 L34 56 L10 38 L40 36 Z"
+                    fill="#ffd23a" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"/>
+              <circle cx="50" cy="50" r="6" fill="#0d0b0a"/>
+            </svg>
+          </div>
+          <!-- 3: bolt -->
+          <div class="cell">
+            <svg viewBox="0 0 100 100">
+              <path d="M58 6 L18 56 L46 56 L36 94 L82 38 L54 38 Z"
+                    fill="#bfe636" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <!-- 4: eye -->
+          <div class="cell">
+            <svg viewBox="0 0 100 100">
+              <path d="M8 50 Q30 18 50 18 Q70 18 92 50 Q70 82 50 82 Q30 82 8 50 Z" fill="#fbf6ea" stroke="#0d0b0a" stroke-width="4"/>
+              <circle cx="50" cy="50" r="18" fill="#26c6c9" stroke="#0d0b0a" stroke-width="3.5"/>
+              <circle cx="55" cy="46" r="5" fill="#0d0b0a"/>
+            </svg>
+          </div>
+          <!-- 5: wide rectangle wordmark spans 2 -->
+          <div class="cell lg">
+            <svg viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet">
+              <rect x="6" y="20" width="188" height="60" fill="#0d0b0a" stroke="#0d0b0a" stroke-width="4"/>
+              <text x="100" y="64" text-anchor="middle" font-family="Bungee" font-size="36" fill="#26c6c9" stroke="#0d0b0a" stroke-width="1.5">WILDSTYLE</text>
+            </svg>
+          </div>
+          <!-- 6: arrow -->
+          <div class="cell">
+            <svg viewBox="0 0 100 100">
+              <path d="M14 38 H56 V20 L92 50 L56 80 V62 H14 Z"
+                    fill="#ff7a1a" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <!-- 7: gear flower -->
+          <div class="cell">
+            <svg viewBox="0 0 100 100">
+              <path d="M50 8 L60 22 L78 18 L78 38 L92 50 L78 62 L78 82 L60 78 L50 92 L40 78 L22 82 L22 62 L8 50 L22 38 L22 18 L40 22 Z"
+                    fill="#fbf6ea" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"/>
+              <circle cx="50" cy="50" r="14" fill="#ec1e7c" stroke="#0d0b0a" stroke-width="3.5"/>
+            </svg>
+          </div>
+          <!-- 8: round badge -->
+          <div class="cell">
+            <svg viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="40" fill="#7a2fa6" stroke="#0d0b0a" stroke-width="4"/>
+              <circle cx="50" cy="50" r="28" fill="#fbf6ea" stroke="#0d0b0a" stroke-width="3"/>
+              <text x="50" y="58" text-anchor="middle" font-family="Bungee" font-size="22" fill="#ec1e7c" stroke="#0d0b0a" stroke-width="1">WS</text>
+            </svg>
+          </div>
+          <!-- 9: drippy blob -->
+          <div class="cell">
+            <svg viewBox="0 0 100 100">
+              <path d="M50 8 Q78 12 84 38 Q96 56 80 70 Q86 90 64 88
+                       L60 94 L52 88 L44 96 L40 86 L24 92 Q12 78 22 64 Q6 50 18 32 Q24 14 50 8 Z"
+                    fill="#26c6c9" stroke="#0d0b0a" stroke-width="4" stroke-linejoin="round"/>
+              <circle cx="42" cy="44" r="6" fill="#0d0b0a"/>
+              <circle cx="60" cy="44" r="6" fill="#0d0b0a"/>
+              <path d="M40 60 Q50 70 60 60" stroke="#0d0b0a" stroke-width="4" fill="none" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="sheet-foot">
+          <span>// 200×200 MM SHEET</span>
+          <b>★ DIE-CUT ★</b>
+          <span>WATERPROOF / UV-COATED</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BELOW -->
+  <section class="below layer">
+    <div class="tile">
+      <h3>WHAT'S INSIDE</h3>
+      <p class="l">// PACK CONTENTS</p>
+      <div class="kv"><span>STICKERS</span><b>9 DIE-CUT</b></div>
+      <div class="kv"><span>SIZES</span><b>50–180 MM</b></div>
+      <div class="kv"><span>MATERIAL</span><b>3M PVC + LAM</b></div>
+      <div class="kv"><span>FINISH</span><b>GLOSS + MATTE MIX</b></div>
+      <div class="kv"><span>SHEET</span><b>200 × 200 MM</b></div>
+      <div class="kv"><span>PRINT</span><b>CMYK + SPOT</b></div>
+      <button class="cta">GRAB A PACK <span class="arr">→</span></button>
+    </div>
+
+    <div class="tile" style="background:var(--yellow);">
+      <h3>STICK 'EM HERE</h3>
+      <p class="l">// SURFACE GUIDE</p>
+      <p>
+        貼紙吃所有平整／微曲面，不挑底色。常見落點：板底 trucks 兩側、安全帽後勺、
+        筆電蓋角、滑板車前管、樂器盒——都很 fit。
+      </p>
+      <div class="minideck">
+        <div class="md" style="background:#ec1e7c"></div>
+        <div class="md" style="background:#26c6c9"></div>
+        <div class="md" style="background:#7a2fa6"></div>
+        <div class="md" style="background:#0d0b0a"></div>
+        <div class="md" style="background:#bfe636"></div>
+      </div>
+    </div>
+
+    <div class="tile" style="background:var(--lime);">
+      <h3>CARE & WEAR</h3>
+      <p class="l">// HOW LONG IT LASTS</p>
+      <div class="kv"><span>OUTDOOR LIFE</span><b>3–5 YRS</b></div>
+      <div class="kv"><span>WATERPROOF</span><b>YES</b></div>
+      <div class="kv"><span>DISHWASHER</span><b>NOPE</b></div>
+      <div class="kv"><span>RE-STICK</span><b>NO — ONE LIFE</b></div>
+      <div class="kv"><span>REMOVES W/</span><b>HEAT + GOO GONE</b></div>
+      <p style="margin-top:14px; font-size:12px; opacity:.7">
+        TIP / 貼之前先用酒精把表面擦乾淨，從中間往兩邊推出空氣。
+      </p>
+    </div>
+  </section>
+
+  <div class="foot layer">
+    <div><b>WILDSTYLE</b> · STICKER PACK 009 · SS26</div>
+    <div>★ MADE FOR DECKS, HELMETS & LAPTOPS ★</div>
+  </div>
+
+</div>
+</body>
+</html>

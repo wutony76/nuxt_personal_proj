@@ -1,0 +1,1692 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>對沖局 · 紅運版</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;700;900&family=ZCOOL+XiaoWei&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --red:        #c8202c;
+  --red-deep:   #8a0c1a;
+  --red-wine:   #5a0a14;
+  --red-ink:    #2e060c;
+  --red-bright: #e83a2c;
+  --vermilion:  #d93a1f;
+  --gold:       #f5c842;
+  --gold-deep:  #c89530;
+  --gold-bright:#ffd860;
+  --paper:      #fff5dc;
+  --paper-2:    #fbe7bd;
+  --paper-3:    #f5d59a;
+  --ivory:      #fff9e8;
+  --ink:        #2a0a0c;
+  --jade:       #2f6b4f;
+  --plum:       #6b1530;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--red-ink); }
+body {
+  font-family: 'Noto Serif TC', 'Songti TC', serif;
+  color: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'palt' 1;
+}
+.num { font-family: 'Space Grotesk', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+.serif { font-family: 'Noto Serif TC', serif; }
+.brush { font-family: 'ZCOOL XiaoWei', 'Noto Serif TC', serif; }
+
+/* ===== Stage ===== */
+.stage {
+  width: 1440px;
+  margin: 0 auto;
+  background: var(--paper);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 80px rgba(0,0,0,0.4);
+}
+
+/* ===== Decorative SVG defs (sprite) ===== */
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ===== Repeating border patterns ===== */
+.fret-border {
+  height: 14px;
+  background:
+    repeating-linear-gradient(90deg,
+      var(--gold) 0 2px, transparent 2px 4px,
+      var(--gold) 4px 6px, transparent 6px 16px,
+      var(--gold) 16px 18px, transparent 18px 32px);
+  position: relative;
+}
+.fret-border::before, .fret-border::after {
+  content:""; position: absolute; left: 0; right: 0; height: 1px;
+  background: var(--gold);
+}
+.fret-border::before { top: 0; }
+.fret-border::after { bottom: 0; }
+
+.scallop-border {
+  height: 18px;
+  background:
+    radial-gradient(circle 9px at 9px 18px, var(--red) 98%, transparent 100%) 0 0 / 18px 18px repeat-x,
+    var(--red-deep);
+  border-top: 1px solid var(--gold);
+  border-bottom: 1px solid var(--gold);
+}
+
+/* ===== Top utility bar ===== */
+.util {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 36px;
+  background: var(--red-wine);
+  color: #fde6c0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--gold-deep);
+  position: relative;
+}
+.util .left, .util .right { display: flex; gap: 28px; align-items: center; }
+.util .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold-bright); box-shadow: 0 0 8px var(--gold); }
+.util .pill { padding: 4px 10px; border: 1px solid var(--gold-deep); border-radius: 999px; color: var(--gold-bright); }
+.util .lant {
+  display: inline-block; width: 12px; height: 14px;
+  background: radial-gradient(ellipse at 50% 50%, var(--red-bright) 30%, var(--red-deep) 100%);
+  border: 1px solid var(--gold);
+  border-radius: 50% / 60%;
+  position: relative;
+}
+.util .lant::after { content:""; position: absolute; bottom:-3px; left: 50%; width: 1px; height: 4px; background: var(--gold); transform: translateX(-50%); }
+
+/* ===== Brand bar ===== */
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 36px 20px;
+  background:
+    radial-gradient(ellipse 400px 200px at 20% 0%, rgba(245,200,66,0.18), transparent),
+    radial-gradient(ellipse 400px 200px at 80% 100%, rgba(245,200,66,0.18), transparent),
+    var(--red-deep);
+  border-bottom: 2px solid var(--gold);
+  position: relative;
+}
+.brand::before, .brand::after {
+  content: ""; position: absolute; left: 0; right: 0; height: 3px;
+  background: repeating-linear-gradient(90deg, var(--gold) 0 6px, transparent 6px 10px);
+}
+.brand::before { top: 0; }
+.brand::after  { bottom: 2px; background: var(--gold); height: 1px; }
+
+.logo { display: flex; align-items: center; gap: 14px; }
+.logo .mark {
+  width: 48px; height: 48px;
+  position: relative;
+  display: grid; place-items: center;
+}
+.logo .mark svg { width: 100%; height: 100%; }
+.logo .name {
+  font-family: 'ZCOOL XiaoWei', 'Noto Serif TC';
+  font-weight: 900; color: var(--gold-bright); font-size: 26px; letter-spacing: 0.22em;
+  text-shadow: 0 1px 0 var(--red-deep);
+}
+.logo .sub { display: block; font-family: 'JetBrains Mono'; font-size: 10px; letter-spacing: 0.4em; color: var(--gold); margin-top: 2px; }
+
+.nav { display: flex; gap: 26px; font-size: 14px; color: #ffe6b8; }
+.nav a { color: inherit; text-decoration: none; padding: 8px 0; border-bottom: 1px solid transparent; position: relative; }
+.nav a.active { color: var(--gold-bright); border-bottom-color: var(--gold); }
+.nav a.active::before { content:"◆"; position: absolute; left: 50%; top: -10px; transform: translateX(-50%); color: var(--gold); font-size: 8px; }
+
+.session { display: flex; align-items: center; gap: 18px; font-size: 12px; color: #ffe6b8; }
+.session .bal { color: var(--gold-bright); font-family: 'Space Grotesk'; font-weight: 600; font-size: 18px; letter-spacing: 0.02em; }
+.session .acct { color: var(--paper-3); font-family: 'JetBrains Mono'; font-size: 11px; }
+
+/* ===== HERO: red split with dragon vs firecrackers ===== */
+.hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 600px;
+  overflow: hidden;
+  background: var(--red);
+}
+
+/* left: 信用 - 暗紅 + 龍 */
+.hero-left {
+  background:
+    radial-gradient(ellipse 900px 700px at 30% 50%, #6e0e1a 0%, transparent 60%),
+    radial-gradient(ellipse 700px 500px at 0% 100%, #2e060c 0%, transparent 60%),
+    #4a0a14;
+  color: var(--paper);
+  padding: 56px 56px 56px 64px;
+  position: relative;
+  overflow: hidden;
+}
+/* cloud totem background */
+.hero-left .clouds {
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='80' viewBox='0 0 120 80'><g fill='none' stroke='%23f5c842' stroke-width='1' opacity='0.18'><path d='M10 60 Q20 50 30 60 T50 60 Q60 50 50 40 Q40 30 30 40 Q20 30 10 40 Z'/><path d='M70 30 Q80 20 90 30 T110 30 Q115 25 110 18'/><circle cx='30' cy='60' r='2' fill='%23f5c842' opacity='0.4'/><circle cx='90' cy='30' r='2' fill='%23f5c842' opacity='0.4'/></g></svg>");
+  pointer-events: none;
+  opacity: 0.6;
+}
+.hero-left .dragon {
+  position: absolute;
+  right: -40px;
+  top: 80px;
+  width: 460px;
+  opacity: 0.85;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 20px rgba(245,200,66,0.3));
+}
+
+/* right: 官方 - 鮮紅 + 鞭炮 */
+.hero-right {
+  background:
+    radial-gradient(ellipse 900px 700px at 70% 30%, #e83a2c 0%, transparent 60%),
+    radial-gradient(ellipse 600px 400px at 100% 100%, var(--gold-bright) 0%, transparent 70%),
+    var(--red);
+  color: var(--paper);
+  padding: 56px 64px 56px 56px;
+  position: relative;
+  overflow: hidden;
+}
+.hero-right .lattice {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(45deg, transparent 48%, rgba(255,216,96,0.15) 49%, rgba(255,216,96,0.15) 51%, transparent 52%),
+    linear-gradient(-45deg, transparent 48%, rgba(255,216,96,0.15) 49%, rgba(255,216,96,0.15) 51%, transparent 52%);
+  background-size: 28px 28px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+.hero-right .firecrackers {
+  position: absolute;
+  left: -10px;
+  top: 0;
+  width: 180px;
+  pointer-events: none;
+}
+
+/* center seam */
+.hero-divider {
+  position: absolute;
+  left: 50%;
+  top: 0; bottom: 0;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--gold) 15%, var(--gold) 85%, transparent);
+  z-index: 4;
+}
+.hero-divider .stamp {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 110px; height: 110px;
+  background: radial-gradient(circle at 50% 50%, var(--gold-bright) 0%, var(--gold) 60%, var(--gold-deep) 100%);
+  border: 3px double var(--red-deep);
+  border-radius: 50%;
+  display: grid; place-items: center;
+  box-shadow: 0 0 0 4px var(--red), 0 0 40px rgba(245,200,66,0.5);
+}
+.hero-divider .stamp .inner {
+  width: 86px; height: 86px;
+  border-radius: 50%;
+  border: 1.5px solid var(--red-deep);
+  display: grid; place-items: center;
+  background: radial-gradient(circle at 30% 30%, var(--gold-bright), var(--gold));
+}
+.hero-divider .stamp .inner span {
+  font-family: 'ZCOOL XiaoWei','Noto Serif TC';
+  color: var(--red-deep);
+  font-weight: 900;
+  font-size: 28px;
+  letter-spacing: 0.05em;
+  text-align: center;
+  line-height: 1.05;
+}
+
+/* hero copy */
+.hero-eyebrow {
+  font-family: 'JetBrains Mono';
+  font-size: 11px;
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  display: flex; align-items: center; gap: 12px;
+  color: var(--gold-bright);
+  position: relative; z-index: 2;
+}
+.hero-eyebrow.right { color: var(--gold-bright); }
+.hero-eyebrow .line { flex: 1; height: 1px; background: currentColor; opacity: 0.5; }
+.hero-eyebrow .idx { font-weight: 700; }
+
+.hero-title {
+  font-family: 'ZCOOL XiaoWei','Noto Serif TC';
+  font-size: 88px;
+  line-height: 0.95;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+  position: relative; z-index: 2;
+  color: var(--paper);
+  text-shadow: 0 2px 0 var(--red-ink);
+}
+.hero-title .accent { color: var(--gold-bright); }
+.hero-title .sm {
+  font-family: 'Noto Serif TC';
+  font-size: 24px; display: block; font-weight: 400; opacity: 0.85;
+  letter-spacing: 0.18em; margin-top: 8px; color: var(--paper-2);
+  text-shadow: none;
+}
+
+.hero-desc {
+  max-width: 440px;
+  font-size: 14px;
+  line-height: 1.85;
+  letter-spacing: 0.04em;
+  margin-top: 22px;
+  color: var(--paper-2);
+  position: relative; z-index: 2;
+}
+
+.hero-stats {
+  position: absolute;
+  bottom: 56px;
+  left: 56px;
+  right: 56px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  z-index: 2;
+}
+.hero-right .hero-stats { left: 64px; right: 64px; }
+.hero-stats .stat {
+  display: flex; flex-direction: column; gap: 4px;
+  padding-left: 12px;
+  border-left: 2px solid var(--gold);
+}
+.hero-stats .label {
+  font-family: 'JetBrains Mono';
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--paper-3);
+}
+.hero-stats .val {
+  font-family: 'Space Grotesk';
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--gold-bright);
+}
+.hero-stats .val .small { font-size: 14px; opacity: 0.7; margin-left: 4px; color: var(--paper-2); }
+
+.hero-floating {
+  position: absolute;
+  top: 40px; right: 56px;
+  display: flex; gap: 6px;
+  z-index: 3;
+}
+.hero-right .hero-floating { right: 64px; }
+.hero-floating .ball {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: 'Space Grotesk';
+  font-weight: 700;
+  font-size: 16px;
+  background: var(--paper);
+  color: var(--red-deep);
+  border: 2px solid var(--gold);
+  box-shadow: 0 2px 0 var(--red-deep);
+}
+.hero-floating .ball.alt {
+  background: var(--gold);
+  color: var(--red-deep);
+}
+
+/* ===== Section header ===== */
+.sect {
+  padding: 56px 36px;
+  background: var(--paper);
+  color: var(--red-ink);
+  position: relative;
+}
+.sect.red {
+  background:
+    radial-gradient(ellipse 800px 500px at 50% 0%, #2e060c 0%, transparent 60%),
+    var(--red-wine);
+  color: var(--paper);
+}
+.sect.red::before {
+  content:""; position: absolute; left: 0; right: 0; top: 0; height: 14px;
+  background:
+    repeating-linear-gradient(90deg,
+      var(--gold) 0 2px, transparent 2px 4px,
+      var(--gold) 4px 6px, transparent 6px 16px,
+      var(--gold) 16px 18px, transparent 18px 32px);
+  border-top: 1px solid var(--gold);
+  border-bottom: 1px solid var(--gold);
+}
+
+.sect-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 32px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--red);
+  position: relative;
+}
+.sect.red .sect-head { border-bottom-color: var(--gold-deep); }
+.sect-head::after {
+  content: "❖"; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+  background: var(--paper); color: var(--red); padding: 0 10px; font-size: 14px;
+}
+.sect.red .sect-head::after { background: var(--red-wine); color: var(--gold); }
+.sect-head .titles { display: flex; align-items: baseline; gap: 24px; }
+.sect-head .num-idx {
+  font-family: 'JetBrains Mono';
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  color: var(--red);
+}
+.sect.red .sect-head .num-idx { color: var(--gold-bright); }
+.sect-head h2 {
+  font-family: 'ZCOOL XiaoWei','Noto Serif TC';
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  color: var(--red-deep);
+}
+.sect.red .sect-head h2 { color: var(--gold-bright); }
+.sect-head .en {
+  font-family: 'JetBrains Mono';
+  font-size: 11px;
+  letter-spacing: 0.4em;
+  color: #a04030;
+  text-transform: uppercase;
+}
+.sect.red .sect-head .en { color: var(--paper-3); }
+.sect-head .right-meta {
+  font-family: 'JetBrains Mono';
+  font-size: 11px;
+  color: #a04030;
+  letter-spacing: 0.2em;
+  text-align: right;
+}
+.sect.red .sect-head .right-meta { color: var(--paper-3); }
+
+/* ===== Periodic table of numbers ===== */
+.periodic {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  gap: 4px;
+}
+.cell {
+  aspect-ratio: 1 / 1.05;
+  background: var(--ivory);
+  border: 1px solid var(--paper-3);
+  padding: 6px 7px 5px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  position: relative;
+  transition: transform 0.15s;
+}
+.cell:hover { transform: translateY(-2px); border-color: var(--red); z-index: 2; box-shadow: 0 4px 12px rgba(200,32,44,0.25); }
+.cell .corner {
+  font-family: 'JetBrains Mono';
+  font-size: 9px;
+  color: #8a4a3a;
+  display: flex; justify-content: space-between;
+  letter-spacing: 0.05em;
+}
+.cell .sym {
+  font-family: 'Space Grotesk';
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--red-deep);
+}
+.cell .name {
+  font-family: 'Noto Serif TC';
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: #8a4a3a;
+  text-align: center;
+}
+.cell .delta {
+  font-family: 'JetBrains Mono';
+  font-size: 9px;
+}
+
+/* groups - all in red palette */
+.cell.gp-six  { background: linear-gradient(160deg, #ffeac0, #ffd680); }
+.cell.gp-six .sym { color: var(--red-deep); }
+.cell.gp-time { background: linear-gradient(160deg, #ffd0c0, #ff9a85); }
+.cell.gp-time .sym { color: var(--red-deep); }
+.cell.gp-pk   { background: linear-gradient(160deg, #ffe6c0, #f5b54a); }
+.cell.gp-pk .sym { color: #8a2a16; }
+.cell.gp-k3   { background: linear-gradient(160deg, #f5c0a8, #d96a4a); }
+.cell.gp-k3 .sym { color: #5a0a14; }
+.cell.gp-edge { background: linear-gradient(160deg, var(--red), var(--red-deep)); border-color: var(--gold-deep); }
+.cell.gp-edge .sym { color: var(--gold-bright); }
+.cell.gp-edge .name { color: var(--paper-2); }
+.cell.gp-edge .corner { color: var(--gold); }
+.cell.gp-rare { background: linear-gradient(160deg, var(--red-deep), var(--red-wine)); border-color: var(--gold); }
+.cell.gp-rare .sym { color: var(--gold-bright); }
+.cell.gp-rare .name { color: var(--paper-2); }
+.cell.gp-rare .corner { color: var(--gold); }
+.cell.gp-ash  { background: linear-gradient(160deg, #f5d59a, #d4a050); border-color: var(--gold-deep); }
+.cell.gp-ash .sym { color: var(--red-deep); }
+
+.red-up { color: var(--red); font-weight: 700; }
+.green-dn { color: var(--jade); font-weight: 700; }
+.cell.gp-edge .red-up, .cell.gp-rare .red-up { color: var(--gold-bright); }
+.cell.gp-edge .green-dn, .cell.gp-rare .green-dn { color: #7ad19f; }
+
+.legend {
+  display: flex; gap: 16px;
+  margin-top: 18px;
+  font-family: 'JetBrains Mono';
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: #8a4a3a;
+  text-transform: uppercase;
+  flex-wrap: wrap;
+}
+.legend .item { display: flex; align-items: center; gap: 6px; }
+.legend .sw { width: 12px; height: 12px; border: 1px solid var(--paper-3); }
+
+/* ===== Game cards ===== */
+.games {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.game-card {
+  background: var(--ivory);
+  border: 1px solid var(--gold-deep);
+  padding: 24px;
+  position: relative;
+  display: flex; flex-direction: column;
+  min-height: 400px;
+  box-shadow: 0 4px 0 var(--red-deep);
+}
+.game-card::before {
+  content:""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg, var(--gold), var(--red), var(--gold));
+}
+/* corner totem */
+.game-card::after {
+  content:""; position: absolute; top: 8px; right: 8px;
+  width: 22px; height: 22px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c8202c' stroke-width='1.5'><path d='M12 2 L14 8 L20 8 L15 12 L17 18 L12 14 L7 18 L9 12 L4 8 L10 8 Z'/></svg>");
+  opacity: 0.5;
+}
+.game-card .gid {
+  font-family: 'JetBrains Mono';
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--gold-deep);
+}
+.game-card .gname {
+  font-family: 'ZCOOL XiaoWei','Noto Serif TC';
+  font-size: 36px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  margin-top: 10px;
+  line-height: 1;
+  color: var(--red-deep);
+}
+.game-card .gname-en {
+  font-family: 'JetBrains Mono';
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: #a04030;
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+.game-card .accent {
+  width: 40px; height: 3px; margin-top: 16px;
+  background: var(--red);
+}
+.game-card .tagline {
+  font-size: 12px;
+  color: #5a2a1f;
+  line-height: 1.75;
+  margin-top: 16px;
+  letter-spacing: 0.04em;
+}
+.game-card .latest {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px dashed var(--gold-deep);
+}
+.game-card .latest-label {
+  font-family: 'JetBrains Mono';
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  color: #a04030;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex; justify-content: space-between;
+}
+.game-card .balls {
+  display: flex; gap: 5px; flex-wrap: wrap;
+}
+.game-card .b {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: 'Space Grotesk';
+  font-weight: 700;
+  font-size: 13px;
+  background: var(--red);
+  color: var(--paper);
+  border: 1.5px solid var(--gold);
+  box-shadow: 0 1px 0 var(--red-deep);
+}
+.game-card .b.gold { background: var(--gold); color: var(--red-deep); }
+.game-card .b.dark { background: var(--red-deep); color: var(--gold-bright); }
+.game-card .b.plus { background: transparent; color: var(--gold-deep); border: 1px dashed var(--gold-deep); box-shadow: none; font-size: 16px; }
+.game-card .b.special {
+  background: radial-gradient(circle at 30% 30%, var(--gold-bright), var(--gold));
+  color: var(--red-deep);
+  border: 1.5px solid var(--red-deep);
+  box-shadow: 0 0 8px rgba(245,200,66,0.5);
+}
+.game-card .stats-row {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+.game-card .s { display: flex; flex-direction: column; gap: 2px; }
+.game-card .s .l { font-family: 'JetBrains Mono'; font-size: 9px; color: #a04030; letter-spacing: 0.2em; }
+.game-card .s .v { font-family: 'Space Grotesk'; font-size: 17px; font-weight: 600; color: var(--red-deep); }
+
+.game-card.t-time .gname { color: var(--vermilion); }
+.game-card.t-time .accent { background: var(--vermilion); }
+.game-card.t-pk .gname { color: #a04030; }
+.game-card.t-pk .accent { background: var(--gold-deep); }
+.game-card.t-k3 .gname { color: var(--red-wine); }
+.game-card.t-k3 .accent { background: var(--red-wine); }
+
+/* ===== Mode comparison ===== */
+.mode-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  position: relative;
+  background: var(--ivory);
+  border: 1px solid var(--gold-deep);
+  overflow: hidden;
+}
+.mode-col { padding: 40px 44px; position: relative; }
+.mode-col.official {
+  background:
+    radial-gradient(ellipse 500px 400px at 100% 0%, rgba(245,200,66,0.35) 0%, transparent 60%),
+    radial-gradient(ellipse 400px 300px at 0% 100%, rgba(232,58,44,0.15) 0%, transparent 60%),
+    var(--ivory);
+}
+.mode-col.credit {
+  background:
+    radial-gradient(ellipse 500px 400px at 0% 100%, var(--red) 0%, transparent 60%),
+    radial-gradient(ellipse 300px 300px at 100% 0%, rgba(245,200,66,0.2) 0%, transparent 70%),
+    var(--red-wine);
+  color: var(--paper);
+}
+.mode-col .seal {
+  position: absolute;
+  top: 26px; right: 26px;
+  width: 72px; height: 72px;
+  border-radius: 4px;
+  display: grid; place-items: center;
+  transform: rotate(-6deg);
+}
+.mode-col.official .seal { background: var(--red); border: 2px double var(--gold); box-shadow: 0 0 0 4px var(--ivory), 0 4px 14px rgba(200,32,44,0.4); }
+.mode-col.credit .seal { background: var(--gold); border: 2px double var(--red-deep); box-shadow: 0 0 0 4px var(--red-wine), 0 4px 14px rgba(245,200,66,0.5); }
+.mode-col .seal span {
+  font-family: 'ZCOOL XiaoWei','Noto Serif TC'; font-weight: 900; font-size: 32px;
+  letter-spacing: 0.05em;
+}
+.mode-col.official .seal span { color: var(--gold-bright); }
+.mode-col.credit .seal span { color: var(--red-deep); }
+
+.mode-col .mode-eye {
+  font-family: 'JetBrains Mono';
+  font-size: 11px; letter-spacing: 0.4em; text-transform: uppercase;
+}
+.mode-col.official .mode-eye { color: var(--red); }
+.mode-col.credit .mode-eye { color: var(--gold-bright); }
+.mode-col h3 {
+  font-family: 'ZCOOL XiaoWei','Noto Serif TC';
+  font-size: 52px; font-weight: 900;
+  letter-spacing: 0.1em;
+  margin-top: 8px;
+  line-height: 1;
+}
+.mode-col.official h3 { color: var(--red-deep); }
+.mode-col.credit h3 { color: var(--gold-bright); }
+
+.mode-col .sub { font-size: 13px; line-height: 1.85; margin-top: 14px; letter-spacing: 0.05em; max-width: 480px; }
+.mode-col.official .sub { color: #5a2a1f; }
+.mode-col.credit .sub { color: var(--paper-2); }
+
+.mode-table { margin-top: 28px; }
+.mode-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid;
+  align-items: center;
+}
+.mode-col.official .mode-row { border-color: var(--paper-3); }
+.mode-col.credit .mode-row { border-color: rgba(245,200,66,0.25); }
+.mode-row .k { font-family: 'JetBrains Mono'; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; }
+.mode-col.official .mode-row .k { color: #a04030; }
+.mode-col.credit .mode-row .k { color: var(--paper-3); }
+.mode-row .v {
+  font-family: 'Space Grotesk'; font-weight: 500; font-size: 14px;
+  letter-spacing: 0.02em;
+}
+.mode-row .v.num { font-size: 18px; font-weight: 600; }
+.mode-row .v.big { font-size: 24px; font-weight: 700; }
+.mode-col.official .v { color: var(--red-deep); }
+.mode-col.credit .v { color: var(--paper); }
+.mode-col.credit .v.big { color: var(--gold-bright); }
+.mode-col.official .v.big { color: var(--red); }
+
+.mode-col .footer-meta {
+  margin-top: 26px;
+  display: flex; gap: 12px;
+  font-family: 'JetBrains Mono'; font-size: 10px;
+  letter-spacing: 0.2em;
+}
+.mode-col.official .footer-meta { color: #a04030; }
+.mode-col.credit .footer-meta { color: var(--gold); }
+.mode-col .footer-meta .b { padding: 4px 10px; border: 1px solid currentColor; }
+
+/* central seam - 雙喜 */
+.mode-seam {
+  position: absolute; left: 50%; top: 0; bottom: 0; width: 0;
+  z-index: 3;
+  border-left: 1px dashed var(--gold);
+}
+.mode-seam .vs {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 64px; height: 64px;
+  background: radial-gradient(circle at 30% 30%, var(--gold-bright), var(--gold-deep));
+  border-radius: 50%;
+  display: grid; place-items: center;
+  box-shadow: 0 0 0 3px var(--ivory), 0 0 0 4px var(--red), 0 4px 14px rgba(0,0,0,0.3);
+}
+.mode-seam .vs span { color: var(--red-deep); font-weight: 900; font-size: 22px; letter-spacing: 0.05em; font-family: 'ZCOOL XiaoWei','Noto Serif TC'; }
+
+/* ===== Trend + Odds ===== */
+.trend-wrap {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 18px;
+}
+.panel {
+  background: var(--ivory);
+  border: 1px solid var(--gold-deep);
+  padding: 24px;
+}
+.panel.red {
+  background:
+    radial-gradient(ellipse 400px 300px at 100% 0%, rgba(245,200,66,0.15), transparent),
+    var(--red-deep);
+  border-color: var(--gold);
+  color: var(--paper);
+}
+.panel-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--gold-deep);
+  margin-bottom: 16px;
+}
+.panel-head h4 {
+  font-family: 'ZCOOL XiaoWei','Noto Serif TC';
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.panel.red .panel-head h4 { color: var(--gold-bright); }
+.panel-head .tabs {
+  display: flex; gap: 12px;
+  font-family: 'JetBrains Mono';
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--paper-3);
+}
+.panel-head .tabs .tab.active {
+  color: var(--gold-bright);
+  border-bottom: 1px solid var(--gold);
+  padding-bottom: 4px;
+}
+
+.trend-table {
+  display: grid;
+  grid-template-columns: 80px repeat(10, 1fr) 90px;
+  gap: 0;
+  font-family: 'JetBrains Mono';
+  font-size: 11px;
+}
+.trend-table .th {
+  background: var(--red-wine);
+  padding: 8px 4px;
+  text-align: center;
+  color: var(--gold-bright);
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--gold);
+  font-size: 10px;
+  border-right: 1px solid rgba(245,200,66,0.2);
+}
+.trend-table .tr-issue {
+  background: rgba(0,0,0,0.18);
+  padding: 8px 8px;
+  border-bottom: 1px solid rgba(245,200,66,0.15);
+  color: var(--paper-3);
+  font-size: 10px;
+  display: flex; align-items: center;
+}
+.trend-table .tc {
+  padding: 6px 0;
+  text-align: center;
+  border-bottom: 1px solid rgba(245,200,66,0.1);
+  border-right: 1px solid rgba(245,200,66,0.05);
+  display: grid; place-items: center;
+  font-size: 12px;
+  color: rgba(255,245,220,0.25);
+  position: relative;
+}
+.trend-table .tc.hit {
+  color: var(--paper);
+}
+.trend-table .tc.hit .dot-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-weight: 700;
+  background: var(--red);
+  border: 1px solid var(--gold);
+  color: var(--paper);
+}
+.trend-table .tc.hit.big .dot-num { background: var(--gold); color: var(--red-deep); }
+.trend-table .tc.hit.spec .dot-num { background: var(--gold-bright); color: var(--red-deep); }
+.trend-table .tr-sum {
+  padding: 6px 8px;
+  text-align: right;
+  border-bottom: 1px solid rgba(245,200,66,0.15);
+  font-weight: 600;
+  color: var(--gold-bright);
+}
+
+.odds-list { display: flex; flex-direction: column; gap: 0; }
+.odds-row {
+  display: grid;
+  grid-template-columns: 1fr 90px 90px 90px;
+  gap: 12px;
+  padding: 14px 4px;
+  border-bottom: 1px solid rgba(245,200,66,0.2);
+  align-items: center;
+}
+.odds-row .name { font-family: 'Noto Serif TC'; font-size: 14px; color: var(--paper); }
+.odds-row .name .en { display: block; font-family: 'JetBrains Mono'; font-size: 9px; color: var(--paper-3); letter-spacing: 0.2em; margin-top: 2px; }
+.odds-row .val { font-family: 'Space Grotesk'; font-weight: 600; font-size: 17px; text-align: right; color: var(--paper-2); }
+.odds-row .val.up { color: var(--gold-bright); }
+.odds-row .val.dn { color: #7ad19f; }
+.odds-row .delta { font-family: 'JetBrains Mono'; font-size: 10px; text-align: right; }
+.odds-row .delta.up { color: var(--gold-bright); }
+.odds-row .delta.dn { color: #7ad19f; }
+
+.odds-header {
+  display: grid;
+  grid-template-columns: 1fr 90px 90px 90px;
+  gap: 12px;
+  padding: 0 4px 8px;
+  border-bottom: 1px solid var(--gold);
+  font-family: 'JetBrains Mono';
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+.odds-header > div:not(:first-child) { text-align: right; }
+
+/* ===== Ticker / footer ===== */
+.ticker {
+  background:
+    repeating-linear-gradient(90deg, var(--red-deep) 0 80px, var(--red-wine) 80px 160px);
+  border-top: 2px solid var(--gold);
+  border-bottom: 2px solid var(--gold);
+  padding: 18px 36px;
+  display: flex; align-items: center; gap: 28px;
+  font-family: 'JetBrains Mono'; font-size: 11px;
+  color: var(--paper-2);
+  letter-spacing: 0.15em;
+  overflow: hidden;
+  position: relative;
+}
+.ticker .lbl { color: var(--gold-bright); }
+.ticker .it { display: inline-flex; gap: 8px; align-items: center; }
+.ticker .it .arrow { color: var(--gold-bright); }
+.ticker .it .arrow.dn { color: #7ad19f; }
+.ticker .div { color: var(--gold); }
+
+.foot {
+  background: var(--red-ink);
+  color: var(--paper-3);
+  padding: 30px 36px 40px;
+  display: flex; justify-content: space-between;
+  font-family: 'JetBrains Mono';
+  font-size: 10px;
+  letter-spacing: 0.25em;
+}
+.foot .copy { color: var(--gold); }
+
+/* delta strip cards */
+.delta-cards {
+  display: grid; grid-template-columns: repeat(5,1fr); gap: 14px; margin-top: 18px;
+}
+.delta-card {
+  padding: 16px 18px;
+  background: var(--ivory);
+  border: 1px solid var(--gold-deep);
+  position: relative;
+}
+.delta-card::before {
+  content:""; position: absolute; top: -1px; left: -1px; width: 12px; height: 12px;
+  border-top: 2px solid var(--red); border-left: 2px solid var(--red);
+}
+.delta-card::after {
+  content:""; position: absolute; bottom: -1px; right: -1px; width: 12px; height: 12px;
+  border-bottom: 2px solid var(--red); border-right: 2px solid var(--red);
+}
+.delta-card .lbl { font-family: 'JetBrains Mono'; font-size: 10px; color: #a04030; letter-spacing: 0.25em; }
+.delta-card .v { font-family: 'Space Grotesk'; font-size: 26px; font-weight: 600; color: var(--red-deep); margin-top: 4px; }
+.delta-card .v.gold { color: var(--gold-deep); }
+.delta-card .v.jade { color: var(--jade); }
+.delta-card .sub { font-family: 'JetBrains Mono'; font-size: 10px; color: #a04030; margin-top: 2px; }
+
+</style>
+</head>
+<body>
+
+<!-- ============ SVG SPRITE ============ -->
+<svg class="sprite" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 龍 - stylized chinese dragon side profile -->
+    <symbol id="dragon" viewBox="0 0 400 240">
+      <g fill="none" stroke="#f5c842" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <!-- body curve -->
+        <path d="M380 60 Q340 30 300 60 Q260 90 240 70 Q220 50 200 80 Q180 110 160 100 Q140 90 120 120 Q100 150 80 140 Q60 130 50 160 L40 200" stroke-width="14" opacity="0.25"/>
+        <path d="M380 60 Q340 30 300 60 Q260 90 240 70 Q220 50 200 80 Q180 110 160 100 Q140 90 120 120 Q100 150 80 140 Q60 130 50 160 L40 200"/>
+        <!-- scales along back -->
+        <g opacity="0.7">
+          <path d="M360 50 q-4 -8 -10 -4"/>
+          <path d="M340 56 q-4 -8 -10 -4"/>
+          <path d="M320 52 q-4 -8 -10 -4"/>
+          <path d="M280 70 q-4 -8 -10 -4"/>
+          <path d="M250 60 q-4 -8 -10 -4"/>
+          <path d="M210 70 q-4 -8 -10 -4"/>
+          <path d="M180 90 q-4 -8 -10 -4"/>
+          <path d="M140 100 q-4 -8 -10 -4"/>
+          <path d="M100 130 q-4 -8 -10 -4"/>
+          <path d="M70 150 q-4 -8 -10 -4"/>
+        </g>
+        <!-- head at left top -->
+        <g transform="translate(370 60)">
+          <circle cx="0" cy="0" r="22" fill="#5a0a14" stroke="#f5c842"/>
+          <!-- horn -->
+          <path d="M-6 -22 Q-4 -36 6 -34 Q14 -32 14 -18"/>
+          <path d="M8 -22 Q14 -32 22 -28"/>
+          <!-- eye -->
+          <circle cx="-2" cy="-2" r="3" fill="#f5c842" stroke="none"/>
+          <!-- whiskers -->
+          <path d="M16 4 Q40 0 50 10"/>
+          <path d="M16 10 Q40 12 56 22"/>
+          <!-- mouth -->
+          <path d="M-4 12 Q4 18 18 10 Q24 12 22 16"/>
+          <!-- pearl -->
+          <circle cx="40" cy="-20" r="10" fill="#f5c842" stroke="#5a0a14" stroke-width="2"/>
+          <circle cx="40" cy="-20" r="10" fill="none" stroke="#fff5dc" stroke-width="0.5"/>
+        </g>
+        <!-- claws -->
+        <g>
+          <path d="M260 90 Q254 100 248 96 M260 90 Q260 102 256 100 M260 90 Q266 100 264 102"/>
+          <path d="M160 110 Q154 120 148 116 M160 110 Q160 122 156 120 M160 110 Q166 120 164 122"/>
+          <path d="M80 150 Q74 160 68 156 M80 150 Q80 162 76 160"/>
+        </g>
+        <!-- tail flame -->
+        <g transform="translate(30 200)">
+          <path d="M0 0 Q-6 -10 -2 -18 Q4 -10 10 -22 Q14 -10 20 -18 Q22 -6 16 4"/>
+        </g>
+        <!-- cloud puffs trailing -->
+        <g opacity="0.4" stroke-width="1.2">
+          <path d="M200 30 q5 -8 14 -4 q6 -10 16 -4 q4 -6 12 -4"/>
+          <path d="M120 60 q5 -8 14 -4 q6 -10 16 -4"/>
+        </g>
+      </g>
+    </symbol>
+
+    <!-- 鞭炮 firecracker string -->
+    <symbol id="firecrackers" viewBox="0 0 180 600">
+      <!-- top knot -->
+      <g transform="translate(90 12)" fill="#f5c842" stroke="#5a0a14" stroke-width="1.5">
+        <circle r="6"/>
+      </g>
+      <!-- string -->
+      <line x1="90" y1="20" x2="90" y2="40" stroke="#f5c842" stroke-width="1.5"/>
+      <!-- crackers in pairs -->
+      <g>
+        <!-- row 1 -->
+        <g transform="translate(60 50)"><rect width="20" height="48" rx="3" fill="#c8202c" stroke="#5a0a14"/><line x1="0" y1="6" x2="20" y2="6" stroke="#f5c842" stroke-width="1.5"/><line x1="0" y1="42" x2="20" y2="42" stroke="#f5c842" stroke-width="1.5"/><line x1="0" y1="24" x2="20" y2="24" stroke="#fff5dc" stroke-width="0.6"/></g>
+        <g transform="translate(100 50)"><rect width="20" height="48" rx="3" fill="#e83a2c" stroke="#5a0a14"/><line x1="0" y1="6" x2="20" y2="6" stroke="#f5c842" stroke-width="1.5"/><line x1="0" y1="42" x2="20" y2="42" stroke="#f5c842" stroke-width="1.5"/></g>
+        <!-- row 2 -->
+        <g transform="translate(70 108)"><rect width="20" height="48" rx="3" fill="#e83a2c" stroke="#5a0a14"/><line x1="0" y1="6" x2="20" y2="6" stroke="#f5c842" stroke-width="1.5"/><line x1="0" y1="42" x2="20" y2="42" stroke="#f5c842" stroke-width="1.5"/></g>
+        <g transform="translate(96 108)"><rect width="20" height="48" rx="3" fill="#c8202c" stroke="#5a0a14"/><line x1="0" y1="6" x2="20" y2="6" stroke="#f5c842" stroke-width="1.5"/><line x1="0" y1="42" x2="20" y2="42" stroke="#f5c842" stroke-width="1.5"/></g>
+        <!-- row 3 -->
+        <g transform="translate(56 166)"><rect width="20" height="48" rx="3" fill="#c8202c" stroke="#5a0a14"/><line x1="0" y1="6" x2="20" y2="6" stroke="#f5c842" stroke-width="1.5"/><line x1="0" y1="42" x2="20" y2="42" stroke="#f5c842" stroke-width="1.5"/></g>
+        <g transform="translate(82 166)"><rect width="20" height="48" rx="3" fill="#e83a2c" stroke="#5a0a14"/><line x1="0" y1="6" x2="20" y2="6" stroke="#f5c842" stroke-width="1.5"/></g>
+        <g transform="translate(108 166)"><rect width="20" height="48" rx="3" fill="#c8202c" stroke="#5a0a14"/><line x1="0" y1="6" x2="20" y2="6" stroke="#f5c842" stroke-width="1.5"/></g>
+        <!-- row 4 -->
+        <g transform="translate(72 224)"><rect width="20" height="48" rx="3" fill="#e83a2c" stroke="#5a0a14"/><line x1="0" y1="6" x2="20" y2="6" stroke="#f5c842" stroke-width="1.5"/></g>
+        <g transform="translate(98 224)"><rect width="20" height="48" rx="3" fill="#c8202c" stroke="#5a0a14"/><line x1="0" y1="6" x2="20" y2="6" stroke="#f5c842" stroke-width="1.5"/></g>
+        <!-- row 5 -->
+        <g transform="translate(64 282)"><rect width="18" height="42" rx="3" fill="#c8202c" stroke="#5a0a14"/></g>
+        <g transform="translate(98 282)"><rect width="18" height="42" rx="3" fill="#e83a2c" stroke="#5a0a14"/></g>
+        <!-- row 6 -->
+        <g transform="translate(76 332)"><rect width="18" height="38" rx="3" fill="#c8202c" stroke="#5a0a14"/></g>
+        <g transform="translate(98 332)"><rect width="18" height="38" rx="3" fill="#e83a2c" stroke="#5a0a14"/></g>
+        <!-- fuse + spark at bottom -->
+        <line x1="90" y1="370" x2="90" y2="395" stroke="#5a0a14" stroke-width="1.5"/>
+        <g transform="translate(90 405)">
+          <circle r="10" fill="#ffd860" opacity="0.6"/>
+          <circle r="5" fill="#ffd860"/>
+          <g stroke="#ffd860" stroke-width="1.5">
+            <line x1="0" y1="-14" x2="0" y2="-22"/>
+            <line x1="10" y1="-10" x2="16" y2="-16"/>
+            <line x1="-10" y1="-10" x2="-16" y2="-16"/>
+            <line x1="14" y1="0" x2="22" y2="0"/>
+            <line x1="-14" y1="0" x2="-22" y2="0"/>
+          </g>
+        </g>
+      </g>
+    </symbol>
+
+    <!-- 花卉 mark (logo) -->
+    <symbol id="lotus-mark" viewBox="0 0 64 64">
+      <g fill="none" stroke="#f5c842" stroke-width="1.5">
+        <circle cx="32" cy="32" r="28"/>
+        <circle cx="32" cy="32" r="22"/>
+        <g stroke-width="2">
+          <path d="M32 10 Q40 22 32 32 Q24 22 32 10"/>
+          <path d="M32 54 Q40 42 32 32 Q24 42 32 54"/>
+          <path d="M10 32 Q22 40 32 32 Q22 24 10 32"/>
+          <path d="M54 32 Q42 40 32 32 Q42 24 54 32"/>
+        </g>
+        <circle cx="32" cy="32" r="5" fill="#f5c842"/>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+
+
+<div class="stage" data-screen-label="01 Lottery Platform · Red">
+
+  <!-- ============ TOP UTILITY ============ -->
+  <div class="util">
+    <div class="left">
+      <span class="lant"></span>
+      <span>SHANGHAI · 2026.05.12 · WED · 春節限定版</span>
+      <span style="opacity:0.4">|</span>
+      <span>場次同步 · 03:24:18 後開盤</span>
+      <span class="pill mono">SERVER · TKY-04</span>
+    </div>
+    <div class="right">
+      <span>線上 17,482 人</span>
+      <span style="opacity:0.4">|</span>
+      <span>今日成交 ¥ 28,471,902</span>
+      <span style="opacity:0.4">|</span>
+      <span>API · STABLE</span>
+    </div>
+  </div>
+
+  <!-- ============ BRAND BAR ============ -->
+  <div class="brand">
+    <div class="logo">
+      <div class="mark"><svg><use href="#lotus-mark"/></svg></div>
+      <div>
+        <div class="name">對 沖 局</div>
+        <span class="sub">DUI · CHONG · JU · 紅 運 版 · 2026</span>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="#" class="active">玩法總覽</a>
+      <a href="#">官方賠付</a>
+      <a href="#">信用結算</a>
+      <a href="#">走勢分析</a>
+      <a href="#">資金中心</a>
+      <a href="#">代理後台</a>
+    </nav>
+    <div class="session">
+      <div>
+        <div class="acct">ID · 8810-2941-7</div>
+        <div class="bal">¥ 184,920.<span style="opacity:0.6">66</span></div>
+      </div>
+      <div style="width:1px;height:32px;background:var(--gold-deep)"></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+        <div class="acct">RANK</div>
+        <div style="color:var(--gold-bright);font-family:'Space Grotesk';font-weight:600">VIP · IV</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" data-screen-label="01.1 Hero · Split">
+
+    <!-- LEFT: 信用 + 龍 -->
+    <div class="hero-left">
+      <div class="clouds"></div>
+      <svg class="dragon"><use href="#dragon"/></svg>
+
+      <div class="hero-floating">
+        <div class="ball">07</div>
+        <div class="ball">13</div>
+        <div class="ball">22</div>
+        <div class="ball">31</div>
+        <div class="ball">44</div>
+        <div class="ball alt">49</div>
+      </div>
+
+      <div class="hero-eyebrow">
+        <span class="idx">∕ 01</span>
+        <span>CREDIT MODE · 信用結算</span>
+        <span class="line"></span>
+      </div>
+      <h1 class="hero-title">信 用<br><span class="accent">對 沖</span><span class="sm">月結 · 不墊資 · 高賠</span></h1>
+      <p class="hero-desc">以信任為基準，按週/按月對帳結算。系統不鎖額、不墊資，下注額度依會員等級彈性放大；代理可建立子賬、自訂返水曲線。</p>
+
+      <div class="hero-stats">
+        <div class="stat"><span class="label">avg payout</span><span class="val num">1.978<span class="small">× 元</span></span></div>
+        <div class="stat"><span class="label">credit line</span><span class="val num">¥ 5.0M<span class="small">/週</span></span></div>
+        <div class="stat"><span class="label">settle</span><span class="val num">T+7<span class="small">日</span></span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: 官方 + 鞭炮 -->
+    <div class="hero-right">
+      <div class="lattice"></div>
+      <svg class="firecrackers" viewBox="0 0 180 600"><use href="#firecrackers"/></svg>
+
+      <div class="hero-floating">
+        <div class="ball alt">07</div>
+        <div class="ball">13</div>
+        <div class="ball">22</div>
+        <div class="ball">31</div>
+        <div class="ball">44</div>
+        <div class="ball">49</div>
+      </div>
+
+      <div class="hero-eyebrow right" style="padding-left: 60px">
+        <span class="line"></span>
+        <span>OFFICIAL · 官方賠付</span>
+        <span class="idx">02 ∕</span>
+      </div>
+      <h1 class="hero-title" style="padding-left: 60px">官 方<br><span class="accent">實 時</span><span class="sm">即下 · 即扣 · 即賠</span></h1>
+      <p class="hero-desc" style="padding-left: 60px">資金即時鎖倉、即時清算。所有彩種同步官方開獎源，賠率公開，毫秒級結算到賬。系統採三層風控與雙鏈核對，每筆下注皆可追溯交易雜湊。</p>
+
+      <div class="hero-stats" style="padding-left: 60px;left: 64px;">
+        <div class="stat"><span class="label">avg payout</span><span class="val num">1.965<span class="small">× 元</span></span></div>
+        <div class="stat"><span class="label">withdrawal</span><span class="val num">≤ 90<span class="small">秒</span></span></div>
+        <div class="stat"><span class="label">games online</span><span class="val num">142<span class="small">/支</span></span></div>
+      </div>
+    </div>
+
+    <div class="hero-divider">
+      <div class="stamp"><div class="inner"><span>對<br>沖</span></div></div>
+    </div>
+  </section>
+
+  <!-- gold fret strip between sections -->
+  <div class="fret-border" style="background-color: var(--red-wine)"></div>
+
+  <!-- ============ PERIODIC TABLE ============ -->
+  <section class="sect" data-screen-label="02 Periodic Numbers">
+    <div class="sect-head">
+      <div class="titles">
+        <span class="num-idx">∕ 02</span>
+        <h2>號 碼 週 期 表</h2>
+        <span class="en">PERIODIC · DRAW · ATLAS</span>
+      </div>
+      <div class="right-meta">
+        SAMPLE · 2026.04.12 → 05.12<br>
+        N = 1,440 issues · refresh 15 s
+      </div>
+    </div>
+
+    <div class="periodic" id="periodic"></div>
+
+    <div class="legend">
+      <div class="item"><span class="sw" style="background:linear-gradient(160deg,#ffeac0,#ffd680)"></span>六合彩 · MARK SIX</div>
+      <div class="item"><span class="sw" style="background:linear-gradient(160deg,#ffd0c0,#ff9a85)"></span>時時彩 · TIME LOT</div>
+      <div class="item"><span class="sw" style="background:linear-gradient(160deg,#ffe6c0,#f5b54a)"></span>PK10 · RACING</div>
+      <div class="item"><span class="sw" style="background:linear-gradient(160deg,#f5c0a8,#d96a4a)"></span>K3 · DICE</div>
+      <div class="item"><span class="sw" style="background:linear-gradient(160deg,#c8202c,#8a0c1a)"></span>邊角 · EDGE</div>
+      <div class="item"><span class="sw" style="background:linear-gradient(160deg,#8a0c1a,#5a0a14);border-color:var(--gold)"></span>稀位 · RARE</div>
+      <div class="item" style="margin-left:auto"><span class="red-up">▲</span> 熱號 (近 60 期)</div>
+      <div class="item"><span class="green-dn">▼</span> 冷號 (近 60 期)</div>
+    </div>
+  </section>
+
+  <!-- ============ 4 GAMES ============ -->
+  <section class="sect" style="padding-top:0">
+    <div class="sect-head">
+      <div class="titles">
+        <span class="num-idx">∕ 03</span>
+        <h2>四 式 玩 法</h2>
+        <span class="en">FOUR · DISCIPLINES</span>
+      </div>
+      <div class="right-meta">
+        即時派彩 · 每筆 ≤ 0.4s<br>
+        SOURCE · HK · CQ · BJ · JS
+      </div>
+    </div>
+
+    <div class="games">
+      <!-- 六合彩 -->
+      <div class="game-card t-six">
+        <div class="gid">L · 01 / 六合</div>
+        <div class="gname">六 合 彩</div>
+        <div class="gname-en">MARK · SIX · HK</div>
+        <div class="accent"></div>
+        <p class="tagline">每週三場 · 49 取 7 · 含特別號。自選複式、膽拖、連肖、生肖、合數，賠付公式可於規則頁查閱。</p>
+        <div class="latest">
+          <div class="latest-label"><span>近期 · 2026/061</span><span>10:30 PM</span></div>
+          <div class="balls">
+            <div class="b">07</div>
+            <div class="b dark">13</div>
+            <div class="b">22</div>
+            <div class="b dark">31</div>
+            <div class="b">36</div>
+            <div class="b gold">44</div>
+            <div class="b plus">+</div>
+            <div class="b special">49</div>
+          </div>
+          <div class="stats-row">
+            <div class="s"><span class="l">期</span><span class="v">061</span></div>
+            <div class="s"><span class="l">和</span><span class="v">202</span></div>
+            <div class="s"><span class="l">特</span><span class="v">49</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 時時彩 -->
+      <div class="game-card t-time">
+        <div class="gid">L · 02 / 時時</div>
+        <div class="gname">時 時 彩</div>
+        <div class="gname-en">TIME · LOTTERY · 5MIN</div>
+        <div class="accent"></div>
+        <p class="tagline">每 5 分鐘一期 · 五位 0-9。支持定位膽、組選、跨度、龍虎，提供毫秒級開盤倒數與封盤提示。</p>
+        <div class="latest">
+          <div class="latest-label"><span>第 20260512 · 178 期</span><span>14:25</span></div>
+          <div class="balls">
+            <div class="b">3</div>
+            <div class="b">8</div>
+            <div class="b">2</div>
+            <div class="b">9</div>
+            <div class="b">1</div>
+          </div>
+          <div class="stats-row">
+            <div class="s"><span class="l">和值</span><span class="v">23</span></div>
+            <div class="s"><span class="l">跨度</span><span class="v">8</span></div>
+            <div class="s"><span class="l">龍虎</span><span class="v">虎</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PK10 -->
+      <div class="game-card t-pk">
+        <div class="gid">L · 03 / PK10</div>
+        <div class="gname">P K 10</div>
+        <div class="gname-en">RACING · 10 · NORTH</div>
+        <div class="accent"></div>
+        <p class="tagline">每 5 分鐘一期 · 10 號賽車。冠亞和、單雙、大小、龍虎、定位三七，車道走勢即時生成。</p>
+        <div class="latest">
+          <div class="latest-label"><span>第 1245128 · 期</span><span>14:23</span></div>
+          <div class="balls">
+            <div class="b gold">04</div>
+            <div class="b gold">09</div>
+            <div class="b gold">02</div>
+            <div class="b">07</div>
+            <div class="b">01</div>
+            <div class="b">10</div>
+            <div class="b dark">05</div>
+            <div class="b dark">08</div>
+            <div class="b dark">03</div>
+            <div class="b dark">06</div>
+          </div>
+          <div class="stats-row">
+            <div class="s"><span class="l">冠亞和</span><span class="v">13</span></div>
+            <div class="s"><span class="l">大小</span><span class="v">大</span></div>
+            <div class="s"><span class="l">龍虎</span><span class="v">龍</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- K3 -->
+      <div class="game-card t-k3">
+        <div class="gid">L · 04 / K3</div>
+        <div class="gname">K · 3</div>
+        <div class="gname-en">DICE · TRIO · 5MIN</div>
+        <div class="accent"></div>
+        <p class="tagline">每 5 分鐘一期 · 三粒骰。總和大小、三軍、圍骰、長牌、短牌；圖形化骰盅動畫，公正性可實時校驗。</p>
+        <div class="latest">
+          <div class="latest-label"><span>第 KS · 2620 期</span><span>14:21</span></div>
+          <div class="balls">
+            <div class="b">4</div>
+            <div class="b">5</div>
+            <div class="b">6</div>
+            <div class="b plus">∑</div>
+            <div class="b special">15</div>
+          </div>
+          <div class="stats-row">
+            <div class="s"><span class="l">總和</span><span class="v">15</span></div>
+            <div class="s"><span class="l">大小</span><span class="v">大</span></div>
+            <div class="s"><span class="l">類型</span><span class="v">順子</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MODE COMPARE ============ -->
+  <section class="sect" style="padding-top:0">
+    <div class="sect-head">
+      <div class="titles">
+        <span class="num-idx">∕ 04</span>
+        <h2>模 式 對 沖</h2>
+        <span class="en">OFFICIAL · VS · CREDIT</span>
+      </div>
+      <div class="right-meta">
+        同彩種 · 同期次 · 差異對照<br>
+        DATA · ROLLING · 30 DAYS
+      </div>
+    </div>
+
+    <div class="mode-compare">
+
+      <!-- OFFICIAL -->
+      <div class="mode-col official">
+        <div class="seal"><span>官</span></div>
+        <div class="mode-eye">∕ MODE · 01 · OFFICIAL</div>
+        <h3>官 方 模 式</h3>
+        <p class="sub">即下即扣 · 第三方支付通道實時鎖倉。下注額度按賬戶餘額為上限，所有派彩於開獎後 ≤ 60 秒到賬，無代理鏈路。</p>
+
+        <div class="mode-table">
+          <div class="mode-row"><span class="k">結算</span><span class="v">即時 · Realtime</span><span class="v num">≤ 60 s</span></div>
+          <div class="mode-row"><span class="k">資金</span><span class="v">先扣後賠</span><span class="v num">100%</span></div>
+          <div class="mode-row"><span class="k">最低投注</span><span class="v">¥ 2 / 注</span><span class="v num">∞ 上限</span></div>
+          <div class="mode-row"><span class="k">六合彩</span><span class="v">特碼 · 一等</span><span class="v big">1 : 49.8</span></div>
+          <div class="mode-row"><span class="k">時時彩</span><span class="v">大小 · 單雙</span><span class="v big">1 : 1.965</span></div>
+          <div class="mode-row"><span class="k">PK10</span><span class="v">冠軍 · 名次</span><span class="v big">1 : 9.85</span></div>
+          <div class="mode-row"><span class="k">K3</span><span class="v">總和 · 大小</span><span class="v big">1 : 1.965</span></div>
+          <div class="mode-row"><span class="k">退水</span><span class="v">不退</span><span class="v num">0.0%</span></div>
+          <div class="mode-row" style="border-bottom:none"><span class="k">風險</span><span class="v">無欠款 · 無代墊</span><span class="v" style="color:var(--jade)">● 低</span></div>
+        </div>
+
+        <div class="footer-meta">
+          <span class="b">SETTLE · LIVE</span>
+          <span class="b">KYC · L2</span>
+          <span class="b">AUDIT · CHAIN</span>
+        </div>
+      </div>
+
+      <!-- CREDIT -->
+      <div class="mode-col credit">
+        <div class="seal"><span>信</span></div>
+        <div class="mode-eye">∕ MODE · 02 · CREDIT</div>
+        <h3>信 用 模 式</h3>
+        <p class="sub">不墊資 · 週結月結。代理為會員開額度，按級數設定退水曲線；單注上限可放大至官方 8×，盈虧於結算日對沖。</p>
+
+        <div class="mode-table">
+          <div class="mode-row"><span class="k">結算</span><span class="v">週結 · T + 7</span><span class="v num">≤ 24 h</span></div>
+          <div class="mode-row"><span class="k">資金</span><span class="v">先賒後結</span><span class="v num">0 → 5M</span></div>
+          <div class="mode-row"><span class="k">最低投注</span><span class="v">¥ 10 / 注</span><span class="v num">放大 8×</span></div>
+          <div class="mode-row"><span class="k">六合彩</span><span class="v">特碼 · 一等</span><span class="v big">1 : 51.2</span></div>
+          <div class="mode-row"><span class="k">時時彩</span><span class="v">大小 · 單雙</span><span class="v big">1 : 1.985</span></div>
+          <div class="mode-row"><span class="k">PK10</span><span class="v">冠軍 · 名次</span><span class="v big">1 : 9.95</span></div>
+          <div class="mode-row"><span class="k">K3</span><span class="v">總和 · 大小</span><span class="v big">1 : 1.985</span></div>
+          <div class="mode-row"><span class="k">退水</span><span class="v">階梯返水</span><span class="v num">0.5 – 2.0%</span></div>
+          <div class="mode-row" style="border-bottom:none"><span class="k">風險</span><span class="v">需代理保證金</span><span class="v" style="color:var(--gold-bright)">● 中</span></div>
+        </div>
+
+        <div class="footer-meta">
+          <span class="b">SETTLE · WEEKLY</span>
+          <span class="b">AGENT · L3</span>
+          <span class="b">REBATE · STEP</span>
+        </div>
+      </div>
+
+      <div class="mode-seam"><div class="vs"><span>沖</span></div></div>
+    </div>
+
+    <!-- delta strip -->
+    <div class="delta-cards">
+      <div class="delta-card">
+        <div class="lbl">PAYOUT · DELTA</div>
+        <div class="v num">+ 1.02 %</div>
+        <div class="sub mono">信用 vs 官方 · 30D</div>
+      </div>
+      <div class="delta-card">
+        <div class="lbl">REBATE · MAX</div>
+        <div class="v num gold">2.00 %</div>
+        <div class="sub mono">階梯 · STEP 9</div>
+      </div>
+      <div class="delta-card">
+        <div class="lbl">CAP · MULTIPLIER</div>
+        <div class="v num">× 8.0</div>
+        <div class="sub mono">最大放大倍率</div>
+      </div>
+      <div class="delta-card">
+        <div class="lbl">SETTLE · LAG</div>
+        <div class="v num gold">T + 7 d</div>
+        <div class="sub mono">信用結算窗</div>
+      </div>
+      <div class="delta-card">
+        <div class="lbl">DISPUTE · RATE</div>
+        <div class="v num jade">0.014 %</div>
+        <div class="sub mono">爭議比例 · 全平台</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TREND + ODDS ============ -->
+  <section class="sect red" data-screen-label="05 Trend & Odds">
+    <div class="sect-head">
+      <div class="titles">
+        <span class="num-idx">∕ 05</span>
+        <h2>走 勢 · 賠 率</h2>
+        <span class="en">TREND · DESK · LIVE</span>
+      </div>
+      <div class="right-meta">
+        TICK · 1 s · 144 instruments<br>
+        sync · OK · drift 0.04 ms
+      </div>
+    </div>
+
+    <div class="trend-wrap">
+      <div class="panel red">
+        <div class="panel-head">
+          <h4>時時彩 · 個位 · 連珠</h4>
+          <div class="tabs">
+            <span class="tab">萬</span>
+            <span class="tab">千</span>
+            <span class="tab">百</span>
+            <span class="tab">十</span>
+            <span class="tab active">個</span>
+            <span class="tab">和值</span>
+          </div>
+        </div>
+
+        <div class="trend-table" id="trend-table"></div>
+
+        <div style="display:flex;gap:24px;margin-top:18px;font-family:'JetBrains Mono';font-size:11px;color:var(--gold);letter-spacing:0.2em">
+          <span>MAX · STREAK 7 (= 4)</span>
+          <span>HOT · 8 (28%) · 3 (24%)</span>
+          <span>COLD · 0 (4%) · 9 (8%)</span>
+          <span>SD · 2.847</span>
+        </div>
+      </div>
+
+      <div class="panel red">
+        <div class="panel-head">
+          <h4>實時賠率</h4>
+          <div class="tabs">
+            <span class="tab active">六合</span>
+            <span class="tab">時時</span>
+            <span class="tab">PK10</span>
+            <span class="tab">K3</span>
+          </div>
+        </div>
+
+        <div class="odds-header">
+          <div>玩法</div>
+          <div>官方</div>
+          <div>信用</div>
+          <div>差</div>
+        </div>
+
+        <div class="odds-list">
+          <div class="odds-row"><div class="name">特碼 · 一等獎<span class="en">SPEC · GRAND</span></div><div class="val">49.80</div><div class="val up">51.20</div><div class="delta up">+ 1.40</div></div>
+          <div class="odds-row"><div class="name">特碼 · 大<span class="en">SPEC · BIG</span></div><div class="val">1.92</div><div class="val up">1.95</div><div class="delta up">+ 0.03</div></div>
+          <div class="odds-row"><div class="name">特碼 · 小<span class="en">SPEC · SMALL</span></div><div class="val">1.94</div><div class="val up">1.96</div><div class="delta up">+ 0.02</div></div>
+          <div class="odds-row"><div class="name">特碼 · 單<span class="en">SPEC · ODD</span></div><div class="val">1.93</div><div class="val up">1.95</div><div class="delta up">+ 0.02</div></div>
+          <div class="odds-row"><div class="name">特碼 · 雙<span class="en">SPEC · EVEN</span></div><div class="val">1.93</div><div class="val dn">1.92</div><div class="delta dn">– 0.01</div></div>
+          <div class="odds-row"><div class="name">合肖 · 二肖<span class="en">PAIR · ZODIAC</span></div><div class="val">5.20</div><div class="val up">5.45</div><div class="delta up">+ 0.25</div></div>
+          <div class="odds-row"><div class="name">連碼 · 三中三<span class="en">TRIPLE · CHAIN</span></div><div class="val">42.00</div><div class="val up">45.50</div><div class="delta up">+ 3.50</div></div>
+          <div class="odds-row" style="border-bottom:none"><div class="name">尾數 · 0 尾<span class="en">TAIL · 0</span></div><div class="val">10.20</div><div class="val up">10.85</div><div class="delta up">+ 0.65</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- distribution bars -->
+    <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-top:24px">
+      <div class="mono" style="grid-column:1 / -1;font-size:10px;color:var(--gold);letter-spacing:0.25em;margin-bottom:6px">DIGIT · DISTRIBUTION · 144 PERIODS</div>
+      <div id="bars" style="grid-column:1 / -1;display:grid;grid-template-columns:repeat(10,1fr);gap:4px;align-items:end;height:90px"></div>
+      <div style="grid-column:1 / -1;display:grid;grid-template-columns:repeat(10,1fr);gap:4px;font-family:'JetBrains Mono';font-size:11px;color:var(--paper-3);text-align:center">
+        <div>0</div><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TICKER ============ -->
+  <div class="ticker">
+    <span class="lbl">▍ TICKER</span>
+    <span class="it">六合 061 / <span class="arrow">▲</span> 大 1.95</span>
+    <span class="div">◆</span>
+    <span class="it">時時 178 / <span class="arrow dn">▼</span> 龍 2.04</span>
+    <span class="div">◆</span>
+    <span class="it">PK10 1245128 / <span class="arrow">▲</span> 冠 9.95</span>
+    <span class="div">◆</span>
+    <span class="it">K3 2620 / <span class="arrow">▲</span> 圍 180.0</span>
+    <span class="div">◆</span>
+    <span class="it">USDT / CNY 7.21</span>
+    <span class="div">◆</span>
+    <span class="it">系統水位 · 96.4%</span>
+    <span class="div">◆</span>
+    <span class="it">在線代理 · 482</span>
+  </div>
+
+  <!-- ============ FOOT ============ -->
+  <div class="foot">
+    <span>對 沖 局 · DUI CHONG JU · 紅 運 限 定</span>
+    <span class="copy">© 2026 · DEMO · DESIGN · NO REAL WAGER</span>
+    <span>BUILD · 26.05.12 · b14r</span>
+  </div>
+
+</div>
+
+
+<!-- React + Babel -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<script>
+/* ====== periodic ====== */
+const NAMES = {
+  six:  ['特一','正一','正二','正三','正四','正五','正六','合肖','連肖','生肖','尾數','三全','二全','半全'],
+  time: ['萬位','千位','百位','十位','個位','和值','跨度','龍虎','大小','單雙','組三','組六','直選','五星'],
+  pk:   ['冠軍','亞軍','季軍','第四','第五','第六','第七','第八','第九','第十','冠亞和','大小','單雙','龍虎'],
+  k3:   ['一骰','二骰','三骰','總和','大小','單雙','三軍','圍骰','長牌','短牌','對子','順子','豹子','點數'],
+};
+const SYMBOLS = {
+  six:  ['T','Z₁','Z₂','Z₃','Z₄','Z₅','Z₆','He','Lx','Sx','Ws','Sa','Er','Bn'],
+  time: ['W','Q','B','S','G','Hz','Kd','Lt','Ds','Dx','Z₃','Z₆','Zx','Wx'],
+  pk:   ['G','Y','J','D₄','D₅','D₆','D₇','D₈','D₉','D₁₀','Gy','Ds','Dx','Lt'],
+  k3:   ['S₁','S₂','S₃','Σ','Ds','Dx','Sj','Ws','Cp','Dp','Du','Sh','Bz','Pn'],
+};
+const GROUPS = { six:'gp-six', time:'gp-time', pk:'gp-pk', k3:'gp-k3' };
+
+(function buildPeriodic(){
+  const order = ['six','time','pk','k3'];
+  let cells = [];
+  order.forEach((g, gi) => {
+    for (let i = 0; i < 14; i++) {
+      cells.push({
+        sym: SYMBOLS[g][i],
+        name: NAMES[g][i],
+        no: String((gi*14 + i + 1)).padStart(2,'0'),
+        kind: GROUPS[g],
+        trend: +(Math.random()*6 - 3).toFixed(1),
+        freq: Math.floor(Math.random()*40 + 5),
+      });
+    }
+  });
+  const edgeN = ['色波','半波','尾大','尾小','合大','合小','頭數','尾數','合單','合雙','過關','滾雪','連贏','破格'];
+  const edgeS = ['Cb','Bb','Td','Tx','Hd','Hx','Ts','Ws','Hu','Hd','Gg','Gx','Lr','Pg'];
+  for (let i=0;i<14;i++){
+    cells.push({sym:edgeS[i],name:edgeN[i],no:String(56+i+1).padStart(2,'0'),kind:'gp-edge',trend:+(Math.random()*6-3).toFixed(1),freq:Math.floor(Math.random()*30+5)});
+  }
+  const rareN = ['豹子','對子','順子','圍骰','三同','半順','跨九','跨零','全大','全小','全單','全雙','清一','黑馬'];
+  const rareS = ['Bz','Du','Sh','Ws','Ts','Hs','K₉','K₀','Qd','Qx','Qu','Qe','Qy','Hm'];
+  for (let i=0;i<14;i++){
+    const k = (i % 3 === 0) ? 'gp-rare' : ((i % 2) ? 'gp-ash' : 'gp-edge');
+    cells.push({sym:rareS[i],name:rareN[i],no:String(70+i+1).padStart(2,'0'),kind:k,trend:+(Math.random()*6-3).toFixed(1),freq:Math.floor(Math.random()*25+3)});
+  }
+  document.getElementById('periodic').innerHTML = cells.map(c=>{
+    const up = c.trend > 0;
+    const arrow = up ? '▲' : '▼';
+    const cls = up ? 'red-up' : 'green-dn';
+    const sign = up ? '+' : '';
+    return `<div class="cell ${c.kind}">
+      <div class="corner"><span>${c.no}</span><span class="${cls}">${arrow}${sign}${c.trend.toFixed(1)}</span></div>
+      <div class="sym">${c.sym}</div>
+      <div class="name">${c.name}</div>
+      <div class="delta"><span class="${cls}">${c.freq}%</span></div>
+    </div>`;
+  }).join('');
+})();
+
+/* ====== trend ====== */
+(function buildTrend(){
+  const tbl = document.getElementById('trend-table');
+  let html = `<div class="th">期號</div>`;
+  for (let i=0;i<10;i++) html += `<div class="th">${i}</div>`;
+  html += `<div class="th">和 · 距</div>`;
+
+  for (let r = 0; r < 14; r++) {
+    const issue = 178 - r;
+    const hit = Math.floor(Math.random()*10);
+    html += `<div class="tr-issue">26·05·12 · ${String(issue).padStart(3,'0')}</div>`;
+    for (let i = 0; i < 10; i++) {
+      if (i === hit) {
+        const tag = (i >= 5) ? 'big' : '';
+        html += `<div class="tc hit ${tag}"><span class="dot-num">${i}</span></div>`;
+      } else {
+        html += `<div class="tc">${i}</div>`;
+      }
+    }
+    const dist = Math.floor(Math.random()*5)+1;
+    html += `<div class="tr-sum">${hit} · ${dist}</div>`;
+  }
+  tbl.innerHTML = html;
+})();
+
+/* ====== bars ====== */
+(function buildBars(){
+  const data = [12,18,9,22,14,11,16,28,24,8];
+  const max = Math.max(...data);
+  document.getElementById('bars').innerHTML = data.map((v,i)=>{
+    const h = (v/max)*100;
+    const isHot = v >= 20;
+    const isCold = v <= 10;
+    const col = isHot ? 'var(--gold-bright)' : isCold ? '#7ad19f' : 'var(--paper-2)';
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;height:100%">
+      <span class="mono" style="font-size:10px;color:${col};">${v}%</span>
+      <div style="flex:1;width:100%;display:flex;align-items:flex-end">
+        <div style="width:100%;background:${col};height:${h}%;opacity:0.9"></div>
+      </div>
+    </div>`;
+  }).join('');
+})();
+</script>
+
+<!-- Tweaks -->
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const TWEAKS_DEFAULT = /*EDITMODE-BEGIN*/{
+  "showDragon": true,
+  "showFirecrackers": true,
+  "redIntensity": "vivid",
+  "showLattice": true,
+  "density": "comfortable"
+}/*EDITMODE-END*/;
+
+function TweaksApp() {
+  const [t, setTweak] = useTweaks(TWEAKS_DEFAULT);
+
+  useEffect(() => {
+    document.querySelectorAll('.dragon').forEach(el => el.style.display = t.showDragon ? '' : 'none');
+    document.querySelectorAll('.firecrackers').forEach(el => el.style.display = t.showFirecrackers ? '' : 'none');
+    document.querySelectorAll('.hero-right .lattice').forEach(el => el.style.display = t.showLattice ? '' : 'none');
+    const map = {
+      vivid: { red:'#c8202c', deep:'#8a0c1a', wine:'#5a0a14' },
+      classic: { red:'#a01622', deep:'#6b0e14', wine:'#420810' },
+      crimson: { red:'#dc2626', deep:'#9b1c1c', wine:'#5b1010' },
+    };
+    const c = map[t.redIntensity] || map.vivid;
+    document.documentElement.style.setProperty('--red', c.red);
+    document.documentElement.style.setProperty('--red-deep', c.deep);
+    document.documentElement.style.setProperty('--red-wine', c.wine);
+    document.querySelectorAll('.sect').forEach(s => s.style.padding = t.density === 'compact' ? '36px 36px' : '56px 36px');
+  }, [t]);
+
+  return (
+    <TweaksPanel title="Tweaks · 紅運版">
+      <TweakSection title="圖騰">
+        <TweakToggle label="顯示龍紋" value={t.showDragon} onChange={v => setTweak('showDragon', v)} />
+        <TweakToggle label="顯示鞭炮" value={t.showFirecrackers} onChange={v => setTweak('showFirecrackers', v)} />
+        <TweakToggle label="格紋底" value={t.showLattice} onChange={v => setTweak('showLattice', v)} />
+      </TweakSection>
+      <TweakSection title="紅色基調">
+        <TweakRadio
+          label="紅度"
+          value={t.redIntensity}
+          options={[
+            {label:'鮮紅', value:'vivid'},
+            {label:'古紅', value:'classic'},
+            {label:'朱紅', value:'crimson'},
+          ]}
+          onChange={v => setTweak('redIntensity', v)}
+        />
+      </TweakSection>
+      <TweakSection title="版面">
+        <TweakRadio
+          label="密度"
+          value={t.density}
+          options={[{label:'寬鬆', value:'comfortable'},{label:'緊湊', value:'compact'}]}
+          onChange={v => setTweak('density', v)}
+        />
+      </TweakSection>
+    </TweaksPanel>
+  );
+}
+
+const mount = document.createElement('div');
+document.body.appendChild(mount);
+ReactDOM.createRoot(mount).render(<TweaksApp />);
+</script>
+
+</body>
+</html>
