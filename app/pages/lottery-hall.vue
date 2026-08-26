@@ -440,8 +440,8 @@ onBeforeUnmount(() => {
           </div>
           <div class="games-band__ct-bottom">
             <div class="games-pool-band">
-              <span class="mono games-pool-band__label">全站總彩池 · TOTAL POOL</span>
               <span class="bebas games-pool-band__val">{{ money(totalPool) }}</span>
+              <span class="mono games-pool-band__label">總彩池 · POOL</span>
             </div>
           </div>
         </div>
