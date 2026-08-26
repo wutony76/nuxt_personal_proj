@@ -303,6 +303,21 @@ let poolTimer: ReturnType<typeof setInterval> | null = null
 
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW', { maximumFractionDigits: 0 })
 
+/**
+ * 全站總彩池（Hero 區塊的大數字）＝所有卡片目前顯示的彩池加總。
+ * ⚠️ 直接加總 displayPools，不特別為 k3/pk10/ssc/x5 的 CD／OF 共用池去重——
+ *    這兩張卡本來就刻意顯示同一個合計數字（見 POOL_FETCHERS 註解），此處延用同一個簡化前提，
+ *    純粹是大廳的裝飾性總覽數字，不是精算的資金帳目。
+ * 因為 displayPools 的每個值都在用 requestAnimationFrame 跑動畫，這裡不用另外做動畫，
+ * 加總會隨著任一張卡片跳動自然跟著平滑變化。
+ */
+const totalPool = computed(() =>
+  Object.values(displayPools).reduce((sum, value) => sum + Number(value ?? 0), 0)
+)
+
+/** Hero 區塊玩法圖示分兩欄顯示要用的列數（欄優先排列，見 .hall-hero__icons 的 grid-auto-flow: column） */
+const heroIconRows = computed(() => Math.max(1, Math.ceil(state.list.length / 2)))
+
 const _handlers = {
   enterDelay: (base: number, idx: number, step = 0.12) => `${base + idx * step}s`,
   /** 該卡片的玩法有沒有彩池／爆池可顯示（fc3d 沒有，不列進 POOL_FETCHERS） */
@@ -419,8 +434,16 @@ onBeforeUnmount(() => {
       <div class="games-band__head">
         <div class="brush games-band__lt">選 局 入 場</div>
         <div class="games-band__ct">
-          <h2 class="bebas">CHOOSE <span class="gold">×</span> GAME</h2>
-          <div class="mono games-band__sub">官 方 · 信 用 · 兩 式 同 局</div>
+          <div class="games-band__ct-top">
+            <h2 class="bebas">CHOOSE <span class="gold">×</span> GAME</h2>
+            <div class="mono games-band__sub">官 方 · 信 用 · 兩 式 同 局</div>
+          </div>
+          <div class="games-band__ct-bottom">
+            <div class="games-pool-band">
+              <span class="mono games-pool-band__label">全站總彩池 · TOTAL POOL</span>
+              <span class="bebas games-pool-band__val">{{ money(totalPool) }}</span>
+            </div>
+          </div>
         </div>
         <div class="mono games-band__rt">
           快速開獎 · 即時派彩<br>
@@ -441,7 +464,7 @@ onBeforeUnmount(() => {
           <p class="gc__desc">{{ card.desc }}</p>
           <div class="mono gc__note">{{ card.note }}</div>
           <div v-if="_handlers.hasPool(card.routeKey)" class="gc__pool">
-            <span class="mono gc__pool-label">彩池 POOL</span>
+            <span class="mono gc__pool-label"></span>
             <span class="bebas gc__pool-val">{{ money(displayPools[card.routeKey] ?? 0) }}</span>
           </div>
           <span class="gc__enter" @click="click.start(card.routeKey)">
@@ -908,9 +931,11 @@ onBeforeUnmount(() => {
   }
 
   &__icons {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(v-bind(heroIconRows), auto);
+    column-gap: 28px;
+    row-gap: 14px;
   }
 
   &__icon {
@@ -1009,23 +1034,21 @@ onBeforeUnmount(() => {
     height: 180px;
     display: flex;
     align-items: center;
+    /* writing-mode 把主軸轉成垂直，align-items 只管到（現在變水平的）交叉軸，
+       文字實際的垂直位置要靠 justify-content 才能置中，否則會貼齊頂端 */
+    justify-content: center;
   }
 
   &__ct {
     text-align: center;
 
-    &::before,
-    &::after {
+    &::before {
       content: '';
       display: block;
       width: 50%;
       height: 2px;
       background: var(--red);
       margin: 0 auto 16px;
-    }
-
-    &::after {
-      margin: 16px auto 0;
     }
 
     h2 {
@@ -1037,6 +1060,59 @@ onBeforeUnmount(() => {
 
       .gold {
         color: var(--gold-deep);
+      }
+    }
+
+    /* 分隔線移到 ct-bottom 自己的 ::before，讓線永遠貼在彩池區塊「上方」，不受它是不是最後一個子元素影響 */
+    .games-band__ct-bottom {
+      &::before {
+        content: '';
+        display: block;
+        width: 50%;
+        height: 2px;
+        background: var(--red);
+        margin: 16px auto 0;
+      }
+    }
+
+    /*
+     * 全站總彩池：字色比照 .gc__pool-val（同一組金色漸層 + shimmerText）。
+     * ⚠️ 這裡跟卡片彩池一樣是米白底（var(--paper)），金色文字直接疊上去對比太弱，
+     *    改用 -webkit-text-stroke 在數字字形外描一圈深紅色，文字本身仍是透空漸層。
+     */
+    .games-pool-band {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+
+      &__label {
+        font-size: 11px;
+        letter-spacing: 0.3em;
+        color: var(--color-red-desc);
+        white-space: nowrap;
+      }
+
+      &__val {
+        font-size: 63px;
+        line-height: 1;
+        letter-spacing: 0.03em;
+        font-variant-numeric: tabular-nums;
+        background: linear-gradient(90deg,
+            var(--gold-bright) 0%,
+            #fffef2 38%,
+            var(--gold-bright) 52%,
+            var(--gold-bright) 100%);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        color: transparent;
+        -webkit-text-stroke: 1px #de6d4e;
+        paint-order: stroke fill;
+        animation: shimmerText 3.5s linear infinite;
       }
     }
   }
@@ -1054,6 +1130,7 @@ onBeforeUnmount(() => {
     letter-spacing: 0.2em;
     text-align: right;
     line-height: 1.7;
+    transform: translateY(30px);
   }
 }
 

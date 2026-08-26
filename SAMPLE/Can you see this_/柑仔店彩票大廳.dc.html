@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/organic-52e23790-14cc-46c8-8a5e-622d09c687a5/styles.css">
+<script src="_ds/organic-52e23790-14cc-46c8-8a5e-622d09c687a5/_ds_bundle.js"></script>
+<script src="./image-slot.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+  body { margin: 0; background: var(--color-bg); font-family: "Figtree", "Noto Sans TC", sans-serif; }
+  h1, h2, h3, h4, h5, h6 { font-family: "Caprasimo", "Noto Serif TC", serif; font-weight: 900; letter-spacing: 0.01em; }
+  a { color: var(--color-accent-700); }
+  a:hover { color: var(--color-accent-800); }
+  @keyframes gz-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @keyframes gz-blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.25; } }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; background: var(--color-bg); background-image: repeating-linear-gradient(0deg, rgba(32,30,29,0.022) 0 2px, transparent 2px 5px), repeating-linear-gradient(90deg, rgba(32,30,29,0.018) 0 3px, transparent 3px 7px); color: var(--color-text);">
+
+  <div style="background: var(--color-neutral-900); color: var(--color-bg); padding: 14px clamp(16px, 4vw, 48px); display: flex; align-items: center; gap: 18px; flex-wrap: wrap;">
+    <div onClick="{{ goLobby }}" style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+      <div style="width: 44px; height: 44px; border-radius: 999px; background: var(--color-accent-500); display: grid; place-items: center; font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900; font-size: 22px; color: var(--color-neutral-900); box-shadow: inset 0 -3px 0 rgba(0,0,0,0.18);">好</div>
+      <div>
+        <div style="font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900; font-size: 22px; line-height: 1.1;">好運柑仔店</div>
+        <div style="font-size: 11px; letter-spacing: 0.22em; color: var(--color-accent-300);">彩 票 大 廳</div>
+      </div>
+    </div>
+    <div style="flex: 1;"></div>
+    <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500;">
+      <span style="display: inline-flex; align-items: center; gap: 7px; background: rgba(245,234,216,0.1); border: 1px solid rgba(245,234,216,0.22); padding: 7px 14px; border-radius: 999px;">
+        <span style="width: 7px; height: 7px; border-radius: 999px; background: var(--color-accent-2-400); animation: gz-blink 1.6s steps(1, end) infinite;"></span>
+        開獎中
+      </span>
+      <span style="background: rgba(245,234,216,0.1); border: 1px solid rgba(245,234,216,0.22); padding: 7px 14px; border-radius: 999px;">今仔日 {{ today }}</span>
+    </div>
+  </div>
+
+  <div style="height: 14px; background: var(--color-accent-700); background-image: radial-gradient(circle at 8px 14px, var(--color-bg) 6px, transparent 6.5px); background-size: 16px 16px;"></div>
+
+  <div style="overflow: hidden; background: var(--color-accent-2-200); border-bottom: 1px solid var(--color-accent-2-300); padding: 9px 0;">
+    <div style="display: flex; width: max-content; animation: gz-marquee 34s linear infinite; font-size: 14px; font-weight: 700; color: var(--color-accent-2-800);">
+      <div style="display: flex; gap: 40px; padding-right: 40px;">
+        <sc-for list="{{ marquee }}" as="m" hint-placeholder-count="5">
+          <span>◆ {{ m }}</span>
+        </sc-for>
+      </div>
+      <div style="display: flex; gap: 40px; padding-right: 40px;" aria-hidden="true">
+        <sc-for list="{{ marquee }}" as="m" hint-placeholder-count="5">
+          <span>◆ {{ m }}</span>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{ isLobby }}" hint-placeholder-val="{{ true }}">
+  <div>
+
+    <div style="padding: clamp(28px, 5vw, 64px) clamp(16px, 4vw, 48px) clamp(20px, 3vw, 40px); display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: clamp(24px, 4vw, 56px); align-items: center; max-width: 1400px; margin: 0 auto;">
+      <div>
+        <div style="display: inline-block; transform: rotate(-2.5deg); background: var(--color-accent-200); color: var(--color-accent-800); border: 1px dashed var(--color-accent-500); padding: 5px 16px; font-size: 12px; font-weight: 700; letter-spacing: 0.18em; margin-bottom: 18px;">台 灣 彩 券 · 全 部 玩 法</div>
+        <h1 style="font-size: clamp(40px, 7vw, 76px); line-height: 1.08; margin: 0 0 18px; color: var(--color-accent-800);">今仔日<br>來一注，好運到</h1>
+        <p style="font-size: clamp(15px, 1.6vw, 18px); max-width: 34ch; line-height: 1.85; color: var(--color-neutral-800); text-wrap: pretty;">大樂透、威力彩、今彩539 到賓果賓果，九款玩法一次擺齊。開獎時間、獎金、規則寫甲清清楚楚，選好號碼就落去。</p>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 26px;">
+          <button type="button" onClick="{{ goFirstGame }}" class="btn btn-primary" style="border-radius: 999px; font-size: 16px; padding: 13px 30px; font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900;">來一注 大樂透</button>
+          <a href="#gz-games" class="btn btn-secondary" style="border-radius: 999px; font-size: 15px; padding: 13px 26px; text-decoration: none; color: var(--color-accent-800); border-color: var(--color-accent-400); font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900;">看全部玩法</a>
+        </div>
+      </div>
+
+      <div style="position: relative; display: grid; place-items: center; min-height: 320px;">
+        <div style="position: absolute; width: min(88%, 380px); aspect-ratio: 1; border-radius: 999px; background: var(--color-accent-2-200);"></div>
+        <div style="position: absolute; inset: auto auto 6% 2%; width: 34%; max-width: 150px; aspect-ratio: 1; border-radius: 999px; background: var(--color-accent-200);"></div>
+        <svg viewBox="0 0 320 300" style="position: relative; width: min(94%, 420px); height: auto; filter: drop-shadow(0 10px 22px rgba(46,43,37,0.18));" aria-label="大同電鍋與紅色郵筒插畫">
+          <ellipse cx="160" cy="270" rx="128" ry="15" fill="#2e2b25" opacity="0.1"></ellipse>
+          <rect x="228" y="120" width="58" height="146" rx="18" fill="#8c491a"></rect>
+          <rect x="228" y="120" width="58" height="146" rx="18" fill="none" stroke="#402310" stroke-width="3"></rect>
+          <path d="M222 122 q34 -26 70 0 z" fill="#402310"></path>
+          <rect x="242" y="150" width="30" height="8" rx="4" fill="#f5ead8" opacity="0.85"></rect>
+          <rect x="248" y="176" width="18" height="24" rx="4" fill="#f5ead8" opacity="0.35"></rect>
+          <rect x="252" y="266" width="10" height="16" fill="#645c50"></rect>
+          <path d="M52 250 q-14 0 -14 -16 v-72 q0 -58 66 -58 h44 q66 0 66 58 v72 q0 16 -16 16 z" fill="#dcd3c4"></path>
+          <path d="M52 250 q-14 0 -14 -16 v-72 q0 -58 66 -58 h44 q66 0 66 58 v72 q0 16 -16 16 z" fill="none" stroke="#474238" stroke-width="4"></path>
+          <path d="M44 168 h172" stroke="#474238" stroke-width="3" opacity="0.5"></path>
+          <ellipse cx="130" cy="104" rx="82" ry="20" fill="#eee7db" stroke="#474238" stroke-width="4"></ellipse>
+          <rect x="118" y="82" width="24" height="16" rx="7" fill="#8c491a" stroke="#402310" stroke-width="3"></rect>
+          <circle cx="130" cy="200" r="26" fill="#8fa073" stroke="#474238" stroke-width="4"></circle>
+          <path d="M130 182 v18 l13 8" stroke="#2e2b25" stroke-width="4" fill="none" stroke-linecap="round"></path>
+          <rect x="40" y="232" width="180" height="10" rx="5" fill="#c67139" opacity="0.75"></rect>
+        </svg>
+        <div style="position: absolute; right: 0; top: 4%; transform: rotate(6deg); background: var(--color-bg); border: 1px solid var(--color-neutral-300); border-radius: 4px; padding: 8px 12px; box-shadow: var(--shadow-sm); font-size: 12px; font-weight: 700; color: var(--color-accent-800);">憨人有憨福</div>
+      </div>
+    </div>
+
+    <div id="gz-games" style="max-width: 1400px; margin: 0 auto; padding: clamp(16px, 3vw, 32px) clamp(16px, 4vw, 48px) 0;">
+      <div style="display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; border-bottom: 3px double var(--color-accent-500); padding-bottom: 12px; margin-bottom: 28px;">
+        <h2 style="font-size: clamp(26px, 3.4vw, 40px); margin: 0; color: var(--color-accent-800);">玩法貨架</h2>
+        <span class="text-muted" style="font-size: 13px; margin-bottom: 6px;">九款台灣彩券 · 點入選號</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: clamp(16px, 2vw, 24px);">
+        <sc-for list="{{ games }}" as="g" hint-placeholder-count="6">
+          <div style="background: var(--color-neutral-100); border: 1px solid var(--color-neutral-300); border-radius: var(--radius-lg); padding: 22px 22px 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 14px; position: relative; overflow: hidden;">
+            <div style="position: absolute; inset: 0 0 auto 0; height: 6px; background: var(--color-accent-500); background-image: repeating-linear-gradient(90deg, var(--color-accent-2-500) 0 14px, var(--color-accent-500) 14px 28px);"></div>
+            <div style="display: flex; align-items: flex-start; gap: 12px; padding-top: 6px;">
+              <div style="width: 52px; height: 52px; flex: none; border-radius: 999px; background: var(--color-accent-2-200); border: 2px solid var(--color-accent-2-400); display: grid; place-items: center; font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900; font-size: 17px; color: var(--color-accent-2-800);">{{ g.mark }}</div>
+              <div style="min-width: 0;">
+                <h3 style="margin: 0 0 3px; font-size: 22px; color: var(--color-neutral-900);">{{ g.name }}</h3>
+                <div style="font-size: 13px; color: var(--color-neutral-700); line-height: 1.5;">{{ g.tagline }}</div>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--color-neutral-200); border: 1px dashed var(--color-neutral-400); border-radius: var(--radius-sm); padding: 10px 14px;">
+              <div>
+                <div style="font-size: 10px; letter-spacing: 0.14em; color: var(--color-neutral-600);">下期期號</div>
+                <div style="font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900; font-size: 17px; color: var(--color-neutral-900);">{{ g.period }}</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 10px; letter-spacing: 0.14em; color: var(--color-neutral-600);">倒數</div>
+                <div style="font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900; font-size: 17px; color: var(--color-accent-700);">{{ g.countdown }}</div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div style="background: var(--color-bg); border-radius: var(--radius-sm); padding: 9px 12px;">
+                <div style="font-size: 10px; letter-spacing: 0.12em; color: var(--color-neutral-600);">開獎</div>
+                <div style="font-size: 13px; font-weight: 700; line-height: 1.45;">{{ g.drawTime }}</div>
+              </div>
+              <div style="background: var(--color-bg); border-radius: var(--radius-sm); padding: 9px 12px;">
+                <div style="font-size: 10px; letter-spacing: 0.12em; color: var(--color-neutral-600);">最高獎金</div>
+                <div style="font-size: 13px; font-weight: 700; line-height: 1.45; color: var(--color-accent-800);">{{ g.topPrize }}</div>
+              </div>
+            </div>
+
+            <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--color-neutral-800); line-height: 1.6;">
+              <sc-for list="{{ g.rules }}" as="r" hint-placeholder-count="3">
+                <li>{{ r }}</li>
+              </sc-for>
+            </ul>
+
+            <div style="flex: 1;"></div>
+            <button type="button" onClick="{{ g.open }}" class="btn btn-primary btn-block" style="border-radius: 999px; font-size: 16px; padding: 12px; font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900; margin-top: 2px;">進入{{ g.name }}</button>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <sc-if value="{{ showShelf }}" hint-placeholder-val="{{ true }}">
+    <div style="max-width: 1400px; margin: clamp(36px, 6vw, 72px) auto 0; padding: 0 clamp(16px, 4vw, 48px);">
+      <div style="background: var(--color-surface); border: 2px solid var(--color-accent-2-400); border-radius: var(--radius-lg); padding: clamp(20px, 3vw, 34px); background-image: radial-gradient(circle at 12px 12px, rgba(122,138,94,0.16) 3px, transparent 3.5px); background-size: 24px 24px;">
+        <div style="display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 6px;">
+          <h2 style="margin: 0; font-size: clamp(24px, 3vw, 34px); color: var(--color-accent-2-800);">柑仔店櫥仔</h2>
+          <span class="text-muted" style="font-size: 13px; margin-bottom: 5px;">懷舊零嘴 · 古早玩具</span>
+        </div>
+        <p class="text-muted" style="font-size: 13px; margin: 0 0 20px;">照片位可以直接拖素材進來換掉。</p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px;">
+          <sc-for list="{{ shelf }}" as="s" hint-placeholder-count="8">
+            <div style="background: var(--color-neutral-100); border: 1px solid var(--color-neutral-300); border-radius: var(--radius-md); padding: 14px; text-align: center; box-shadow: var(--shadow-sm);">
+              <div style="width: 56px; height: 56px; margin: 0 auto 10px; border-radius: 999px; background: var(--color-accent-200); border: 2px solid var(--color-accent-400); display: grid; place-items: center; font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900; font-size: 20px; color: var(--color-accent-800);">{{ s.mark }}</div>
+              <div style="font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900; font-size: 16px; color: var(--color-neutral-900);">{{ s.name }}</div>
+              <div style="font-size: 11px; color: var(--color-neutral-600); margin-top: 3px;">{{ s.kind }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 18px;">
+          <div style="height: 180px; border: 1px solid var(--color-neutral-300); border-radius: var(--radius-md); overflow: hidden; background: var(--color-neutral-200);">
+            <image-slot id="gz-shelf-1" shape="rect" placeholder="柑仔店貨架照片"></image-slot>
+          </div>
+          <div style="height: 180px; border: 1px solid var(--color-neutral-300); border-radius: var(--radius-md); overflow: hidden; background: var(--color-neutral-200);">
+            <image-slot id="gz-shelf-2" shape="rect" placeholder="古早玩具照片"></image-slot>
+          </div>
+          <div style="height: 180px; border: 1px solid var(--color-neutral-300); border-radius: var(--radius-md); overflow: hidden; background: var(--color-neutral-200);">
+            <image-slot id="gz-shelf-3" shape="rect" placeholder="懷舊零嘴照片"></image-slot>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isGame }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width: 1180px; margin: 0 auto; padding: clamp(20px, 4vw, 44px) clamp(16px, 4vw, 48px) 0;">
+    <button type="button" onClick="{{ goLobby }}" class="btn btn-ghost" style="border-radius: 999px; font-size: 14px; padding: 8px 16px; color: var(--color-accent-800); font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900;">← 轉去大廳</button>
+
+    <div style="display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; margin: 16px 0 8px;">
+      <h1 style="margin: 0; font-size: clamp(34px, 6vw, 60px); color: var(--color-accent-800);">{{ cur.name }}</h1>
+      <span style="margin-bottom: 12px; background: var(--color-accent-2-200); color: var(--color-accent-2-800); border-radius: 999px; padding: 6px 16px; font-size: 13px; font-weight: 700;">{{ cur.tagline }}</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 22px 0 30px;">
+      <div style="background: var(--color-neutral-900); color: var(--color-bg); border-radius: var(--radius-md); padding: 16px 20px;">
+        <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--color-accent-300);">下期期號</div>
+        <div style="font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900; font-size: 26px;">{{ cur.period }}</div>
+      </div>
+      <div style="background: var(--color-accent-700); color: var(--color-bg); border-radius: var(--radius-md); padding: 16px 20px;">
+        <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--color-accent-200);">距離開獎</div>
+        <div style="font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900; font-size: 26px;">{{ cur.countdown }}</div>
+      </div>
+      <div style="background: var(--color-neutral-100); border: 1px solid var(--color-neutral-300); border-radius: var(--radius-md); padding: 16px 20px;">
+        <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--color-neutral-600);">開獎時間</div>
+        <div style="font-weight: 700; font-size: 17px; margin-top: 2px;">{{ cur.drawTime }}</div>
+      </div>
+      <div style="background: var(--color-neutral-100); border: 1px solid var(--color-neutral-300); border-radius: var(--radius-md); padding: 16px 20px;">
+        <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--color-neutral-600);">最高獎金</div>
+        <div style="font-weight: 700; font-size: 17px; margin-top: 2px; color: var(--color-accent-800);">{{ cur.topPrize }}</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: clamp(18px, 3vw, 32px); align-items: start; padding-bottom: 20px;">
+      <div style="background: var(--color-neutral-100); border: 1px solid var(--color-neutral-300); border-radius: var(--radius-lg); padding: clamp(18px, 2.6vw, 28px); box-shadow: var(--shadow-md);">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 4px;">
+          <h3 style="margin: 0; font-size: 22px;">選你的號碼</h3>
+          <span style="font-size: 13px; font-weight: 700; color: var(--color-accent-800);">{{ pickLabel }}</span>
+        </div>
+        <p class="text-muted" style="font-size: 13px; margin: 0 0 16px;">{{ pickHint }}</p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 8px;">
+          <sc-for list="{{ balls }}" as="b" hint-placeholder-count="49">
+            <button type="button" onClick="{{ b.toggle }}" style="aspect-ratio: 1; border-radius: 999px; border: 2px solid {{ b.bc }}; background: {{ b.bg }}; color: {{ b.fg }}; font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900; font-size: 16px; cursor: pointer; min-height: 44px; box-shadow: {{ b.sh }};" style-hover="border-color: var(--color-accent-500);">{{ b.label }}</button>
+          </sc-for>
+        </div>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px;">
+          <button type="button" onClick="{{ quickPick }}" class="btn btn-secondary" style="border-radius: 999px; padding: 11px 22px; font-size: 15px; border-color: var(--color-accent-400); color: var(--color-accent-800); font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900;">電腦選號</button>
+          <button type="button" onClick="{{ clearPick }}" class="btn btn-secondary" style="border-radius: 999px; padding: 11px 22px; font-size: 15px; font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900;">清掉</button>
+          <button type="button" class="btn btn-primary" style="border-radius: 999px; padding: 11px 26px; font-size: 16px; font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900;" disabled="{{ notReady }}">落去買 · 50 元</button>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="background: var(--color-surface); border: 2px solid var(--color-accent-2-400); border-radius: var(--radius-lg); padding: clamp(18px, 2.6vw, 26px);">
+          <h3 style="margin: 0 0 12px; font-size: 20px; color: var(--color-accent-2-800);">玩法規則</h3>
+          <ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.7;">
+            <sc-for list="{{ cur.rules }}" as="r" hint-placeholder-count="4">
+              <li>{{ r }}</li>
+            </sc-for>
+          </ul>
+        </div>
+
+        <div style="border: 1px solid var(--color-neutral-300); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-neutral-200);">
+          <div style="height: 200px;">
+            <image-slot id="gz-game-hero" shape="rect" placeholder="投注站門口照片"></image-slot>
+          </div>
+        </div>
+
+        <div style="background: var(--color-neutral-100); border: 1px dashed var(--color-neutral-400); border-radius: var(--radius-lg); padding: 18px 22px;">
+          <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--color-neutral-600); margin-bottom: 6px;">頭家的話</div>
+          <p style="margin: 0; font-size: 14px; line-height: 1.75; color: var(--color-neutral-800);">中獎憑運氣，買多買少看家己。未滿十八歲不得購買，理性投注免傷本。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <div style="margin-top: clamp(40px, 7vw, 84px); background: var(--color-neutral-900); color: var(--color-neutral-300);">
+    <div style="height: 14px; background: var(--color-accent-700); background-image: radial-gradient(circle at 8px 0px, var(--color-bg) 6px, transparent 6.5px); background-size: 16px 16px;"></div>
+    <div style="max-width: 1400px; margin: 0 auto; padding: 30px clamp(16px, 4vw, 48px) 40px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; font-size: 13px;">
+      <div style="font-family: 'Caprasimo','Noto Serif TC',serif; font-weight: 900; font-size: 18px; color: var(--color-bg);">好運柑仔店 · 彩票大廳</div>
+      <div style="flex: 1;"></div>
+      <div style="max-width: 46ch; line-height: 1.7;">未滿十八歲不得購買、兌領彩券。理性投注，量力而為。本頁面為設計稿，號碼與獎金僅供版面示意。</div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showShelf&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;版面&quot;}}">
+const GAMES = [
+  { name: "大樂透", mark: "樂", tagline: "49 選 6，加一個特別號", days: [2, 5], pick: 6, pool: 49, topPrize: "頭獎 1 億起", rules: ["從 01–49 中選 6 個號碼。", "另開出 1 個特別號。", "6 個全中即為頭獎。", "每注 50 元。"] },
+  { name: "威力彩", mark: "威", tagline: "兩區選號，頭獎累積無上限", days: [1, 4], pick: 6, pool: 38, topPrize: "頭獎 2 億起", rules: ["第一區從 01–38 選 6 個號碼。", "第二區從 01–08 選 1 個號碼。", "兩區全中即為頭獎。", "每注 100 元。"] },
+  { name: "今彩539", mark: "539", tagline: "39 選 5，一週開六天", days: [1, 2, 3, 4, 5, 6], pick: 5, pool: 39, topPrize: "頭獎 800 萬", rules: ["從 01–39 中選 5 個號碼。", "5 個全中即為頭獎。", "中 2 個號碼就有獎。", "每注 50 元。"] },
+  { name: "3星彩", mark: "3", tagline: "三位數字，正彩倒彩隨你選", days: [1, 2, 3, 4, 5, 6], pick: 3, pool: 10, topPrize: "正彩 5 萬", rules: ["選一組 000–999 的三位數。", "玩法分正彩、組彩、對彩。", "號碼與順序全中為正彩。", "每注 25 元。"] },
+  { name: "4星彩", mark: "4", tagline: "四位數字，一次對到底", days: [1, 2, 3, 4, 5, 6], pick: 4, pool: 10, topPrize: "正彩 50 萬", rules: ["選一組 0000–9999 的四位數。", "玩法分正彩與組彩。", "號碼與順序全中為正彩。", "每注 25 元。"] },
+  { name: "38樂合彩", mark: "38", tagline: "跟著威力彩第一區開獎", days: [1, 4], pick: 4, pool: 38, topPrize: "四合 4 萬", rules: ["對應威力彩第一區號碼。", "可選二合、三合、四合。", "選中的號碼全開出才中獎。", "每注 25 元。"] },
+  { name: "39樂合彩", mark: "39", tagline: "跟著今彩539開獎", days: [1, 2, 3, 4, 5, 6], pick: 4, pool: 39, topPrize: "四合 15 萬", rules: ["對應今彩539開出的號碼。", "可選二合、三合、四合。", "選中的號碼全開出才中獎。", "每注 25 元。"] },
+  { name: "49樂合彩", mark: "49", tagline: "跟著大樂透開獎", days: [2, 5], pick: 4, pool: 49, topPrize: "四合 15 萬", rules: ["對應大樂透開出的號碼。", "可選二合、三合、四合。", "選中的號碼全開出才中獎。", "每注 25 元。"] },
+  { name: "賓果賓果", mark: "B", tagline: "80 選 20，五分鐘一期", days: null, pick: 10, pool: 80, topPrize: "十星 25 萬", rules: ["每期從 01–80 開出 20 個號碼。", "可選 1 到 10 個號碼投注。", "另有猜大小、單雙等玩法。", "每 5 分鐘開一期。"] }
+];
+
+const SHELF = [
+  { name: "大豬公", kind: "懷舊零嘴", mark: "豬" },
+  { name: "抽抽樂", kind: "懷舊零嘴", mark: "抽" },
+  { name: "橡皮糖", kind: "懷舊零嘴", mark: "糖" },
+  { name: "哨子糖", kind: "懷舊零嘴", mark: "哨" },
+  { name: "尪仔標", kind: "古早玩具", mark: "標" },
+  { name: "竹蜻蜓", kind: "古早玩具", mark: "蜓" },
+  { name: "汽水笛", kind: "古早玩具", mark: "笛" },
+  { name: "紙牌", kind: "古早玩具", mark: "牌" }
+];
+
+const MARQUEE = [
+  "本期大樂透頭獎累積 1.6 億",
+  "威力彩今晚 20:30 開獎",
+  "今彩539 一週開六天",
+  "賓果賓果 5 分鐘一期",
+  "未滿十八歲不得購買彩券"
+];
+
+function pad(n) { return String(n).padStart(2, "0"); }
+
+class Component extends DCLogic {
+  state = { view: "lobby", gameIndex: 0, picks: [], now: new Date() };
+
+  componentDidMount() {
+    this.timer = setInterval(() => this.setState({ now: new Date() }), 1000);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  nextDraw(game, now) {
+    if (!game.days) {
+      const t = new Date(now);
+      t.setSeconds(0, 0);
+      t.setMinutes(t.getMinutes() + (5 - (t.getMinutes() % 5)));
+      return t;
+    }
+    for (let i = 0; i < 8; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() + i);
+      d.setHours(20, 30, 0, 0);
+      if (game.days.includes(d.getDay()) && d > now) return d;
+    }
+    return now;
+  }
+
+  countdown(game, now) {
+    const diff = Math.max(0, this.nextDraw(game, now) - now);
+    const s = Math.floor(diff / 1000);
+    const d = Math.floor(s / 86400);
+    const h = pad(Math.floor((s % 86400) / 3600));
+    const m = pad(Math.floor((s % 3600) / 60));
+    const sec = pad(s % 60);
+    return d > 0 ? d + " 天 " + h + ":" + m : h + ":" + m + ":" + sec;
+  }
+
+  drawTimeLabel(game) {
+    if (!game.days) return "每 5 分鐘一期";
+    const names = ["日", "一", "二", "三", "四", "五", "六"];
+    if (game.days.length === 6) return "週一至週六 20:30";
+    return "每週" + game.days.map(d => names[d]).join("、") + " 20:30";
+  }
+
+  periodLabel(game, now) {
+    const d = this.nextDraw(game, now);
+    const yr = (d.getFullYear() - 1911);
+    const seq = Math.ceil(((d - new Date(d.getFullYear(), 0, 1)) / 86400000) / (game.days ? 7 / game.days.length : 0.02));
+    return yr + pad(Math.min(seq, 999) % 1000);
+  }
+
+  renderVals() {
+    const { view, gameIndex, picks, now } = this.state;
+    const cur = GAMES[gameIndex];
+    const pool = Math.min(cur.pool, 49);
+    const max = cur.pick;
+
+    const toggle = (n) => this.setState(s => {
+      const has = s.picks.includes(n);
+      if (has) return { picks: s.picks.filter(p => p !== n) };
+      if (s.picks.length >= max) return null;
+      return { picks: s.picks.concat(n).sort((a, b) => a - b) };
+    });
+
+    return {
+      today: (now.getMonth() + 1) + " 月 " + now.getDate() + " 日",
+      isLobby: view === "lobby",
+      isGame: view === "game",
+      showShelf: this.props.showShelf ?? true,
+      goLobby: () => this.setState({ view: "lobby" }),
+      goFirstGame: () => this.setState({ view: "game", gameIndex: 0, picks: [] }),
+      marquee: MARQUEE,
+      games: GAMES.map((g, i) => ({
+        name: g.name, mark: g.mark, tagline: g.tagline, rules: g.rules, topPrize: g.topPrize,
+        drawTime: this.drawTimeLabel(g),
+        period: "第 " + this.periodLabel(g, now) + " 期",
+        countdown: this.countdown(g, now),
+        open: () => this.setState({ view: "game", gameIndex: i, picks: [] })
+      })),
+      shelf: SHELF,
+      cur: {
+        name: cur.name, tagline: cur.tagline, rules: cur.rules, topPrize: cur.topPrize,
+        drawTime: this.drawTimeLabel(cur),
+        period: "第 " + this.periodLabel(cur, now) + " 期",
+        countdown: this.countdown(cur, now)
+      },
+      pickLabel: picks.length + " / " + max,
+      pickHint: "從 01–" + pad(pool) + " 中選 " + max + " 個號碼，或按電腦選號。",
+      notReady: picks.length !== max,
+      balls: Array.from({ length: pool }, (_, i) => i + 1).map(n => {
+        const on = picks.includes(n);
+        return {
+          label: pad(n),
+          toggle: () => toggle(n),
+          bc: on ? "var(--color-accent-700)" : "var(--color-neutral-400)",
+          bg: on ? "var(--color-accent-600)" : "var(--color-bg)",
+          fg: on ? "var(--color-bg)" : "var(--color-neutral-900)",
+          sh: on ? "inset 0 -3px 0 rgba(0,0,0,0.18)" : "none"
+        };
+      }),
+      quickPick: () => {
+        const all = Array.from({ length: pool }, (_, i) => i + 1);
+        for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+        this.setState({ picks: all.slice(0, max).sort((a, b) => a - b) });
+      },
+      clearPick: () => this.setState({ picks: [] })
+    };
+  }
+}
+</script>
+</body>
+</html>
