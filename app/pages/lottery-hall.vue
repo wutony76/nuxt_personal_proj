@@ -1018,7 +1018,7 @@ onBeforeUnmount(() => {
     max-width: var(--base-width);
     margin: 0 auto 40px;
     display: grid;
-    grid-template-columns: 100px 1fr 200px;
+    grid-template-columns: 200px 1fr 200px;
     align-items: end;
     gap: 28px;
     animation: fadeSlideUp 0.55s ease-out 0.9s both;

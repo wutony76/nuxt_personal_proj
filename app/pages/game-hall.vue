@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 type HallTab = 'lobby' | 'lottery' | 'taiwan'
 type GameSlot = {
@@ -10,7 +10,36 @@ type GameSlot = {
   path?: string
 }
 
+/**
+ * 遊戲中心（GAME HALL）
+ *
+ * 版面套用兩套 Cyberpunk 風格參考稿（SAMPLE/Text streaming/）：
+ *   Hero（歡迎橫幅）  —— 比照「Personnel Management - Cyberpunk Home.html」：像素復古街機風，
+ *                        Press Start 2P + VT323、粗黑像素框＋色塊位移陰影、故障字效標題。
+ *   內容清單面板     —— 比照「Personnel Management - Cyberpunk.html」：俐落 HUD 風，Orbitron +
+ *                        Share Tech Mono、clip-path 切角面板、霓虹描邊、徽章（badge）狀態顯示。
+ * 兩份參考稿本身在同一個「Cyberpunk」設計語彙下，只是子頁面調性不同（歡迎主控台 vs. 資料管理列表），
+ * 這裡刻意保留這個反差：Hero 像街機招牌迎賓，下面的面板則是嚴肅的「系統」選局介面。
+ */
+useHead({
+  link: [
+    { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+    { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
+    {
+      rel: 'stylesheet',
+      href: 'https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Orbitron:wght@600;700;800&family=Share+Tech+Mono&display=swap',
+    },
+  ],
+})
+
+const TABS: Array<{ key: HallTab; label: string }> = [
+  { key: 'lobby', label: '經典遊戲' },
+  { key: 'lottery', label: 'BG彩票' },
+  // { key: 'taiwan', label: '台彩大廳' },
+]
+
 const activeTab = ref<HallTab>('lobby')
+const activeTabLabel = computed(() => TABS.find((tab) => tab.key === activeTab.value)?.label ?? '')
 
 const gameSlots = ref<GameSlot[]>([
   { id: 1, name: 'SNAKE', description: '經典像素貪吃蛇遊戲', status: 'open', path: '/game/snake' },
@@ -21,238 +50,609 @@ const gameSlots = ref<GameSlot[]>([
   { id: 6, name: '遊戲 06', description: '預留遊戲位置', status: 'coming' },
   { id: 7, name: '遊戲 07', description: '預留遊戲位置', status: 'coming' },
   { id: 8, name: '遊戲 08', description: '預留遊戲位置', status: 'coming' },
-  { id: 9, name: '遊戲 09', description: '預留遊戲位置', status: 'coming' }
+  { id: 9, name: '遊戲 09', description: '預留遊戲位置', status: 'coming' },
 ])
+
+const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)
+const comingCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'coming').length)
+const pad2 = (value: number) => String(value).padStart(2, '0')
+
+/** 分頁對應的清單面板文案（彩票／台彩分頁沒有卡片清單，改顯示導頁面板） */
+const PANEL_META: Record<HallTab, { title: string; meta: string }> = {
+  lobby: { title: 'ARCADE.GRID', meta: '// 遊戲機台' },
+  lottery: { title: 'LOTTERY.SYS', meta: '// BG彩票玩法' },
+  taiwan: { title: 'TAIWAN.SYS', meta: '// 台彩資訊入口' },
+}
+const panel = computed(() => PANEL_META[activeTab.value])
+
+/** 頁尾狀態列的即時時鐘（比照參考稿 .status-bar 的 SYNC 欄位） */
+const clock = ref('00:00:00')
+let clockTimer: ReturnType<typeof setInterval> | null = null
+const _tickClock = () => {
+  const now = new Date()
+  clock.value = [now.getHours(), now.getMinutes(), now.getSeconds()].map((n) => pad2(n)).join(':')
+}
+onMounted(() => {
+  _tickClock()
+  clockTimer = setInterval(_tickClock, 1000)
+})
+onBeforeUnmount(() => {
+  if (clockTimer) clearInterval(clockTimer)
+})
 </script>
 
 <template>
-  <main class="arcade-hall min-h-screen w-full px-4 pb-16 pt-6 md:px-6">
-    <i class="party-light light-left" />
-    <i class="party-light light-right" />
-    <i class="hud-grid" />
+  <main class="ops-hall">
+    <i class="hud-bg" />
 
-    <section class="hero-panel rounded-3xl border border-fuchsia-400/40 bg-slate-900/80 p-5 shadow-sm">
-      <h1 class="hero-title text-2xl font-black text-white">遊戲中心 GAME HALL</h1>
-      <div class="mt-4 flex flex-wrap gap-2">
-        <button type="button" class="tab-btn rounded-xl px-3 py-1.5 text-sm font-semibold"
-          :class="activeTab === 'lobby' ? 'is-active' : ''" @click="activeTab = 'lobby'">
-          遊戲大廳
+    <!-- TOP HEADER：清單風格（Orbitron 品牌字 + 切角導覽） -->
+    <header class="op-header">
+      <div class="brand">
+        <div class="logo">G</div>
+        <div>
+          <div class="name">GAME<span class="accent">//</span>HALL</div>
+          <div class="sub">v1.0.0 // ARCADE-CTRL</div>
+        </div>
+      </div>
+      <nav class="top-nav">
+        <NuxtLink to="/" class="nav-item">首頁</NuxtLink>
+        <button v-for="tab in TABS" :key="tab.key" type="button" class="nav-item"
+          :class="{ active: activeTab === tab.key }" @click="activeTab = tab.key">
+          {{ tab.label }}
         </button>
-        <button type="button" class="tab-btn rounded-xl px-3 py-1.5 text-sm font-semibold"
-          :class="activeTab === 'lottery' ? 'is-active' : ''" @click="activeTab = 'lottery'">
-          彩票大廳
-        </button>
-        <button type="button" class="tab-btn rounded-xl px-3 py-1.5 text-sm font-semibold"
-          :class="activeTab === 'taiwan' ? 'is-active' : ''" @click="activeTab = 'taiwan'">
-          台彩大廳
-        </button>
+      </nav>
+      <div class="right-tools">
+        <span class="status-pill"><span class="dot" />SYS.ONLINE</span>
       </div>
-    </section>
+    </header>
 
-    <section v-if="activeTab === 'lobby'"
-      class="tech-panel mt-4 rounded-3xl border border-cyan-400/30 bg-slate-950/75 p-6">
-      <div class="mb-4">
-        <h2 class="text-xl font-bold text-cyan-200">遊戲機台</h2>
-        <p class="mt-1 text-sm text-slate-300">熱鬧遊戲廳機台區，點擊 START 立即進入。</p>
-      </div>
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <GameMachineCard v-for="slot in gameSlots" :key="slot.id" :game="slot" />
-      </div>
-    </section>
+    <div class="page">
+      <!-- HERO：像素復古街機風（比照 Cyberpunk Home.html） -->
+      <section class="pixel-hero">
+        <div class="hero-tag"><span class="blink-dot" />ARCADE.ZONE // ACTIVE</div>
+        <h1>遊戲中心 <span class="accent">GAME HALL</span></h1>
+        <p class="sub">// 三大分區同步運作．點擊上方導覽切換．即時更新機台狀態</p>
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <div class="k">開放中</div>
+            <div class="v">{{ pad2(openCount) }}</div>
+          </div>
+          <div class="hero-stat mag">
+            <div class="k">準備中</div>
+            <div class="v">{{ pad2(comingCount) }}</div>
+          </div>
+          <div class="hero-stat yel">
+            <div class="k">當前分區</div>
+            <div class="v small">{{ activeTabLabel }}</div>
+          </div>
+        </div>
+      </section>
 
-    <section v-if="activeTab === 'lottery'" class="mt-4">
-      <div class="tech-panel rounded-3xl border border-fuchsia-400/40 bg-slate-950/75 p-6">
-        <h2 class="text-xl font-bold text-fuchsia-200">彩票大廳</h2>
-        <p class="mt-2 text-slate-300">可下注功能已整合完成，請進入專頁使用。</p>
-        <NuxtLink to="/lottery-hall"
-          class="mt-4 inline-block rounded-lg bg-fuchsia-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-fuchsia-400">
-          前往彩票大廳
-        </NuxtLink>
-      </div>
-    </section>
+      <!-- 清單面板：俐落 HUD 風（比照 Cyberpunk.html） -->
+      <section class="hud-panel">
+        <div class="panel-title">
+          <h2>{{ panel.title }}</h2>
+          <div class="meta">{{ panel.meta }} · <b>LIVE</b></div>
+        </div>
 
-    <section v-if="activeTab === 'taiwan'" class="mt-4">
-      <div class="tech-panel rounded-3xl border border-sky-400/40 bg-slate-950/75 p-6">
-        <h2 class="text-xl font-bold text-sky-200">台彩大廳</h2>
-        <p class="mt-2 text-slate-300">台彩資訊與玩法說明請進入專頁查看。</p>
-        <NuxtLink to="/taiwan-lottery-hall"
-          class="mt-4 inline-block rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-400">
-          前往台彩大廳
-        </NuxtLink>
+        <div v-if="activeTab === 'lobby'" class="game-grid">
+          <GameMachineCard v-for="slot in gameSlots" :key="slot.id" :game="slot" />
+        </div>
+
+        <div v-else-if="activeTab === 'lottery'" class="link-panel">
+          <p>凡局皆成勢 · 萬數自歸平</p>
+          <NuxtLink to="/lottery-hall" class="btn btn-primary">前往BG彩票</NuxtLink>
+        </div>
+
+        <div v-else class="link-panel">
+          <p>台彩資訊與玩法說明請進入專頁查看。</p>
+          <NuxtLink to="/taiwan-lottery-hall" class="btn btn-primary">前往台彩大廳</NuxtLink>
+        </div>
+      </section>
+
+      <!-- STATUS BAR -->
+      <div class="status-bar">
+        <div class="item"><span class="blink" />CONN <b>STABLE</b></div>
+        <div class="item">ZONE <b>{{ activeTabLabel }}</b></div>
+        <div class="item">SYNC <b>{{ clock }}</b></div>
+        <div class="item push-right">USER › <b>GUEST</b></div>
       </div>
-    </section>
+    </div>
   </main>
 </template>
 
 <style scoped lang="scss">
-.arcade-hall {
+/* ══════════════════════════ PAGE CHROME（清單風配色，全頁底色） ══════════════════════════ */
+.ops-hall {
+  --bg: #070912;
+  --bg-2: #0c1124;
+  --panel: #0d1326;
+  --line: #1c2a55;
+  --line-soft: #15203f;
+  --text: #cfe8ff;
+  --text-dim: #7891b8;
+  --text-mute: #4b5e85;
+  --cyan: #00e5ff;
+  --cyan-soft: #5cf3ff;
+  --magenta: #ff2e88;
+  --magenta-soft: #ff7ab8;
+  --amber: #ffb627;
+  --green: #39ffa0;
+
+  /* Hero 專用的像素復古配色（獨立於清單面板，故意不共用同一組變數） */
+  --px-panel: #1a0a2e;
+  --px-line: #3b1a5c;
+  --px-magenta: #ff2bb8;
+  --px-magenta-deep: #a3127a;
+  --px-cyan: #26e0d3;
+  --px-cyan-deep: #0a8a8a;
+  --px-yellow: #ffd84d;
+  --px-text: #f4e8ff;
+  --px-text-dim: #b78de0;
+  --px-text-mute: #6b4a8a;
+
   position: relative;
-  isolation: isolate;
-
-  &::before {
-    content: '';
-    position: absolute;
-    inset: -20px 0 -40px;
-    z-index: -1;
-    border-radius: 28px;
-    background: radial-gradient(circle at 20% 0%, rgba(168, 85, 247, 0.22), transparent 35%),
-      radial-gradient(circle at 85% 20%, rgba(14, 165, 233, 0.22), transparent 38%),
-      radial-gradient(circle at 50% 100%, rgba(34, 197, 94, 0.16), transparent 40%),
-      linear-gradient(180deg, #140a2a 0%, #090f24 55%, #061015 100%);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background-image: linear-gradient(135deg,
-        rgba(56, 189, 248, 0.08) 0,
-        rgba(56, 189, 248, 0.08) 1px,
-        transparent 1px,
-        transparent 32px);
-    opacity: 0.26;
-    animation: circuit-drift 18s linear infinite;
-  }
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(255, 46, 136, 0.1), transparent 60%),
+    radial-gradient(900px 500px at -5% 110%, rgba(0, 229, 255, 0.08), transparent 60%),
+    linear-gradient(180deg, #05070f 0%, #070912 100%);
+  color: var(--text);
+  font-family: "Share Tech Mono", "JetBrains Mono", monospace;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  overflow-x: hidden;
 }
 
-.hud-grid {
-  position: absolute;
+.hud-bg {
+  position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 24px 24px;
-  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.7), transparent 86%);
-  animation: grid-pulse 6s ease-in-out infinite;
-}
-
-.hero-panel {
-  position: relative;
-  backdrop-filter: blur(4px);
-  overflow: hidden;
+  background-image:
+    linear-gradient(rgba(0, 229, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 229, 255, 0.045) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 30%, black 50%, transparent 100%);
 
   &::before {
     content: '';
     position: absolute;
     inset: 0;
-    pointer-events: none;
-    background: linear-gradient(100deg,
-        transparent 25%,
-        rgba(255, 255, 255, 0.18) 50%,
-        transparent 75%);
-    transform: translateX(-130%);
-    animation: panel-sweep 5.4s ease-in-out infinite;
+    background-image: repeating-linear-gradient(to bottom,
+        rgba(255, 255, 255, 0.02) 0,
+        rgba(255, 255, 255, 0.02) 1px,
+        transparent 1px,
+        transparent 3px);
+    mix-blend-mode: overlay;
   }
 }
 
-.tech-panel {
+/* ══════════════════════════ HEADER（清單風：Orbitron + 切角導覽） ══════════════════════════ */
+.op-header {
   position: relative;
-  overflow: hidden;
+  z-index: 2;
+  background: linear-gradient(180deg, #0a1126 0%, #060914 100%);
+  border-bottom: 1px solid var(--cyan);
+  box-shadow: 0 0 22px rgba(0, 229, 255, 0.18), inset 0 -1px 0 rgba(0, 229, 255, 0.35);
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 22px;
 
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.75), transparent);
-    animation: top-line-scan 4.8s linear infinite;
-    pointer-events: none;
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-right: 36px;
+
+    .logo {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--cyan);
+      background: rgba(0, 229, 255, 0.08);
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.45), inset 0 0 10px rgba(0, 229, 255, 0.25);
+      color: var(--cyan);
+      font-family: "Orbitron", sans-serif;
+      font-weight: 800;
+      font-size: 14px;
+      transform: skewX(-8deg);
+    }
+
+    .name {
+      font-family: "Orbitron", sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.18em;
+      color: #e9f8ff;
+      text-shadow: 0 0 8px rgba(0, 229, 255, 0.55);
+
+      .accent {
+        color: var(--magenta);
+        text-shadow: 0 0 8px rgba(255, 46, 136, 0.6);
+      }
+    }
+
+    .sub {
+      color: var(--text-mute);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+    }
+  }
+
+  .top-nav {
+    display: flex;
+    height: 100%;
+    align-items: stretch;
+    gap: 2px;
+  }
+
+  .nav-item {
+    padding: 0 22px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+    cursor: pointer;
+    height: 100%;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    position: relative;
+    font-family: "Share Tech Mono", monospace;
+    border: none;
+    background: none;
+
+    &::before {
+      content: "//";
+      color: var(--cyan);
+      opacity: 0.4;
+    }
+
+    &:hover {
+      color: #fff;
+    }
+
+    &.active {
+      color: #02131a;
+      background: var(--cyan);
+      clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+      font-weight: 700;
+
+      &::before {
+        color: #02131a;
+        opacity: 0.65;
+      }
+    }
+  }
+
+  .right-tools {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--line);
+    background: rgba(0, 229, 255, 0.05);
+    padding: 5px 10px;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--text-dim);
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: hud-pulse 1.6s infinite;
+    }
   }
 }
 
-.hero-title {
-  letter-spacing: 0.04em;
-  text-shadow: 0 0 12px rgba(236, 72, 153, 0.55), 0 0 20px rgba(34, 211, 238, 0.45);
+.page {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 24px 40px;
 }
 
-.tab-btn {
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  color: #dbeafe;
-  background: rgba(15, 23, 42, 0.55);
-  transition: all 0.2s ease;
+/* ══════════════════════════ HERO（像素復古街機風） ══════════════════════════ */
+.pixel-hero {
+  position: relative;
+  background: var(--px-panel);
+  border: 4px solid #000;
+  box-shadow: 6px 6px 0 0 var(--px-magenta-deep), 0 0 0 2px var(--px-magenta);
+  padding: 26px 30px;
+  margin-bottom: 24px;
+  font-family: "VT323", monospace;
+
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: "Press Start 2P", monospace;
+    font-size: 10px;
+    color: var(--px-yellow);
+    text-shadow: 2px 2px 0 #000;
+    background: #000;
+    border: 2px solid var(--px-yellow);
+    padding: 8px 12px;
+    width: fit-content;
+    box-shadow: 3px 3px 0 0 #8a6e1a;
+
+    .blink-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--px-yellow);
+      animation: hud-blink 0.6s steps(2) infinite;
+    }
+  }
+
+  h1 {
+    margin-top: 16px;
+    font-family: "Press Start 2P", monospace;
+    font-size: 32px;
+    line-height: 1.25;
+    color: #fff;
+    text-shadow: 3px 3px 0 var(--px-magenta), 6px 6px 0 var(--px-cyan), 9px 9px 0 #000;
+    animation: hero-glitch 5s infinite;
+
+    .accent {
+      color: var(--px-cyan);
+    }
+  }
+
+  .sub {
+    margin-top: 14px;
+    color: var(--px-text);
+    font-size: 20px;
+    letter-spacing: 0.05em;
+    text-shadow: 2px 2px 0 #000;
+  }
+
+  .hero-stats {
+    margin-top: 20px;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .hero-stat {
+    background: #000;
+    border: 2px solid var(--px-cyan);
+    padding: 8px 14px;
+    box-shadow: 3px 3px 0 0 var(--px-cyan-deep);
+
+    .k {
+      color: var(--px-cyan);
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .v {
+      color: #fff;
+      font-size: 24px;
+      line-height: 1;
+      font-family: "Press Start 2P", monospace;
+      margin-top: 6px;
+
+      &.small {
+        font-size: 13px;
+      }
+    }
+
+    &.mag {
+      border-color: var(--px-magenta);
+      box-shadow: 3px 3px 0 0 var(--px-magenta-deep);
+
+      .k {
+        color: var(--px-magenta);
+      }
+    }
+
+    &.yel {
+      border-color: var(--px-yellow);
+      box-shadow: 3px 3px 0 0 #8a6e1a;
+
+      .k {
+        color: var(--px-yellow);
+      }
+    }
+  }
+}
+
+/* ══════════════════════════ 清單面板（俐落 HUD 風，切角＋霓虹） ══════════════════════════ */
+.hud-panel {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 22px;
+}
+
+.panel-title {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 18px;
+
+  h2 {
+    font-family: "Orbitron", sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.22em;
+    color: #fff;
+    text-shadow: 0 0 10px rgba(0, 229, 255, 0.4);
+  }
+
+  .meta {
+    color: var(--text-mute);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+
+    b {
+      color: var(--magenta);
+      font-weight: 400;
+    }
+  }
+}
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.link-panel {
+  padding: 30px 10px;
+  text-align: center;
+
+  p {
+    color: var(--text-dim);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    margin-bottom: 18px;
+  }
+}
+
+.btn {
+  height: 36px;
+  padding: 0 26px;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-family: "Share Tech Mono", monospace;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.btn-primary {
+  background: var(--cyan);
+  color: #02141a;
+  font-weight: 700;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.5);
 
   &:hover {
-    border-color: rgba(56, 189, 248, 0.75);
-    color: #fff;
-  }
-
-  &.is-active {
-    border-color: rgba(217, 70, 239, 0.8);
-    background: linear-gradient(135deg, rgba(217, 70, 239, 0.65), rgba(14, 165, 233, 0.65));
-    color: #fff;
-    box-shadow: 0 0 18px rgba(217, 70, 239, 0.35);
+    background: var(--cyan-soft);
+    box-shadow: 0 0 22px rgba(0, 229, 255, 0.8);
   }
 }
 
-.party-light {
-  position: absolute;
-  top: -4px;
-  width: 140px;
-  height: 220px;
-  pointer-events: none;
-  filter: blur(30px);
-  opacity: 0.45;
-  z-index: -1;
-}
+/* ══════════════════════════ STATUS BAR ══════════════════════════ */
+.status-bar {
+  margin-top: 20px;
+  padding: 10px 22px;
+  border-top: 1px solid var(--line);
+  background: rgba(0, 229, 255, 0.025);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  font-size: 10px;
+  color: var(--text-mute);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  flex-wrap: wrap;
 
-.light-left {
-  left: 0;
-  background: radial-gradient(circle, rgba(244, 63, 94, 0.7), transparent 70%);
-}
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 
-.light-right {
-  right: 0;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.75), transparent 70%);
-}
+    b {
+      color: var(--cyan);
+      font-weight: 400;
+    }
 
-@keyframes panel-sweep {
-
-  0%,
-  78%,
-  100% {
-    transform: translateX(-130%);
+    &.push-right {
+      margin-left: auto;
+    }
   }
 
-  45% {
-    transform: translateX(130%);
-  }
-}
-
-@keyframes top-line-scan {
-  0% {
-    transform: translateX(-100%);
-  }
-
-  100% {
-    transform: translateX(100%);
+  .blink {
+    width: 6px;
+    height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--green);
+    animation: hud-pulse 1.2s infinite;
   }
 }
 
-@keyframes grid-pulse {
+@keyframes hud-pulse {
 
   0%,
   100% {
-    opacity: 0.15;
+    opacity: 1;
   }
 
   50% {
-    opacity: 0.34;
+    opacity: 0.35;
   }
 }
 
-@keyframes circuit-drift {
-  0% {
+@keyframes hud-blink {
+
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes hero-glitch {
+
+  0%,
+  88%,
+  100% {
+    text-shadow: 3px 3px 0 var(--px-magenta), 6px 6px 0 var(--px-cyan), 9px 9px 0 #000;
     transform: translate(0, 0);
   }
 
-  100% {
-    transform: translate(16px, 12px);
+  89% {
+    text-shadow: -3px 3px 0 var(--px-magenta), 6px 6px 0 var(--px-cyan), 9px 9px 0 #000;
+    transform: translate(2px, -1px);
+  }
+
+  90% {
+    text-shadow: 4px -2px 0 var(--px-magenta), -4px 6px 0 var(--px-cyan), 9px 9px 0 #000;
+    transform: translate(-2px, 1px);
+  }
+
+  91% {
+    text-shadow: 3px 3px 0 var(--px-magenta), 6px 6px 0 var(--px-cyan), 9px 9px 0 #000;
+    transform: translate(1px, 0);
+  }
+
+  93% {
+    text-shadow: -2px 4px 0 var(--px-magenta), 7px 5px 0 var(--px-cyan), 9px 9px 0 #000;
+    transform: translate(-1px, 1px);
   }
 }
 </style>
