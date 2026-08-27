@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 對齊 package.json 的 volta.node，兩處要一起維護（見 openspec/reference/ci-pipeline-plan.md 踩雷點②）
+          node-version: '22.22.2'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run build
