@@ -2,23 +2,30 @@
 import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameHistory } from '~/composables/useGameHistory'
-import Match3CoreEngine, {
-  calcMatch3Level,
-  calcMatch3TypeCount,
-  type Match3Position,
-  type Match3SpecialKind,
-  type Match3SwapResult
-} from '~/utils/match3Engine'
+import Match3RushCoreEngine, {
+  calcMatch3RushLevel,
+  calcMatch3RushTypeCount,
+  type Match3RushPosition,
+  type Match3RushSwapResult
+} from '~/utils/match3RushEngine'
 
 type Match3Status = 'ready' | 'playing' | 'pause' | 'gameover'
 
+type Match3Task = {
+  color: number
+  target: number
+  progress: number
+  scoreBonus: number
+  timeBonus: number
+}
+
 /**
- * 限時制的薄包裝：消除演算法交給共用的 Match3CoreEngine（見 add-match3-games design.md Decision 2），
- * 這裡只處理「倒數計時」這個結束條件與「難度隨分數自動升級」（比照 snake/racing/tetriminos 既有的 Lv 慣例），
- * 讓頁面擁有自己的 engine 實例。
+ * 限時制的薄包裝：消除演算法交給 RUSH 專屬的 Match3RushCoreEngine（不跟 CLASSIC 共用，
+ * 見 match3RushEngine.ts 檔頭說明），這裡處理「倒數計時」結束條件、「難度隨分數自動升級」
+ * （比照 snake/racing/tetriminos 既有的 Lv 慣例），以及任務達成後的分數／秒數獎勵發放。
  */
 class Match3RushEngine {
-  private core: Match3CoreEngine
+  private core: Match3RushCoreEngine
   private timeLeft: number
   private level = 1
 
@@ -27,7 +34,7 @@ class Match3RushEngine {
     private readonly typeCount: number,
     private readonly totalSeconds: number
   ) {
-    this.core = new Match3CoreEngine(boardSize, typeCount)
+    this.core = new Match3RushCoreEngine(boardSize, typeCount)
     this.timeLeft = totalSeconds
   }
 
@@ -37,7 +44,7 @@ class Match3RushEngine {
     this.level = 1
   }
 
-  trySwap(a: Match3Position, b: Match3Position): Match3SwapResult {
+  trySwap(a: Match3RushPosition, b: Match3RushPosition): Match3RushSwapResult {
     const result = this.core.trySwap(a, b)
     this.updateLevel()
     return result
@@ -48,16 +55,24 @@ class Match3RushEngine {
     return { gameOver: this.timeLeft <= 0 }
   }
 
+  /** 任務達成獎勵：秒數刻意不設上限直接疊加（見 match3-rush-task-mode-plan.md 決策 1），
+   *  場次長度改靠任務難度幾何遞增自然收斂，不靠這裡封頂。 */
+  awardTaskBonus(scoreAmount: number, timeSeconds: number) {
+    this.core.addScore(scoreAmount)
+    this.timeLeft += timeSeconds
+    this.updateLevel()
+  }
+
   getSnapshot() {
     const snap = this.core.getSnapshot()
-    return { grid: snap.grid, special: snap.special, score: snap.score, level: this.level, timeLeft: this.timeLeft }
+    return { grid: snap.grid, score: snap.score, level: this.level, timeLeft: this.timeLeft }
   }
 
   private updateLevel() {
-    const nextLevel = calcMatch3Level(this.core.getSnapshot().score)
+    const nextLevel = calcMatch3RushLevel(this.core.getSnapshot().score)
     if (nextLevel !== this.level) {
       this.level = nextLevel
-      this.core.setTypeCount(calcMatch3TypeCount(nextLevel))
+      this.core.setTypeCount(calcMatch3RushTypeCount(nextLevel))
     }
   }
 }
@@ -67,30 +82,37 @@ const TYPE_COUNT = 6
 const TOTAL_SECONDS = 60
 const READY_START = 3
 const GEM_EMOJI = ['🍇', '🍉', '🍋', '🍓', '🍑', '🥝', '🍒', '🍍']
-const SPECIAL_ICON: Record<Match3SpecialKind, string> = {
-  none: '',
-  lineH: '↔️',
-  lineV: '↕️',
-  bomb: '💣',
-  colorBomb: '🌈'
-}
+
+/**
+ * 任務難度／獎勵（見 openspec/reference/match3-rush-task-mode-plan.md 第 2.3／2.4 節）：
+ * 完成數 < 15 次沿用 Lv 對照表線性遞增；達 15 次後改用幾何公式，目標數量倍數成長，
+ * 但秒數獎勵鎖在 Lv5 的 +25 秒封頂不再往上加——難度與秒數回饋刻意脫鉤，
+ * 是讓場次長度自然收斂的核心機制（timeLeft 本身不設上限，見決策 1）。
+ */
+const TASK_TARGET_BY_LEVEL = [3, 4, 5, 6, 7]
+const TASK_TIME_BONUS_BY_LEVEL = [10, 14, 18, 22, 25]
+const TASK_TIME_BONUS_CAP = 25
+const TASK_GEOMETRIC_THRESHOLD = 15
+const TASK_GEOMETRIC_BASE_TARGET = 7
+const TASK_GEOMETRIC_GROWTH_RATE = 1.2
 
 const router = useRouter()
 const engine = new Match3RushEngine(BOARD_SIZE, TYPE_COUNT, TOTAL_SECONDS)
 
 const state = reactive({
   grid: [] as number[][],
-  special: [] as Match3SpecialKind[][],
   score: 0,
   level: 1,
   timeLeft: TOTAL_SECONDS,
   status: 'ready' as Match3Status,
-  selected: null as Match3Position | null,
+  selected: null as Match3RushPosition | null,
   shakeCells: [] as string[],
   message: '點「開始」遊玩，點擊相鄰寶石交換消除。',
   rewardMessage: '',
   comboText: '',
-  comboLevel: 0,
+  completedTaskCount: 0,
+  task: null as Match3Task | null,
+  taskToastText: '',
   waitingOverlayVisible: true,
   readyOverlayVisible: false,
   readyCountdownValue: READY_START,
@@ -101,8 +123,10 @@ const state = reactive({
 
 const MATCH3_RUSH_RULE = {
   description:
-    '點擊兩個相鄰寶石交換，形成 3 消以上即可消除；4 連消產生「清整排/整列」的 Line Bomb（↔️/↕️），5 連消以上產生「清全場同色」的 Color Bomb（🌈），L/T 型連消產生「清 3×3」的 Bomb（💣）。交換到特殊方塊一定會觸發效果，即使沒有形成新的三消。60 秒倒數計時，時間到強制結算。',
-  scoreRule: '每輪消除分數 ＝ 消除格數 × 4 × Combo（第 1 次消除 Combo ×1，每多一輪連鎖 Combo +1，連鎖結束後歸零重算）。',
+    '點擊兩個相鄰寶石交換，形成 3 消以上即可消除並觸發連鎖加分；60 秒倒數計時，時間到強制結算。' +
+    '過程中會隨機出現任務（例如「消除 3 個🍓」），達成後獲得額外分數與秒數（每次最多 +25 秒），' +
+    '任務難度會隨等級與累積完成次數提高。',
+  scoreRule: '每輪消除分數 ＝ 消除格數 × 4 × 連鎖倍率（第 n 輪連鎖倍率為 1 ＋ (n－1) × 0.5）。',
   levels: [
     { level: 1, condition: '0–79 分' },
     { level: 2, condition: '80–199 分' },
@@ -110,13 +134,14 @@ const MATCH3_RUSH_RULE = {
     { level: 4, condition: '400–799 分' },
     { level: 5, condition: '800 分以上' }
   ],
-  note: '等級越高，寶石種類越多（6→7→8 種），越難湊出消除組合。'
+  note: '等級越高，寶石種類越多（6→7→8 種），越難湊出消除組合；任務也會跟著變難。'
 }
 
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let readyTimer: ReturnType<typeof setInterval> | null = null
 let comboTimer: ReturnType<typeof setTimeout> | null = null
 let shakeTimer: ReturnType<typeof setTimeout> | null = null
+let taskToastTimer: ReturnType<typeof setTimeout> | null = null
 
 const statusText = computed(() => {
   if (state.status === 'playing') return 'PLAYING'
@@ -140,20 +165,18 @@ const canResumeFromPause = computed(
 const canPauseWhilePlaying = computed(() => state.status === 'playing')
 
 const cells = computed(() => {
-  const list: Array<{ row: number; col: number; type: number; special: Match3SpecialKind }> = []
+  const list: Array<{ row: number; col: number; type: number }> = []
   state.grid.forEach((row, r) => {
     row.forEach((type, c) => {
-      list.push({ row: r, col: c, type, special: state.special[r]?.[c] ?? 'none' })
+      list.push({ row: r, col: c, type })
     })
   })
   return list
 })
 
-const comboFontSize = (combo: number) => `${Math.min(0.9 + combo * 0.15, 2.5)}rem`
-
 const gameHistory = useGameHistory()
 
-/** 私有工具方法：計時器管理、格子鍵值、選取/震動狀態判斷 */
+/** 私有工具方法：計時器管理、格子鍵值、選取/震動狀態判斷、任務產生與進度判定 */
 const _handlers = {
   cellKey: (row: number, col: number) => `${row},${col}`,
   isSelected: (row: number, col: number) => state.selected?.row === row && state.selected?.col === col,
@@ -161,7 +184,6 @@ const _handlers = {
   syncState: () => {
     const snap = engine.getSnapshot()
     state.grid = snap.grid
-    state.special = snap.special
     state.score = snap.score
     state.level = snap.level
     state.timeLeft = snap.timeLeft
@@ -190,7 +212,13 @@ const _handlers = {
       shakeTimer = null
     }
   },
-  triggerShake: (a: Match3Position, b: Match3Position) => {
+  stopTaskToastTimer: () => {
+    if (taskToastTimer) {
+      clearTimeout(taskToastTimer)
+      taskToastTimer = null
+    }
+  },
+  triggerShake: (a: Match3RushPosition, b: Match3RushPosition) => {
     _handlers.stopShakeTimer()
     state.shakeCells = [_handlers.cellKey(a.row, a.col), _handlers.cellKey(b.row, b.col)]
     shakeTimer = setTimeout(() => {
@@ -198,10 +226,9 @@ const _handlers = {
       shakeTimer = null
     }, 220)
   },
-  showCombo: (result: Match3SwapResult) => {
+  showCombo: (result: Match3RushSwapResult) => {
     _handlers.stopComboTimer()
-    state.comboLevel = result.cascadeRounds
-    state.comboText = `COMBO x${result.cascadeRounds} +${result.gained}`
+    state.comboText = result.cascadeRounds > 1 ? `COMBO x${result.cascadeRounds}! +${result.gained}` : `+${result.gained}`
     comboTimer = setTimeout(() => {
       state.comboText = ''
       comboTimer = null
@@ -220,6 +247,44 @@ const _handlers = {
       }
       state.readyCountdownValue -= 1
     }, 700)
+  },
+  /** 目標數量與獎勵在「產生任務當下」就固定，達成時直接讀，不重新依當時等級/次數計算 */
+  generateTask: () => {
+    const isGeometric = state.completedTaskCount >= TASK_GEOMETRIC_THRESHOLD
+    const target = isGeometric
+      ? Math.round(
+          TASK_GEOMETRIC_BASE_TARGET * TASK_GEOMETRIC_GROWTH_RATE ** (state.completedTaskCount - TASK_GEOMETRIC_THRESHOLD + 1)
+        )
+      : TASK_TARGET_BY_LEVEL[Math.min(state.level, TASK_TARGET_BY_LEVEL.length) - 1]!
+    const timeBonus = isGeometric
+      ? TASK_TIME_BONUS_CAP
+      : TASK_TIME_BONUS_BY_LEVEL[Math.min(state.level, TASK_TIME_BONUS_BY_LEVEL.length) - 1]!
+    const scoreBonus = Math.round(2.5 * target * (target - 1) + 5)
+    const color = Math.floor(Math.random() * calcMatch3RushTypeCount(state.level))
+    state.task = { color, target, progress: 0, scoreBonus, timeBonus }
+  },
+  showTaskToast: (task: Match3Task) => {
+    _handlers.stopTaskToastTimer()
+    state.taskToastText = `任務達成！${GEM_EMOJI[task.color]} +${task.scoreBonus}分 +${task.timeBonus}秒`
+    taskToastTimer = setTimeout(() => {
+      state.taskToastText = ''
+      taskToastTimer = null
+    }, 1200)
+  },
+  /** 消除任一顏色都檢查一次是否推進當前任務，達標就發獎勵、累加完成次數、立即產生下一個任務（連續銜接） */
+  applyTaskProgress: (result: Match3RushSwapResult) => {
+    if (!state.task) return
+    const clearedOfTaskColor = result.clearedByColor[state.task.color] ?? 0
+    if (clearedOfTaskColor <= 0) return
+    state.task.progress = Math.min(state.task.progress + clearedOfTaskColor, state.task.target)
+    if (state.task.progress < state.task.target) return
+
+    const finishedTask = state.task
+    engine.awardTaskBonus(finishedTask.scoreBonus, finishedTask.timeBonus)
+    _handlers.syncState()
+    state.completedTaskCount += 1
+    _handlers.showTaskToast(finishedTask)
+    _handlers.generateTask()
   }
 }
 
@@ -263,6 +328,7 @@ const _actions = {
     _handlers.stopReadyTimer()
     _handlers.stopComboTimer()
     _handlers.stopShakeTimer()
+    _handlers.stopTaskToastTimer()
     engine.reset()
     _handlers.syncState()
     state.status = 'ready'
@@ -273,6 +339,9 @@ const _actions = {
     state.readyOverlayVisible = false
     state.rewardMessage = ''
     state.comboText = ''
+    state.completedTaskCount = 0
+    state.taskToastText = ''
+    _handlers.generateTask()
     state.message = '點「開始」遊玩，點擊相鄰寶石交換消除。'
   },
   startGame: () => {
@@ -334,6 +403,7 @@ const _actions = {
     _handlers.syncState()
     if (result.matched) {
       _handlers.showCombo(result)
+      _handlers.applyTaskProgress(result)
       if (result.reshuffled) {
         state.message = '沒有可消除的組合了，已自動重新排列。'
       }
@@ -376,6 +446,7 @@ onBeforeUnmount(() => {
   _handlers.stopReadyTimer()
   _handlers.stopComboTimer()
   _handlers.stopShakeTimer()
+  _handlers.stopTaskToastTimer()
 })
 </script>
 
@@ -398,6 +469,7 @@ onBeforeUnmount(() => {
       <div class="result-list">
         <div class="result-item"><span>SCORE</span><b>{{ state.score }}</b></div>
         <div class="result-item"><span>LEVEL</span><b>{{ state.level }}</b></div>
+        <div class="result-item"><span>TASKS</span><b>{{ state.completedTaskCount }}</b></div>
       </div>
       <p v-if="state.rewardMessage" class="result-reward">{{ state.rewardMessage }}</p>
       <div class="result-actions">
@@ -407,9 +479,9 @@ onBeforeUnmount(() => {
     </div>
 
     <GameRateDialog :visible="state.rateDialogOpen" game-key="match3rush" game-name="MATCH3 RUSH"
-      @close="click.closeRateDialog" />
-    <GameRuleDialog :visible="state.ruleDialogOpen" game-name="MATCH3 RUSH" v-bind="MATCH3_RUSH_RULE"
-      @close="click.closeRuleDialog" />
+      accent-color="#ff8a2b" @close="click.closeRateDialog" />
+    <GameRuleDialog :visible="state.ruleDialogOpen" game-name="MATCH3 RUSH" accent-color="#ff8a2b"
+      v-bind="MATCH3_RUSH_RULE" @close="click.closeRuleDialog" />
 
     <section class="m3-shell">
       <aside class="m3-side left">
@@ -427,23 +499,26 @@ onBeforeUnmount(() => {
           <p class="m3-status" :class="statusClass">{{ statusText }}</p>
         </header>
 
+        <p v-if="state.taskToastText" class="m3-task-toast">{{ state.taskToastText }}</p>
+
         <div class="m3-frame">
           <div class="m3-board">
             <button v-for="cell in cells" :key="`${cell.row}-${cell.col}`" type="button" class="m3-cell" :class="{
               selected: _handlers.isSelected(cell.row, cell.col),
-              shake: _handlers.isShaking(cell.row, cell.col),
-              special: cell.special !== 'none'
+              shake: _handlers.isShaking(cell.row, cell.col)
             }" :disabled="state.status !== 'playing'" @click="click.cell(cell.row, cell.col)">
-              {{ cell.special !== 'none' ? SPECIAL_ICON[cell.special] : GEM_EMOJI[cell.type] }}
+              {{ GEM_EMOJI[cell.type] }}
             </button>
-            <p v-if="state.comboText" class="m3-combo-popup" :style="{ fontSize: comboFontSize(state.comboLevel) }">
-              {{ state.comboText }}
-            </p>
+            <p v-if="state.comboText" class="m3-combo-popup">{{ state.comboText }}</p>
           </div>
           <div class="m3-panel">
             <span>SCORE: {{ state.score }}</span>
             <span>LEVEL: {{ state.level }}</span>
             <span class="time" :class="{ warn: state.timeLeft <= 10 }">TIME: {{ state.timeLeft }}</span>
+          </div>
+          <div v-if="state.task" class="m3-task-panel">
+            <span class="task-label">TASK</span>
+            <span class="task-goal">消除 {{ GEM_EMOJI[state.task.color] }} × {{ state.task.progress }}/{{ state.task.target }}</span>
           </div>
         </div>
 
@@ -453,7 +528,7 @@ onBeforeUnmount(() => {
       <aside class="m3-side right">
         <div class="m3-help-panel">
           <p class="m3-help-title">HOW TO PLAY</p>
-          <p class="m3-help-text">點擊兩個相鄰寶石交換，形成 3 消以上即可消除並連鎖加分。</p>
+          <p class="m3-help-text">點擊兩個相鄰寶石交換，形成 3 消以上即可消除並連鎖加分；達成隨機任務可換取額外分數與秒數。</p>
         </div>
       </aside>
     </section>
@@ -675,6 +750,15 @@ onBeforeUnmount(() => {
       }
     }
 
+    .m3-task-toast {
+      margin: 6px 0 0;
+      color: #7cfc9a;
+      font-weight: 900;
+      font-size: 0.9rem;
+      text-shadow: 0 0 10px rgba(124, 252, 154, 0.6);
+      animation: task-toast-pop 1.2s ease-out both;
+    }
+
     .m3-frame {
       width: 360px;
       margin: 12px auto 0;
@@ -725,13 +809,6 @@ onBeforeUnmount(() => {
         animation: cell-shake 220ms ease-out;
       }
 
-      &.special {
-        border-color: #ffe066;
-        background: rgba(255, 224, 102, 0.14);
-        box-shadow: 0 0 8px rgba(255, 224, 102, 0.4);
-        animation: special-pulse 1.6s ease-in-out infinite;
-      }
-
       &:disabled {
         cursor: not-allowed;
       }
@@ -763,6 +840,21 @@ onBeforeUnmount(() => {
       .time.warn {
         color: #ff5e5e;
         animation: time-warn-pulse 0.8s ease-in-out infinite;
+      }
+    }
+
+    .m3-task-panel {
+      margin-top: 8px;
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      color: #ffd166;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+
+      .task-label {
+        opacity: 0.75;
       }
     }
 
@@ -892,15 +984,25 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes special-pulse {
-
-  0%,
-  100% {
-    box-shadow: 0 0 8px rgba(255, 224, 102, 0.4);
+@keyframes task-toast-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.9);
   }
 
-  50% {
-    box-shadow: 0 0 16px rgba(255, 224, 102, 0.75);
+  15% {
+    opacity: 1;
+    transform: translateY(0) scale(1.05);
+  }
+
+  80% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-4px) scale(1);
   }
 }
 
