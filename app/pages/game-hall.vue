@@ -65,6 +65,11 @@ const PANEL_META: Record<HallTab, { title: string; meta: string }> = {
 }
 const panel = computed(() => PANEL_META[activeTab.value])
 
+/** 私有工具方法：卡片進場動畫的堆疊延遲（比照 lottery-hall.vue 的 enterDelay 慣例） */
+const _handlers = {
+  enterDelay: (base: number, idx: number, step = 0.08) => `${base + idx * step}s`,
+}
+
 /** 頁尾狀態列的即時時鐘（比照參考稿 .status-bar 的 SYNC 欄位） */
 const clock = ref('00:00:00')
 let clockTimer: ReturnType<typeof setInterval> | null = null
@@ -111,17 +116,17 @@ onBeforeUnmount(() => {
       <section class="pixel-hero">
         <div class="hero-tag"><span class="blink-dot" />ARCADE.ZONE // ACTIVE</div>
         <h1>遊戲中心 <span class="accent">GAME HALL</span></h1>
-        <p class="sub">// 三大分區同步運作．點擊上方導覽切換．即時更新機台狀態</p>
+        <p class="sub">// 遊戲機台全面啟動！ SELECT YOUR GAME</p>
         <div class="hero-stats">
-          <div class="hero-stat">
+          <div class="hero-stat" :style="`--enter-delay: ${_handlers.enterDelay(0.4, 0)}`">
             <div class="k">開放中</div>
             <div class="v">{{ pad2(openCount) }}</div>
           </div>
-          <div class="hero-stat mag">
+          <div class="hero-stat mag" :style="`--enter-delay: ${_handlers.enterDelay(0.4, 1)}`">
             <div class="k">準備中</div>
             <div class="v">{{ pad2(comingCount) }}</div>
           </div>
-          <div class="hero-stat yel">
+          <div class="hero-stat yel" :style="`--enter-delay: ${_handlers.enterDelay(0.4, 2)}`">
             <div class="k">當前分區</div>
             <div class="v small">{{ activeTabLabel }}</div>
           </div>
@@ -136,7 +141,8 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-if="activeTab === 'lobby'" class="game-grid">
-          <GameMachineCard v-for="slot in gameSlots" :key="slot.id" :game="slot" />
+          <GameMachineCard v-for="(slot, idx) in gameSlots" :key="slot.id" :game="slot"
+            :style="`--enter-delay: ${_handlers.enterDelay(0.1, idx)}`" />
         </div>
 
         <div v-else-if="activeTab === 'lottery'" class="link-panel">
@@ -214,6 +220,7 @@ onBeforeUnmount(() => {
     linear-gradient(90deg, rgba(0, 229, 255, 0.045) 1px, transparent 1px);
   background-size: 40px 40px;
   mask-image: radial-gradient(ellipse 90% 80% at 50% 30%, black 50%, transparent 100%);
+  animation: crtBoot 1.1s ease-out both;
 
   &::before {
     content: '';
@@ -239,6 +246,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   padding: 0 22px;
+  animation: slideDown 0.6s cubic-bezier(.22, .68, 0, 1.2) both;
 
   .brand {
     display: flex;
@@ -374,6 +382,7 @@ onBeforeUnmount(() => {
   padding: 26px 30px;
   margin-bottom: 24px;
   font-family: "VT323", monospace;
+  animation: pixelPopIn 0.55s cubic-bezier(.34, 1.56, .64, 1) 0.15s both;
 
   .hero-tag {
     display: inline-flex;
@@ -431,6 +440,7 @@ onBeforeUnmount(() => {
     border: 2px solid var(--px-cyan);
     padding: 8px 14px;
     box-shadow: 3px 3px 0 0 var(--px-cyan-deep);
+    animation: fadeSlideUp 0.45s ease-out var(--enter-delay, 0.4s) both;
 
     .k {
       color: var(--px-cyan);
@@ -477,6 +487,7 @@ onBeforeUnmount(() => {
   background: var(--panel);
   border: 1px solid var(--line);
   padding: 22px;
+  animation: fadeSlideUp 0.55s ease-out 0.35s both;
 }
 
 .panel-title {
@@ -523,6 +534,7 @@ onBeforeUnmount(() => {
 .link-panel {
   padding: 30px 10px;
   text-align: center;
+  animation: fadeIn 0.5s ease-out both;
 
   p {
     color: var(--text-dim);
@@ -575,6 +587,7 @@ onBeforeUnmount(() => {
   letter-spacing: 0.2em;
   text-transform: uppercase;
   flex-wrap: wrap;
+  animation: fadeIn 0.5s ease-out 0.75s both;
 
   .item {
     display: flex;
@@ -598,6 +611,81 @@ onBeforeUnmount(() => {
     border-radius: 50%;
     box-shadow: 0 0 6px var(--green);
     animation: hud-pulse 1.2s infinite;
+  }
+}
+
+/* ══════════════════════════ 進場動畫（比照 lottery-hall.vue 的 slideDown / fadeSlideUp / fadeIn 慣例） ══════════════════════════ */
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeSlideUp {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pixelPopIn {
+  0% {
+    transform: translateY(24px) scale(0.94);
+    opacity: 0;
+  }
+
+  70% {
+    transform: translateY(-3px) scale(1.01);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* 開機掃描效果：HUD 網格背景從全暗到浮現，兩次閃爍後穩定，模擬 CRT 螢幕開機 */
+@keyframes crtBoot {
+  0% {
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 0.6;
+  }
+
+  25% {
+    opacity: 0.05;
+  }
+
+  40% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
   }
 }
 

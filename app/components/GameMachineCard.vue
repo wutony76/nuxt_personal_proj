@@ -55,6 +55,7 @@ const cuteIcon = computed(() => {
   flex-direction: column;
   gap: 8px;
   transition: border-color 0.15s, box-shadow 0.15s;
+  animation: fadeSlideUp 0.45s ease-out var(--enter-delay, 0.1s) both;
 
   &.is-open {
     &:hover {
@@ -174,5 +175,18 @@ const cuteIcon = computed(() => {
   border: 1px solid var(--line, #1c2a55);
   color: var(--text-mute, #4b5e85);
   cursor: not-allowed;
+}
+
+/* 比照 game-hall.vue 的進場動畫慣例，卡片各自依 --enter-delay 依序浮現 */
+@keyframes fadeSlideUp {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 </style>
