@@ -422,7 +422,7 @@ onBeforeUnmount(() => {
   z-index: 1;
   max-width: 1180px;
   margin: 0 auto;
-  padding: 24px 24px 40px;
+  padding: 24px 24px 0px;
 }
 
 /* ══════════════════════════ HERO（像素復古街機風） ══════════════════════════ */
@@ -537,7 +537,7 @@ onBeforeUnmount(() => {
 .hud-panel {
   position: relative;
   background: var(--panel);
-  border: 1px solid var(--line);
+  border: 1px solid var(--cyan);
   padding: 22px;
   animation: fadeSlideUp 0.55s ease-out 0.35s both;
 }
@@ -629,7 +629,7 @@ onBeforeUnmount(() => {
 .status-bar {
   margin-top: 20px;
   padding: 10px 22px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--cyan);
   background: rgba(0, 229, 255, 0.025);
   display: flex;
   align-items: center;
