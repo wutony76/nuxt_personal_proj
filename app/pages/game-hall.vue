@@ -59,7 +59,7 @@ const pad2 = (value: number) => String(value).padStart(2, '0')
 
 /** 分頁對應的清單面板文案（彩票／台彩分頁沒有卡片清單，改顯示導頁面板） */
 const PANEL_META: Record<HallTab, { title: string; meta: string }> = {
-  lobby: { title: 'ARCADE.GRID', meta: '// 遊戲機台' },
+  lobby: { title: 'GAME.CARD', meta: '// 遊戲機台' },
   lottery: { title: 'LOTTERY.SYS', meta: '// BG彩票玩法' },
   taiwan: { title: 'TAIWAN.SYS', meta: '// 台彩資訊入口' },
 }
@@ -247,6 +247,7 @@ onBeforeUnmount(() => {
   &::-webkit-scrollbar-thumb:hover {
     background: var(--cyan-soft);
   }
+
   overflow-x: hidden;
 }
 
