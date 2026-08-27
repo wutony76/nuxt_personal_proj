@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import GenericOptions from './play-panels/GenericOptions.vue'
 import BanboOptions from './play-panels/BanboOptions.vue'

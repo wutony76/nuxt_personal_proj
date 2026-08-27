@@ -69,7 +69,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { cloneDeep } from 'lodash'
 import { PLAYLIST } from '#shared/config/6hc-of'
 import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'

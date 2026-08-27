@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import SimpleTableOptions from './SimpleTableOptions.vue'
 
 const props = defineProps({

@@ -13,7 +13,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { LHC_COLORS } from '#shared/config/6hc-of'
 
 const props = defineProps({

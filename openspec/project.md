@@ -68,6 +68,10 @@
 - **語言規範**：
   - OpenSpec 文件（proposal / design / tasks / project）使用繁體中文
   - 代碼命名、註解、commit message 使用英文
+- **程式語言標準**：
+  - 標準為 TypeScript（`server/`、`shared/config/*.ts`、composables、services、Vue 元件皆為 `lang="ts"`）
+  - 唯一例外：`shared/config/**` 下的宣告檔（如 `plays.js`）維持純 JavaScript 且禁止 `import`
+    （Nitro 對 `shared` 走 Node 原生 ESM，不認別名，import 會導致伺服端啟動失敗）
 - **Vue 規範**：
   - 使用 `<script setup>`
   - 優先採 Composition API
@@ -153,6 +157,5 @@
 
 ## Open Questions (Fill as needed)
 
-- 是否要統一既有 `.ts` 檔與「新程式碼以 JavaScript 為主」的規範？
 - 是否需要補齊 lint / test script 到 `package.json`（目前未顯式提供）？
 - 部署目標（平台、環境變數、CI）是否已有固定策略？

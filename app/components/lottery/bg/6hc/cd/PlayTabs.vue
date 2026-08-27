@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 /**
  * @typedef {import('#shared/config/6hc-cd').CreditPlayDefinition} CreditPlayDefinition

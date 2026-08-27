@@ -20,8 +20,9 @@
 
 ## 語言
 
-* 僅 JavaScript
-* 禁止 TypeScript
+* 標準：TypeScript（`server/`、`shared/config/*.ts`、`app/composables/`、`app/services/`、Vue 元件一律 `lang="ts"`）
+* 例外：`shared/config/**` 下的宣告檔（如 `plays.js`）維持純 JavaScript、**禁止任何 `import`**
+  （Nitro 對 `shared` 走 Node 原生 ESM，不認 `#shared` 別名，一 import 伺服端啟動即炸；設定值只能是字面值）
 
 ## Vue
 
