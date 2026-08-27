@@ -2,8 +2,10 @@
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from './composables/useAuth'
+import { useSocket } from './composables/useSocket'
 import Dialog from './components/Dialog.vue'
 import BgAutoPanel from './components/lottery/bg/BgAutoPanel.vue'
+import BroadcastBanner from './components/social/BroadcastBanner.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,6 +14,7 @@ const isImmersiveGameRoute = computed(() => route.path.startsWith('/game/'))
 
 onMounted(async () => {
   await init()
+  useSocket().actions.connect()
 })
 
 const handleLogout = async () => {
@@ -38,5 +41,6 @@ const handleLogout = async () => {
     </NuxtLayout>
     <Dialog />
     <BgAutoPanel />
+    <BroadcastBanner />
   </div>
 </template>
