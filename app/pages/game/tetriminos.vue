@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useGameHistory } from '~/composables/useGameHistory'
 
 type GameStatus = 'ready' | 'playing' | 'pause' | 'gameover'
 type PieceType = 'I' | 'O' | 'T' | 'S' | 'Z' | 'J' | 'L'
@@ -231,6 +232,7 @@ const waitingOverlayVisible = ref(true)
 const readyOverlayVisible = ref(false)
 const readyCountdownValue = ref(3)
 const resultOverlayVisible = ref(false)
+const rewardMessage = ref('')
 const message = ref('按 START 開始，方向鍵移動，↑ 旋轉，↓ 加速。')
 
 const boardView = ref<number[][]>([])
@@ -279,6 +281,26 @@ const rebuildBoardView = () => {
   lineCount.value = snap.lineCount
 }
 
+const gameHistory = useGameHistory()
+const _actions = {
+  /** 單局明確結束時寫入遊戲紀錄；已登入且有 coin 獎勵時附上提示文字 */
+  recordHistory: async () => {
+    rewardMessage.value = ''
+    try {
+      const result = await gameHistory.actions.record('tetriminos', 'TETRIMINOS', {
+        score: score.value,
+        level: level.value,
+        meta: { lineCount: lineCount.value }
+      })
+      if (result.coinReward > 0) {
+        rewardMessage.value = result.coinCapped ? `+${result.coinReward} coin（已達今日上限）` : `+${result.coinReward} coin`
+      }
+    } catch {
+      // 紀錄寫入失敗不影響遊戲本身，靜默略過
+    }
+  }
+}
+
 const stopGameTimer = () => {
   if (!gameTimer) return
   clearTimeout(gameTimer)
@@ -315,6 +337,7 @@ const gameStep = () => {
     message.value = '堆到頂了，遊戲結束。'
     resultOverlayVisible.value = true
     stopGameTimer()
+    _actions.recordHistory()
   }
 }
 
@@ -333,6 +356,7 @@ const resetGame = () => {
   waitingOverlayVisible.value = true
   readyOverlayVisible.value = false
   resultOverlayVisible.value = false
+  rewardMessage.value = ''
   message.value = '按 START 開始，方向鍵移動，↑ 旋轉，↓ 加速。'
 }
 
@@ -377,6 +401,7 @@ const endGameNow = () => {
   gameStatus.value = 'gameover'
   message.value = '本局已結束。'
   resultOverlayVisible.value = true
+  _actions.recordHistory()
 }
 
 const exitToGameHall = () => {
@@ -463,6 +488,7 @@ onUnmounted(() => {
         <div class="result-item"><span>LEVEL</span><b>{{ level }}</b></div>
         <div class="result-item"><span>LINES</span><b>{{ lineCount }}</b></div>
       </div>
+      <p v-if="rewardMessage" class="result-reward">{{ rewardMessage }}</p>
       <div class="result-actions">
         <button class="tetri-btn" type="button" @click="playAgain">AGAIN</button>
         <button class="tetri-btn danger" type="button" @click="exitToGameHall">EXIT</button>
@@ -763,6 +789,14 @@ onUnmounted(() => {
     background: rgba(30, 27, 75, 0.72);
     color: #ddd6fe;
     padding: 8px 10px;
+  }
+
+  .result-reward {
+    margin: 8px 0 0;
+    color: #fde68a;
+    font-size: 0.85rem;
+    text-align: center;
+    letter-spacing: 0.05em;
   }
 
   .result-actions {

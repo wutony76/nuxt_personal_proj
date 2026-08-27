@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 
 type HallTab = 'lobby' | 'lottery' | 'taiwan'
 type GameSlot = {
@@ -70,6 +70,19 @@ const _handlers = {
   enterDelay: (base: number, idx: number, step = 0.08) => `${base + idx * step}s`,
 }
 
+/** 遊戲紀錄 Dialog 開關狀態（State Object） */
+const ui = reactive({
+  historyOpen: false,
+})
+const click = {
+  openHistory: () => {
+    ui.historyOpen = true
+  },
+  closeHistory: () => {
+    ui.historyOpen = false
+  },
+}
+
 /** 頁尾狀態列的即時時鐘（比照參考稿 .status-bar 的 SYNC 欄位） */
 const clock = ref('00:00:00')
 let clockTimer: ReturnType<typeof setInterval> | null = null
@@ -107,9 +120,12 @@ onBeforeUnmount(() => {
         </button>
       </nav>
       <div class="right-tools">
+        <button type="button" class="status-pill history-btn" @click="click.openHistory">遊戲紀錄</button>
         <span class="status-pill"><span class="dot" />SYS.ONLINE</span>
       </div>
     </header>
+
+    <GameHistoryDialog :visible="ui.historyOpen" title="遊戲紀錄" @close="click.closeHistory" />
 
     <div class="page">
       <!-- HERO：像素復古街機風（比照 Cyberpunk Home.html） -->
@@ -353,6 +369,7 @@ onBeforeUnmount(() => {
     font-size: 11px;
     letter-spacing: 0.16em;
     color: var(--text-dim);
+    font-family: inherit;
 
     .dot {
       width: 7px;
@@ -361,6 +378,16 @@ onBeforeUnmount(() => {
       background: var(--green);
       box-shadow: 0 0 8px var(--green);
       animation: hud-pulse 1.6s infinite;
+    }
+
+    &.history-btn {
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+
+      &:hover {
+        color: #fff;
+        border-color: var(--cyan);
+      }
     }
   }
 }

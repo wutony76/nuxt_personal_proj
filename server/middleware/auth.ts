@@ -1,6 +1,6 @@
 import { sessionController } from '../services/auth'
 
-const PROTECTED_PREFIXES = ['/api/lottery', '/api/taiwan-lottery']
+const PROTECTED_PREFIXES = ['/api/lottery', '/api/taiwan-lottery', '/api/games']
 
 /**
  * 彩池／爆池狀態是全站公開資訊（不含任何使用者資料，見各 `{jackpot,pool}.get.ts`

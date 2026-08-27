@@ -23,6 +23,9 @@ import Kl10Class from './game/lottery/bg/kl10'
 import Kl8Class from './game/lottery/bg/kl8'
 import Fc3dClass from './game/lottery/bg/fc3d'
 import Pl3Class from './game/lottery/bg/pl3'
+import RetroSnakeClass from './game/retro/snake'
+import RetroRacingClass from './game/retro/racing'
+import RetroTetriminosClass from './game/retro/tetriminos'
 import { LOTTERY } from '~/config/constants'
 
 export const verifyPasswordHash = (password: string, storedHash: string): boolean => {
@@ -101,6 +104,11 @@ export class Storage {
   static lottery = {
     orders: {}
   }
+  /** 復古遊戲（snake/racing/tetriminos）獨立於彩票的 games 註冊表，避免跟 LOTTERY_BASE 型別耦合 */
+  static retroGames: { instances: Record<string, any>; history: Record<string, any> } = {
+    instances: {},
+    history: {}
+  }
 
   static handle = {
     configInit: () => {
@@ -147,6 +155,12 @@ export class Storage {
       new Pl3Class()
       // console.log('games.init.success', Storage.games)
       console.log('SUCCESS ---BASE>games.init')
+    },
+    retroGamesInit: () => {
+      new RetroSnakeClass()
+      new RetroRacingClass()
+      new RetroTetriminosClass()
+      console.log('SUCCESS ---BASE>retroGames.init')
     }
   }
   static init() {
@@ -178,6 +192,7 @@ export class Storage {
     this.handle.configInit()
     this.handle.usersInit()
     this.handle.gamesInit()
+    this.handle.retroGamesInit()
   }
 
   static get = {

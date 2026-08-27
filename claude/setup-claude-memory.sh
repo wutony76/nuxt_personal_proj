@@ -23,104 +23,134 @@ echo "建立記憶目錄：$MEMORY_DIR"
 # ── 1. 回覆語言 ──────────────────────────────────────────────
 cat > "$MEMORY_DIR/feedback_language.md" << 'EOF'
 ---
-name: 回覆語言
-description: 使用者要求所有回覆使用中文
-type: feedback
+name: feedback-language
+description: 使用者偏好用繁體中文溝通
+metadata:
+  node_type: memory
+  type: feedback
+  originSessionId: 23930678-786a-46b6-9ab5-27e5d84b6234
 ---
-一律用繁體中文回答使用者。
 
-**Why:** 使用者明確要求「總是用中文回答」，作為預設習慣。
+一律用繁體中文回覆。
 
-**How to apply:** 所有文字回覆、說明、建議、反問與澄清問題皆使用繁體中文，程式碼內容不受影響。
+**Why:** 使用者明確要求中文，之前設定曾遺失。
+
+**How to apply:** 所有回覆、說明、建議一律使用繁體中文，程式碼內容（變數名、英文 API）維持原文不翻譯。
 EOF
 
-# ── 2. Commit 訊息觸發格式 ───────────────────────────────────
-cat > "$MEMORY_DIR/feedback_commit_trigger.md" << 'EOF'
+# ── 2. git commit 訊息格式 ────────────────────────────────────
+cat > "$MEMORY_DIR/feedback_git_commit_format.md" << 'EOF'
 ---
-name: feedback-commit-trigger
-description: 當使用者說「給我最新的 git commit」時，執行 git status + git diff HEAD，涵蓋 untracked 檔案，輸出完整中文 commit 訊息
+name: feedback-git-commit-format
+description: 當使用者說「給我最新的 git commit」，要提供可直接複製的 commit 訊息（非 log），格式為 conventional commits + 繁體中文條列說明
 metadata:
+  node_type: memory
   type: feedback
+  originSessionId: ce5eb96b-8345-4230-85d9-1c46b7bee515
 ---
 
-當使用者說「給我最新的 git commit」（或類似語句），必須同時執行：
-1. `git status` — 取得 untracked 檔案清單
-2. `git diff HEAD` — 取得已追蹤檔案的變更
+當使用者輸入「給我最新的 git commit」時，不是顯示 git log，而是：
+1. **先執行 `git add .`，確保 nuxt_personal_proj 下所有檔案變動（含新增、修改、刪除）都已追蹤**
+2. 再執行 `git diff --stat HEAD` 取得所有變更檔案清單（**不可省略任何檔案**）
+3. 同時執行 `git status` 確認無遺漏
+4. 逐一讀取所有變更檔案與新檔案的完整內容
+5. 根據所有變更產生一則可直接複製的 commit 訊息
 
-將兩者合併，產出涵蓋所有變更（含 untracked）的完整 commit 訊息（直接輸出可複製的 markdown code block，不加多餘說明）：
+**變更檔案清單必須完整列出**，不可用「...以及其他檔案」等省略語。
 
+格式如下（**輸出的 code block 必須包含 `git add .`**）：
 ```
-<type>(<scope>): <標題（中文）>
+git add .
+git commit -m "$(cat <<'COMMITEOF'
+type(scope): 一行摘要
 
-- <bullet 1（中文）>
-- <bullet 2（中文）>
+- 條列說明變更點 1（檔案或功能）
+- 條列說明變更點 2
 - ...
+COMMITEOF
+)"
 ```
 
-**標題與 bullet 一律使用繁體中文。**
+**Why:** 使用者明確要求「列出所有變更檔案，不要省略」，需要完整、可直接複製的 commit 訊息草稿，而非 git log 記錄。
 
-**Why:** `git diff HEAD` 不包含 untracked 檔案，會漏掉新增的資料夾/檔案；需搭配 `git status` 才能產出完整 commit。
-
-**How to apply:** 觸發詞為「給我最新的 git commit」時，先跑 `git status` + `git diff HEAD`，合併結果後輸出完整 code block，標題與 bullet 全用繁體中文，不附帶其他說明文字。
+**How to apply:** 每次收到「給我最新的 git commit」，**先 `git add .`** 追蹤所有變動，再跑 `git diff --stat HEAD` + `git status`，確認完整檔案清單後，產生上述格式的 commit 訊息，用 code block 包起來方便複製。
 EOF
 
-# ── 3. 每次對話後提供 commit 訊息 ────────────────────────────
-cat > "$MEMORY_DIR/feedback_commit_summary.md" << 'EOF'
+# ── 3. 修改後必須完善測試 ──────────────────────────────────────
+cat > "$MEMORY_DIR/feedback_testing.md" << 'EOF'
 ---
-name: feedback_commit_summary
-description: 每次對話結束後，自動 git diff HEAD 比較變更，並提供簡短的 commit 訊息供使用者複製
+name: feedback_testing
+description: 每次修改程式碼後，必須做完善的測試才算完成
 metadata:
+  node_type: memory
   type: feedback
+  originSessionId: 66b12cee-2373-4c21-9ea8-b4b1dc85a51b
 ---
 
-每次使用者詢問完畢後，主動執行 `git diff HEAD` 比較與上一版的差異，整理出這一版的更新功能，並提供一行簡短的 commit 訊息供使用者複製。
+每次修改程式碼，完成後必須做完善的測試。
 
-格式範例：
-```
-feat(ems): 新增員工照片讀取 API
-```
+**Why:** 使用者明確要求，避免改完就回報完成但實際功能有問題。
 
-**標題與 bullet 一律使用繁體中文。**
-
-**Why:** 使用者希望每次對話後都能快速得到可複製的 commit 訊息，不需要自己手動整理，且內容全中文。
-
-**How to apply:** 對話中有修改程式碼時，在回覆結尾自動附上 git diff 摘要與 commit 訊息，標題與說明全用繁體中文。
+**How to apply:** 任何程式碼變更（功能、修 bug、重構）完成後，使用 verify 或 run skill 實際跑起來測試，確認功能正常、邊界情況也涵蓋，才能回報完成。不能只憑程式碼邏輯推斷正確就結束。
 EOF
 
-# ── 4. Vue 元件命名規則 ───────────────────────────────────────
-cat > "$MEMORY_DIR/feedback_component_naming.md" << 'EOF'
+# ── 4. SCSS 巢狀語法 ──────────────────────────────────────────
+cat > "$MEMORY_DIR/feedback_scss_nesting.md" << 'EOF'
 ---
-name: feedback_component_naming
-description: Vue 元件命名規則 — Dialog 前綴優先，依功能模組分類
+name: feedback_scss_nesting
+description: 產生的 SCSS 要用巢狀（nested）語法撰寫
 metadata:
+  node_type: memory
   type: feedback
+  originSessionId: 411cb8ff-3260-4371-8206-b3de048546f7
 ---
 
-元件命名採「**型別前綴 + 功能 + 動作**」格式，型別放最前面。
+產生的 SCSS 一律使用巢狀語法，不要平鋪展開。
 
-## Dialog 元件
-`Dialog[Feature][Action].vue`
-- `DialogLeaveCreate.vue`
-- `DialogLeaveDetail.vue`
-- `DialogLeaveComplete.vue`
-- `DialogAddEdit.vue`
+**Why:** 使用者偏好巢狀 SCSS，維持與專案現有風格一致。
 
-## 其他型別（以此類推）
-- Panel：`[Feature]Panel.vue`（如 `LeaveTablePanel.vue`）
-- FilterBar：`[Feature]FilterBar.vue`（如 `LeaveFilterBar.vue`）
-
-**Why:** 舊命名（`[Feature]Dialog.vue`）型別放尾端，不好依型別分群；改為前綴後 IDE 排序會將同型別元件聚在一起。
-
-**How to apply:** 每次新增或重構元件時，確認型別前綴是否正確放在最前面。看到 `XxxDialog.vue` 應主動提醒更名為 `DialogXxx.vue`。
+**How to apply:** 任何新增或修改的 SCSS，子選擇器、偽類、媒體查詢等都應巢狀在父規則內，例如 `.parent { .child { ... } &:hover { ... } }`。
 EOF
 
-# ── 5. 同步 setup-claude-memory.sh 規則 ─────────────────────────
+# ── 5. 專案規範強制遵循 ────────────────────────────────────────
+cat > "$MEMORY_DIR/feedback_project_spec.md" << 'EOF'
+---
+name: feedback-project-spec
+description: 改 code 前必須讀取 openspec/project.md 並嚴格遵循其規範
+metadata:
+  node_type: memory
+  type: feedback
+  originSessionId: a404c6d1-eb02-45a1-924c-c079bea80e41
+---
+
+改任何程式碼前，必須先讀取 `openspec/project.md` 並嚴格遵循規範。
+
+**Why:** 使用者明確要求，且 spec 中有硬性執行規範（Mandatory Enforcement）。
+
+**How to apply:**
+
+每次寫/改 Vue 組件或 composable 時強制執行以下規則：
+
+1. **State Object 優先**：用單一 `reactive({})` 管理所有相關狀態，禁止在同一模組內散落多個 `ref`（僅框架介面限制時才補 `ref`）
+2. **私有邏輯封裝**：輔助函式必須封裝在具名私有物件中
+   - `const _handlers = { ... }` — 資料轉換、工具方法
+   - `const _actions = { ... }` — 業務流程（需 loading guard、early return、錯誤處理）
+   - `const click = { ... }` — UI 入口事件
+   - 禁止將函式散落在 `<script setup>` 頂層
+3. **非同步三段狀態**：API 流程必須有 loading / success / error 狀態，不可吞錯
+4. **SCSS**：使用巢狀語法，禁止 `@import`（用 `@use` / `@forward`）
+5. **命名**：composable `useXxx`、store `storeXxx`、actions `fetchXxx`/`submitXxx`、private `_xxx`
+EOF
+
+# ── 6. 同步 setup script ──────────────────────────────────────
 cat > "$MEMORY_DIR/feedback_sync_setup_script.md" << 'EOF'
 ---
 name: feedback-sync-setup-script
 description: 新增或修改 agent 檔或記憶檔後，必須同步更新兩個 setup script，讓新環境可一鍵重建
 metadata:
+  node_type: memory
   type: feedback
+  originSessionId: c5d44d39-c295-4415-9fdb-587717de1d0b
 ---
 
 每次新增或修改以下任一項目後，必須同步更新兩個 setup script：
@@ -143,116 +173,7 @@ metadata:
 4. 每次都更新結尾的 echo 計數與說明
 EOF
 
-# ── 6. 遵守 cursorrules 與 project.md ────────────────────────────
-cat > "$MEMORY_DIR/feedback_cursorrules.md" << 'EOF'
----
-name: feedback-cursorrules
-description: 每次回應前必須遵守 .cursorrules 與 openspec/project.md，兩者衝突時主動回報
-metadata:
-  type: feedback
----
-
-每次執行任何任務前，必須以 `openspec/project.md` 為最高準則，`.cursorrules` 為補充標準。
-
-**核心規範摘要：**
-- 僅 JavaScript，禁止 TypeScript
-- `<script setup>` + Composition API only
-- 公開 API 必須寫 JSDoc（`@param`, `@returns`, `@typedef`）
-- 邏輯分層：`click（handleXxx/onXxx）→ actions（fetchXxx/submitXxx）→ _handlers`
-- 狀態：`reactive` 優先，全域用 Pinia setup store，禁止解構 store
-- 複雜邏輯抽離至 Class / Service Objects
-- 私有邏輯封裝在 `_handlers`、`_actions` 等具名物件
-- SCSS 7-1 pattern，禁止 `@import`，必須 semantic token
-- `// [Manual Override]` / `// [DO NOT MODIFY]` 禁止修改，衝突需回報
-- 非 trivial 需求須走 OpenSpec 流程（proposal → design → tasks → implementation）
-
-**Why:** 使用者明確要求遵守這兩份規範，project.md 優先於 cursorrules，衝突時不得自行決定。
-
-**How to apply:** 每次實作前檢查命名、分層、狀態管理是否符合規範；遇到 `[Manual Override]` 停手回報；非 trivial 需求先提 proposal。
-EOF
-
-# ── 7. OpenSpec Skills 清單 ───────────────────────────────────────
-cat > "$MEMORY_DIR/reference_openspec_skills.md" << 'EOF'
----
-name: reference-openspec-skills
-description: 專案 Skills 清單與 OpenSpec 工作流程，位於 .cursor/skills/
-metadata:
-  type: reference
----
-
-Skills 位於 `.cursor/skills/`，以下為可用指令：
-
-| Skill | 用途 |
-|-------|------|
-| `naming-logic-enforcer` | 命名去冗餘（alwaysApply）— 檔名不重複父資料夾、Btn 前綴、去冗長型別名 |
-| `openspec-propose` | 建立新需求，一步產出 proposal.md + design.md + tasks.md |
-| `openspec-apply-change` | 依 tasks.md 逐步實作，完成後打勾 |
-| `openspec-archive-change` | 封存完成的 change 至 `openspec/changes/archive/` |
-| `openspec-explore` | 思考探索模式，只讀不實作，可產 OpenSpec artifacts |
-
-**OpenSpec 流程：**
-`openspec/changes/<name>/` 內含 `.openspec.yaml`、`proposal.md`、`design.md`、`tasks.md`
-
-**Why:** 使用者要求在操作前了解可用 Skills，並在適當時機主動建議使用對應 Skill。
-
-**How to apply:** 非 trivial 新功能 → 建議 openspec-propose；要實作 tasks → openspec-apply-change；重構/清理命名 → naming-logic-enforcer。
-EOF
-
-# ── 8. 記憶衝突檢查規則 ───────────────────────────────────────────
-cat > "$MEMORY_DIR/feedback_memory_conflict_check.md" << 'EOF'
----
-name: feedback-memory-conflict-check
-description: 每次新增或修改記憶後，必須掃描所有記憶是否有衝突，有衝突則列出選項讓使用者決定
-metadata:
-  type: feedback
----
-
-每次寫完記憶檔後，掃描所有現有記憶，檢查是否有邏輯衝突或互相矛盾的規則。
-
-**衝突類型：**
-- 同一行為有不同指令（例如：commit 要英文 vs commit 要中文）
-- 觸發條件重疊但行為不同
-- 規範互相排除
-
-**流程：**
-1. 寫完記憶後，讀取 MEMORY.md 索引
-2. 掃描相關記憶檔內容，比對是否衝突
-3. 若有衝突 → 列出衝突項目與選項，等使用者選擇後再修正
-4. 若無衝突 → 直接完成，不需額外說明
-
-**Why:** 避免記憶庫中累積互相矛盾的規則，導致行為不一致。
-
-**How to apply:** 每次 Write/Edit 記憶檔完成後執行衝突掃描，有衝突時暫停並列出選項，不自行決定。
-EOF
-
-# ── 9. OpenSpec 自動讀取規則 ──────────────────────────────────────
-cat > "$MEMORY_DIR/feedback_openspec_autoread.md" << 'EOF'
----
-name: feedback-openspec-autoread
-description: 當使用者新增或提及 openspec 內容時，必須主動讀取相關檔案再繼續作業
-metadata:
-  type: feedback
----
-
-當使用者新增、修改或提及 openspec 相關內容時，必須主動讀取最新的 artifacts 再繼續作業。
-
-**需自動讀取的路徑：**
-- `openspec/project.md` — 專案最高準則
-- `openspec/changes/<name>/proposal.md`
-- `openspec/changes/<name>/design.md`
-- `openspec/changes/<name>/tasks.md`
-- `openspec/specs/<capability>/spec.md`（若存在）
-
-**觸發時機：**
-- 使用者說「我新增了 openspec」、「更新了 proposal/design/tasks」
-- 使用者請我實作某個 change（先讀再做）
-- 對話中出現 change name 或 openspec 路徑
-
-**Why:** 使用者希望我在作業前總是持有最新的 openspec 內容，避免依賴過期的對話記憶。
-
-**How to apply:** 偵測到觸發時機，立刻用 Read 工具讀取相關檔案，確認內容後再回應或實作。
-EOF
-
+# ── 7. 暫不處理：限額 P2 ──────────────────────────────────────
 cat > "$MEMORY_DIR/project_quota_p2_pending.md" << 'EOF'
 ---
 name: project-quota-p2-pending
@@ -272,23 +193,44 @@ metadata:
 
 **Why:** 使用者評估後決定先停在分頁層級，P2 涉及資料結構變更與營運設定，暫不投入。
 
-**How to apply:** 不要主動實作 P2；若使用者提到「限額不夠用」「跨分頁上限」「單一玩家限額」再提出這份紀錄。實作時注意限額設定與賠率同源（都在各分頁 config），新增層級應延伸 `creditQuotaOf()` 的 fallback 鏈而不是另開一套解析。
+**How to apply:** 不要主動實作 P2；若使用者提到「限額不夠用」「跨分頁上限」「單一玩家限額」再提出這份紀錄。實作時注意限額設定與賠率同源（都在各分頁 config），新增層級應延伸 `creditQuotaOf()` 的 fallback 鏈而不是另開一套解析。相關待決項另見 [[project-jackpot-weight-zhengma]]。
 EOF
 
-# ── 9. MEMORY.md 索引 ─────────────────────────────────────────
+# ── 8. 遊戲紀錄 coin 每日上限 ──────────────────────────────────
+cat > "$MEMORY_DIR/project_game_history_coin_reward.md" << 'EOF'
+---
+name: project-game-history-coin-reward
+description: 遊戲紀錄 coin 兌換機制的每日上限拍板值，以及後續需要後台管理介面調整這些參數的提醒
+metadata:
+  type: project
+---
+
+game-hall 的遊戲紀錄功能（`openspec/changes/add-game-history/`）已登入使用者結算後會把分數依固定倍率換算成 coin。三個常數目前寫死在 `server/services/game/retro/{snake,racing,tetriminos}.ts` 各自的 `super()` 參數：
+
+- `coinRate`：snake ×5、racing ×0.5、tetriminos ×0.05（依實際計分邏輯估算，未實測校準）
+- `coinCapPerRun`（單局上限）：三款皆 300，暫定值
+- `coinDailyCap`（每人每遊戲每日上限）：**三款皆 100000**（使用者 2026-08-27 拍板定案）
+
+**Why:** 原本規劃階段抓每日上限 1000 只是拍腦袋起始值；使用者要求先改成 100000（相當於實質不設限），目的是先讓遊戲紀錄機制跑起來，不急著卡玩家。同時使用者明確提到「後續會需要用後台管理」——這幾個常數目前改值要改程式碼＋重啟服務，之後應該要有後台介面能直接調整（可能也包含查看/清除玩家遊戲紀錄），但這個後台管理功能**尚未排入任何 change 的範圍**，只是先記錄需求來源。
+
+**How to apply:**
+- 之後如果要調整 coin 兌換相關數值（`coinRate`/`coinCapPerRun`/`coinDailyCap`），先確認這三個檔案的現況值，不要憑空假設還是舊的 1000。
+- 如果對話中聊到「遊戲紀錄」「coin 兌換」「後台」相關話題，主動提醒使用者：這幾個常數還沒有後台管理介面，目前只能改程式碼，可以問要不要現在規劃一個新的 OpenSpec change 來做。
+- 若使用者之後說要開始做這個後台管理功能，這則記憶就是它的需求起點，設計時記得涵蓋：調整 coin 兌換三常數、（可能）查看/清除玩家遊戲紀錄。
+EOF
+
+# ── MEMORY.md 索引 ────────────────────────────────────────────
 cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 # Memory Index
 
-- [回覆語言](feedback_language.md) — 一律用繁體中文回答，包含詢問與澄清
-- [每次對話後提供 commit 訊息](feedback_commit_summary.md) — 修改程式碼後自動 git diff 並提供可複製的 commit 訊息
-- [「給我最新的 git commit」觸發格式](feedback_commit_trigger.md) — 說此句即執行 git diff 並輸出 type(scope): 標題 + bullet 格式的 code block
-- [Vue 元件命名規則](feedback_component_naming.md) — 型別前綴優先：DialogXxx、PanelXxx，舊格式 XxxDialog 應更名
-- [同步 setup-claude-memory.sh](feedback_sync_setup_script.md) — 每次新增/更新記憶時，必須同步更新 claude/setup-claude-memory.sh
-- [遵守 cursorrules 與 project.md](feedback_cursorrules.md) — JS only、分層規範、OpenSpec 流程、Manual Override 禁改
-- [OpenSpec Skills 清單](reference_openspec_skills.md) — naming-logic-enforcer / propose / apply / archive / explore 使用時機
-- [OpenSpec 自動讀取](feedback_openspec_autoread.md) — 使用者新增/提及 openspec 內容時，主動讀取最新 artifacts 再作業
-- [記憶衝突檢查](feedback_memory_conflict_check.md) — 每次新增記憶後掃描衝突，有衝突列選項給使用者決定
+- [語言偏好：繁體中文](feedback_language.md) — 所有回覆一律使用繁體中文
+- [git commit 訊息格式](feedback_git_commit_format.md) — 「給我最新的 git commit」→ 產生可複製的 conventional commit 訊息草稿（非 git log）
+- [修改後必須完善測試](feedback_testing.md) — 每次程式碼變更後，必須實際測試確認功能正常才算完成
+- [SCSS 巢狀語法](feedback_scss_nesting.md) — 產生的 SCSS 一律使用巢狀語法，不平鋪展開
+- [專案規範強制遵循](feedback_project_spec.md) — 改 code 前讀 openspec/project.md；reactive 統一 state、私有邏輯封裝 _handlers/_actions/click、非同步三段狀態
+- [同步 setup script](feedback_sync_setup_script.md) — 新增/修改 agent 或記憶後，必須同步更新 ~/setup-claude-memory.sh 與 claude/setup-claude-memory.sh 兩個檔案
 - [暫不處理：限額 P2](project_quota_p2_pending.md) — 6hc-cd 限額只到分頁層級，跨分頁單期總上限與玩家層級限額使用者決定不做
+- [遊戲紀錄 coin 每日上限](project_game_history_coin_reward.md) — 三款遊戲皆訂 100000；之後需要後台管理介面調整這些常數
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
@@ -405,17 +347,16 @@ tools: Read, Grep, Glob, Bash, Edit, Write
 AGENTEOF
 
 echo ""
-echo "✓ 設定完成，共 9 條記憶 + 2 個 Agents："
+echo "✓ 設定完成，共 8 條記憶 + 2 個 Agents："
 echo "  記憶："
-echo "  - 回覆語言（繁體中文）"
-echo "  - 每次對話後提供 commit 訊息"
-echo "  - 「給我最新的 git commit」觸發格式"
-echo "  - Vue 元件命名規則"
-echo "  - 同步 setup-claude-memory.sh 規則"
-echo "  - 遵守 cursorrules 與 project.md"
-echo "  - OpenSpec Skills 清單"
-echo "  - OpenSpec 自動讀取規則"
-echo "  - 記憶衝突檢查規則"
+echo "  - 語言偏好：繁體中文"
+echo "  - git commit 訊息格式（「給我最新的 git commit」觸發）"
+echo "  - 修改後必須完善測試"
+echo "  - SCSS 巢狀語法"
+echo "  - 專案規範強制遵循（openspec/project.md）"
+echo "  - 同步 setup script（新增記憶或 agent 時立刻更新兩個 script）"
+echo "  - 暫不處理：限額 P2"
+echo "  - 遊戲紀錄 coin 每日上限（100000，待後台管理介面）"
 echo "  Agents："
 echo "  - my-reviewer（程式碼審查 + 補測試）"
 echo "  - my-create（新功能／組件建立）"

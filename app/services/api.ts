@@ -758,6 +758,36 @@ export type LotteryOpenCodeHistoryResponse = {
   history: LotteryOpenCodeHistoryItem[]
 }
 
+// ── 遊戲中心 · 遊戲紀錄（game-hall 小遊戲，非彩票）──
+export type RetroGameKey = 'snake' | 'racing' | 'tetriminos'
+
+export type GameHistoryRecord = {
+  id: string
+  gameKey: RetroGameKey
+  gameName: string
+  score: number
+  level?: number
+  meta?: Record<string, unknown>
+  playedAt: string
+}
+
+export type GameHistoryRecordPayload = {
+  score: number
+  level?: number
+  meta?: Record<string, unknown>
+}
+
+export type GameHistoryListResponse = {
+  records: GameHistoryRecord[]
+}
+
+export type GameHistorySettleResponse = {
+  record: GameHistoryRecord | null
+  coinReward: number
+  coinCapped: boolean
+  newCoinBalance: number
+}
+
 export const api = {
   system: {
     servTime: () => $fetch<{ serverTime: number }>('/api/servTime')
@@ -955,5 +985,23 @@ export const api = {
   taiwanLottery: {
     lastNumber: () =>
       $fetch<{ updatedAt: string; results: TaiwanLotteryResult[] }>('/api/taiwan-lottery/last-number')
+  },
+  games: {
+    retro: {
+      historySnake: () => $fetch<GameHistoryListResponse>('/api/games/retro/snake/history'),
+      recordSnake: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/snake/history', { method: 'POST', body: payload }),
+      clearSnake: () => $fetch<{ ok: boolean }>('/api/games/retro/snake/history', { method: 'DELETE' }),
+
+      historyRacing: () => $fetch<GameHistoryListResponse>('/api/games/retro/racing/history'),
+      recordRacing: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/racing/history', { method: 'POST', body: payload }),
+      clearRacing: () => $fetch<{ ok: boolean }>('/api/games/retro/racing/history', { method: 'DELETE' }),
+
+      historyTetriminos: () => $fetch<GameHistoryListResponse>('/api/games/retro/tetriminos/history'),
+      recordTetriminos: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/tetriminos/history', { method: 'POST', body: payload }),
+      clearTetriminos: () => $fetch<{ ok: boolean }>('/api/games/retro/tetriminos/history', { method: 'DELETE' })
+    }
   }
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useGameHistory } from '~/composables/useGameHistory'
 
 type RacingStatus = 'ready' | 'playing' | 'pause' | 'gameover'
 type WallRow = {
@@ -233,6 +234,7 @@ const waitingOverlayVisible = ref(true)
 const readyOverlayVisible = ref(false)
 const readyCountdownValue = ref(3)
 const resultOverlayVisible = ref(false)
+const rewardMessage = ref('')
 const carX = ref(140)
 const rows = ref<WallRow[]>([])
 const score = ref(0)
@@ -264,6 +266,26 @@ const syncState = () => {
   score.value = snap.score
   level.value = snap.level
   dodgeCount.value = snap.dodgeCount
+}
+
+const gameHistory = useGameHistory()
+const _actions = {
+  /** 單局明確結束時寫入遊戲紀錄；已登入且有 coin 獎勵時附上提示文字 */
+  recordHistory: async () => {
+    rewardMessage.value = ''
+    try {
+      const result = await gameHistory.actions.record('racing', 'RACING', {
+        score: score.value,
+        level: level.value,
+        meta: { dodgeCount: dodgeCount.value }
+      })
+      if (result.coinReward > 0) {
+        rewardMessage.value = result.coinCapped ? `+${result.coinReward} coin（已達今日上限）` : `+${result.coinReward} coin`
+      }
+    } catch {
+      // 紀錄寫入失敗不影響遊戲本身，靜默略過
+    }
+  }
 }
 
 const stopRacingTimer = () => {
@@ -302,6 +324,7 @@ const stepRacing = () => {
     message.value = '撞牆了，遊戲結束。'
     resultOverlayVisible.value = true
     stopRacingTimer()
+    _actions.recordHistory()
   }
 }
 
@@ -320,6 +343,7 @@ const resetRacing = () => {
   waitingOverlayVisible.value = true
   readyOverlayVisible.value = false
   resultOverlayVisible.value = false
+  rewardMessage.value = ''
   message.value = '按 START 開始，使用 ← → 或 A D 操作。'
 }
 
@@ -364,6 +388,7 @@ const endGameNow = () => {
   status.value = 'gameover'
   message.value = '本局已結束。'
   resultOverlayVisible.value = true
+  _actions.recordHistory()
 }
 
 const exitToGameHall = () => {
@@ -433,6 +458,7 @@ onUnmounted(() => {
         <div class="result-item"><span>LEVEL</span><b>{{ level }}</b></div>
         <div class="result-item"><span>DODGE</span><b>{{ dodgeCount }}</b></div>
       </div>
+      <p v-if="rewardMessage" class="result-reward">{{ rewardMessage }}</p>
       <div class="result-actions">
         <button class="racing-btn" type="button" @click="playAgain">AGAIN</button>
         <button class="racing-btn danger" type="button" @click="exitToGameHall">EXIT</button>
@@ -739,6 +765,14 @@ onUnmounted(() => {
     background: rgba(8, 23, 52, 0.7);
     color: #bae6fd;
     padding: 8px 10px;
+  }
+
+  .result-reward {
+    margin: 6px 0 0;
+    color: #fde68a;
+    font-size: 0.85rem;
+    text-align: center;
+    letter-spacing: 0.05em;
   }
 
   .result-actions {
