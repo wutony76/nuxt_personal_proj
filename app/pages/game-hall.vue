@@ -214,7 +214,8 @@ onBeforeUnmount(() => {
   --px-text-mute: #6b4a8a;
 
   position: relative;
-  min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
   background:
     radial-gradient(1200px 600px at 80% -10%, rgba(255, 46, 136, 0.1), transparent 60%),
     radial-gradient(900px 500px at -5% 110%, rgba(0, 229, 255, 0.08), transparent 60%),
@@ -223,6 +224,29 @@ onBeforeUnmount(() => {
   font-family: "Share Tech Mono", "JetBrains Mono", monospace;
   font-size: 13px;
   letter-spacing: 0.02em;
+
+  /* 捲軸改成 Cyberpunk HUD 風格，比照專案既有（如 ssc 系列元件）的自訂捲軸慣例 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--cyan) var(--panel);
+
+  &::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--panel);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--cyan);
+    border-radius: 999px;
+    border: 2px solid var(--panel);
+    box-shadow: 0 0 6px rgba(0, 229, 255, 0.5);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--cyan-soft);
+  }
   overflow-x: hidden;
 }
 

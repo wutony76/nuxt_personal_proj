@@ -6,6 +6,7 @@ import Match3CoreEngine, {
   calcMatch3Level,
   calcMatch3TypeCount,
   type Match3Position,
+  type Match3SpecialKind,
   type Match3SwapResult
 } from '~/utils/match3Engine'
 
@@ -51,7 +52,7 @@ class Match3ClassicEngine {
 
   getSnapshot() {
     const snap = this.core.getSnapshot()
-    return { grid: snap.grid, score: snap.score, level: this.level, movesLeft: this.movesLeft }
+    return { grid: snap.grid, special: snap.special, score: snap.score, level: this.level, movesLeft: this.movesLeft }
   }
 
   private updateLevel() {
@@ -68,12 +69,20 @@ const TYPE_COUNT = 6
 const TOTAL_MOVES = 20
 const READY_START = 3
 const GEM_EMOJI = ['💎', '🔥', '⚡', '🍀', '🌙', '⭐', '🔮', '🍭']
+const SPECIAL_ICON: Record<Match3SpecialKind, string> = {
+  none: '',
+  lineH: '↔️',
+  lineV: '↕️',
+  bomb: '💣',
+  colorBomb: '🌈'
+}
 
 const router = useRouter()
 const engine = new Match3ClassicEngine(BOARD_SIZE, TYPE_COUNT, TOTAL_MOVES)
 
 const state = reactive({
   grid: [] as number[][],
+  special: [] as Match3SpecialKind[][],
   score: 0,
   level: 1,
   movesLeft: TOTAL_MOVES,
@@ -83,6 +92,7 @@ const state = reactive({
   message: '點「開始」遊玩，點擊相鄰寶石交換消除。',
   rewardMessage: '',
   comboText: '',
+  comboLevel: 0,
   waitingOverlayVisible: true,
   readyOverlayVisible: false,
   readyCountdownValue: READY_START,
@@ -92,8 +102,9 @@ const state = reactive({
 })
 
 const MATCH3_CLASSIC_RULE = {
-  description: '點擊兩個相鄰寶石交換，形成 3 消以上即可消除並觸發連鎖加分；限 20 步，只有成功消除的交換才會消耗一步。',
-  scoreRule: '每輪消除分數 ＝ 消除格數 × 4 × 連鎖倍率（第 n 輪連鎖倍率為 1 ＋ (n－1) × 0.5）。',
+  description:
+    '點擊兩個相鄰寶石交換，形成 3 消以上即可消除；4 連消產生「清整排/整列」的 Line Bomb（↔️/↕️），5 連消以上產生「清全場同色」的 Color Bomb（🌈），L/T 型連消產生「清 3×3」的 Bomb（💣）。交換到特殊方塊一定會觸發效果，即使沒有形成新的三消。限 20 步，只有成功消除的交換才會消耗一步。',
+  scoreRule: '每輪消除分數 ＝ 消除格數 × 4 × Combo（第 1 次消除 Combo ×1，每多一輪連鎖 Combo +1，連鎖結束後歸零重算）。',
   levels: [
     { level: 1, condition: '0–79 分' },
     { level: 2, condition: '80–199 分' },
@@ -130,14 +141,16 @@ const canResumeFromPause = computed(
 const canPauseWhilePlaying = computed(() => state.status === 'playing')
 
 const cells = computed(() => {
-  const list: Array<{ row: number; col: number; type: number }> = []
+  const list: Array<{ row: number; col: number; type: number; special: Match3SpecialKind }> = []
   state.grid.forEach((row, r) => {
     row.forEach((type, c) => {
-      list.push({ row: r, col: c, type })
+      list.push({ row: r, col: c, type, special: state.special[r]?.[c] ?? 'none' })
     })
   })
   return list
 })
+
+const comboFontSize = (combo: number) => `${Math.min(0.9 + combo * 0.15, 2.5)}rem`
 
 const gameHistory = useGameHistory()
 
@@ -149,6 +162,7 @@ const _handlers = {
   syncState: () => {
     const snap = engine.getSnapshot()
     state.grid = snap.grid
+    state.special = snap.special
     state.score = snap.score
     state.level = snap.level
     state.movesLeft = snap.movesLeft
@@ -181,7 +195,8 @@ const _handlers = {
   },
   showCombo: (result: Match3SwapResult) => {
     _handlers.stopComboTimer()
-    state.comboText = result.cascadeRounds > 1 ? `COMBO x${result.cascadeRounds}! +${result.gained}` : `+${result.gained}`
+    state.comboLevel = result.cascadeRounds
+    state.comboText = `COMBO x${result.cascadeRounds} +${result.gained}`
     comboTimer = setTimeout(() => {
       state.comboText = ''
       comboTimer = null
@@ -396,11 +411,14 @@ onBeforeUnmount(() => {
           <div class="m3c-board">
             <button v-for="cell in cells" :key="`${cell.row}-${cell.col}`" type="button" class="m3c-cell" :class="{
               selected: _handlers.isSelected(cell.row, cell.col),
-              shake: _handlers.isShaking(cell.row, cell.col)
+              shake: _handlers.isShaking(cell.row, cell.col),
+              special: cell.special !== 'none'
             }" :disabled="state.status !== 'playing'" @click="click.cell(cell.row, cell.col)">
-              {{ GEM_EMOJI[cell.type] }}
+              {{ cell.special !== 'none' ? SPECIAL_ICON[cell.special] : GEM_EMOJI[cell.type] }}
             </button>
-            <p v-if="state.comboText" class="m3c-combo-popup">{{ state.comboText }}</p>
+            <p v-if="state.comboText" class="m3c-combo-popup" :style="{ fontSize: comboFontSize(state.comboLevel) }">
+              {{ state.comboText }}
+            </p>
           </div>
           <div class="m3c-panel">
             <span>SCORE: {{ state.score }}</span>
@@ -687,6 +705,13 @@ onBeforeUnmount(() => {
         animation: cell-shake 220ms ease-out;
       }
 
+      &.special {
+        border-color: #26e0d3;
+        background: rgba(38, 224, 211, 0.14);
+        box-shadow: 0 0 8px rgba(38, 224, 211, 0.4);
+        animation: special-pulse 1.6s ease-in-out infinite;
+      }
+
       &:disabled {
         cursor: not-allowed;
       }
@@ -844,6 +869,18 @@ onBeforeUnmount(() => {
   100% {
     opacity: 0;
     transform: translate(-50%, -140%) scale(1);
+  }
+}
+
+@keyframes special-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(38, 224, 211, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 16px rgba(38, 224, 211, 0.75);
   }
 }
 

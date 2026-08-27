@@ -14,7 +14,7 @@ const { records, statsByGame, identityLabel, loading, ensureLoaded, actions } = 
 
 type FilterKey = 'all' | RetroGameKey
 const FILTERS: Array<{ key: FilterKey; label: string }> = [
-  { key: 'all', label: '全部' },
+  { key: 'all', label: 'ALL' },
   { key: 'snake', label: 'SNAKE' },
   { key: 'racing', label: 'RACING' },
   { key: 'tetriminos', label: 'TETRIMINOS' },
@@ -335,6 +335,28 @@ const click = {
   margin: 14px 20px 0;
   border: 1px solid var(--line);
   min-height: 120px;
+
+  /* 捲軸改成 Cyberpunk HUD 風格，比照 game-hall.vue／專案既有的自訂捲軸慣例 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--cyan) var(--panel);
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--panel);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--cyan);
+    border-radius: 999px;
+    border: 2px solid var(--panel);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--cyan-soft);
+  }
 }
 
 .ghd-empty {

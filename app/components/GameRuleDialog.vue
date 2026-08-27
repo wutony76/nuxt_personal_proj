@@ -74,6 +74,29 @@ const click = {
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
   font-family: "Share Tech Mono", monospace;
   animation: grudPopIn 0.22s ease-out both;
+
+  /* 捲軸改成 Cyberpunk HUD 風格，比照 game-hall.vue／專案既有的自訂捲軸慣例 */
+  scrollbar-width: thin;
+  scrollbar-color: #00e5ff #0d1326;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #0d1326;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #00e5ff;
+    border-radius: 999px;
+    border: 2px solid #0d1326;
+    box-shadow: 0 0 6px rgba(0, 229, 255, 0.5);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #5cf3ff;
+  }
 }
 
 .grud-head {
