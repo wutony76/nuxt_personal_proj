@@ -1,0 +1,852 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { useRouter } from 'vue-router'
+import { useGameHistory } from '~/composables/useGameHistory'
+import Match3CoreEngine, {
+  calcMatch3Level,
+  calcMatch3TypeCount,
+  type Match3Position,
+  type Match3SwapResult
+} from '~/utils/match3Engine'
+
+type Match3Status = 'ready' | 'playing' | 'pause' | 'gameover'
+
+/**
+ * 限步數制的薄包裝：消除演算法交給共用的 Match3CoreEngine（見 add-match3-games design.md Decision 2），
+ * 這裡只處理「剩餘步數」這個結束條件（只有成功消除的交換才消耗一步，見 spec.md）與
+ * 「難度隨分數自動升級」（比照 snake/racing/tetriminos 既有的 Lv 慣例）。
+ */
+class Match3ClassicEngine {
+  private core: Match3CoreEngine
+  private movesLeft: number
+  private level = 1
+
+  constructor(
+    private readonly boardSize: number,
+    private readonly typeCount: number,
+    private readonly totalMoves: number
+  ) {
+    this.core = new Match3CoreEngine(boardSize, typeCount)
+    this.movesLeft = totalMoves
+  }
+
+  reset() {
+    this.core.reset()
+    this.movesLeft = this.totalMoves
+    this.level = 1
+  }
+
+  trySwap(a: Match3Position, b: Match3Position): Match3SwapResult {
+    const result = this.core.trySwap(a, b)
+    if (result.matched) {
+      this.movesLeft = Math.max(0, this.movesLeft - 1)
+    }
+    this.updateLevel()
+    return result
+  }
+
+  isOver(): boolean {
+    return this.movesLeft <= 0
+  }
+
+  getSnapshot() {
+    const snap = this.core.getSnapshot()
+    return { grid: snap.grid, score: snap.score, level: this.level, movesLeft: this.movesLeft }
+  }
+
+  private updateLevel() {
+    const nextLevel = calcMatch3Level(this.core.getSnapshot().score)
+    if (nextLevel !== this.level) {
+      this.level = nextLevel
+      this.core.setTypeCount(calcMatch3TypeCount(nextLevel))
+    }
+  }
+}
+
+const BOARD_SIZE = 8
+const TYPE_COUNT = 6
+const TOTAL_MOVES = 20
+const READY_START = 3
+const GEM_EMOJI = ['💎', '🔥', '⚡', '🍀', '🌙', '⭐', '🔮', '🍭']
+
+const router = useRouter()
+const engine = new Match3ClassicEngine(BOARD_SIZE, TYPE_COUNT, TOTAL_MOVES)
+
+const state = reactive({
+  grid: [] as number[][],
+  score: 0,
+  level: 1,
+  movesLeft: TOTAL_MOVES,
+  status: 'ready' as Match3Status,
+  selected: null as Match3Position | null,
+  shakeCells: [] as string[],
+  message: '點「開始」遊玩，點擊相鄰寶石交換消除。',
+  rewardMessage: '',
+  comboText: '',
+  waitingOverlayVisible: true,
+  readyOverlayVisible: false,
+  readyCountdownValue: READY_START,
+  resultOverlayVisible: false
+})
+
+let readyTimer: ReturnType<typeof setInterval> | null = null
+let comboTimer: ReturnType<typeof setTimeout> | null = null
+let shakeTimer: ReturnType<typeof setTimeout> | null = null
+
+const statusText = computed(() => {
+  if (state.status === 'playing') return 'PLAYING'
+  if (state.status === 'pause') return 'PAUSE'
+  if (state.status === 'gameover') return 'GAME OVER'
+  return 'READY'
+})
+const statusClass = computed(() => {
+  if (state.status === 'playing') return 'is-playing'
+  if (state.status === 'pause') return 'is-pause'
+  if (state.status === 'gameover') return 'is-gameover'
+  return 'is-ready'
+})
+const canResumeFromPause = computed(
+  () =>
+    state.status === 'pause' &&
+    !state.waitingOverlayVisible &&
+    !state.readyOverlayVisible &&
+    !state.resultOverlayVisible
+)
+const canPauseWhilePlaying = computed(() => state.status === 'playing')
+
+const cells = computed(() => {
+  const list: Array<{ row: number; col: number; type: number }> = []
+  state.grid.forEach((row, r) => {
+    row.forEach((type, c) => {
+      list.push({ row: r, col: c, type })
+    })
+  })
+  return list
+})
+
+const gameHistory = useGameHistory()
+
+/** 私有工具方法：計時器管理、格子鍵值、選取/震動狀態判斷 */
+const _handlers = {
+  cellKey: (row: number, col: number) => `${row},${col}`,
+  isSelected: (row: number, col: number) => state.selected?.row === row && state.selected?.col === col,
+  isShaking: (row: number, col: number) => state.shakeCells.includes(_handlers.cellKey(row, col)),
+  syncState: () => {
+    const snap = engine.getSnapshot()
+    state.grid = snap.grid
+    state.score = snap.score
+    state.level = snap.level
+    state.movesLeft = snap.movesLeft
+  },
+  stopReadyTimer: () => {
+    if (readyTimer) {
+      clearInterval(readyTimer)
+      readyTimer = null
+    }
+  },
+  stopComboTimer: () => {
+    if (comboTimer) {
+      clearTimeout(comboTimer)
+      comboTimer = null
+    }
+  },
+  stopShakeTimer: () => {
+    if (shakeTimer) {
+      clearTimeout(shakeTimer)
+      shakeTimer = null
+    }
+  },
+  triggerShake: (a: Match3Position, b: Match3Position) => {
+    _handlers.stopShakeTimer()
+    state.shakeCells = [_handlers.cellKey(a.row, a.col), _handlers.cellKey(b.row, b.col)]
+    shakeTimer = setTimeout(() => {
+      state.shakeCells = []
+      shakeTimer = null
+    }, 220)
+  },
+  showCombo: (result: Match3SwapResult) => {
+    _handlers.stopComboTimer()
+    state.comboText = result.cascadeRounds > 1 ? `COMBO x${result.cascadeRounds}! +${result.gained}` : `+${result.gained}`
+    comboTimer = setTimeout(() => {
+      state.comboText = ''
+      comboTimer = null
+    }, 900)
+  },
+  runReadyCountdown: (onDone: () => void) => {
+    _handlers.stopReadyTimer()
+    state.readyOverlayVisible = true
+    state.readyCountdownValue = READY_START
+    readyTimer = setInterval(() => {
+      if (state.readyCountdownValue <= 1) {
+        _handlers.stopReadyTimer()
+        state.readyOverlayVisible = false
+        onDone()
+        return
+      }
+      state.readyCountdownValue -= 1
+    }, 700)
+  }
+}
+
+const _actions = {
+  /** 單局明確結束時寫入遊戲紀錄；已登入且有 coin 獎勵時附上提示文字 */
+  recordHistory: async () => {
+    state.rewardMessage = ''
+    try {
+      const result = await gameHistory.actions.record('match3classic', 'MATCH3 CLASSIC', {
+        score: state.score,
+        level: state.level
+      })
+      if (result.coinReward > 0) {
+        state.rewardMessage = result.coinCapped ? `+${result.coinReward} coin（已達今日上限）` : `+${result.coinReward} coin`
+      }
+    } catch {
+      // 紀錄寫入失敗不影響遊戲本身，靜默略過
+    }
+  },
+  finishGame: (message: string) => {
+    state.status = 'gameover'
+    state.message = message
+    state.resultOverlayVisible = true
+    _handlers.stopReadyTimer()
+    _actions.recordHistory()
+  },
+  resetGame: () => {
+    _handlers.stopReadyTimer()
+    _handlers.stopComboTimer()
+    _handlers.stopShakeTimer()
+    engine.reset()
+    _handlers.syncState()
+    state.status = 'ready'
+    state.selected = null
+    state.shakeCells = []
+    state.waitingOverlayVisible = true
+    state.resultOverlayVisible = false
+    state.readyOverlayVisible = false
+    state.rewardMessage = ''
+    state.comboText = ''
+    state.message = '點「開始」遊玩，點擊相鄰寶石交換消除。'
+  },
+  startGame: () => {
+    if (state.status === 'playing' || state.readyOverlayVisible) return
+    if (state.status === 'gameover') _actions.resetGame()
+    state.waitingOverlayVisible = false
+    state.resultOverlayVisible = false
+    _handlers.runReadyCountdown(() => {
+      state.status = 'playing'
+      state.message = '遊戲進行中...'
+    })
+  },
+  pauseGame: () => {
+    if (state.status !== 'playing') return
+    state.status = 'pause'
+    state.message = '已暫停'
+  },
+  resumeGame: () => {
+    if (!canResumeFromPause.value) return
+    state.status = 'playing'
+    state.message = '遊戲進行中...'
+  },
+  playAgain: () => {
+    _actions.resetGame()
+    _actions.startGame()
+  },
+  endGameNow: () => {
+    _handlers.stopReadyTimer()
+    state.waitingOverlayVisible = false
+    state.readyOverlayVisible = false
+    state.status = 'gameover'
+    state.message = '本局已結束。'
+    state.resultOverlayVisible = true
+    _actions.recordHistory()
+  },
+  handleCellClick: (row: number, col: number) => {
+    if (state.status !== 'playing') return
+    const pos = { row, col }
+    if (!state.selected) {
+      state.selected = pos
+      return
+    }
+    if (state.selected.row === row && state.selected.col === col) {
+      state.selected = null
+      return
+    }
+    const isAdjacent = Math.abs(state.selected.row - row) + Math.abs(state.selected.col - col) === 1
+    if (!isAdjacent) {
+      state.selected = pos
+      return
+    }
+    const from = state.selected
+    state.selected = null
+    const result = engine.trySwap(from, pos)
+    _handlers.syncState()
+    if (result.matched) {
+      _handlers.showCombo(result)
+      if (result.reshuffled) {
+        state.message = '沒有可消除的組合了，已自動重新排列。'
+      }
+      if (engine.isOver()) {
+        _actions.finishGame('步數用完，遊戲結束。')
+      }
+    } else {
+      _handlers.triggerShake(from, pos)
+    }
+  }
+}
+
+const click = {
+  cell: (row: number, col: number) => _actions.handleCellClick(row, col),
+  start: () => _actions.startGame(),
+  pause: () => _actions.pauseGame(),
+  resume: () => _actions.resumeGame(),
+  replay: () => _actions.resetGame(),
+  end: () => _actions.endGameNow(),
+  again: () => _actions.playAgain(),
+  exit: () => router.replace('/game-hall')
+}
+
+onMounted(() => {
+  _actions.resetGame()
+  state.waitingOverlayVisible = true
+})
+
+onBeforeUnmount(() => {
+  _handlers.stopReadyTimer()
+  _handlers.stopComboTimer()
+  _handlers.stopShakeTimer()
+})
+</script>
+
+<template>
+  <main class="m3c-page" :class="`state-${state.status}`">
+    <div class="m3c-overlay" />
+    <div v-if="state.waitingOverlayVisible" class="game-mask waiting-mask">
+      <div class="mask-title">WELCOME</div>
+      <p class="waiting-subtitle">MATCH3 CLASSIC · 20 MOVES</p>
+      <button class="m3c-btn waiting-start" type="button" @click="click.start">START</button>
+    </div>
+    <div v-if="state.readyOverlayVisible" class="game-mask ready-mask">
+      <div class="mask-title">READY</div>
+      <div class="mask-count">{{ state.readyCountdownValue }}</div>
+    </div>
+    <div v-if="state.resultOverlayVisible" class="game-mask result-mask">
+      <div class="mask-title">RESULT</div>
+      <div class="result-list">
+        <div class="result-item"><span>SCORE</span><b>{{ state.score }}</b></div>
+        <div class="result-item"><span>LEVEL</span><b>{{ state.level }}</b></div>
+      </div>
+      <p v-if="state.rewardMessage" class="result-reward">{{ state.rewardMessage }}</p>
+      <div class="result-actions">
+        <button class="m3c-btn" type="button" @click="click.again">AGAIN</button>
+        <button class="m3c-btn danger" type="button" @click="click.exit">EXIT</button>
+      </div>
+    </div>
+
+    <section class="m3c-shell">
+      <aside class="m3c-side left">
+        <button class="m3c-btn" type="button" :disabled="!canResumeFromPause" @click="click.resume">START</button>
+        <button class="m3c-btn" type="button" :disabled="!canPauseWhilePlaying" @click="click.pause">PAUSE</button>
+        <button class="m3c-btn" type="button" @click="click.replay">REPLAY</button>
+        <button class="m3c-btn link" type="button" @click="click.end">END</button>
+      </aside>
+
+      <section class="m3c-center">
+        <header class="m3c-title-wrap">
+          <h1 class="m3c-title">MATCH3 CLASSIC</h1>
+          <p class="m3c-status" :class="statusClass">{{ statusText }}</p>
+        </header>
+
+        <div class="m3c-frame">
+          <div class="m3c-board">
+            <button v-for="cell in cells" :key="`${cell.row}-${cell.col}`" type="button" class="m3c-cell" :class="{
+              selected: _handlers.isSelected(cell.row, cell.col),
+              shake: _handlers.isShaking(cell.row, cell.col)
+            }" :disabled="state.status !== 'playing'" @click="click.cell(cell.row, cell.col)">
+              {{ GEM_EMOJI[cell.type] }}
+            </button>
+            <p v-if="state.comboText" class="m3c-combo-popup">{{ state.comboText }}</p>
+          </div>
+          <div class="m3c-panel">
+            <span>SCORE: {{ state.score }}</span>
+            <span>LEVEL: {{ state.level }}</span>
+            <span class="moves" :class="{ warn: state.movesLeft <= 3 }">MOVES: {{ state.movesLeft }}</span>
+          </div>
+        </div>
+
+        <p class="m3c-message">{{ state.message }}</p>
+      </section>
+
+      <aside class="m3c-side right">
+        <div class="m3c-help-panel">
+          <p class="m3c-help-title">HOW TO PLAY</p>
+          <p class="m3c-help-text">點擊兩個相鄰寶石交換，只有形成消除的交換才會消耗一步，善用每一步規劃連鎖。</p>
+        </div>
+      </aside>
+    </section>
+  </main>
+</template>
+
+<style scoped lang="scss">
+.m3c-page {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at top, #150a2e, #04020a 60%);
+  overflow: hidden;
+  isolation: isolate;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -20%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  &::before {
+    background: radial-gradient(circle at 20% 20%, rgba(140, 90, 255, 0.2), transparent 45%),
+      radial-gradient(circle at 80% 70%, rgba(38, 224, 211, 0.12), transparent 40%);
+    filter: blur(40px);
+    animation: ambient-drift 12s ease-in-out infinite alternate;
+  }
+
+  &::after {
+    background: linear-gradient(115deg, rgba(140, 90, 255, 0.05), rgba(0, 0, 0, 0));
+    animation: ambient-pulse 4.6s ease-in-out infinite;
+  }
+
+  .m3c-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(rgba(140, 90, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(140, 90, 255, 0.05) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    z-index: 0;
+    animation: grid-drift 14s linear infinite;
+  }
+
+  .game-mask {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    background: rgba(0, 0, 0, 0.78);
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 12px;
+
+    .mask-title {
+      color: #a97bff;
+      font-size: clamp(2rem, 8vw, 4rem);
+      letter-spacing: 0.25rem;
+      font-weight: 900;
+    }
+
+    .mask-count {
+      color: #a97bff;
+      font-size: clamp(3rem, 12vw, 7rem);
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    &.waiting-mask {
+      background: rgba(0, 0, 0, 0.88);
+
+      .waiting-subtitle {
+        margin: 0;
+        color: #c7a9ff;
+        letter-spacing: 0.3rem;
+        font-size: 0.95rem;
+      }
+
+      .waiting-start {
+        min-width: 160px;
+      }
+    }
+
+    &.result-mask {
+      .result-list {
+        display: grid;
+        gap: 8px;
+        width: 260px;
+      }
+
+      .result-item {
+        display: flex;
+        justify-content: space-between;
+        border: 1px solid rgba(169, 123, 255, 0.4);
+        background: rgba(30, 12, 55, 0.65);
+        color: #d9c6ff;
+        padding: 8px 10px;
+      }
+
+      .result-reward {
+        margin: 8px 0 0;
+        color: #ffe066;
+        font-size: 0.85rem;
+        text-align: center;
+        letter-spacing: 0.05em;
+      }
+
+      .result-actions {
+        margin-top: 8px;
+        display: flex;
+        gap: 10px;
+      }
+    }
+  }
+
+  .m3c-shell {
+    position: relative;
+    z-index: 1;
+    width: min(1100px, 100%);
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 180px 1fr 180px;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .m3c-side {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .m3c-btn {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(169, 123, 255, 0.4);
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: rgba(18, 6, 36, 0.75);
+    color: #b48cff;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(105deg, transparent 35%, rgba(220, 200, 255, 0.25) 50%, transparent 65%);
+      transform: translateX(-150%);
+      transition: transform 0.35s ease;
+      pointer-events: none;
+    }
+
+    &:hover {
+      border-color: #a97bff;
+      box-shadow: 0 0 12px rgba(169, 123, 255, 0.35);
+      transform: translateY(-1px);
+
+      &::after {
+        transform: translateX(150%);
+      }
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    &.link {
+      text-align: center;
+      text-decoration: none;
+    }
+
+    &.danger {
+      border-color: rgba(255, 60, 60, 0.5);
+      color: #ff7d7d;
+    }
+  }
+
+  .m3c-center {
+    text-align: center;
+
+    .m3c-title-wrap {
+      margin-bottom: 8px;
+    }
+
+    .m3c-title {
+      margin: 0;
+      color: #a97bff;
+      font-size: clamp(1.6rem, 4.6vw, 2.7rem);
+      letter-spacing: 0.1rem;
+      font-weight: 900;
+      text-shadow: 0 0 14px rgba(169, 123, 255, 0.42);
+      animation: title-float 2.6s ease-in-out infinite;
+    }
+
+    .m3c-status {
+      margin: 2px 0 0;
+      color: #d9c6ff;
+      font-size: 0.9rem;
+      letter-spacing: 0.2rem;
+
+      &.is-playing {
+        color: #b48cff;
+      }
+
+      &.is-pause {
+        color: #ffcc33;
+      }
+
+      &.is-gameover {
+        color: #ff5e5e;
+      }
+    }
+
+    .m3c-frame {
+      width: 360px;
+      margin: 12px auto 0;
+      padding: 14px;
+      background: #150a2e;
+      border: 10px solid #2f1a5c;
+      border-radius: 18px;
+      box-shadow: 0 0 0 1px rgba(169, 123, 255, 0.2), 0 0 24px rgba(140, 90, 255, 0.14);
+      animation: frame-glow 5.4s ease-in-out infinite;
+    }
+
+    .m3c-board {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 4px;
+      background: #0a0518;
+      border: 2px solid #000;
+      border-radius: 8px;
+      padding: 6px;
+    }
+
+    .m3c-cell {
+      aspect-ratio: 1 / 1;
+      display: grid;
+      place-items: center;
+      font-size: 1.2rem;
+      line-height: 1;
+      background: rgba(169, 123, 255, 0.06);
+      border: 1px solid rgba(169, 123, 255, 0.18);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+
+      &:hover:not(:disabled) {
+        border-color: rgba(169, 123, 255, 0.55);
+        background: rgba(169, 123, 255, 0.14);
+      }
+
+      &.selected {
+        border-color: #26e0d3;
+        background: rgba(38, 224, 211, 0.2);
+        box-shadow: 0 0 10px rgba(38, 224, 211, 0.5);
+        transform: scale(1.06);
+      }
+
+      &.shake {
+        animation: cell-shake 220ms ease-out;
+      }
+
+      &:disabled {
+        cursor: not-allowed;
+      }
+    }
+
+    .m3c-combo-popup {
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translate(-50%, -100%);
+      margin: 0;
+      color: #26e0d3;
+      font-weight: 900;
+      font-size: 0.95rem;
+      text-shadow: 0 0 10px rgba(38, 224, 211, 0.7);
+      animation: combo-pop 0.9s ease-out both;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .m3c-panel {
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      color: #b48cff;
+      font-weight: 800;
+      text-shadow: 0 0 6px rgba(169, 123, 255, 0.45);
+
+      .moves.warn {
+        color: #ff5e5e;
+        animation: time-warn-pulse 0.8s ease-in-out infinite;
+      }
+    }
+
+    .m3c-message {
+      margin-top: 14px;
+      color: #c7a9ff;
+      font-size: 0.85rem;
+      animation: subtle-fade 2.8s ease-in-out infinite;
+    }
+  }
+
+  .m3c-help-panel {
+    border: 1px solid rgba(169, 123, 255, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    background: rgba(18, 6, 36, 0.5);
+
+    .m3c-help-title {
+      margin: 0 0 6px;
+      color: #b48cff;
+      font-size: 0.75rem;
+      letter-spacing: 0.14rem;
+      font-weight: 800;
+    }
+
+    .m3c-help-text {
+      margin: 0;
+      color: #c7a9ff;
+      font-size: 0.78rem;
+      line-height: 1.6;
+    }
+  }
+}
+
+@keyframes ambient-drift {
+  0% {
+    transform: translate(-1.5%, -1%) scale(1);
+  }
+
+  100% {
+    transform: translate(1.5%, 1%) scale(1.06);
+  }
+}
+
+@keyframes ambient-pulse {
+
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 0.75;
+  }
+}
+
+@keyframes grid-drift {
+  0% {
+    transform: translate(0, 0);
+  }
+
+  100% {
+    transform: translate(14px, 14px);
+  }
+}
+
+@keyframes title-float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes frame-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(169, 123, 255, 0.2), 0 0 24px rgba(140, 90, 255, 0.14);
+  }
+
+  50% {
+    box-shadow: 0 0 0 1px rgba(199, 169, 255, 0.35), 0 0 40px rgba(150, 100, 255, 0.28);
+  }
+}
+
+@keyframes cell-shake {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  25% {
+    transform: translate3d(-3px, 1px, 0);
+  }
+
+  50% {
+    transform: translate3d(3px, -1px, 0);
+  }
+
+  75% {
+    transform: translate3d(-2px, 1px, 0);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes combo-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -80%) scale(0.8);
+  }
+
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -110%) scale(1.05);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -140%) scale(1);
+  }
+}
+
+@keyframes time-warn-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes subtle-fade {
+
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 980px) {
+  .m3c-page {
+    .m3c-shell {
+      grid-template-columns: 1fr;
+      padding: 16px;
+    }
+
+    .m3c-side {
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+  }
+}
+</style>

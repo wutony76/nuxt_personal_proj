@@ -17,13 +17,17 @@ const FILTERS: Array<{ key: FilterKey; label: string }> = [
   { key: 'all', label: '全部' },
   { key: 'snake', label: 'SNAKE' },
   { key: 'racing', label: 'RACING' },
-  { key: 'tetriminos', label: 'TETRIMINOS' }
+  { key: 'tetriminos', label: 'TETRIMINOS' },
+  { key: 'match3rush', label: 'MATCH3 RUSH' },
+  { key: 'match3classic', label: 'MATCH3 CLASSIC' }
 ]
-const GAME_KEYS: RetroGameKey[] = ['snake', 'racing', 'tetriminos']
+const GAME_KEYS: RetroGameKey[] = ['snake', 'racing', 'tetriminos', 'match3rush', 'match3classic']
 const GAME_NAME: Record<RetroGameKey, string> = {
   snake: 'SNAKE',
   racing: 'RACING',
-  tetriminos: 'TETRIMINOS'
+  tetriminos: 'TETRIMINOS',
+  match3rush: 'MATCH3 RUSH',
+  match3classic: 'MATCH3 CLASSIC'
 }
 
 const ui = reactive({
@@ -266,7 +270,8 @@ const click = {
 
 .ghd-tabs {
   display: flex;
-  gap: 2px;
+  flex-wrap: wrap;
+  gap: 4px;
   padding: 10px 20px 0;
 
   .ghd-tab {
@@ -341,7 +346,7 @@ const click = {
 
 .ghd-row {
   display: grid;
-  grid-template-columns: 90px 1fr 60px 90px;
+  grid-template-columns: 108px 1fr 60px 90px;
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
@@ -355,7 +360,8 @@ const click = {
 
   .game {
     color: var(--text-dim);
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
+    font-size: 10.5px;
   }
 
   .score {

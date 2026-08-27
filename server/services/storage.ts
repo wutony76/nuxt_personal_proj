@@ -26,6 +26,8 @@ import Pl3Class from './game/lottery/bg/pl3'
 import RetroSnakeClass from './game/retro/snake'
 import RetroRacingClass from './game/retro/racing'
 import RetroTetriminosClass from './game/retro/tetriminos'
+import RetroMatch3RushClass from './game/retro/match3rush'
+import RetroMatch3ClassicClass from './game/retro/match3classic'
 import { LOTTERY } from '~/config/constants'
 
 export const verifyPasswordHash = (password: string, storedHash: string): boolean => {
@@ -160,6 +162,8 @@ export class Storage {
       new RetroSnakeClass()
       new RetroRacingClass()
       new RetroTetriminosClass()
+      new RetroMatch3RushClass()
+      new RetroMatch3ClassicClass()
       console.log('SUCCESS ---BASE>retroGames.init')
     }
   }

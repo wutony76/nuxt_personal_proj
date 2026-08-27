@@ -759,7 +759,7 @@ export type LotteryOpenCodeHistoryResponse = {
 }
 
 // ── 遊戲中心 · 遊戲紀錄（game-hall 小遊戲，非彩票）──
-export type RetroGameKey = 'snake' | 'racing' | 'tetriminos'
+export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic'
 
 export type GameHistoryRecord = {
   id: string
@@ -1001,7 +1001,17 @@ export const api = {
       historyTetriminos: () => $fetch<GameHistoryListResponse>('/api/games/retro/tetriminos/history'),
       recordTetriminos: (payload: GameHistoryRecordPayload) =>
         $fetch<GameHistorySettleResponse>('/api/games/retro/tetriminos/history', { method: 'POST', body: payload }),
-      clearTetriminos: () => $fetch<{ ok: boolean }>('/api/games/retro/tetriminos/history', { method: 'DELETE' })
+      clearTetriminos: () => $fetch<{ ok: boolean }>('/api/games/retro/tetriminos/history', { method: 'DELETE' }),
+
+      historyMatch3Rush: () => $fetch<GameHistoryListResponse>('/api/games/retro/match3rush/history'),
+      recordMatch3Rush: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/match3rush/history', { method: 'POST', body: payload }),
+      clearMatch3Rush: () => $fetch<{ ok: boolean }>('/api/games/retro/match3rush/history', { method: 'DELETE' }),
+
+      historyMatch3Classic: () => $fetch<GameHistoryListResponse>('/api/games/retro/match3classic/history'),
+      recordMatch3Classic: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/match3classic/history', { method: 'POST', body: payload }),
+      clearMatch3Classic: () => $fetch<{ ok: boolean }>('/api/games/retro/match3classic/history', { method: 'DELETE' })
     }
   }
 }
