@@ -48,6 +48,22 @@
    - 做法：`app/utils/match3Engine.ts` 新增共用的 `calcMatch3Level(score)`（依分數門檻 0/200/500/1000/2000 對應 Lv1-5）與 `calcMatch3TypeCount(level)`。Match3 是回合制交換玩法，沒有 snake/racing/tetriminos 那種「連續移動速度」可以加快，因此難度改用「寶石種類數」表現：等級越高，`Match3CoreEngine.setTypeCount()` 擴大寶石種類池（6→7→8 種），種類越多、同色連線的機率越低、找消除組合越難，是三消遊戲常見的難度手段。
    - 兩款遊戲的 `Match3RushEngine`／`Match3ClassicEngine` 各自在每次 `trySwap()` 後重新計算等級，等級變動時才呼叫 `setTypeCount()`（既有格子不變、只影響之後掉落補位／洗牌抽到的新寶石），並把 `level` 併入 `getSnapshot()`、`recordHistory()` 的 payload，比照既有三款遊戲把 `level` 一併寫入紀錄。
 
+8. **上線前試玩發現 SCORE 數字量級明顯偏高，調降計分公式並同步校準 coinRate／Lv 門檻／maxReasonableScore**
+   - 理由：使用者實際試玩後回報 Match3 系列的 SCORE 顯示數字相較 snake／racing 明顯偏高，體感不一致；問題出在畫面上的分數本身，不是 coin 兌換比例，因此調整計分公式而非只調 coinRate。
+   - 做法：`Match3CoreEngine.trySwap()` 每輪消除的基礎分由 `matchedCount × 10 × multiplier` 調降為 `matchedCount × 4 × multiplier`（連鎖倍率 `multiplier` 不變），整體分數量級等比例下調約 60%。
+   - 連動調整（維持「一場普通局 ≈ 100 coin」的既有目標，見 Decision 5）：
+     - `calcMatch3TypeCount` 依據的 `MATCH3_LEVEL_SCORE_THRESHOLDS` 由 `[0, 200, 500, 1000, 2000]` 等比例調降為 `[0, 80, 200, 400, 800]`，維持原本「多久升一次 Lv」的節奏。
+     - `match3rush.ts`／`match3classic.ts` 的 `coinRate` 由 `0.1` 調高為 `0.25`（分數降為約 0.4 倍，倍率對應調高為約 2.5 倍，兩者相乘後單位分數換算的 coin 量級大致不變）。
+     - `maxReasonableScore()`（防呆上限）等比例調降：RUSH 由 20000 調為 8000、CLASSIC 由 8000 調為 3200。
+   - 這些仍是估算值，如同 Decision 5，屬於「先讓機制跑起來，之後可依實測數據再校準」的常數，不影響架構本身。
+
+9. **五款遊戲（含既有 snake/racing/tetriminos）都新增「coin 兌換比」dialog，訪客也可查看，並附「前往登入」導引**
+   - 理由：使用者比較各遊戲 60 分可兌換的 coin 後，希望玩家在遊戲頁面就能直接看到兌換比，不需要另外詢問或翻程式碼；訪客也能看見，用來引導註冊/登入（兌換比不是敏感資料）。範圍雖然涵蓋既有三款遊戲，但屬於本次因 match3 兌換比討論而起的延伸需求，記在同一個 change 內。
+   - 做法：新增公開路由 `server/api/games/retro/rates.get.ts`（單一清單路由，回傳 `Storage.retroGames.instances` 內每款遊戲的 `key`/`name`/`coinRate`/`coinCapPerRun`/`coinDailyCap`），比照既有 `/api/lottery/games` 的單一清單慣例，而非「每個遊戲一個資料夾」（這是跨遊戲靜態設定查詢，非使用者資料操作）。`server/middleware/auth.ts` 新增 `PUBLIC_GAME_PATHS` 放行此路由的 GET（比照既有 `PUBLIC_LOTTERY_SUFFIXES` 的公開模式）。
+   - 新增共用元件 `app/components/GameRateDialog.vue`（props: `visible`/`gameKey`/`gameName?`，emit `close`），不依賴任何外層頁面的 CSS 變數（因為五款遊戲頁面各自視覺主題完全不同），自成一套獨立配色；五個遊戲頁面（`snake.vue`／`racing.vue`／`tetriminos.vue`／`match3-rush.vue`／`match3-classic.vue`）都掛載同一顆元件，只傳入各自的 `gameKey`/`gameName`。
+   - 訪客狀態下 dialog 內顯示「前往登入」連結（`NuxtLink to="/login"`，比照 `AppTopbar.vue` 既有的登入連結模式，本專案登入是獨立頁面，不是彈窗）；已登入則顯示「結算時會自動兌換」提示，不顯示登入連結。
+   - 進場點除了各頁 `.xxx-side.left` 的既有按鈕欄新增一顆「兌換比」按鈕外，也在 WELCOME（`waiting-mask`）畫面內新增同一顆按鈕——因為 `.game-mask` 的 `z-index` 高於 `.xxx-shell`，玩家首次進頁、尚未點過 START 前，側邊按鈕會被遮罩蓋住點不到，只有 WELCOME 畫面內的按鈕在那個時間點是可點的。
+
 ## Risks / Trade-offs
 
 - [風險] `Match3CoreEngine` 是本次唯一新增的共用邏輯層，若日後又新增第三款三消變體，需要判斷是否該繼續放在同一個共用檔案或該拆分——目前先不預先設計擴充點，等真的有第三個使用場景再視情況調整（YAGNI）。

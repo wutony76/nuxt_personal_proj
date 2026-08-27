@@ -84,8 +84,23 @@ const state = reactive({
   waitingOverlayVisible: true,
   readyOverlayVisible: false,
   readyCountdownValue: READY_START,
-  resultOverlayVisible: false
+  resultOverlayVisible: false,
+  rateDialogOpen: false,
+  ruleDialogOpen: false
 })
+
+const MATCH3_RUSH_RULE = {
+  description: '點擊兩個相鄰寶石交換，形成 3 消以上即可消除並觸發連鎖加分；60 秒倒數計時，時間到強制結算。',
+  scoreRule: '每輪消除分數 ＝ 消除格數 × 4 × 連鎖倍率（第 n 輪連鎖倍率為 1 ＋ (n－1) × 0.5）。',
+  levels: [
+    { level: 1, condition: '0–79 分' },
+    { level: 2, condition: '80–199 分' },
+    { level: 3, condition: '200–399 分' },
+    { level: 4, condition: '400–799 分' },
+    { level: 5, condition: '800 分以上' }
+  ],
+  note: '等級越高，寶石種類越多（6→7→8 種），越難湊出消除組合。'
+}
 
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let readyTimer: ReturnType<typeof setInterval> | null = null
@@ -321,7 +336,19 @@ const click = {
   replay: () => _actions.resetGame(),
   end: () => _actions.endGameNow(),
   again: () => _actions.playAgain(),
-  exit: () => router.replace('/game-hall')
+  exit: () => router.replace('/game-hall'),
+  openRateDialog: () => {
+    state.rateDialogOpen = true
+  },
+  closeRateDialog: () => {
+    state.rateDialogOpen = false
+  },
+  openRuleDialog: () => {
+    state.ruleDialogOpen = true
+  },
+  closeRuleDialog: () => {
+    state.ruleDialogOpen = false
+  }
 }
 
 onMounted(() => {
@@ -343,7 +370,9 @@ onBeforeUnmount(() => {
     <div v-if="state.waitingOverlayVisible" class="game-mask waiting-mask">
       <div class="mask-title">WELCOME</div>
       <p class="waiting-subtitle">MATCH3 RUSH · 60s</p>
-      <button class="m3-btn waiting-start" type="button" @click="click.start">START</button>
+      <button class="m3-btn waiting-btn waiting-start" type="button" @click="click.start">START</button>
+      <button class="m3-btn link waiting-btn" type="button" @click="click.openRateDialog">CONVERT</button>
+      <button class="m3-btn link waiting-btn" type="button" @click="click.openRuleDialog">RULE</button>
     </div>
     <div v-if="state.readyOverlayVisible" class="game-mask ready-mask">
       <div class="mask-title">READY</div>
@@ -362,12 +391,19 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <GameRateDialog :visible="state.rateDialogOpen" game-key="match3rush" game-name="MATCH3 RUSH"
+      @close="click.closeRateDialog" />
+    <GameRuleDialog :visible="state.ruleDialogOpen" game-name="MATCH3 RUSH" v-bind="MATCH3_RUSH_RULE"
+      @close="click.closeRuleDialog" />
+
     <section class="m3-shell">
       <aside class="m3-side left">
         <button class="m3-btn" type="button" :disabled="!canResumeFromPause" @click="click.resume">START</button>
         <button class="m3-btn" type="button" :disabled="!canPauseWhilePlaying" @click="click.pause">PAUSE</button>
         <button class="m3-btn" type="button" @click="click.replay">REPLAY</button>
         <button class="m3-btn link" type="button" @click="click.end">END</button>
+        <button class="m3-btn" type="button" @click="click.openRateDialog">CONVERT</button>
+        <button class="m3-btn" type="button" @click="click.openRuleDialog">RULE</button>
       </aside>
 
       <section class="m3-center">
@@ -482,8 +518,8 @@ onBeforeUnmount(() => {
         font-size: 0.95rem;
       }
 
-      .waiting-start {
-        min-width: 160px;
+      .waiting-btn {
+        width: 160px;
       }
     }
 

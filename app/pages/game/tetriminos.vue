@@ -239,6 +239,20 @@ const boardView = ref<number[][]>([])
 const score = ref(0)
 const level = ref(1)
 const lineCount = ref(0)
+const rateDialogOpen = ref(false)
+const ruleDialogOpen = ref(false)
+const TETRIMINOS_RULE = {
+  description: '方向鍵左右移動方塊，↑ 旋轉，↓ 加速下落；填滿一整行即可消除得分，堆到頂端則遊戲結束。',
+  scoreRule: '消行分數 ＝ 消除行數 × 100 ＋ (消除行數－1) × 50，一次消 4 行分數最高。',
+  levels: [
+    { level: 1, condition: '累計消除 0–9 行' },
+    { level: 2, condition: '累計消除 10–19 行' },
+    { level: 3, condition: '累計消除 20–29 行' },
+    { level: '…', condition: '每 10 行升 1 級' },
+    { level: 9, condition: '累計消除 80 行以上（上限）' }
+  ],
+  note: '等級越高，方塊下落速度越快。'
+}
 
 let gameTimer: ReturnType<typeof setTimeout> | null = null
 let readyTimer: ReturnType<typeof setInterval> | null = null
@@ -408,6 +422,22 @@ const exitToGameHall = () => {
   router.replace('/game-hall')
 }
 
+const openRateDialog = () => {
+  rateDialogOpen.value = true
+}
+
+const closeRateDialog = () => {
+  rateDialogOpen.value = false
+}
+
+const openRuleDialog = () => {
+  ruleDialogOpen.value = true
+}
+
+const closeRuleDialog = () => {
+  ruleDialogOpen.value = false
+}
+
 const moveLeft = () => {
   engine.moveLeft()
   rebuildBoardView()
@@ -473,7 +503,9 @@ onUnmounted(() => {
     <div v-if="waitingOverlayVisible" class="game-mask waiting-mask">
       <div class="mask-title">WELCOME</div>
       <p class="waiting-subtitle">TETRIMINOS</p>
-      <button class="tetri-btn waiting-start" type="button" @click="startGame">START</button>
+      <button class="tetri-btn waiting-btn waiting-start" type="button" @click="startGame">START</button>
+      <button class="tetri-btn link waiting-btn" type="button" @click="openRateDialog">CONVERT</button>
+      <button class="tetri-btn link waiting-btn" type="button" @click="openRuleDialog">RULE</button>
     </div>
 
     <div v-if="readyOverlayVisible" class="game-mask ready-mask">
@@ -495,12 +527,17 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <GameRateDialog :visible="rateDialogOpen" game-key="tetriminos" game-name="TETRIMINOS" @close="closeRateDialog" />
+    <GameRuleDialog :visible="ruleDialogOpen" game-name="TETRIMINOS" v-bind="TETRIMINOS_RULE" @close="closeRuleDialog" />
+
     <section class="tetri-shell">
       <aside class="tetri-side left">
         <button class="tetri-btn" type="button" :disabled="!canResumeFromPause" @click="resumeGame">START</button>
         <button class="tetri-btn" type="button" :disabled="!canPauseWhilePlaying" @click="pauseGame">PAUSE</button>
         <button class="tetri-btn" type="button" @click="resetGame">REPLAY</button>
         <button class="tetri-btn" type="button" @click="endGameNow">END</button>
+        <button class="tetri-btn" type="button" @click="openRateDialog">CONVERT</button>
+        <button class="tetri-btn" type="button" @click="openRuleDialog">RULE</button>
       </aside>
 
       <section class="tetri-center">
@@ -760,6 +797,10 @@ onUnmounted(() => {
     align-content: center;
     gap: 12px;
     background: rgba(0, 0, 0, 0.78);
+  }
+
+  .waiting-btn {
+    width: 160px;
   }
 
   .mask-title {

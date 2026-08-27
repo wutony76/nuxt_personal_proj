@@ -240,6 +240,18 @@ const rows = ref<WallRow[]>([])
 const score = ref(0)
 const level = ref(1)
 const dodgeCount = ref(0)
+const rateDialogOpen = ref(false)
+const ruleDialogOpen = ref(false)
+const RACING_RULE = {
+  description: '使用方向鍵或 A D 左右閃避牆壁，撐得越久分數越高，撞到牆壁則遊戲結束。',
+  scoreRule: '每存活一小段時間 ＋1 分，存活越久分數越高。',
+  levels: [
+    { level: 1, condition: '0–199 分' },
+    { level: 2, condition: '200–998 分' },
+    { level: 3, condition: '999 分以上' }
+  ],
+  note: '等級越高，賽道速度越快。'
+}
 let racingTimer: ReturnType<typeof setTimeout> | null = null
 let readyTimer: ReturnType<typeof setInterval> | null = null
 
@@ -395,6 +407,22 @@ const exitToGameHall = () => {
   router.replace('/game-hall')
 }
 
+const openRateDialog = () => {
+  rateDialogOpen.value = true
+}
+
+const closeRateDialog = () => {
+  rateDialogOpen.value = false
+}
+
+const openRuleDialog = () => {
+  ruleDialogOpen.value = true
+}
+
+const closeRuleDialog = () => {
+  ruleDialogOpen.value = false
+}
+
 const onKeydown = (event: KeyboardEvent) => {
   if (waitingOverlayVisible.value || readyOverlayVisible.value || resultOverlayVisible.value) return
   const key = event.key.toLowerCase()
@@ -443,7 +471,9 @@ onUnmounted(() => {
     <div v-if="waitingOverlayVisible" class="game-mask waiting-mask">
       <div class="mask-title">WELCOME</div>
       <p class="waiting-subtitle">RACING GAME</p>
-      <button class="racing-btn waiting-start" type="button" @click="startRacing">START</button>
+      <button class="racing-btn waiting-btn waiting-start" type="button" @click="startRacing">START</button>
+      <button class="racing-btn link waiting-btn" type="button" @click="openRateDialog">CONVERT</button>
+      <button class="racing-btn link waiting-btn" type="button" @click="openRuleDialog">RULE</button>
     </div>
 
     <div v-if="readyOverlayVisible" class="game-mask ready-mask">
@@ -465,12 +495,17 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <GameRateDialog :visible="rateDialogOpen" game-key="racing" game-name="RACING" @close="closeRateDialog" />
+    <GameRuleDialog :visible="ruleDialogOpen" game-name="RACING" v-bind="RACING_RULE" @close="closeRuleDialog" />
+
     <section class="racing-shell">
       <aside class="racing-side left">
         <button class="racing-btn" type="button" :disabled="!canResumeFromPause" @click="resumeRacing">START</button>
         <button class="racing-btn" type="button" :disabled="!canPauseWhilePlaying" @click="pauseRacing">PAUSE</button>
         <button class="racing-btn" type="button" @click="resetRacing">REPLAY</button>
         <button class="racing-btn link" type="button" @click="endGameNow">END</button>
+        <button class="racing-btn" type="button" @click="openRateDialog">CONVERT</button>
+        <button class="racing-btn" type="button" @click="openRuleDialog">RULE</button>
       </aside>
 
       <section class="racing-center">
@@ -736,6 +771,10 @@ onUnmounted(() => {
     align-content: center;
     gap: 12px;
     background: rgba(0, 0, 0, 0.78);
+  }
+
+  .waiting-btn {
+    width: 160px;
   }
 
   .mask-title {

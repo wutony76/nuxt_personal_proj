@@ -217,6 +217,21 @@ const resultOverlayVisible = ref(false)
 const rewardMessage = ref('')
 const fruitFlashActive = ref(false)
 const stageShakeActive = ref(false)
+const rateDialogOpen = ref(false)
+const ruleDialogOpen = ref(false)
+const SNAKE_RULE = {
+  description: '使用方向鍵或 W A S D 控制蛇移動，吃到食物身體會變長；撞到自己的身體則遊戲結束。',
+  scoreRule: '分數 ＝ 蛇身長度 － 1，每吃到一顆食物 ＋1 分。',
+  levels: [
+    { level: 1, condition: '0–4 分' },
+    { level: 2, condition: '5–14 分' },
+    { level: 3, condition: '15–29 分' },
+    { level: 4, condition: '30–49 分' },
+    { level: 5, condition: '50–89 分' },
+    { level: 6, condition: '90 分以上' }
+  ],
+  note: '等級越高，蛇的移動速度越快。'
+}
 let fruitEffectTimer: ReturnType<typeof setTimeout> | null = null
 
 const snakeBoardStyle = computed(() => ({
@@ -454,6 +469,22 @@ const exitResultToWelcome = () => {
   router.replace('/game-hall')
 }
 
+const openRateDialog = () => {
+  rateDialogOpen.value = true
+}
+
+const closeRateDialog = () => {
+  rateDialogOpen.value = false
+}
+
+const openRuleDialog = () => {
+  ruleDialogOpen.value = true
+}
+
+const closeRuleDialog = () => {
+  ruleDialogOpen.value = false
+}
+
 onMounted(() => {
   if (typeof window !== 'undefined') {
     window.addEventListener('keydown', onSnakeKeydown)
@@ -478,7 +509,9 @@ onUnmounted(() => {
     <div v-if="waitingOverlayVisible" class="game-mask waiting-mask">
       <div class="mask-title">WELCOME</div>
       <p class="waiting-subtitle">SNAKE GAME</p>
-      <button class="snake-btn waiting-start" type="button" @click="startFromWaiting">START</button>
+      <button class="snake-btn waiting-btn waiting-start" type="button" @click="startFromWaiting">START</button>
+      <button class="snake-btn link waiting-btn" type="button" @click="openRateDialog">CONVERT</button>
+      <button class="snake-btn link waiting-btn" type="button" @click="openRuleDialog">RULE</button>
     </div>
     <div v-if="readyOverlayVisible" class="game-mask ready-mask">
       <div class="mask-title">READY</div>
@@ -497,12 +530,17 @@ onUnmounted(() => {
         <button class="snake-btn danger" type="button" @click="exitResultToWelcome">EXIT</button>
       </div>
     </div>
+    <GameRateDialog :visible="rateDialogOpen" game-key="snake" game-name="SNAKE" @close="closeRateDialog" />
+    <GameRuleDialog :visible="ruleDialogOpen" game-name="SNAKE" v-bind="SNAKE_RULE" @close="closeRuleDialog" />
+
     <section class="snake-shell">
       <aside class="snake-side left">
         <button class="snake-btn" type="button" :disabled="!canResumeFromPause" @click="resumeSnake">START</button>
         <button class="snake-btn" type="button" :disabled="!canPauseWhilePlaying" @click="pauseSnake">PAUSE</button>
         <button class="snake-btn" type="button" @click="resetSnake">REPLAY</button>
         <button class="snake-btn link" type="button" @click="endGameNow">END</button>
+        <button class="snake-btn" type="button" @click="openRateDialog">CONVERT</button>
+        <button class="snake-btn" type="button" @click="openRuleDialog">RULE</button>
       </aside>
 
       <section class="snake-center">
@@ -619,8 +657,8 @@ onUnmounted(() => {
         font-size: 0.95rem;
       }
 
-      .waiting-start {
-        min-width: 160px;
+      .waiting-btn {
+        width: 160px;
       }
     }
 

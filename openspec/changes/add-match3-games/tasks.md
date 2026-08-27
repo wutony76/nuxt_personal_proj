@@ -2,6 +2,7 @@
 
 - [ ] 1.1 新增 `app/utils/match3Engine.ts`：`Match3CoreEngine` class（棋盤初始化＋無初始消除保證、`trySwap()`、連鎖消除、掉落補位、無解自動洗牌、`getSnapshot()`）
 - [ ] 1.2 `app/utils/match3Engine.ts` 新增 `calcMatch3Level(score)` / `calcMatch3TypeCount(level)`，`Match3CoreEngine` 新增 `setTypeCount()`，支援難度隨分數自動升級（比照 snake/racing/tetriminos 既有 Lv 慣例，見 design.md Decision 7）
+- [ ] 1.3 試玩後回報 SCORE 數字偏高，調降計分公式（每格基礎分 10→4）並同步校準 `MATCH3_LEVEL_SCORE_THRESHOLDS`／`coinRate`（0.1→0.25）／`maxReasonableScore`（見 design.md Decision 8）
 
 ## 2. Server 端服務層
 
@@ -37,6 +38,13 @@
 ## 8. OpenSpec 文件
 
 - [ ] 8.1 `proposal.md` / `design.md` / `tasks.md` / `specs/game-history/spec.md`（本次變更文件本身）
+
+## 8.5 Coin 兌換比 Dialog（涵蓋五款遊戲，見 design.md Decision 9）
+
+- [ ] 8.5.1 新增公開路由 `server/api/games/retro/rates.get.ts`，`server/middleware/auth.ts` 新增 `PUBLIC_GAME_PATHS` 放行
+- [ ] 8.5.2 `app/services/api.ts` 新增 `RetroGameRateInfo`/`RetroGameRatesResponse` 型別與 `api.games.retro.rates()`
+- [ ] 8.5.3 新增共用元件 `app/components/GameRateDialog.vue`（訪客顯示「前往登入」，已登入顯示自動兌換提示）
+- [ ] 8.5.4 五款遊戲頁面（snake/racing/tetriminos/match3-rush/match3-classic）側邊按鈕欄與 WELCOME 畫面都加入「兌換比」進場點
 
 ## 9. 驗證
 

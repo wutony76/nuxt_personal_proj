@@ -788,6 +788,18 @@ export type GameHistorySettleResponse = {
   newCoinBalance: number
 }
 
+export type RetroGameRateInfo = {
+  key: RetroGameKey
+  name: string
+  coinRate: number
+  coinCapPerRun: number
+  coinDailyCap: number
+}
+
+export type RetroGameRatesResponse = {
+  rates: RetroGameRateInfo[]
+}
+
 export const api = {
   system: {
     servTime: () => $fetch<{ serverTime: number }>('/api/servTime')
@@ -1011,7 +1023,10 @@ export const api = {
       historyMatch3Classic: () => $fetch<GameHistoryListResponse>('/api/games/retro/match3classic/history'),
       recordMatch3Classic: (payload: GameHistoryRecordPayload) =>
         $fetch<GameHistorySettleResponse>('/api/games/retro/match3classic/history', { method: 'POST', body: payload }),
-      clearMatch3Classic: () => $fetch<{ ok: boolean }>('/api/games/retro/match3classic/history', { method: 'DELETE' })
+      clearMatch3Classic: () => $fetch<{ ok: boolean }>('/api/games/retro/match3classic/history', { method: 'DELETE' }),
+
+      /** 公開端點，訪客不登入也能查詢——見 server/middleware/auth.ts 的 PUBLIC_GAME_PATHS */
+      rates: () => $fetch<RetroGameRatesResponse>('/api/games/retro/rates')
     }
   }
 }

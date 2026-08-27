@@ -12,8 +12,11 @@ export type Match3SwapResult = {
   reshuffled: boolean
 }
 
-/** 難度隨分數自動升級的門檻，比照 snake/racing/tetriminos 既有的「Lv 隨進度提升」慣例（見 design.md） */
-const MATCH3_LEVEL_SCORE_THRESHOLDS = [0, 200, 500, 1000, 2000]
+/**
+ * 難度隨分數自動升級的門檻，比照 snake/racing/tetriminos 既有的「Lv 隨進度提升」慣例（見 design.md）。
+ * 門檻數值配合下方計分公式（每格基礎分 10→4）等比例調降，維持「多久升一次 Lv」的原有節奏不變。
+ */
+const MATCH3_LEVEL_SCORE_THRESHOLDS = [0, 80, 200, 400, 800]
 export const MATCH3_MAX_LEVEL = MATCH3_LEVEL_SCORE_THRESHOLDS.length
 
 export function calcMatch3Level(score: number): number {
@@ -83,7 +86,8 @@ export default class Match3CoreEngine {
     while (matches.length > 0) {
       round += 1
       const multiplier = 1 + (round - 1) * 0.5
-      gained += Math.round(matches.length * 10 * multiplier)
+      // 每格基礎分調降為 4（原為 10），讓 SCORE 數字量級更接近 snake/racing，不再明顯偏高
+      gained += Math.round(matches.length * 4 * multiplier)
       this.clearAndRefill(matches)
       matches = this.findMatches()
     }

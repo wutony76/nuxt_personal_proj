@@ -10,6 +10,13 @@ const PROTECTED_PREFIXES = ['/api/lottery', '/api/taiwan-lottery', '/api/games']
  */
 const PUBLIC_LOTTERY_SUFFIXES = ['/jackpot', '/pool']
 
+/**
+ * 復古遊戲的 coin 兌換比（coinRate／coinCapPerRun／coinDailyCap）是公開設定，不含使用者資料，
+ * 讓訪客也能在遊戲頁面看到「登入後可賺多少 coin」藉此引導登入，比照上面 PUBLIC_LOTTERY_SUFFIXES
+ * 的公開模式；其餘 `/api/games/*`（history 讀寫）仍然要登入。
+ */
+const PUBLIC_GAME_PATHS = ['/api/games/retro/rates']
+
 export default defineEventHandler((event) => {
   const pathname = getRequestURL(event).pathname
   const method = getMethod(event)
@@ -27,6 +34,11 @@ export default defineEventHandler((event) => {
     && pathname.startsWith('/api/lottery/')
     && PUBLIC_LOTTERY_SUFFIXES.some((suffix) => pathname.endsWith(suffix))
   if (isPublicPoolApi) {
+    return
+  }
+
+  const isPublicGameApi = method === 'GET' && PUBLIC_GAME_PATHS.includes(pathname)
+  if (isPublicGameApi) {
     return
   }
 
