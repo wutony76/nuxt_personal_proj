@@ -3,12 +3,19 @@ import { computed, reactive, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { api, type RetroGameKey, type RetroGameRateInfo } from '~/services/api'
 
-const props = defineProps<{
-  visible: boolean
-  gameKey: RetroGameKey
-  gameName?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    visible: boolean
+    gameKey: RetroGameKey
+    gameName?: string
+    /** 該遊戲頁面自己的主題色（例如 snake 綠、match3-rush 橘），讓 dialog 的邊框/發光跟當前遊戲一致 */
+    accentColor?: string
+  }>(),
+  { accentColor: '#00e5ff' }
+)
 const emit = defineEmits<{ close: [] }>()
+
+const panelStyle = computed(() => ({ '--accent': props.accentColor }))
 
 const { isLoggedIn, init: initAuth } = useAuth()
 
@@ -60,7 +67,7 @@ const displayName = computed(() => props.gameName ?? state.rate?.name ?? '')
 
 <template>
   <div v-if="visible" class="grd-mask" @click.self="click.close">
-    <section class="grd-panel">
+    <section class="grd-panel" :style="panelStyle">
       <header class="grd-head">
         <h3 class="grd-title">COIN CONVERT</h3>
         <button type="button" class="grd-close" aria-label="關閉" @click="click.close">×</button>
@@ -106,9 +113,10 @@ const displayName = computed(() => props.gameName ?? state.rate?.name ?? '')
 
 <style scoped lang="scss">
 /*
- * 這是跨五款遊戲共用的元件（每款遊戲頁各自的視覺主題都不同：snake 綠、racing/tetriminos 各自配色、
- * match3-rush 暖橘、match3-classic 冷紫），因此不依賴任何外層頁面的 CSS 變數，
- * 自成一套獨立的 Cyberpunk HUD 配色，確保在任何一款遊戲頁面掛載時視覺都一致。
+ * 這是跨五款遊戲共用的元件，不依賴任何外層頁面的 CSS 變數（避免跟各頁面自己的樣式耦合），
+ * 但透過 `accentColor` prop 讓外框/發光/捲軸顏色跟隨呼叫端當前遊戲的主題色
+ * （snake 綠、racing/tetriminos 各自配色、match3-rush 暖橘、match3-classic 冷紫），
+ * 其餘中性色（內文、分隔線）維持固定，只有 --accent 這個變數會變動。
  */
 .grd-mask {
   position: fixed;
@@ -125,8 +133,8 @@ const displayName = computed(() => props.gameName ?? state.rate?.name ?? '')
 .grd-panel {
   width: min(380px, 100%);
   background: #0d1326;
-  border: 1px solid #00e5ff;
-  box-shadow: 0 0 30px rgba(0, 229, 255, 0.25);
+  border: 1px solid var(--accent, #00e5ff);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--accent, #00e5ff) 25%, transparent);
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
   font-family: "Share Tech Mono", monospace;
   animation: grdPopIn 0.22s ease-out both;
@@ -145,7 +153,7 @@ const displayName = computed(() => props.gameName ?? state.rate?.name ?? '')
     font-size: 14px;
     letter-spacing: 0.14em;
     color: #fff;
-    text-shadow: 0 0 10px rgba(0, 229, 255, 0.4);
+    text-shadow: 0 0 10px color-mix(in srgb, var(--accent, #00e5ff) 40%, transparent);
   }
 
   .grd-close {
@@ -178,7 +186,7 @@ const displayName = computed(() => props.gameName ?? state.rate?.name ?? '')
   font-family: "Orbitron", sans-serif;
   font-size: 12px;
   letter-spacing: 0.12em;
-  color: #00e5ff;
+  color: var(--accent, #00e5ff);
 }
 
 .grd-rows {
@@ -213,7 +221,7 @@ const displayName = computed(() => props.gameName ?? state.rate?.name ?? '')
   margin-top: 14px;
   padding: 10px 12px;
   border: 1px solid #1c2a55;
-  background: rgba(0, 229, 255, 0.04);
+  background: color-mix(in srgb, var(--accent, #00e5ff) 4%, transparent);
 
   p {
     margin: 0;

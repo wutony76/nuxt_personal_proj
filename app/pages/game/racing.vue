@@ -495,8 +495,10 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <GameRateDialog :visible="rateDialogOpen" game-key="racing" game-name="RACING" @close="closeRateDialog" />
-    <GameRuleDialog :visible="ruleDialogOpen" game-name="RACING" v-bind="RACING_RULE" @close="closeRuleDialog" />
+    <GameRateDialog :visible="rateDialogOpen" game-key="racing" game-name="RACING" accent-color="#67e8f9"
+      @close="closeRateDialog" />
+    <GameRuleDialog :visible="ruleDialogOpen" game-name="RACING" accent-color="#67e8f9" v-bind="RACING_RULE"
+      @close="closeRuleDialog" />
 
     <section class="racing-shell">
       <aside class="racing-side left">

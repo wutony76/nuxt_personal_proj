@@ -530,8 +530,10 @@ onUnmounted(() => {
         <button class="snake-btn danger" type="button" @click="exitResultToWelcome">EXIT</button>
       </div>
     </div>
-    <GameRateDialog :visible="rateDialogOpen" game-key="snake" game-name="SNAKE" @close="closeRateDialog" />
-    <GameRuleDialog :visible="ruleDialogOpen" game-name="SNAKE" v-bind="SNAKE_RULE" @close="closeRuleDialog" />
+    <GameRateDialog :visible="rateDialogOpen" game-key="snake" game-name="SNAKE" accent-color="#22ff22"
+      @close="closeRateDialog" />
+    <GameRuleDialog :visible="ruleDialogOpen" game-name="SNAKE" accent-color="#22ff22" v-bind="SNAKE_RULE"
+      @close="closeRuleDialog" />
 
     <section class="snake-shell">
       <aside class="snake-side left">

@@ -387,9 +387,9 @@ onBeforeUnmount(() => {
     </div>
 
     <GameRateDialog :visible="state.rateDialogOpen" game-key="match3classic" game-name="MATCH3 CLASSIC"
-      @close="click.closeRateDialog" />
-    <GameRuleDialog :visible="state.ruleDialogOpen" game-name="MATCH3 CLASSIC" v-bind="MATCH3_CLASSIC_RULE"
-      @close="click.closeRuleDialog" />
+      accent-color="#a97bff" @close="click.closeRateDialog" />
+    <GameRuleDialog :visible="state.ruleDialogOpen" game-name="MATCH3 CLASSIC" accent-color="#a97bff"
+      v-bind="MATCH3_CLASSIC_RULE" @close="click.closeRuleDialog" />
 
     <section class="m3c-shell">
       <aside class="m3c-side left">

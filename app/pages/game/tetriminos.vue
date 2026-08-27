@@ -527,8 +527,10 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <GameRateDialog :visible="rateDialogOpen" game-key="tetriminos" game-name="TETRIMINOS" @close="closeRateDialog" />
-    <GameRuleDialog :visible="ruleDialogOpen" game-name="TETRIMINOS" v-bind="TETRIMINOS_RULE" @close="closeRuleDialog" />
+    <GameRateDialog :visible="rateDialogOpen" game-key="tetriminos" game-name="TETRIMINOS" accent-color="#c4b5fd"
+      @close="closeRateDialog" />
+    <GameRuleDialog :visible="ruleDialogOpen" game-name="TETRIMINOS" accent-color="#c4b5fd" v-bind="TETRIMINOS_RULE"
+      @close="closeRuleDialog" />
 
     <section class="tetri-shell">
       <aside class="tetri-side left">

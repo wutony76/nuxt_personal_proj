@@ -4,17 +4,26 @@
  * 等級對照）每款遊戲完全不同、且是靜態文字，不需要打 API，因此直接由呼叫端（各遊戲頁面）以 props 帶入，
  * 而不是像 GameRateDialog 那樣向 server 拉即時資料。
  */
+import { computed } from 'vue'
+
 type LevelRow = { level: number | string; condition: string }
 
-defineProps<{
-  visible: boolean
-  gameName: string
-  description: string
-  scoreRule: string
-  levels: LevelRow[]
-  note?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    visible: boolean
+    gameName: string
+    description: string
+    scoreRule: string
+    levels: LevelRow[]
+    note?: string
+    /** 該遊戲頁面自己的主題色（例如 snake 綠、match3-rush 橘），讓 dialog 的邊框/發光跟當前遊戲一致 */
+    accentColor?: string
+  }>(),
+  { accentColor: '#00e5ff' }
+)
 const emit = defineEmits<{ close: [] }>()
+
+const panelStyle = computed(() => ({ '--accent': props.accentColor }))
 
 const click = {
   close: () => emit('close')
@@ -23,7 +32,7 @@ const click = {
 
 <template>
   <div v-if="visible" class="grud-mask" @click.self="click.close">
-    <section class="grud-panel">
+    <section class="grud-panel" :style="panelStyle">
       <header class="grud-head">
         <h3 class="grud-title">RULE</h3>
         <button type="button" class="grud-close" aria-label="關閉" @click="click.close">×</button>
@@ -51,7 +60,7 @@ const click = {
 </template>
 
 <style scoped lang="scss">
-/* 比照 GameRateDialog.vue：不依賴任何外層頁面的 CSS 變數，自成一套獨立配色 */
+/* 比照 GameRateDialog.vue：不依賴外層頁面的 CSS 變數，但透過 accentColor prop 讓外框/發光跟隨當前遊戲主題色 */
 .grud-mask {
   position: fixed;
   inset: 0;
@@ -69,15 +78,15 @@ const click = {
   max-height: min(560px, 90vh);
   overflow-y: auto;
   background: #0d1326;
-  border: 1px solid #00e5ff;
-  box-shadow: 0 0 30px rgba(0, 229, 255, 0.25);
+  border: 1px solid var(--accent, #00e5ff);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--accent, #00e5ff) 25%, transparent);
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
   font-family: "Share Tech Mono", monospace;
   animation: grudPopIn 0.22s ease-out both;
 
-  /* 捲軸改成 Cyberpunk HUD 風格，比照 game-hall.vue／專案既有的自訂捲軸慣例 */
+  /* 捲軸改成 Cyberpunk HUD 風格，比照 game-hall.vue／專案既有的自訂捲軸慣例，顏色跟隨當前遊戲主題色 */
   scrollbar-width: thin;
-  scrollbar-color: #00e5ff #0d1326;
+  scrollbar-color: var(--accent, #00e5ff) #0d1326;
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -88,14 +97,14 @@ const click = {
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #00e5ff;
+    background: var(--accent, #00e5ff);
     border-radius: 999px;
     border: 2px solid #0d1326;
-    box-shadow: 0 0 6px rgba(0, 229, 255, 0.5);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--accent, #00e5ff) 50%, transparent);
   }
 
   &::-webkit-scrollbar-thumb:hover {
-    background: #5cf3ff;
+    background: color-mix(in srgb, var(--accent, #00e5ff) 70%, white);
   }
 }
 
@@ -115,7 +124,7 @@ const click = {
     font-size: 14px;
     letter-spacing: 0.14em;
     color: #fff;
-    text-shadow: 0 0 10px rgba(0, 229, 255, 0.4);
+    text-shadow: 0 0 10px color-mix(in srgb, var(--accent, #00e5ff) 40%, transparent);
   }
 
   .grud-close {
@@ -141,7 +150,7 @@ const click = {
   font-family: "Orbitron", sans-serif;
   font-size: 12px;
   letter-spacing: 0.12em;
-  color: #00e5ff;
+  color: var(--accent, #00e5ff);
 }
 
 .grud-desc {
