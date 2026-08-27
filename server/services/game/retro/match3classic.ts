@@ -9,8 +9,11 @@ export default class RetroMatch3ClassicClass extends RETRO_GAME_BASE {
       coinCapPerRun: 300,
       coinDailyCap: 100000
     })
+    this.init()
   }
-
+  init() {
+    console.log('TTT---RUN.MATCH3CLASSIC')
+  }
   // 20 步限步數制，見 app/pages/game/match3-classic.vue；步數受限使理論分數上限低於 RUSH，
   // 這裡抓寬裕上限做異常防護，不追求精確
   override maxReasonableScore(): number {

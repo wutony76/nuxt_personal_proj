@@ -158,7 +158,7 @@ export class Storage {
       // console.log('games.init.success', Storage.games)
       console.log('SUCCESS ---BASE>games.init')
     },
-    retroGamesInit: () => {
+    gamesInitRetro: () => {
       new RetroSnakeClass()
       new RetroRacingClass()
       new RetroTetriminosClass()
@@ -196,7 +196,7 @@ export class Storage {
     this.handle.configInit()
     this.handle.usersInit()
     this.handle.gamesInit()
-    this.handle.retroGamesInit()
+    this.handle.gamesInitRetro()
   }
 
   static get = {

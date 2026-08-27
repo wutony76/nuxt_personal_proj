@@ -9,6 +9,10 @@ export default class RetroSnakeClass extends RETRO_GAME_BASE {
       coinCapPerRun: 300,
       coinDailyCap: 100000
     })
+    this.init()
+  }
+  init() {
+    console.log('TTT---RUN.SNAKE')
   }
 
   // 棋盤上限約 30x30 格（見 app/pages/game/snake.vue 的 BOARD_SIZE），分數 = 蛇身長度 - 1，

@@ -9,6 +9,10 @@ export default class RetroMatch3RushClass extends RETRO_GAME_BASE {
       coinCapPerRun: 300,
       coinDailyCap: 100000
     })
+    this.init()
+  }
+  init() {
+    console.log('TTT---RUN.MATCH3RUSH')
   }
 
   // 60 秒限時制，見 app/pages/game/match3-rush.vue；理論分數上限難以精算，
