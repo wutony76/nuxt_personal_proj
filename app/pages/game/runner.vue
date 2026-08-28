@@ -35,7 +35,7 @@ const SCROLL_SPEED_PER_LEVEL = 0.6
 const BASE_SPAWN_TICKS = 70
 const SPAWN_TICKS_PER_LEVEL = 8
 const MIN_SPAWN_TICKS = 34
-const LEVEL_SCORE_THRESHOLDS = [0, 150, 350, 700, 1200]
+const LEVEL_SCORE_THRESHOLDS = [0, 50, 120, 230, 400]
 const AIR_OBSTACLE_CHANCE_BASE = 0.2
 const AIR_OBSTACLE_CHANCE_PER_LEVEL = 0.08
 
@@ -175,8 +175,11 @@ class RunnerEngine {
     return { gameOver: hit }
   }
 
+  // 分數量級調降為原本的 1/3（distance 除數 10→30），等級門檻與 server 端 coinRate/maxReasonableScore
+  // 同步等比例調整（見 server/services/game/retro/runner.ts），維持同樣的升級節奏與 coin 賺取速度不變，
+  // 只是畫面上的分數數字漲得更慢——比照 match3-games design.md Decision 8 同一類調整手法
   get score(): number {
-    return Math.floor(this.distance / 10)
+    return Math.floor(this.distance / 30)
   }
 
   getSnapshot() {
