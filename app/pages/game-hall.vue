@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import ChatPanelHud from '~/components/social/ChatPanelHud.vue'
 
 type HallTab = 'lobby' | 'lottery' | 'taiwan'
 type GameSlot = {
@@ -172,6 +173,15 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
+      <!-- CHAT：橙色主題，重用全站既有 useChat／useAuth 聊天室後端（登入才能發言，比照 ChatPanel 慣例） -->
+      <section class="hud-panel chat-panel">
+        <div class="panel-title">
+          <h2>CHAT.LINK</h2>
+          <div class="meta">// 綜合聊天室 · <b>LIVE</b></div>
+        </div>
+        <ChatPanelHud accent-color="#ff8a2b" />
+      </section>
+
       <!-- STATUS BAR -->
       <div class="status-bar">
         <div class="item"><span class="blink" />CONN <b>STABLE</b></div>
@@ -200,6 +210,8 @@ onBeforeUnmount(() => {
   --magenta-soft: #ff7ab8;
   --amber: #ffb627;
   --green: #39ffa0;
+  --orange: #ff8a2b;
+  --orange-soft: #ffab6e;
 
   /* Hero 專用的像素復古配色（獨立於清單面板，故意不共用同一組變數） */
   --px-panel: #1a0a2e;
@@ -540,6 +552,32 @@ onBeforeUnmount(() => {
   border: 1px solid var(--cyan);
   padding: 22px;
   animation: fadeSlideUp 0.55s ease-out 0.35s both;
+}
+
+/*
+ * 聊天室面板：沿用 .hud-panel 版型，但比照 .pixel-hero 給自己一整套獨立的暖色調
+ * （背景、外框、發光陰影、標題與 meta 文字都改橙色），不只是邊框換色。
+ */
+.chat-panel {
+  margin-top: 20px;
+  background:
+    radial-gradient(600px 200px at 15% 0%, rgba(255, 138, 43, 0.1), transparent 65%),
+    #150e07;
+  border-color: var(--orange);
+  box-shadow: 0 0 24px rgba(255, 138, 43, 0.16), inset 0 0 26px rgba(255, 138, 43, 0.05);
+
+  .panel-title h2 {
+    color: var(--orange-soft);
+    text-shadow: 0 0 10px rgba(255, 138, 43, 0.45);
+  }
+
+  .panel-title .meta {
+    color: #a87a53;
+
+    b {
+      color: var(--orange);
+    }
+  }
 }
 
 .panel-title {
