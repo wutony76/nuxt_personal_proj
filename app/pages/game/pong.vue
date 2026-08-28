@@ -24,6 +24,9 @@ const ROUND_POINT_TARGET = 5
 const ROUND_OPTIONS = [3, 5, 10] as const
 const TICK_MS = 16
 const READY_START = 3
+/** 得分後球會立即重置到中線重發球，若沒有停頓會讓「球出界」跟「球瞬間回到原位」同一畫面發生，
+ *  視覺上像瞬移；得分後短暫停格顯示「得分」提示，再恢復發球，比照正式 Pong 的serve delay 慣例 */
+const SERVE_PAUSE_MS = 700
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
@@ -152,6 +155,7 @@ const state = reactive({
   roundsLost: 0,
   message: '選擇局數後按「開始」，使用 ↑/↓ 或 W/S 控制球拍。',
   rewardMessage: '',
+  serveMessage: '',
   waitingOverlayVisible: true,
   readyOverlayVisible: false,
   readyCountdownValue: READY_START,
@@ -179,6 +183,7 @@ const PONG_RULE = {
 let tickTimer: ReturnType<typeof setInterval> | null = null
 let readyTimer: ReturnType<typeof setInterval> | null = null
 let roundResultTimer: ReturnType<typeof setTimeout> | null = null
+let servePauseTimer: ReturnType<typeof setTimeout> | null = null
 let upHeld = false
 let downHeld = false
 
@@ -233,6 +238,12 @@ const _handlers = {
       roundResultTimer = null
     }
   },
+  stopServePauseTimer: () => {
+    if (servePauseTimer) {
+      clearTimeout(servePauseTimer)
+      servePauseTimer = null
+    }
+  },
   runReadyCountdown: (onDone: () => void) => {
     _handlers.stopReadyTimer()
     state.readyOverlayVisible = true
@@ -281,8 +292,24 @@ const _actions = {
       _handlers.syncState()
       if (result.roundOver) {
         _actions.finishRound(result.roundWinner as Side)
+        return
+      }
+      if (result.scored) {
+        _actions.pauseForServe(result.scored)
       }
     }, TICK_MS)
+  },
+  /** 得分但該局尚未結束：球已重置到中線，短暫停格顯示得分方，避免「出界」跟「瞬間回到原位」同框發生 */
+  pauseForServe: (scorer: Side) => {
+    _handlers.stopTickTimer()
+    state.serveMessage = scorer === 'player' ? '你得分！' : 'CPU 得分！'
+    _handlers.stopServePauseTimer()
+    servePauseTimer = setTimeout(() => {
+      state.serveMessage = ''
+      servePauseTimer = null
+      // 停格期間玩家可能按了 PAUSE，此時 status 已變成 'pause'，不應自動恢復 tick
+      if (state.status === 'playing') _actions.startTickLoop()
+    }, SERVE_PAUSE_MS)
   },
   finishRound: (winner: Side) => {
     _handlers.stopTickTimer()
@@ -321,6 +348,7 @@ const _actions = {
     _handlers.stopTickTimer()
     _handlers.stopReadyTimer()
     _handlers.stopRoundResultTimer()
+    _handlers.stopServePauseTimer()
     engine.resetRound()
     _handlers.syncState()
     state.status = 'ready'
@@ -332,6 +360,7 @@ const _actions = {
     state.resultOverlayVisible = false
     state.readyOverlayVisible = false
     state.rewardMessage = ''
+    state.serveMessage = ''
     state.message = '選擇局數後按「開始」，使用 ↑/↓ 或 W/S 控制球拍。'
   },
   selectRounds: (rounds: (typeof ROUND_OPTIONS)[number]) => {
@@ -369,9 +398,11 @@ const _actions = {
     _handlers.stopTickTimer()
     _handlers.stopReadyTimer()
     _handlers.stopRoundResultTimer()
+    _handlers.stopServePauseTimer()
     state.waitingOverlayVisible = false
     state.readyOverlayVisible = false
     state.roundResultOverlayVisible = false
+    state.serveMessage = ''
     state.status = 'gameover'
     state.message = '本場已結束。'
     state.resultOverlayVisible = true
@@ -432,6 +463,7 @@ onBeforeUnmount(() => {
   _handlers.stopTickTimer()
   _handlers.stopReadyTimer()
   _handlers.stopRoundResultTimer()
+  _handlers.stopServePauseTimer()
   if (typeof window !== 'undefined') {
     window.removeEventListener('keydown', onPongKeydown)
     window.removeEventListener('keyup', onPongKeyup)
@@ -480,9 +512,9 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <GameRateDialog :visible="state.rateDialogOpen" game-key="pong" game-name="PONG" accent-color="#ffb000"
+    <GameRateDialog :visible="state.rateDialogOpen" game-key="pong" game-name="PONG" accent-color="#ff2ea6"
       @close="click.closeRateDialog" />
-    <GameRuleDialog :visible="state.ruleDialogOpen" game-name="PONG" accent-color="#ffb000" v-bind="PONG_RULE"
+    <GameRuleDialog :visible="state.ruleDialogOpen" game-name="PONG" accent-color="#ff2ea6" v-bind="PONG_RULE"
       @close="click.closeRuleDialog" />
 
     <section class="pg-shell">
@@ -507,6 +539,7 @@ onBeforeUnmount(() => {
             <div class="pg-paddle cpu" :style="`transform: translateY(${state.cpuY}px)`" />
             <div class="pg-paddle player" :style="`transform: translateY(${state.playerY}px)`" />
             <div class="pg-ball" :style="`transform: translate(${state.ballX}px, ${state.ballY}px)`" />
+            <p v-if="state.serveMessage" class="pg-serve-flash">{{ state.serveMessage }}</p>
           </div>
           <div class="pg-panel">
             <span>CPU: {{ state.rallyCpuScore }}</span>
@@ -534,7 +567,7 @@ onBeforeUnmount(() => {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at top, #1a1400, #030200 60%);
+  background: radial-gradient(circle at top, #1a0212, #050106 60%);
   overflow: hidden;
   isolation: isolate;
 
@@ -548,22 +581,22 @@ onBeforeUnmount(() => {
   }
 
   &::before {
-    background: radial-gradient(circle at 20% 20%, rgba(255, 176, 0, 0.16), transparent 45%),
-      radial-gradient(circle at 80% 70%, rgba(255, 200, 60, 0.1), transparent 40%);
+    background: radial-gradient(circle at 20% 20%, rgba(255, 46, 166, 0.16), transparent 45%),
+      radial-gradient(circle at 80% 70%, rgba(255, 140, 210, 0.1), transparent 40%);
     filter: blur(40px);
     animation: ambient-drift 12s ease-in-out infinite alternate;
   }
 
   &::after {
-    background: linear-gradient(115deg, rgba(255, 176, 0, 0.05), rgba(0, 0, 0, 0));
+    background: linear-gradient(115deg, rgba(255, 46, 166, 0.05), rgba(0, 0, 0, 0));
     animation: ambient-pulse 4.6s ease-in-out infinite;
   }
 
   .pg-overlay {
     position: absolute;
     inset: 0;
-    background-image: linear-gradient(rgba(255, 176, 0, 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 176, 0, 0.05) 1px, transparent 1px);
+    background-image: linear-gradient(rgba(255, 46, 166, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 46, 166, 0.05) 1px, transparent 1px);
     background-size: 28px 28px;
     pointer-events: none;
     z-index: 0;
@@ -581,7 +614,7 @@ onBeforeUnmount(() => {
     gap: 12px;
 
     .mask-title {
-      color: #ffb000;
+      color: #ff2ea6;
       font-size: clamp(2rem, 8vw, 4rem);
       letter-spacing: 0.25rem;
       font-weight: 900;
@@ -596,7 +629,7 @@ onBeforeUnmount(() => {
     }
 
     .mask-count {
-      color: #ffb000;
+      color: #ff2ea6;
       font-size: clamp(3rem, 12vw, 7rem);
       font-weight: 900;
       line-height: 1;
@@ -607,7 +640,7 @@ onBeforeUnmount(() => {
 
       .waiting-subtitle {
         margin: 0;
-        color: #ffd166;
+        color: #ff8fd1;
         letter-spacing: 0.3rem;
         font-size: 0.95rem;
       }
@@ -622,10 +655,10 @@ onBeforeUnmount(() => {
         width: 72px;
 
         &.active {
-          border-color: #ffb000;
-          background: rgba(255, 176, 0, 0.22);
-          color: #ffe8b8;
-          box-shadow: 0 0 12px rgba(255, 176, 0, 0.4);
+          border-color: #ff2ea6;
+          background: rgba(255, 46, 166, 0.22);
+          color: #ffd6ef;
+          box-shadow: 0 0 12px rgba(255, 46, 166, 0.4);
         }
       }
 
@@ -637,7 +670,7 @@ onBeforeUnmount(() => {
     &.ready-mask {
       .ready-round {
         margin: 0;
-        color: #ffd166;
+        color: #ff8fd1;
         font-size: 0.85rem;
         letter-spacing: 0.15rem;
       }
@@ -646,7 +679,7 @@ onBeforeUnmount(() => {
     &.round-mask {
       .round-tally {
         margin: 0;
-        color: #ffd166;
+        color: #ff8fd1;
         font-size: 0.85rem;
         letter-spacing: 0.1rem;
       }
@@ -662,9 +695,9 @@ onBeforeUnmount(() => {
       .result-item {
         display: flex;
         justify-content: space-between;
-        border: 1px solid rgba(255, 176, 0, 0.4);
-        background: rgba(40, 26, 0, 0.65);
-        color: #ffd88f;
+        border: 1px solid rgba(255, 46, 166, 0.4);
+        background: rgba(40, 4, 26, 0.65);
+        color: #ffd6ef;
         padding: 8px 10px;
       }
 
@@ -704,11 +737,11 @@ onBeforeUnmount(() => {
   .pg-btn {
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(255, 176, 0, 0.4);
+    border: 1px solid rgba(255, 46, 166, 0.4);
     border-radius: 6px;
     padding: 10px 12px;
-    background: rgba(24, 16, 0, 0.75);
-    color: #ffb000;
+    background: rgba(26, 2, 18, 0.75);
+    color: #ff2ea6;
     font-weight: 700;
     letter-spacing: 0.5px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
@@ -717,15 +750,15 @@ onBeforeUnmount(() => {
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(105deg, transparent 35%, rgba(255, 230, 190, 0.25) 50%, transparent 65%);
+      background: linear-gradient(105deg, transparent 35%, rgba(255, 214, 239, 0.25) 50%, transparent 65%);
       transform: translateX(-150%);
       transition: transform 0.35s ease;
       pointer-events: none;
     }
 
     &:hover {
-      border-color: #ffb000;
-      box-shadow: 0 0 12px rgba(255, 176, 0, 0.35);
+      border-color: #ff2ea6;
+      box-shadow: 0 0 12px rgba(255, 46, 166, 0.35);
       transform: translateY(-1px);
 
       &::after {
@@ -759,22 +792,22 @@ onBeforeUnmount(() => {
 
     .pg-title {
       margin: 0;
-      color: #ffb000;
+      color: #ff2ea6;
       font-size: clamp(1.7rem, 5vw, 3rem);
       letter-spacing: 0.14rem;
       font-weight: 900;
-      text-shadow: 0 0 14px rgba(255, 176, 0, 0.42);
+      text-shadow: 0 0 14px rgba(255, 46, 166, 0.42);
       animation: title-float 2.6s ease-in-out infinite;
     }
 
     .pg-status {
       margin: 2px 0 0;
-      color: #ffd88f;
+      color: #ffd6ef;
       font-size: 0.9rem;
       letter-spacing: 0.2rem;
 
       &.is-playing {
-        color: #ffb000;
+        color: #ff2ea6;
       }
 
       &.is-pause {
@@ -787,22 +820,26 @@ onBeforeUnmount(() => {
     }
 
     .pg-frame {
-      width: min(400px, 100%);
+      /* 不能跟 .pg-stage 共用同一個 400px 常數：frame 還有自己的 padding／border，
+         若也卡在 400px，內層 stage 會被擠壓變窄，導致球拍／球座標跟 STAGE_WIDTH 常數對不齊 */
+      width: fit-content;
       margin: 12px auto 0;
       padding: 14px;
-      background: #1a1400;
-      border: 10px solid #4a3a00;
+      background: #1a0212;
+      border: 10px solid #4a123a;
       border-radius: 18px;
-      box-shadow: 0 0 0 1px rgba(255, 176, 0, 0.2), 0 0 24px rgba(255, 176, 0, 0.14);
+      box-shadow: 0 0 0 1px rgba(255, 46, 166, 0.2), 0 0 24px rgba(255, 46, 166, 0.14);
       animation: frame-glow 5.4s ease-in-out infinite;
     }
 
     .pg-stage {
+      /* 明確用 content-box：球拍／球座標常數（STAGE_WIDTH/HEIGHT）假設 400×280 是純內容區，
+         不含這裡的 2px border，避免全站 box-sizing:border-box reset 讓邊框吃掉座標空間 */
       position: relative;
+      box-sizing: content-box;
       width: 400px;
       height: 280px;
-      max-width: 100%;
-      background: #0a0800;
+      background: #0a0208;
       border: 2px solid #000;
       border-radius: 8px;
       overflow: hidden;
@@ -812,7 +849,7 @@ onBeforeUnmount(() => {
         inset: 0 0 0 50%;
         width: 2px;
         margin-left: -1px;
-        background-image: linear-gradient(to bottom, rgba(255, 176, 0, 0.35) 0, rgba(255, 176, 0, 0.35) 10px, transparent 10px, transparent 20px);
+        background-image: repeating-linear-gradient(to bottom, rgba(255, 46, 166, 0.35) 0, rgba(255, 46, 166, 0.35) 10px, transparent 10px, transparent 20px);
         pointer-events: none;
       }
 
@@ -822,8 +859,8 @@ onBeforeUnmount(() => {
         left: 0;
         width: 10px;
         height: 56px;
-        background: #ffb000;
-        box-shadow: 0 0 8px rgba(255, 176, 0, 0.6);
+        background: #ff2ea6;
+        box-shadow: 0 0 8px rgba(255, 46, 166, 0.6);
         will-change: transform;
 
         &.cpu {
@@ -842,9 +879,24 @@ onBeforeUnmount(() => {
         width: 10px;
         height: 10px;
         border-radius: 50%;
-        background: #fff6dd;
-        box-shadow: 0 0 8px rgba(255, 246, 221, 0.8);
+        background: #fff0fa;
+        box-shadow: 0 0 8px rgba(255, 240, 250, 0.8);
         will-change: transform;
+      }
+
+      .pg-serve-flash {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        color: #ff2ea6;
+        font-weight: 900;
+        font-size: 1.1rem;
+        letter-spacing: 0.1rem;
+        text-shadow: 0 0 10px rgba(255, 46, 166, 0.6);
+        pointer-events: none;
+        animation: serve-flash-pop 0.7s ease-out both;
       }
     }
 
@@ -852,28 +904,28 @@ onBeforeUnmount(() => {
       margin-top: 10px;
       display: flex;
       justify-content: space-between;
-      color: #ffb000;
+      color: #ff2ea6;
       font-weight: 800;
-      text-shadow: 0 0 6px rgba(255, 176, 0, 0.45);
+      text-shadow: 0 0 6px rgba(255, 46, 166, 0.45);
     }
 
     .pg-message {
       margin-top: 14px;
-      color: #ffd88f;
+      color: #ffd6ef;
       font-size: 0.85rem;
       animation: subtle-fade 2.8s ease-in-out infinite;
     }
   }
 
   .pg-help-panel {
-    border: 1px solid rgba(255, 176, 0, 0.3);
+    border: 1px solid rgba(255, 46, 166, 0.3);
     border-radius: 8px;
     padding: 12px;
-    background: rgba(24, 16, 0, 0.5);
+    background: rgba(26, 2, 18, 0.5);
 
     .pg-help-title {
       margin: 0 0 6px;
-      color: #ffb000;
+      color: #ff2ea6;
       font-size: 0.75rem;
       letter-spacing: 0.14rem;
       font-weight: 800;
@@ -881,7 +933,7 @@ onBeforeUnmount(() => {
 
     .pg-help-text {
       margin: 0;
-      color: #ffd88f;
+      color: #ffd6ef;
       font-size: 0.78rem;
       line-height: 1.6;
     }
@@ -936,11 +988,11 @@ onBeforeUnmount(() => {
 
   0%,
   100% {
-    box-shadow: 0 0 0 1px rgba(255, 176, 0, 0.2), 0 0 24px rgba(255, 176, 0, 0.14);
+    box-shadow: 0 0 0 1px rgba(255, 46, 166, 0.2), 0 0 24px rgba(255, 46, 166, 0.14);
   }
 
   50% {
-    box-shadow: 0 0 0 1px rgba(255, 210, 120, 0.35), 0 0 40px rgba(255, 176, 0, 0.28);
+    box-shadow: 0 0 0 1px rgba(255, 130, 220, 0.35), 0 0 40px rgba(255, 46, 166, 0.28);
   }
 }
 
@@ -953,6 +1005,28 @@ onBeforeUnmount(() => {
 
   50% {
     opacity: 1;
+  }
+}
+
+@keyframes serve-flash-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+
+  20% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+
+  75% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1);
   }
 }
 
