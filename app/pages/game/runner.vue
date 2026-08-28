@@ -6,7 +6,7 @@ import { useGameHistory } from '~/composables/useGameHistory'
 type RunnerStatus = 'ready' | 'playing' | 'pause' | 'gameover'
 type PlayerState = 'standing' | 'jumping' | 'ducking'
 type ObstacleType = 'ground' | 'air'
-type Obstacle = { id: number; type: ObstacleType; x: number; width: number }
+type Obstacle = { id: number; type: ObstacleType; x: number; width: number; height: number }
 type StepResult = { gameOver: boolean }
 
 const STAGE_WIDTH = 500
@@ -17,6 +17,8 @@ const PLAYER_WIDTH = 30
 const STANDING_HEIGHT = 46
 const DUCK_HEIGHT = 22
 const GROUND_OBSTACLE_HEIGHT = 20
+/** 使用者要求：Lv3 之前（Lv1／Lv2 期間）地面障礙高度降為原本的 1/4 */
+const GROUND_OBSTACLE_HEIGHT_LV_LOW = GROUND_OBSTACLE_HEIGHT / 4
 const GROUND_OBSTACLE_WIDTH = 18
 /** 使用者要求：LV2 之前（即 Lv1 期間）地面障礙寬度改為目前的一半，降低新手階段的難度 */
 const GROUND_OBSTACLE_WIDTH_LV1 = GROUND_OBSTACLE_WIDTH / 2
@@ -32,7 +34,8 @@ const JUMP_HEIGHT = 40
 const JUMP_DURATION_TICKS = 34
 const TICK_MS = 16
 const READY_START = 3
-const BASE_SCROLL_SPEED = 3
+/** 使用者要求開局速度再放慢一點，起始捲動速度下修（3→2） */
+const BASE_SCROLL_SPEED = 2
 const SCROLL_SPEED_PER_LEVEL = 0.6
 const BASE_SPAWN_TICKS = 70
 const SPAWN_TICKS_PER_LEVEL = 8
@@ -134,7 +137,7 @@ class RunnerEngine {
 
   private obstacleBox(ob: Obstacle): { top: number; bottom: number } {
     if (ob.type === 'ground') {
-      return { top: GROUND_Y - GROUND_OBSTACLE_HEIGHT, bottom: GROUND_Y }
+      return { top: GROUND_Y - ob.height, bottom: GROUND_Y }
     }
     return { top: AIR_OBSTACLE_TOP, bottom: AIR_OBSTACLE_TOP + AIR_OBSTACLE_HEIGHT }
   }
@@ -155,10 +158,16 @@ class RunnerEngine {
     return Math.random() < 0.5 ? GROUND_OBSTACLE_WIDTH_LV1 : GROUND_OBSTACLE_WIDTH
   }
 
+  /** 使用者要求：Lv3 之前（Lv1／Lv2）地面障礙高度固定降為 1/4，Lv3 起恢復原本高度 */
+  private groundObstacleHeight(): number {
+    return this.level < 3 ? GROUND_OBSTACLE_HEIGHT_LV_LOW : GROUND_OBSTACLE_HEIGHT
+  }
+
   private spawnObstacle() {
     const isAir = Math.random() < Math.min(0.6, AIR_OBSTACLE_CHANCE_BASE + (this.level - 1) * AIR_OBSTACLE_CHANCE_PER_LEVEL)
     const width = isAir ? AIR_OBSTACLE_WIDTH : this.groundObstacleWidth()
-    this.obstacles.push({ id: this.nextObstacleId++, type: isAir ? 'air' : 'ground', x: STAGE_WIDTH, width })
+    const height = isAir ? AIR_OBSTACLE_HEIGHT : this.groundObstacleHeight()
+    this.obstacles.push({ id: this.nextObstacleId++, type: isAir ? 'air' : 'ground', x: STAGE_WIDTH, width, height })
   }
 
   step(): StepResult {
@@ -307,9 +316,8 @@ const _handlers = {
     }, 700)
   },
   obstacleStyle: (ob: Obstacle) => {
-    const top = ob.type === 'ground' ? GROUND_Y - GROUND_OBSTACLE_HEIGHT : AIR_OBSTACLE_TOP
-    const height = ob.type === 'ground' ? GROUND_OBSTACLE_HEIGHT : AIR_OBSTACLE_HEIGHT
-    return `left: ${ob.x}px; top: ${top}px; width: ${ob.width}px; height: ${height}px;`
+    const top = ob.type === 'ground' ? GROUND_Y - ob.height : AIR_OBSTACLE_TOP
+    return `left: ${ob.x}px; top: ${top}px; width: ${ob.width}px; height: ${ob.height}px;`
   }
 }
 
@@ -401,7 +409,9 @@ const onRunnerKeydown = (event: KeyboardEvent) => {
   if (state.status !== 'playing') return
   const key = event.key.toLowerCase()
   if (key === 'arrowup' || key === 'w' || key === ' ') {
-    engine.jump()
+    // event.repeat：按住不放時瀏覽器會持續重複觸發 keydown，只在真正第一次按下才跳，
+    // 避免落地瞬間鍵還按著就立刻又觸發下一次跳躍（連跳）
+    if (!event.repeat) engine.jump()
     event.preventDefault()
   }
   if (key === 'arrowdown' || key === 's') {
