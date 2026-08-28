@@ -6,8 +6,8 @@ export default class RetroRunnerClass extends RETRO_GAME_BASE {
       key: 'runner',
       name: '跑酷',
       // 分數公式調降為原本的 1/3（app/pages/game/runner.vue 的 distance 除數 10→30），
-      // coinRate 同步調高為 3 倍，維持「同樣存活時間賺到同樣 coin」的節奏不變
-      coinRate: 1.5,
+      // coinRate 刻意維持不變——同樣存活時間賺到的 coin 會跟著變少，是拍板的結果，不是遺漏
+      coinRate: 0.5,
       coinCapPerRun: 300,
       coinDailyCap: 100000
     })
