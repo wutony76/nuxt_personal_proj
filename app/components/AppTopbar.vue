@@ -28,7 +28,7 @@ const handleLogout = async () => {
         <NuxtLink v-if="isLoggedIn" to="/lottery-hall" class="rounded-md px-2 py-1 text-slate-900 hover:bg-indigo-50">
           彩票
         </NuxtLink>
-        <NuxtLink v-if="isLoggedIn" to="/taiwan-lottery-hall"
+        <NuxtLink v-if="isLoggedIn" to="/lottery-hall-taiwan"
           class="rounded-md px-2 py-1 text-slate-900 hover:bg-indigo-50">
           台彩
         </NuxtLink>

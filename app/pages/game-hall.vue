@@ -36,7 +36,7 @@ useHead({
 const TABS: Array<{ key: HallTab; label: string }> = [
   { key: 'lobby', label: '經典遊戲' },
   { key: 'lottery', label: 'BG彩票' },
-  // { key: 'taiwan', label: '台彩大廳' },
+  { key: 'taiwan', label: '台彩柑仔店' },
 ]
 
 const activeTab = ref<HallTab>('lobby')
@@ -168,8 +168,8 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-else class="link-panel">
-          <p>台彩資訊與玩法說明請進入專頁查看。</p>
-          <NuxtLink to="/taiwan-lottery-hall" class="btn btn-primary">前往台彩大廳</NuxtLink>
+          <p>台彩開獎與中獎明細請進入台彩柑仔店查看。</p>
+          <NuxtLink to="/lottery-hall-taiwan" class="btn btn-primary">前往台彩柑仔店</NuxtLink>
         </div>
       </section>
 

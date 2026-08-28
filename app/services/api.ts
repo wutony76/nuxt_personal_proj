@@ -653,6 +653,24 @@ export type TaiwanLotteryResult = {
   en: string
   period?: string
   lotNumber: Array<string | number>
+  /** 賓果賓果（gameCode 1102）專屬欄位，其餘遊戲沒有 */
+  lotSpecial?: string
+  lotBigSmall?: string
+  lotOddEven?: string
+}
+
+export type TaiwanLotteryPrizeTier = {
+  label: string
+  winnerCount: number
+  perPrize: number
+  multiple?: string
+  bonus?: string
+}
+
+export type TaiwanLotteryPrizeResponse = {
+  gameCode: number
+  period: string
+  tiers: TaiwanLotteryPrizeTier[]
 }
 
 export type LotteryBetPayload = {
@@ -996,7 +1014,9 @@ export const api = {
   },
   taiwanLottery: {
     lastNumber: () =>
-      $fetch<{ updatedAt: string; results: TaiwanLotteryResult[] }>('/api/taiwan-lottery/last-number')
+      $fetch<{ updatedAt: string; results: TaiwanLotteryResult[] }>('/api/taiwan-lottery/last-number'),
+    prize: (gameCode: number, period: string) =>
+      $fetch<TaiwanLotteryPrizeResponse>('/api/taiwan-lottery/prize', { query: { gameCode, period } })
   },
   games: {
     retro: {

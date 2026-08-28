@@ -1,0 +1,146 @@
+/**
+ * 「台彩柑仔店」主題（台彩大廳系列頁面專用）
+ *
+ * 色票／字體變數沿用 SAMPLE/Can you see this_/柑仔店彩票大廳.dc.html 的 organic 設計系統
+ * （同目錄 _ds/organic-.../styles.css），變數命名直接照抄方便對照設計稿，
+ * scoped 在 .theme-taiwan-lottery 底下，不寫進全域 :root，避免跟其他頁面搶命名空間
+ * （比照專案「管理後台樣式包在 .theme-admin {} scope 內」的既有慣例）。
+ */
+.theme-taiwan-lottery {
+  --color-bg: #f5ead8;
+  --color-surface: #ebddc5;
+  --color-text: #201e1d;
+  --color-divider: rgba(32, 30, 29, 0.16);
+
+  --color-neutral-100: #f9f4ed;
+  --color-neutral-200: #eee7db;
+  --color-neutral-300: #dcd3c4;
+  --color-neutral-400: #c0b6a5;
+  --color-neutral-600: #82796a;
+  --color-neutral-700: #645c50;
+  --color-neutral-800: #474238;
+  --color-neutral-900: #2e2b25;
+
+  --color-accent-100: #fff2eb;
+  --color-accent-200: #ffe1d0;
+  --color-accent-300: #ffc6a5;
+  --color-accent-400: #f6a06b;
+  --color-accent-500: #d67f48;
+  --color-accent-600: #b2622d;
+  --color-accent-700: #8c491a;
+  --color-accent-800: #643312;
+  --color-accent-900: #402310;
+
+  --color-accent-2-100: #f0fae1;
+  --color-accent-2-200: #e1eecc;
+  --color-accent-2-300: #ccdbb2;
+  --color-accent-2-400: #aebf92;
+  --color-accent-2-700: #56633f;
+  --color-accent-2-800: #3d472b;
+
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 28px;
+
+  --shadow-sm: 0 1px 2px rgba(46, 43, 37, 0.14);
+  --shadow-md: 0 3px 10px rgba(46, 43, 37, 0.16);
+  --shadow-lg: 0 12px 32px rgba(46, 43, 37, 0.22);
+
+  --font-heading: 'Caprasimo', 'Noto Serif TC', serif;
+  --font-body: 'Figtree', 'Noto Sans TC', sans-serif;
+
+  min-height: 100vh;
+  background: var(--color-bg);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(32, 30, 29, 0.022) 0 2px, transparent 2px 5px),
+    repeating-linear-gradient(90deg, rgba(32, 30, 29, 0.018) 0 3px, transparent 3px 7px);
+  color: var(--color-text);
+  font-family: var(--font-body);
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: 900;
+    letter-spacing: 0.01em;
+  }
+
+  .tw-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    border-radius: 999px;
+    font-family: var(--font-heading);
+    font-weight: 900;
+    font-size: 15px;
+    padding: 11px 24px;
+    border: 1px solid transparent;
+    transition: background-color 0.15s ease;
+
+    &.tw-btn-primary {
+      background: var(--color-accent-500);
+      color: var(--color-bg);
+
+      &:hover { background: var(--color-accent-600); }
+      &:active { background: var(--color-accent-700); }
+      &:disabled { opacity: 0.5; cursor: not-allowed; }
+    }
+
+    &.tw-btn-secondary {
+      background: transparent;
+      border-color: var(--color-accent-400);
+      color: var(--color-accent-800);
+
+      &:hover { background: color-mix(in srgb, var(--color-accent-500) 12%, transparent); }
+    }
+  }
+
+  .tw-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: var(--color-accent-2-200);
+    color: var(--color-accent-2-800);
+  }
+
+  .tw-corrugated {
+    height: 14px;
+    background: var(--color-accent-700);
+    background-image: radial-gradient(circle at 8px 14px, var(--color-bg) 6px, transparent 6.5px);
+    background-size: 16px 16px;
+  }
+}
+
+/**
+ * 「台彩柑仔店」全域自訂捲軸類別，比照 base.scss 現有 .lottery-scrollbar（BG 彩票紅色系）
+ * 的結構，換成柑仔店赭橙色系；需要捲動的容器（大廳頁面、TaiwanLotteryPrizeDialog）掛上即可。
+ */
+.taiwan-lottery-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #8c491a #eee7db;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #eee7db;
+    border-radius: 999px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #b2622d;
+    border-radius: 999px;
+    border: 2px solid #eee7db;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #8c491a;
+  }
+}
