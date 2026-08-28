@@ -759,7 +759,7 @@ export type LotteryOpenCodeHistoryResponse = {
 }
 
 // ── 遊戲中心 · 遊戲紀錄（game-hall 小遊戲，非彩票）──
-export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic'
+export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong'
 
 export type GameHistoryRecord = {
   id: string
@@ -1024,6 +1024,11 @@ export const api = {
       recordMatch3Classic: (payload: GameHistoryRecordPayload) =>
         $fetch<GameHistorySettleResponse>('/api/games/retro/match3classic/history', { method: 'POST', body: payload }),
       clearMatch3Classic: () => $fetch<{ ok: boolean }>('/api/games/retro/match3classic/history', { method: 'DELETE' }),
+
+      historyPong: () => $fetch<GameHistoryListResponse>('/api/games/retro/pong/history'),
+      recordPong: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/pong/history', { method: 'POST', body: payload }),
+      clearPong: () => $fetch<{ ok: boolean }>('/api/games/retro/pong/history', { method: 'DELETE' }),
 
       /** 公開端點，訪客不登入也能查詢——見 server/middleware/auth.ts 的 PUBLIC_GAME_PATHS */
       rates: () => $fetch<RetroGameRatesResponse>('/api/games/retro/rates')

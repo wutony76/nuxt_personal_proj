@@ -48,7 +48,7 @@ const gameSlots = ref<GameSlot[]>([
   { id: 3, name: 'TETRIMINOS', description: '經典俄羅斯方塊，支援旋轉與消行', status: 'open', path: '/game/tetriminos' },
   { id: 4, name: 'MATCH3 RUSH', description: '限時消除寶石，考驗手速與爆發力', status: 'open', path: '/game/match3-rush' },
   { id: 5, name: 'MATCH3 CLASSIC', description: '限步數消除寶石，考驗策略與規劃', status: 'open', path: '/game/match3-classic' },
-  { id: 6, name: '遊戲 06', description: '預留遊戲位置', status: 'coming' },
+  { id: 6, name: 'PONG', description: '經典乒乓球，對戰 CPU，開局可選局數', status: 'open', path: '/game/pong' },
   { id: 7, name: '遊戲 07', description: '預留遊戲位置', status: 'coming' },
   { id: 8, name: '遊戲 08', description: '預留遊戲位置', status: 'coming' },
   { id: 9, name: '遊戲 09', description: '預留遊戲位置', status: 'coming' },

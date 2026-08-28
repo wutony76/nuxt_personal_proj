@@ -15,11 +15,13 @@ const props = withDefaults(
     description: string
     scoreRule: string
     levels: LevelRow[]
+    /** 「等級對照」區塊的標題文字，預設沿用既有措辭；PONG 沒有難度等級，改用「局數選項」等自訂標題 */
+    levelsTitle?: string
     note?: string
     /** 該遊戲頁面自己的主題色（例如 snake 綠、match3-rush 橘），讓 dialog 的邊框/發光跟當前遊戲一致 */
     accentColor?: string
   }>(),
-  { accentColor: '#00e5ff' }
+  { accentColor: '#00e5ff', levelsTitle: '等級對照' }
 )
 const emit = defineEmits<{ close: [] }>()
 
@@ -45,7 +47,7 @@ const click = {
         <div class="grud-section-title">計分方式</div>
         <p class="grud-desc">{{ scoreRule }}</p>
 
-        <div class="grud-section-title">等級對照</div>
+        <div class="grud-section-title">{{ levelsTitle }}</div>
         <div class="grud-levels">
           <div v-for="row in levels" :key="row.level" class="grud-level-row">
             <span class="lv">{{ typeof row.level === 'number' ? `Lv.${row.level}` : row.level }}</span>
