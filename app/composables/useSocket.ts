@@ -66,8 +66,10 @@ const _actions = {
     })
     socket.addEventListener('message', _handlers.handleMessage)
     socket.addEventListener('close', () => {
+      // 這條連線已經被 reconnect() 取代（不是目前追蹤的 ws），代表是主動關閉，不是意外斷線，不用處理
+      if (ws !== socket) return
       state.connected = false
-      if (ws === socket) ws = null
+      ws = null
       _handlers.scheduleReconnect()
     })
     socket.addEventListener('error', () => {
@@ -84,6 +86,28 @@ const _actions = {
   },
   off: (type: string, handler: SocketHandler) => {
     handlers.get(type)?.delete(handler)
+  },
+  /**
+   * 強制斷線重連：WebSocket 的身分是握手當下的 cookie 決定的，連線活著就不會自動更新。
+   * 登入成功後如果不重連，舊連線會一直被當成訪客（伺服端每次送出都重查也沒用，
+   * 因為查的是同一個已經凍結的 HTTP request，不是當下瀏覽器的 cookie）。
+   */
+  reconnect: () => {
+    reconnectAttempts = 0
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer)
+      reconnectTimer = null
+    }
+    if (ws) {
+      const stale = ws
+      ws = null
+      try {
+        stale.close()
+      } catch {
+        // 忽略，反正要丟棄這條連線
+      }
+    }
+    _actions.connect()
   }
 }
 

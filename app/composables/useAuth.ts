@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { type AuthUser } from '~/services/api'
 import { AuthService } from '~/services/authService'
+import { useSocket } from './useSocket'
 
 const state = reactive({
   user: null as AuthUser | null,
@@ -34,6 +35,8 @@ export const useAuth = () => {
     try {
       const result = await authService.submitLogin({ email, password })
       state.user = result.user
+      // WebSocket 身分是握手當下的 cookie 決定的，登入前就連上的連線不會自動變成已登入，見 useSocket.ts reconnect() 註解
+      useSocket().actions.reconnect()
       return { ok: true, message: '' }
     } catch (error: unknown) {
       const fallbackMessage = '登入失敗，請稍後再試。'
