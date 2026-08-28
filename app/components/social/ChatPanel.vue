@@ -163,11 +163,10 @@ const click = {
     padding: 5px 8px;
     border: 1px solid #dcb4b4;
     border-radius: 4px;
-    background: #fff;
+    color: #3a2a2a;
     font-size: 12px;
 
     &:disabled {
-      background: #f0eaea;
       cursor: not-allowed;
     }
   }
