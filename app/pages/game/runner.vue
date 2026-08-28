@@ -18,6 +18,8 @@ const STANDING_HEIGHT = 46
 const DUCK_HEIGHT = 22
 const GROUND_OBSTACLE_HEIGHT = 20
 const GROUND_OBSTACLE_WIDTH = 18
+/** 使用者要求：LV2 之前（即 Lv1 期間）地面障礙寬度改為目前的一半，降低新手階段的難度 */
+const GROUND_OBSTACLE_WIDTH_LV1 = GROUND_OBSTACLE_WIDTH / 2
 const AIR_OBSTACLE_TOP = 155
 const AIR_OBSTACLE_HEIGHT = 20
 const AIR_OBSTACLE_WIDTH = 26
@@ -62,7 +64,8 @@ class RunnerEngine {
   private obstacles: Obstacle[] = []
   private nextObstacleId = 1
   private ticksUntilSpawn = BASE_SPAWN_TICKS
-  private distance = 0
+  private scoreCounter = 0
+  private score = 0
   private level = 1
 
   reset() {
@@ -71,7 +74,8 @@ class RunnerEngine {
     this.duckHeld = false
     this.obstacles = []
     this.ticksUntilSpawn = BASE_SPAWN_TICKS
-    this.distance = 0
+    this.scoreCounter = 0
+    this.score = 0
     this.level = 1
   }
 
@@ -81,6 +85,16 @@ class RunnerEngine {
 
   private get spawnTicks() {
     return Math.max(MIN_SPAWN_TICKS, BASE_SPAWN_TICKS - (this.level - 1) * SPAWN_TICKS_PER_LEVEL)
+  }
+
+  /**
+   * 分數累加速率比照 racing.ts 既有做法（score 每隔固定 tick 數 +1，且隨等級/速度加快而縮短間隔）：
+   * racing 從「每 5 tick、tick 間隔 500ms」加速到「每 5 tick、tick 間隔 170ms」，換算成真實秒數約
+   * 2.5 秒/分 加速到 0.85 秒/分；這裡固定 16ms 一個 tick，改用「每幾個 tick +1 分」隨等級遞減來對應
+   * 同樣的真實時間節奏（Lv1≈156 tick≈2.5 秒/分，Lv5≈52 tick≈0.85 秒/分）。
+   */
+  private get ticksPerPoint() {
+    return Math.max(53, 156 - (this.level - 1) * 26)
   }
 
   /** 跳躍高度隨 tick 走一個對稱的拋物線（上升到 JUMP_DURATION_TICKS/2 後下降），純粹視覺＋碰撞判定用 */
@@ -135,9 +149,15 @@ class RunnerEngine {
     return player.top < target.bottom && target.top < player.bottom
   }
 
+  /** LV2 起地面障礙寬度隨機出現窄／寬兩種（各半機率），LV1 期間固定窄版，見 design.md 相關調整 */
+  private groundObstacleWidth(): number {
+    if (this.level < 2) return GROUND_OBSTACLE_WIDTH_LV1
+    return Math.random() < 0.5 ? GROUND_OBSTACLE_WIDTH_LV1 : GROUND_OBSTACLE_WIDTH
+  }
+
   private spawnObstacle() {
     const isAir = Math.random() < Math.min(0.6, AIR_OBSTACLE_CHANCE_BASE + (this.level - 1) * AIR_OBSTACLE_CHANCE_PER_LEVEL)
-    const width = isAir ? AIR_OBSTACLE_WIDTH : GROUND_OBSTACLE_WIDTH
+    const width = isAir ? AIR_OBSTACLE_WIDTH : this.groundObstacleWidth()
     this.obstacles.push({ id: this.nextObstacleId++, type: isAir ? 'air' : 'ground', x: STAGE_WIDTH, width })
   }
 
@@ -165,21 +185,18 @@ class RunnerEngine {
       this.ticksUntilSpawn = this.spawnTicks
     }
 
-    // 距離／分數與等級
-    this.distance += speed
+    // 分數（比照 racing.ts：每隔固定 tick 數 +1，見 ticksPerPoint）與等級
+    this.scoreCounter += 1
+    if (this.scoreCounter >= this.ticksPerPoint) {
+      this.scoreCounter = 0
+      this.score += 1
+    }
     this.level = calcRunnerLevel(this.score)
 
     // 碰撞判定
     const hit = this.obstacles.some((ob) => this.overlapsX(ob) && this.overlapsY(ob))
 
     return { gameOver: hit }
-  }
-
-  // 分數量級調降為原本的 1/3（distance 除數 10→30），等級門檻與 server 端 coinRate/maxReasonableScore
-  // 同步等比例調整（見 server/services/game/retro/runner.ts），維持同樣的升級節奏與 coin 賺取速度不變，
-  // 只是畫面上的分數數字漲得更慢——比照 match3-games design.md Decision 8 同一類調整手法
-  get score(): number {
-    return Math.floor(this.distance / 30)
   }
 
   getSnapshot() {
