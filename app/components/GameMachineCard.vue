@@ -22,6 +22,7 @@ const cuteIcon = computed(() => {
   if (name.includes('PONG')) return '🏓'
   if (name.includes('RUNNER')) return '🏃'
   if (name.includes('SPACE SHOOTER')) return '🚀'
+  if (name.includes('MINESWEEPER')) return '💣'
   return '🎮'
 })
 </script>

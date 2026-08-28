@@ -28,6 +28,7 @@ import RetroRacingClass from './game/retro/racing'
 import RetroTetriminosClass from './game/retro/tetriminos'
 import RetroMatch3RushClass from './game/retro/match3rush'
 import RetroMatch3ClassicClass from './game/retro/match3classic'
+import RetroMinesweeperClass from './game/retro/minesweeper'
 import RetroPongClass from './game/retro/pong'
 import RetroRunnerClass from './game/retro/runner'
 import RetroSpaceShooterClass from './game/retro/spaceShooter'
@@ -170,6 +171,7 @@ export class Storage {
       new RetroPongClass()
       new RetroRunnerClass()
       new RetroSpaceShooterClass()
+      new RetroMinesweeperClass()
       console.log('SUCCESS ---BASE>retroGames.init')
     }
   }
