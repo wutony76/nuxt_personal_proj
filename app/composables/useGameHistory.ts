@@ -67,11 +67,14 @@ const _handlers = {
     if (gameKey === 'pong') {
       return { history: api.games.retro.historyPong, record: api.games.retro.recordPong, clear: api.games.retro.clearPong }
     }
-    return { history: api.games.retro.historyRunner, record: api.games.retro.recordRunner, clear: api.games.retro.clearRunner }
+    if (gameKey === 'runner') {
+      return { history: api.games.retro.historyRunner, record: api.games.retro.recordRunner, clear: api.games.retro.clearRunner }
+    }
+    return { history: api.games.retro.historySpaceShooter, record: api.games.retro.recordSpaceShooter, clear: api.games.retro.clearSpaceShooter }
   }
 }
 
-const GAME_KEYS: RetroGameKey[] = ['snake', 'racing', 'tetriminos', 'match3rush', 'match3classic', 'pong', 'runner']
+const GAME_KEYS: RetroGameKey[] = ['snake', 'racing', 'tetriminos', 'match3rush', 'match3classic', 'pong', 'runner', 'spaceShooter']
 
 export const useGameHistory = () => {
   const { isLoggedIn, init: initAuth, user } = useAuth()

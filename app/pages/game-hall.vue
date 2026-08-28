@@ -50,7 +50,7 @@ const gameSlots = ref<GameSlot[]>([
   { id: 5, name: 'MATCH3 CLASSIC', description: '限步數消除寶石，考驗策略與規劃', status: 'open', path: '/game/match3-classic' },
   { id: 6, name: 'PONG', description: '經典乒乓球，馬上PK', status: 'open', path: '/game/pong' },
   { id: 7, name: 'RUNNER', description: '側視角自動捲軸跑酷，跳躍下蹲閃避障礙', status: 'open', path: '/game/runner' },
-  { id: 8, name: '遊戲 08', description: '預留遊戲位置', status: 'coming' },
+  { id: 8, name: 'SPACE SHOOTER', description: '俯視角太空射擊，擊落敵機、閃避彈幕', status: 'open', path: '/game/space-shooter' },
   { id: 9, name: '遊戲 09', description: '預留遊戲位置', status: 'coming' },
 ])
 
