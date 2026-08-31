@@ -777,7 +777,7 @@ export type LotteryOpenCodeHistoryResponse = {
 }
 
 // ── 遊戲中心 · 遊戲紀錄（game-hall 小遊戲，非彩票）──
-export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman'
+export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman' | 'spaceInvaders'
 
 export type GameHistoryRecord = {
   id: string
@@ -1069,6 +1069,11 @@ export const api = {
       recordPacMan: (payload: GameHistoryRecordPayload) =>
         $fetch<GameHistorySettleResponse>('/api/games/retro/pac-man/history', { method: 'POST', body: payload }),
       clearPacMan: () => $fetch<{ ok: boolean }>('/api/games/retro/pac-man/history', { method: 'DELETE' }),
+
+      historySpaceInvaders: () => $fetch<GameHistoryListResponse>('/api/games/retro/space-invaders/history'),
+      recordSpaceInvaders: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/space-invaders/history', { method: 'POST', body: payload }),
+      clearSpaceInvaders: () => $fetch<{ ok: boolean }>('/api/games/retro/space-invaders/history', { method: 'DELETE' }),
 
       /** 公開端點，訪客不登入也能查詢——見 server/middleware/auth.ts 的 PUBLIC_GAME_PATHS */
       rates: () => $fetch<RetroGameRatesResponse>('/api/games/retro/rates')

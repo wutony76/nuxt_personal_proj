@@ -53,6 +53,7 @@ const gameSlots = ref<GameSlot[]>([
   { id: 8, name: 'SPACE SHOOTER', description: '俯視角太空射擊，擊落敵機、閃避彈幕', status: 'open', path: '/game/space-shooter' },
   { id: 9, name: 'MINESWEEPER', description: '經典踩地雷，動動腦袋吧！', status: 'open', path: '/game/minesweeper' },
   { id: 10, name: 'PAC-MAN', description: '經典小精靈迷宮吃豆，閃避四隻鬼魂', status: 'open', path: '/game/pac-man' },
+  { id: 11, name: 'SPACE INVADERS', description: '傳統太空侵略者，整排外星艦隊步步進逼', status: 'open', path: '/game/space-invaders' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)

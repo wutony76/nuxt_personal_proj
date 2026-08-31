@@ -24,6 +24,7 @@ const cuteIcon = computed(() => {
   if (name.includes('SPACE SHOOTER')) return '🚀'
   if (name.includes('MINESWEEPER')) return '💣'
   if (name.includes('PAC-MAN')) return '👻'
+  if (name.includes('SPACE INVADERS')) return '👾'
   return '🎮'
 })
 </script>
