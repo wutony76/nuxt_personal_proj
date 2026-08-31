@@ -26,6 +26,7 @@ const byKey = (key: string) => GAME_SPRITES.find((s) => s.key === key)!
 type BasePlacement = Omit<Placement, 'icon' | 'anim' | 'glow'>
 
 const BASE_PLACEMENTS: BasePlacement[] = [
+  { key: 'solitaire', side: 'right', offset: '3vw', top: '6vh', size: 28, duration: '3.6s', delay: '0.7s' },
   { key: 'snake', side: 'left', offset: '2vw', top: '14vh', size: 30, duration: '9s', delay: '0s' },
   { key: 'spaceInvaders', side: 'right', offset: '3vw', top: '20vh', size: 28, duration: '5.5s', delay: '0.4s' },
   { key: 'tetriminos', side: 'left', offset: '4vw', top: '36vh', size: 26, duration: '6.5s', delay: '0.8s' },
@@ -113,6 +114,11 @@ const PLACEMENTS: Placement[] = BASE_PLACEMENTS.map((p) => ({ ...p, icon: byKey(
 
 .anim-fly {
   animation-name: sprite-fly;
+  animation-timing-function: ease-in-out;
+}
+
+.anim-flip {
+  animation-name: sprite-flip;
   animation-timing-function: ease-in-out;
 }
 
@@ -261,6 +267,23 @@ const PLACEMENTS: Placement[] = BASE_PLACEMENTS.map((p) => ({ ...p, icon: byKey(
 
   100% {
     transform: translate(0, 0);
+  }
+}
+
+@keyframes sprite-flip {
+
+  0%,
+  40% {
+    transform: rotateY(0deg) scale(1);
+  }
+
+  50% {
+    transform: rotateY(90deg) scale(0.85);
+  }
+
+  60%,
+  100% {
+    transform: rotateY(0deg) scale(1);
   }
 }
 </style>

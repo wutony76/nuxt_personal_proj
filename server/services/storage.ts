@@ -34,6 +34,7 @@ import RetroRunnerClass from './game/retro/runner'
 import RetroSpaceShooterClass from './game/retro/spaceShooter'
 import RetroPacManClass from './game/retro/pacMan'
 import RetroSpaceInvadersClass from './game/retro/spaceInvaders'
+import RetroSolitaireClass from './game/retro/solitaire'
 import { LOTTERY } from '~/config/constants'
 
 export const verifyPasswordHash = (password: string, storedHash: string): boolean => {
@@ -176,6 +177,7 @@ export class Storage {
       new RetroMinesweeperClass()
       new RetroPacManClass()
       new RetroSpaceInvadersClass()
+      new RetroSolitaireClass()
       console.log('SUCCESS ---BASE>retroGames.init')
     }
   }

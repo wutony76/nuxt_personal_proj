@@ -1,4 +1,4 @@
-export type GameSpriteAnim = 'crawl' | 'fall' | 'bounce' | 'march' | 'drift' | 'blink' | 'sparkle' | 'hop' | 'fly'
+export type GameSpriteAnim = 'crawl' | 'fall' | 'bounce' | 'march' | 'drift' | 'blink' | 'sparkle' | 'hop' | 'fly' | 'flip'
 
 export type GameSpriteDef = {
   key: string
@@ -25,7 +25,8 @@ export const GAME_SPRITES: GameSpriteDef[] = [
   { key: 'spaceShooter', match: (n) => n.includes('SPACE SHOOTER'), icon: '🚀', anim: 'fly', glow: '#4d7fff' },
   { key: 'minesweeper', match: (n) => n.includes('MINESWEEPER'), icon: '💣', anim: 'blink', glow: '#39d98a' },
   { key: 'pacman', match: (n) => n.includes('PAC-MAN'), icon: '👻', anim: 'drift', glow: '#ffd83b' },
-  { key: 'spaceInvaders', match: (n) => n.includes('SPACE INVADERS'), icon: '👾', anim: 'march', glow: '#ff3b3b' }
+  { key: 'spaceInvaders', match: (n) => n.includes('SPACE INVADERS'), icon: '👾', anim: 'march', glow: '#ff3b3b' },
+  { key: 'solitaire', match: (n) => n.includes('SOLITAIRE'), icon: '🃏', anim: 'flip', glow: '#2ecc71' }
 ]
 
 const DEFAULT_SPRITE: GameSpriteDef = { key: 'default', match: () => true, icon: '🎮', anim: 'drift', glow: '#00e5ff' }
