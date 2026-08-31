@@ -883,7 +883,9 @@ onBeforeUnmount(() => {
             <div class="pm-maze" :style="mazeStyle">
               <div v-for="cell in flatMazeCells" :key="`${cell.x}-${cell.y}`" class="pm-cell" :class="`is-${cell.type}`" />
             </div>
-            <div class="pm-pac" :class="`face-${state.pacDir}`" :style="_handlers.spriteStyle(state.pac)" />
+            <div class="pm-pac" :style="_handlers.spriteStyle(state.pac)">
+              <div class="pm-pac-mouth" :class="`face-${state.pacDir}`" />
+            </div>
             <div v-for="g in state.ghosts" :key="g.id" class="pm-ghost" :class="_handlers.ghostClass(g)"
               :style="{ ..._handlers.spriteStyle({ x: g.x, y: g.y }), '--ghost-color': g.color }" />
             <div v-if="state.levelToastVisible" class="pm-level-toast">{{ state.levelToast }}</div>
@@ -1207,14 +1209,43 @@ onBeforeUnmount(() => {
     transition: transform 0.08s linear;
   }
 
+  /*
+   * 之前直接在 .pm-pac 本體上用「circle 疊 clip-path 挖嘴巴」的多邊形，結果實測發現：
+   * 同一份 clip-path 多邊形套用在「小尺寸（16px）+ 有 translate transform」的元素上，
+   * 挖出來的嘴巴方向會整個反過來，但同一份多邊形套在大尺寸或沒有 translate 的元素上
+   * 卻是正確的（懷疑是這個瀏覽器版本在小尺寸+transform 疊加時，clip-path 百分比座標的
+   * 呈現有問題，沒有再深究根本原因）。為了不繼續踩這個不穩定的組合，改成更單純可靠的做法：
+   * .pm-pac 本體維持一顆單純的圓形（不再對本體本身套用 clip-path），嘴巴改成內層獨立的
+   * .pm-pac-mouth 疊圖，用純三角形 clip-path（不跟 border-radius 疊加）、背景色比照迷宮
+   * 底色（蓋住黃色圓形製造「缺一角」的錯覺），並靠父層 overflow:hidden＋border-radius
+   * 把三角形裁成跟圓形本體切齊——整套改動後已重新用 Playwright 截圖驗證四個方向皆正確。
+   */
   .pm-pac {
+    /* position:absolute 已由上面 .pm-pac, .pm-ghost 共用規則設定，這裡沿用即可，
+       它同時也讓 .pm-pac 成為 .pm-pac-mouth（position:absolute;inset:0）的定位基準，
+       不需要再另外宣告 position，避免跟共用規則衝突覆蓋掉 top/left 的預期效果 */
+    overflow: hidden;
     border-radius: 50%;
     background: #ffd400;
     box-shadow: 0 0 8px rgba(255, 212, 0, 0.7);
-    animation: pac-chomp 0.3s steps(2) infinite;
+  }
+
+  .pm-pac-mouth {
+    position: absolute;
+    inset: 0;
+    background: #0a0505;
+    animation: pac-chomp-right 0.3s steps(2) infinite;
+
+    &.face-left {
+      animation-name: pac-chomp-left;
+    }
 
     &.face-up {
-      transform-origin: center;
+      animation-name: pac-chomp-up;
+    }
+
+    &.face-down {
+      animation-name: pac-chomp-down;
     }
   }
 
@@ -1365,17 +1396,58 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes pac-chomp {
-  0% {
-    clip-path: polygon(50% 50%, 100% 20%, 100% 80%);
+/*
+ * 嘴巴開合：.pm-pac-mouth 是背景色比照迷宮底色的疊圖，clip-path 只需描出一個單純的
+ * 三角形（不再跟 border-radius 疊加，見上面 .pm-pac-mouth 的說明），三角形頂著要面向的
+ * 那一側邊界、頂點指向中心；0%／100% 是嘴巴全開（三角形最寬），50% 收回成幾乎重疊的一點
+ * （嘴巴全閉，疊圖幾乎消失，看起來就是完整圓形）。四個方向各自獨立一份，皆已重新用
+ * Playwright 截圖驗證方向正確。
+ */
+@keyframes pac-chomp-right {
+
+  0%,
+  100% {
+    clip-path: polygon(100% 21%, 100% 79%, 44% 50%);
   }
 
   50% {
-    clip-path: polygon(50% 50%, 100% 45%, 100% 55%);
+    clip-path: polygon(100% 50%, 100% 50%, 44% 50%);
+  }
+}
+
+@keyframes pac-chomp-left {
+
+  0%,
+  100% {
+    clip-path: polygon(0 21%, 0 79%, 56% 50%);
   }
 
+  50% {
+    clip-path: polygon(0 50%, 0 50%, 56% 50%);
+  }
+}
+
+@keyframes pac-chomp-up {
+
+  0%,
   100% {
-    clip-path: polygon(50% 50%, 100% 20%, 100% 80%);
+    clip-path: polygon(21% 0, 79% 0, 50% 56%);
+  }
+
+  50% {
+    clip-path: polygon(50% 0, 50% 0, 50% 56%);
+  }
+}
+
+@keyframes pac-chomp-down {
+
+  0%,
+  100% {
+    clip-path: polygon(21% 100%, 79% 100%, 50% 44%);
+  }
+
+  50% {
+    clip-path: polygon(50% 100%, 50% 100%, 50% 44%);
   }
 }
 
