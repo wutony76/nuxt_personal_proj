@@ -291,21 +291,30 @@ class PacManEngine {
     return 'high'
   }
 
+  /**
+   * 使用者明確要求「速度可以再慢點，過關後再慢慢提升」：第 1 關起始間隔從 180ms
+   * 放慢到 240ms，每過一關只縮短 10ms（原本 8ms/關但基期更快，體感更陡），
+   * 下限也從 90ms 放寬到 120ms，整體節奏更慢、也更平緩地隨關卡數提升。
+   */
   getTickSpeed(): number {
-    return Math.max(90, 180 - (this.level - 1) * 8)
+    return Math.max(120, 240 - (this.level - 1) * 10)
   }
 
   /**
-   * 按下方向鍵時，如果 Pac-Man 目前所在格子就能直接往新方向走（已經站在路口），
-   * 立刻套用轉彎；回傳 true 讓呼叫端（頁面層）知道這是一次「當下就生效」的轉彎，
-   * 可以把原本排定的下一個 tick 提前觸發（見頁面層 click.dir），畫面才會立刻反映
-   * 轉彎，不用等到原本那個 tick 的剩餘時間跑完、還多衝一格才轉。
-   * 若目前位置還不能轉（尚未走到路口），就維持原本的緩衝機制，等 movePac()
-   * 每個 tick 檢查一次，走到路口時自動轉彎；只是把「下一步」提前對齊到輸入的當下，
-   * 不是額外多走一步，長期平均的移動速度／tick 間隔完全不變。
+   * 按下方向鍵時，如果這是「真的轉彎」（新方向跟目前朝向不同）且 Pac-Man 目前所在
+   * 格子就能直接往新方向走（已經站在路口），立刻套用轉彎；回傳 true 讓呼叫端（頁面層）
+   * 知道這是一次「當下就生效」的轉彎，可以把原本排定的下一個 tick 提前觸發（見頁面層
+   * click.dir），畫面才會立刻反映轉彎，不用等到原本那個 tick 的剩餘時間跑完。
+   * 若目前位置還不能轉（尚未走到路口），就維持原本的緩衝機制，等 movePac() 每個
+   * tick 檢查一次；只是把「下一步」提前對齊到輸入的當下，不是額外多走一步。
+   * 刻意排除「新方向跟目前朝向相同」的情況：長按方向鍵時瀏覽器會用很高的頻率
+   * 重複觸發 keydown，若每次都當成「有效轉彎」去搶拍，會變成每次按鍵重複都提前
+   * 觸發一步，疊加起來遠比正常 tick 頻繁，玩家會感覺「長按會爆衝」；排除同方向後，
+   * 只有真正改變方向的那一次才會搶拍，長按同一方向時完全比照原本的 tick 節奏前進。
    */
   setDirection(dir: Dir): boolean {
     this.pacNextDir = dir
+    if (dir === this.pacDir) return false
     const attempt = this.tryMoveFrom(this.pac, dir)
     if (attempt) {
       this.pacDir = dir
@@ -449,6 +458,7 @@ class PacManEngine {
 
   step(): StepResult {
     this.tickCount += 1
+    const prevPac: Pos = { ...this.pac }
     const pacResult = this.movePac()
     const tier = this.aiTier()
 
@@ -473,15 +483,26 @@ class PacManEngine {
     }
 
     const ghostMoveEveryTicks = tier === 'simple' ? 2 : 1
+    const prevGhostPos = new Map<number, Pos>()
     if (this.tickCount % ghostMoveEveryTicks === 0) {
-      this.ghosts.forEach((g) => this.moveGhost(g))
+      this.ghosts.forEach((g) => {
+        prevGhostPos.set(g.id, { x: g.x, y: g.y })
+        this.moveGhost(g)
+      })
     }
 
     let hitGhost = false
     let ateGhostBonus = 0
     const chainScores = [200, 400, 800, 1600]
     this.ghosts.forEach((g) => {
-      if (g.x !== this.pac.x || g.y !== this.pac.y) return
+      const samePos = g.x === this.pac.x && g.y === this.pac.y
+      // 交錯穿越：Pac-Man 與鬼魂這個 tick 剛好對向移動、互換了格子，兩者從未真正同格，
+      // 只比對「移動後的最終位置」會完全偵測不到——這正是「轉彎時看起來擦身而過、
+      // 卻沒有判定被抓到」的成因，額外檢查「這隻鬼的舊位置＝Pac-Man 的新位置，且
+      // Pac-Man 的舊位置＝這隻鬼的新位置」，補上這種穿越情境的碰撞判定。
+      const prevG = prevGhostPos.get(g.id)
+      const swapped = !!prevG && prevG.x === this.pac.x && prevG.y === this.pac.y && g.x === prevPac.x && g.y === prevPac.y
+      if (!samePos && !swapped) return
       if (g.mode === 'frightened') {
         const bonus = chainScores[Math.min(this.eatChainIndex, chainScores.length - 1)]!
         this.score += bonus
@@ -544,6 +565,7 @@ const state = reactive({
   rewardMessage: '',
   levelToast: '',
   levelToastVisible: false,
+  levelToastKind: 'level' as 'level' | 'hit',
   hitFlashActive: false,
   powerFlashActive: false,
   waitingOverlayVisible: true,
@@ -593,7 +615,8 @@ const canResumeFromPause = computed(
     state.status === 'pause' &&
     !state.waitingOverlayVisible &&
     !state.readyOverlayVisible &&
-    !state.resultOverlayVisible
+    !state.resultOverlayVisible &&
+    !state.levelToastVisible
 )
 const canPauseWhilePlaying = computed(() => state.status === 'playing')
 const stageStyle = computed(() => ({ width: `${COLS * CELL_SIZE}px`, height: `${ROWS * CELL_SIZE}px` }))
@@ -641,14 +664,16 @@ const _handlers = {
     if (g.mode === 'eaten') return 'is-eaten'
     return ''
   },
-  flashLevelToast: (text: string) => {
+  flashLevelToast: (text: string, kind: 'level' | 'hit' = 'level', durationMs = 1200, onDone?: () => void) => {
     if (levelToastTimer) clearTimeout(levelToastTimer)
     state.levelToast = text
+    state.levelToastKind = kind
     state.levelToastVisible = true
     levelToastTimer = setTimeout(() => {
       state.levelToastVisible = false
       levelToastTimer = null
-    }, 1200)
+      onDone?.()
+    }, durationMs)
   },
   triggerHitEffect: () => {
     if (hitEffectTimer) clearTimeout(hitEffectTimer)
@@ -700,6 +725,22 @@ const _actions = {
     if (result.levelCleared && !result.gameOver) _handlers.flashLevelToast(`LEVEL ${state.level} START`)
     if (result.gameOver) {
       _actions.finishGame()
+      return
+    }
+    /**
+     * 死掉但還有命：使用者明確要求「畫面先暫停，等提示消失才開始」，不像單純的
+     * 過關 toast 那樣背景繼續跑；這裡把 status 切到 pause（停止排下一個 tick），
+     * 提示顯示 2.5 秒後的 onDone callback 才恢復 playing 並重新排下一步。
+     */
+    if (result.hitGhost) {
+      state.status = 'pause'
+      state.message = '啊！被鬼魂抓到了...'
+      _handlers.flashLevelToast(`被鬼魂抓到了！剩餘 ${state.lives} 命`, 'hit', 2500, () => {
+        if (state.status !== 'pause') return
+        state.status = 'playing'
+        state.message = '遊戲進行中...'
+        loopTimer = setTimeout(_actions.stepLoop, engine.getTickSpeed())
+      })
       return
     }
     loopTimer = setTimeout(_actions.stepLoop, engine.getTickSpeed())
@@ -917,8 +958,8 @@ onBeforeUnmount(() => {
             </div>
             <div v-for="g in state.ghosts" :key="g.id" class="pm-ghost" :class="_handlers.ghostClass(g)"
               :style="{ ..._handlers.spriteStyle({ x: g.x, y: g.y }), '--ghost-color': g.color }" />
-            <div v-if="state.levelToastVisible" class="pm-level-toast">{{ state.levelToast }}</div>
-            <div v-if="state.status === 'pause'" class="pm-board-veil">PAUSED</div>
+            <div v-if="state.levelToastVisible" class="pm-level-toast" :class="{ 'is-danger': state.levelToastKind === 'hit' }">{{ state.levelToast }}</div>
+            <div v-if="state.status === 'pause' && !state.levelToastVisible" class="pm-board-veil">PAUSED</div>
           </div>
           <div class="pm-panel">
             <span>SCORE: {{ state.score }}</span>
@@ -1309,6 +1350,11 @@ onBeforeUnmount(() => {
     padding: 4px 10px;
     z-index: 3;
     animation: fadeIn 0.2s ease-out both;
+
+    &.is-danger {
+      border-color: #ff5c5c;
+      color: #ff8a8a;
+    }
   }
 
   .pm-board-veil {
