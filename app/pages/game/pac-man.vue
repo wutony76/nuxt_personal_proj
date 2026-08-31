@@ -19,6 +19,8 @@ type Ghost = {
   mode: GhostMode
   spawn: Pos
   corner: Pos
+  /** 這個 tick 是否剛從穿隧通道傳送過去（畫面上要跳過 CSS 位移動畫，直接瞬移） */
+  justWarped: boolean
 }
 type StepResult = {
   ateDot: boolean
@@ -27,6 +29,8 @@ type StepResult = {
   hitGhost: boolean
   levelCleared: boolean
   gameOver: boolean
+  /** Pac-Man 這個 tick 是否剛從穿隧通道傳送過去 */
+  pacWarped: boolean
 }
 type AiTier = 'simple' | 'medium' | 'high'
 
@@ -246,6 +250,9 @@ class PacManEngine {
   private scatterTicksLeft = 0
   private isScatterPhase = true
   private tickCount = 0
+  /** resetPositions() 呼叫的當下設為 true，讓 step() 知道這個 tick 有整批重置位置（死掉重生／過關重置），
+   *  Pac-Man 跟鬼魂都要跳過位移動畫直接瞬移，理由跟穿隧傳送一樣：位移量太大，補間動畫會滑過整個棋盤 */
+  private justTeleportedFlag = false
 
   reset(startLevel = 1) {
     this.level = startLevel
@@ -281,8 +288,10 @@ class PacManEngine {
       dir: 'up' as Dir,
       mode: 'chase' as GhostMode,
       spawn: { ...s },
-      corner: HOME_CORNERS[i]!
+      corner: HOME_CORNERS[i]!,
+      justWarped: true
     }))
+    this.justTeleportedFlag = true
   }
 
   aiTier(): AiTier {
@@ -365,7 +374,7 @@ class PacManEngine {
     return options.length > 0 ? options : collect(true)
   }
 
-  private movePac(): { ateDot: boolean; atePower: boolean } {
+  private movePac(): { ateDot: boolean; atePower: boolean; wrapped: boolean } {
     if (this.pacNextDir !== 'none') {
       const attempt = this.tryMoveFrom(this.pac, this.pacNextDir)
       if (attempt) {
@@ -374,25 +383,29 @@ class PacManEngine {
       }
     }
 
+    const oldX = this.pac.x
     const moved = this.tryMoveFrom(this.pac, this.pacDir)
-    if (!moved) return { ateDot: false, atePower: false }
+    if (!moved) return { ateDot: false, atePower: false, wrapped: false }
     this.pac = moved
+    // 正常移動每步 x 只會變化 0 或 ±1，穿隧傳送則是直接從一側跳到另一側（差值遠大於 1），
+    // 用這個差值判斷這步是不是穿隧，讓畫面層可以跳過位移動畫、直接瞬移，不要滑過整個棋盤
+    const wrapped = Math.abs(moved.x - oldX) > 1
 
     const cell = this.maze[moved.y]![moved.x]
     if (cell === 'dot') {
       this.maze[moved.y]![moved.x] = 'empty'
       this.score += 10
       this.dotsRemaining -= 1
-      return { ateDot: true, atePower: false }
+      return { ateDot: true, atePower: false, wrapped }
     }
     if (cell === 'power') {
       this.maze[moved.y]![moved.x] = 'empty'
       this.score += 50
       this.dotsRemaining -= 1
       this.triggerFrightened()
-      return { ateDot: false, atePower: true }
+      return { ateDot: false, atePower: true, wrapped }
     }
-    return { ateDot: false, atePower: false }
+    return { ateDot: false, atePower: false, wrapped }
   }
 
   private triggerFrightened() {
@@ -428,6 +441,7 @@ class PacManEngine {
   }
 
   private moveGhost(g: Ghost) {
+    g.justWarped = false
     const options = this.neighborsOpen({ x: g.x, y: g.y }, g.dir)
     if (options.length === 0) return
     const target = this.ghostTarget(g)
@@ -448,9 +462,11 @@ class PacManEngine {
       })
     }
 
+    const oldX = g.x
     g.dir = chosen.dir
     g.x = chosen.pos.x
     g.y = chosen.pos.y
+    g.justWarped = Math.abs(g.x - oldX) > 1
     if (g.mode === 'eaten' && g.x === g.spawn.x && g.y === g.spawn.y) {
       g.mode = this.isScatterPhase && tier === 'high' ? 'scatter' : 'chase'
     }
@@ -525,13 +541,17 @@ class PacManEngine {
       this.setupLevel()
     }
 
+    const pacWarped = pacResult.wrapped || this.justTeleportedFlag
+    this.justTeleportedFlag = false
+
     return {
       ateDot: pacResult.ateDot,
       atePower: pacResult.atePower,
       ateGhostBonus,
       hitGhost,
       levelCleared,
-      gameOver: this.lives <= 0
+      gameOver: this.lives <= 0,
+      pacWarped
     }
   }
 
@@ -560,6 +580,7 @@ const state = reactive({
   maze: [] as CellType[][],
   pac: { ...PAC_SPAWN } as Pos,
   pacDir: 'left' as Dir,
+  pacJustWarped: false,
   ghosts: [] as Ghost[],
   message: '點「開始」遊玩，使用方向鍵控制小精靈吃豆並閃避鬼魂。',
   rewardMessage: '',
@@ -720,22 +741,35 @@ const _actions = {
     if (state.status !== 'playing') return
     const result = engine.step()
     _handlers.syncState(result.ateDot || result.atePower || result.levelCleared)
+    // 穿隧傳送這一步要跳過 CSS 位移動畫直接瞬移，不能像平常那樣滑過去；
+    // 每個 tick 都重新賦值，非穿隧的 tick 會自然變回 false，下一步繼續正常動畫
+    state.pacJustWarped = result.pacWarped
     if (result.atePower) _handlers.triggerPowerEffect()
     if (result.hitGhost) _handlers.triggerHitEffect()
-    if (result.levelCleared && !result.gameOver) _handlers.flashLevelToast(`LEVEL ${state.level} START`)
     if (result.gameOver) {
       _actions.finishGame()
       return
     }
     /**
-     * 死掉但還有命：使用者明確要求「畫面先暫停，等提示消失才開始」，不像單純的
-     * 過關 toast 那樣背景繼續跑；這裡把 status 切到 pause（停止排下一個 tick），
+     * 死掉但還有命／過關：使用者明確要求兩種情況都「畫面先暫停，等提示消失才開始」，
+     * 不像單純的 toast 那樣背景繼續跑；這裡把 status 切到 pause（停止排下一個 tick），
      * 提示顯示 2.5 秒後的 onDone callback 才恢復 playing 並重新排下一步。
      */
     if (result.hitGhost) {
       state.status = 'pause'
       state.message = '啊！被鬼魂抓到了...'
       _handlers.flashLevelToast(`被鬼魂抓到了！剩餘 ${state.lives} 命`, 'hit', 2500, () => {
+        if (state.status !== 'pause') return
+        state.status = 'playing'
+        state.message = '遊戲進行中...'
+        loopTimer = setTimeout(_actions.stepLoop, engine.getTickSpeed())
+      })
+      return
+    }
+    if (result.levelCleared) {
+      state.status = 'pause'
+      state.message = `恭喜過關！準備進入第 ${state.level} 關...`
+      _handlers.flashLevelToast(`恭喜過關！LEVEL ${state.level} START`, 'level', 2500, () => {
         if (state.status !== 'pause') return
         state.status = 'playing'
         state.message = '遊戲進行中...'
@@ -953,10 +987,11 @@ onBeforeUnmount(() => {
             <div class="pm-maze" :style="mazeStyle">
               <div v-for="cell in flatMazeCells" :key="`${cell.x}-${cell.y}`" class="pm-cell" :class="`is-${cell.type}`" />
             </div>
-            <div class="pm-pac" :style="_handlers.spriteStyle(state.pac)">
+            <div class="pm-pac" :class="{ 'no-anim': state.pacJustWarped }" :style="_handlers.spriteStyle(state.pac)">
               <div class="pm-pac-mouth" :class="`face-${state.pacDir}`" />
             </div>
-            <div v-for="g in state.ghosts" :key="g.id" class="pm-ghost" :class="_handlers.ghostClass(g)"
+            <div v-for="g in state.ghosts" :key="g.id" class="pm-ghost"
+              :class="[_handlers.ghostClass(g), { 'no-anim': g.justWarped }]"
               :style="{ ..._handlers.spriteStyle({ x: g.x, y: g.y }), '--ghost-color': g.color }" />
             <div v-if="state.levelToastVisible" class="pm-level-toast" :class="{ 'is-danger': state.levelToastKind === 'hit' }">{{ state.levelToast }}</div>
             <div v-if="state.status === 'pause' && !state.levelToastVisible" class="pm-board-veil">PAUSED</div>
@@ -1277,6 +1312,16 @@ onBeforeUnmount(() => {
     top: 0;
     left: 0;
     transition: transform 0.08s linear;
+
+    /*
+     * 穿隧傳送那一步：從棋盤一側跳到另一側，位移量遠大於平常一步一格，若還套用
+     * 平常的 transform transition，會被瀏覽器補間動畫成「用 0.08 秒滑過整個棋盤」，
+     * 視覺上像是一道殘影劃過畫面，而不是自然的瞬間傳送。加這個 class 時暫時關閉
+     * transition，讓這一步直接跳過去；下一步 class 移除後動畫立刻恢復正常。
+     */
+    &.no-anim {
+      transition: none;
+    }
   }
 
   /*
