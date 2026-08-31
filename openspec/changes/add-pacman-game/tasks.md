@@ -1,6 +1,6 @@
 ## 1. Server 端服務層
 
-- [x] 1.1 新增 `server/services/game/retro/pacMan.ts`：繼承 `RETRO_GAME_BASE`（`coinRate: 0.05`、`coinCapPerRun: 300`、`coinDailyCap: 100000`、`maxReasonableScore(): 50000`——開放式計分的寬裕防偽造上限，見 design.md Decision 5）
+- [x] 1.1 新增 `server/services/game/retro/pacMan.ts`：繼承 `RETRO_GAME_BASE`（`coinRate: 0.05`、`coinCapPerRun: 2500`——使用者決定調高、比照 spaceShooter 先例、`coinDailyCap: 100000`、`maxReasonableScore(): 200000`——同步調高保留餘裕，見 design.md Decision 6）
 - [x] 1.2 `server/services/storage.ts`：`gamesInitRetro()` 新增 import 並 `new` 該類別
 
 ## 2. Server 端 API 路由
