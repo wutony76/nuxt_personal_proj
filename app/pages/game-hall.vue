@@ -44,14 +44,15 @@ const activeTabLabel = computed(() => TABS.find((tab) => tab.key === activeTab.v
 
 const gameSlots = ref<GameSlot[]>([
   { id: 1, name: 'SNAKE', description: '經典像素貪吃蛇遊戲', status: 'open', path: '/game/snake' },
-  { id: 2, name: 'RACING', description: '經典像素閃避賽車，可以跑多遠', status: 'open', path: '/game/racing' },
+  { id: 2, name: 'RACING', description: '經典像素賽車，閃避障礙物可以跑多遠', status: 'open', path: '/game/racing' },
   { id: 3, name: 'TETRIMINOS', description: '經典俄羅斯方塊，支援旋轉與消行', status: 'open', path: '/game/tetriminos' },
   { id: 4, name: 'MATCH3 RUSH', description: '限時消除寶石，考驗手速與爆發力', status: 'open', path: '/game/match3-rush' },
   { id: 5, name: 'MATCH3 CLASSIC', description: '限步數消除寶石，考驗策略與規劃', status: 'open', path: '/game/match3-classic' },
   { id: 6, name: 'PONG', description: '經典乒乓球，馬上PK', status: 'open', path: '/game/pong' },
   { id: 7, name: 'RUNNER', description: '側視角自動捲軸跑酷，跳躍下蹲閃避障礙', status: 'open', path: '/game/runner' },
   { id: 8, name: 'SPACE SHOOTER', description: '俯視角太空射擊，擊落敵機、閃避彈幕', status: 'open', path: '/game/space-shooter' },
-  { id: 9, name: 'MINESWEEPER', description: '經典踩地雷，5 關關卡制，越快過關分數越高', status: 'open', path: '/game/minesweeper' },
+  { id: 9, name: 'MINESWEEPER', description: '經典踩地雷，動動腦袋吧！', status: 'open', path: '/game/minesweeper' },
+  { id: 10, name: 'PAC-MAN', description: '經典小精靈迷宮吃豆，閃避四隻鬼魂', status: 'open', path: '/game/pac-man' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)
