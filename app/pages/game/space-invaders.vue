@@ -678,6 +678,7 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="si-page" :class="`state-${state.status}`">
+    <div class="si-overlay" />
     <div v-if="state.waitingOverlayVisible" class="game-mask waiting-mask">
       <div class="mask-title">WELCOME</div>
       <p class="waiting-subtitle">SPACE INVADERS</p>
@@ -773,6 +774,38 @@ onBeforeUnmount(() => {
   background: radial-gradient(circle at top, #1a0606, #050101 60%);
   overflow: hidden;
   isolation: isolate;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -20%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  &::before {
+    background: radial-gradient(circle at 20% 20%, rgba(255, 59, 59, 0.16), transparent 45%),
+      radial-gradient(circle at 80% 70%, rgba(255, 140, 140, 0.1), transparent 40%);
+    filter: blur(40px);
+    animation: ambient-drift 12s ease-in-out infinite alternate;
+  }
+
+  &::after {
+    background: linear-gradient(115deg, rgba(255, 59, 59, 0.05), rgba(0, 0, 0, 0));
+    animation: ambient-pulse 4.6s ease-in-out infinite;
+  }
+
+  .si-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(rgba(255, 59, 59, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 59, 59, 0.05) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    z-index: 0;
+    animation: grid-drift 14s linear infinite;
+  }
 
   .game-mask {
     position: absolute;
@@ -1075,6 +1108,38 @@ onBeforeUnmount(() => {
       font-size: 0.78rem;
       line-height: 1.6;
     }
+  }
+}
+
+@keyframes ambient-drift {
+  0% {
+    transform: translate(-1.5%, -1%) scale(1);
+  }
+
+  100% {
+    transform: translate(1.5%, 1%) scale(1.06);
+  }
+}
+
+@keyframes ambient-pulse {
+
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 0.75;
+  }
+}
+
+@keyframes grid-drift {
+  0% {
+    transform: translate(0, 0);
+  }
+
+  100% {
+    transform: translate(14px, 14px);
   }
 }
 
