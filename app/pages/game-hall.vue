@@ -105,6 +105,7 @@ onBeforeUnmount(() => {
 <template>
   <main class="ops-hall">
     <i class="hud-bg" />
+    <GameHallSprites />
 
     <!-- TOP HEADER：清單風格（Orbitron 品牌字 + 切角導覽） -->
     <header class="op-header">

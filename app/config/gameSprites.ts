@@ -1,0 +1,36 @@
+export type GameSpriteAnim = 'crawl' | 'fall' | 'bounce' | 'march' | 'drift' | 'blink' | 'sparkle' | 'hop' | 'fly'
+
+export type GameSpriteDef = {
+  key: string
+  match: (upperName: string) => boolean
+  icon: string
+  /** 背景漂浮動畫類型，對應 GameHallSprites.vue 的 CSS class（anim-crawl／anim-fall…） */
+  anim: GameSpriteAnim
+  /** 該遊戲的主題色，用於裝飾元素的發光顏色，讓每個元素跟自己遊戲頁面的配色連動 */
+  glow: string
+}
+
+/**
+ * 各遊戲對應的圖示／背景裝飾動畫／主題色，GameMachineCard 的卡片圖示與 GameHallSprites 的
+ * 背景漂浮元素共用同一份設定。未來要幫卡片本身加動畫（game-hall 視覺效果方案的第二步）時，
+ * 直接讀這裡的 anim／glow 欄位套對應 CSS class 即可，不需要重新定義一次圖示對照表。
+ */
+export const GAME_SPRITES: GameSpriteDef[] = [
+  { key: 'snake', match: (n) => n.includes('SNAKE'), icon: '🐍', anim: 'crawl', glow: '#22ff22' },
+  { key: 'racing', match: (n) => n.includes('RACING'), icon: '🏎️', anim: 'fly', glow: '#67e8f9' },
+  { key: 'tetriminos', match: (n) => n.includes('TETRIMINOS'), icon: '🧩', anim: 'fall', glow: '#c4b5fd' },
+  { key: 'match3', match: (n) => n.includes('MATCH3'), icon: '🍬', anim: 'sparkle', glow: '#ff8a2b' },
+  { key: 'pong', match: (n) => n.includes('PONG'), icon: '🏓', anim: 'bounce', glow: '#ff2ea6' },
+  { key: 'runner', match: (n) => n.includes('RUNNER'), icon: '🏃', anim: 'hop', glow: '#ffd400' },
+  { key: 'spaceShooter', match: (n) => n.includes('SPACE SHOOTER'), icon: '🚀', anim: 'fly', glow: '#4d7fff' },
+  { key: 'minesweeper', match: (n) => n.includes('MINESWEEPER'), icon: '💣', anim: 'blink', glow: '#39d98a' },
+  { key: 'pacman', match: (n) => n.includes('PAC-MAN'), icon: '👻', anim: 'drift', glow: '#ffd83b' },
+  { key: 'spaceInvaders', match: (n) => n.includes('SPACE INVADERS'), icon: '👾', anim: 'march', glow: '#ff3b3b' }
+]
+
+const DEFAULT_SPRITE: GameSpriteDef = { key: 'default', match: () => true, icon: '🎮', anim: 'drift', glow: '#00e5ff' }
+
+export const resolveGameSprite = (name: string): GameSpriteDef => {
+  const upper = name.toUpperCase()
+  return GAME_SPRITES.find((sprite) => sprite.match(upper)) ?? DEFAULT_SPRITE
+}

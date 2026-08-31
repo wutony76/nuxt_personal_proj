@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { resolveGameSprite } from '~/config/gameSprites'
 
 type GameSlot = {
   id: number
@@ -13,20 +14,8 @@ const props = defineProps<{
   game: GameSlot
 }>()
 
-const cuteIcon = computed(() => {
-  const name = props.game.name.toUpperCase()
-  if (name.includes('SNAKE')) return '🐍'
-  if (name.includes('RACING')) return '🏎️'
-  if (name.includes('TETRIMINOS')) return '🧩'
-  if (name.includes('MATCH3')) return '🍬'
-  if (name.includes('PONG')) return '🏓'
-  if (name.includes('RUNNER')) return '🏃'
-  if (name.includes('SPACE SHOOTER')) return '🚀'
-  if (name.includes('MINESWEEPER')) return '💣'
-  if (name.includes('PAC-MAN')) return '👻'
-  if (name.includes('SPACE INVADERS')) return '👾'
-  return '🎮'
-})
+/** 圖示對照統一走 app/config/gameSprites.ts，跟背景漂浮裝飾（GameHallSprites.vue）共用同一份設定 */
+const cuteIcon = computed(() => resolveGameSprite(props.game.name).icon)
 </script>
 
 <template>
