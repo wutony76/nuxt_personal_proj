@@ -295,8 +295,35 @@ class PacManEngine {
     return Math.max(90, 180 - (this.level - 1) * 8)
   }
 
-  setDirection(dir: Dir) {
+  /**
+   * 按下方向鍵時，如果 Pac-Man 目前所在格子就能直接往新方向走（已經站在路口），
+   * 立刻套用轉彎；回傳 true 讓呼叫端（頁面層）知道這是一次「當下就生效」的轉彎，
+   * 可以把原本排定的下一個 tick 提前觸發（見頁面層 click.dir），畫面才會立刻反映
+   * 轉彎，不用等到原本那個 tick 的剩餘時間跑完、還多衝一格才轉。
+   * 若目前位置還不能轉（尚未走到路口），就維持原本的緩衝機制，等 movePac()
+   * 每個 tick 檢查一次，走到路口時自動轉彎；只是把「下一步」提前對齊到輸入的當下，
+   * 不是額外多走一步，長期平均的移動速度／tick 間隔完全不變。
+   */
+  setDirection(dir: Dir): boolean {
     this.pacNextDir = dir
+    const attempt = this.tryMoveFrom(this.pac, dir)
+    if (attempt) {
+      this.pacDir = dir
+      this.pacNextDir = 'none'
+      return true
+    }
+    return false
+  }
+
+  private tryMoveFrom(pos: Pos, dir: Dir): Pos | null {
+    if (dir === 'none') return null
+    const delta = DIR_DELTA[dir]
+    let nx = pos.x + delta.x
+    const ny = pos.y + delta.y
+    if (ny === TUNNEL_ROW) nx = this.wrapX(nx)
+    if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) return null
+    if (this.isWall(nx, ny)) return null
+    return { x: nx, y: ny }
   }
 
   private isWall(x: number, y: number): boolean {
@@ -330,26 +357,15 @@ class PacManEngine {
   }
 
   private movePac(): { ateDot: boolean; atePower: boolean } {
-    const tryMove = (dir: Dir): Pos | null => {
-      if (dir === 'none') return null
-      const delta = DIR_DELTA[dir]
-      let nx = this.pac.x + delta.x
-      const ny = this.pac.y + delta.y
-      if (ny === TUNNEL_ROW) nx = this.wrapX(nx)
-      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) return null
-      if (this.isWall(nx, ny)) return null
-      return { x: nx, y: ny }
-    }
-
     if (this.pacNextDir !== 'none') {
-      const attempt = tryMove(this.pacNextDir)
+      const attempt = this.tryMoveFrom(this.pac, this.pacNextDir)
       if (attempt) {
         this.pacDir = this.pacNextDir
         this.pacNextDir = 'none'
       }
     }
 
-    const moved = tryMove(this.pacDir)
+    const moved = this.tryMoveFrom(this.pac, this.pacDir)
     if (!moved) return { ateDot: false, atePower: false }
     this.pac = moved
 
@@ -764,7 +780,20 @@ const _actions = {
 }
 
 const click = {
-  dir: (d: Exclude<Dir, 'none'>) => engine.setDirection(d),
+  /**
+   * 若這次按方向鍵當下就成功轉彎（engine.setDirection 回傳 true），代表玩家已經站
+   * 在路口——把原本排定、還沒到時間的下一個 tick 提前觸發，讓畫面立刻反映新方向，
+   * 不用乾等那個 tick 剩餘的時間跑完（那段等待期間視覺上就是「還在往舊方向衝」）。
+   * stepLoop() 結束時一樣會用 engine.getTickSpeed() 重新排下一步，長期平均的
+   * tick 間隔不變，這裡只是把「下一步」的時機對齊到輸入當下，不是多走一步。
+   */
+  dir: (d: Exclude<Dir, 'none'>) => {
+    const turnedNow = engine.setDirection(d)
+    if (turnedNow && state.status === 'playing') {
+      _handlers.stopLoopTimer()
+      _actions.stepLoop()
+    }
+  },
   start: () => _actions.startGame(),
   pause: () => _actions.pauseGame(),
   resume: () => _actions.resumeGame(),
