@@ -61,12 +61,16 @@ const HOME_CORNERS: Pos[] = [
   { x: COLS - 2, y: ROWS - 2 }
 ]
 
+const WALL_PROBABILITY = 0.6
+
 /**
- * 迷宮以「柱狀網格」生成（偶數列×偶數欄的內部格為牆，穿隧列例外），
- * 保證每一格牆都是孤立的單一格（四周皆通道），數學上不可能把通道切斷，
- * 不需要額外驗證連通性；比手繪迷宮更容易保證正確，代價是視覺上偏規則、較少蜿蜒轉角。
+ * 迷宮以「柱狀網格」規則生成（偶數列×偶數欄的內部格為牆候選，穿隧列例外），
+ * 每一格牆候選在生成規則上永遠是孤立格（四周皆通道、候選格之間彼此間隔 ≥2 格不相鄰），
+ * 因此每一格「要不要放牆」可以獨立擲骰子決定，數學上不可能因為隨機結果而把任何通道切斷
+ * ——不需要額外的連通性驗證，這也是選擇柱狀網格而非手繪迷宮的原因。
+ * 每次呼叫都會重新擲骰，同一份「候選格骨架」可以隨機出不同的牆面配置（見 design.md Decision 3）。
  */
-function buildMazeTemplate(): CellType[][] {
+function buildRandomMaze(): CellType[][] {
   const grid: CellType[][] = []
   for (let y = 0; y < ROWS; y += 1) {
     const row: CellType[] = []
@@ -79,7 +83,8 @@ function buildMazeTemplate(): CellType[][] {
       }
       const isPillarRow = y % 2 === 0 && y !== TUNNEL_ROW && y !== 0 && y !== ROWS - 1
       const isPillarCol = x % 2 === 0 && x !== 0 && x !== COLS - 1
-      row.push(isPillarRow && isPillarCol ? 'wall' : 'dot')
+      const isCandidate = isPillarRow && isPillarCol
+      row.push(isCandidate && Math.random() < WALL_PROBABILITY ? 'wall' : 'dot')
     }
     grid.push(row)
   }
@@ -92,7 +97,131 @@ function buildMazeTemplate(): CellType[][] {
   return grid
 }
 
-const MAZE_TEMPLATE = buildMazeTemplate()
+type FixedMazeTemplate = { name: string; rows: string[] }
+
+/**
+ * 固定樣板迷宮：跟 `buildRandomMaze()` 的程序隨機生成並存，讓「開後台管理固定樣板」這件事
+ * 有現成的擴充點——目前專案尚未有後台管理介面（比照既有 coin 兌換三常數的既有慣例，
+ * 這類「之後要能在後台調整」的設定先用程式碼內常數頂著），這份陣列之後應改為從 server 端
+ * 設定檔／API 讀取，新增/修改樣板時不需要動這裡的邏輯，只需要調整資料本身。
+ *
+ * 樣板格式（設計上比照未來後台可能用「貼上一段文字」編輯的方式）：
+ *   `rows` 是長度 ROWS（21）的字串陣列，每個字串長度需為 COLS（19）；
+ *   `#` 代表牆，其餘任何字元一律視為通道（會自動鋪豆子，不需要特別標記）。
+ *   邊界（第 0／ROWS-1 列、第 0／COLS-1 欄）必須是牆，唯獨穿隧列（第 TUNNEL_ROW 列）
+ *   的最左／最右格必須是通道；大力丸與 Pac-Man／鬼魂出生格由程式自動覆蓋，樣板不需要處理。
+ *   每個樣板載入時都會先做連通性驗證（BFS，見 `parseFixedTemplate()`），格式錯誤或
+ *   驗證失敗一律安全退回隨機生成並在 console 印警告，不會讓玩家卡在無法過關的壞版面。
+ */
+const FIXED_MAZE_TEMPLATES: FixedMazeTemplate[] = [
+  {
+    name: 'classic-01',
+    rows: [
+      '###################',
+      '#.................#',
+      '#...#.#...#...#.#.#',
+      '#.................#',
+      '#.....#.#.....#.#.#',
+      '#.................#',
+      '#.#.#...#...#.#...#',
+      '#.................#',
+      '#.#.#...#.#.#...#.#',
+      '#.................#',
+      '...................',
+      '#.................#',
+      '#.#.#.#.#...#...#.#',
+      '#.................#',
+      '#...#.#...........#',
+      '#.................#',
+      '#.#.#.#...#.#.#.#.#',
+      '#.................#',
+      '#.......#...#...#.#',
+      '#.................#',
+      '###################'
+    ]
+  }
+]
+
+/** 從 Pac-Man 出生點對整張迷宮做 BFS，確認每一格通道皆可抵達（不會有被牆困住、吃不到的豆子） */
+function isMazeFullyConnected(grid: CellType[][]): boolean {
+  const visited = new Set<string>()
+  const stack: Pos[] = [{ ...PAC_SPAWN }]
+  visited.add(`${PAC_SPAWN.x},${PAC_SPAWN.y}`)
+  while (stack.length > 0) {
+    const cur = stack.pop()!
+    ;(Object.keys(DIR_DELTA) as Array<Exclude<Dir, 'none'>>).forEach((dir) => {
+      const delta = DIR_DELTA[dir]
+      let nx = cur.x + delta.x
+      const ny = cur.y + delta.y
+      if (ny === TUNNEL_ROW) {
+        if (nx < 0) nx = COLS - 1
+        if (nx >= COLS) nx = 0
+      }
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) return
+      if (grid[ny]?.[nx] === 'wall') return
+      const key = `${nx},${ny}`
+      if (visited.has(key)) return
+      visited.add(key)
+      stack.push({ x: nx, y: ny })
+    })
+  }
+  let totalFloor = 0
+  grid.forEach((row) => row.forEach((c) => {
+    if (c !== 'wall') totalFloor += 1
+  }))
+  return visited.size === totalFloor
+}
+
+/** 解析固定樣板：格式或連通性驗證失敗回傳 null，呼叫端需自行退回隨機生成 */
+function parseFixedTemplate(template: FixedMazeTemplate): CellType[][] | null {
+  const { rows } = template
+  if (rows.length !== ROWS) return null
+  const grid: CellType[][] = []
+  for (let y = 0; y < ROWS; y += 1) {
+    const line = rows[y]
+    if (!line || line.length !== COLS) return null
+    const row: CellType[] = []
+    for (let x = 0; x < COLS; x += 1) {
+      row.push(line[x] === '#' ? 'wall' : 'dot')
+    }
+    grid.push(row)
+  }
+  for (let x = 0; x < COLS; x += 1) {
+    if (grid[0]![x] !== 'wall' || grid[ROWS - 1]![x] !== 'wall') return null
+  }
+  for (let y = 0; y < ROWS; y += 1) {
+    const isTunnelMouth = y === TUNNEL_ROW
+    const leftIsWall = grid[y]![0] === 'wall'
+    const rightIsWall = grid[y]![COLS - 1] === 'wall'
+    if (isTunnelMouth ? leftIsWall || rightIsWall : !leftIsWall || !rightIsWall) return null
+  }
+  HOME_CORNERS.forEach((p) => {
+    grid[p.y]![p.x] = 'power'
+  })
+  ;[PAC_SPAWN, ...GHOST_SPAWNS].forEach((p) => {
+    grid[p.y]![p.x] = 'empty'
+  })
+  return isMazeFullyConnected(grid) ? grid : null
+}
+
+/**
+ * 混合挑選本關迷宮：把「隨機生成」跟「已設定的固定樣板」放進同一個候選池等機率抽選。
+ * 目前 `FIXED_MAZE_TEMPLATES` 只有 1 筆示範資料，之後後台新增更多筆，固定樣板出現的機率
+ * 會自然跟著提高，不需要調整這裡的邏輯；固定樣板驗證失敗會自動退回隨機生成。
+ */
+function pickMaze(): CellType[][] {
+  const pool: Array<() => CellType[][] | null> = [
+    buildRandomMaze,
+    ...FIXED_MAZE_TEMPLATES.map((template) => () => parseFixedTemplate(template))
+  ]
+  const pick = pool[Math.floor(Math.random() * pool.length)]!
+  const result = pick()
+  if (!result) {
+    console.warn('[pac-man] 固定樣板驗證失敗，已退回隨機生成迷宮')
+    return buildRandomMaze()
+  }
+  return result
+}
 
 /**
  * PAC-MAN 引擎：非 UI 狀態，每個 tick 呼叫一次 step()，玩家與 4 隻鬼各移動最多 1 格。
@@ -126,7 +255,7 @@ class PacManEngine {
   }
 
   setupLevel() {
-    this.maze = MAZE_TEMPLATE.map((row) => [...row])
+    this.maze = pickMaze()
     this.dotsRemaining = this.maze.reduce(
       (sum, row) => sum + row.filter((c) => c === 'dot' || c === 'power').length,
       0
