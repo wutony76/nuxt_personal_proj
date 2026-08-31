@@ -100,17 +100,33 @@ MUST NOT 把多款遊戲的邏輯合併在單一服務檔內用條件式分流�
 - **WHEN** 玩家在 Stock 沒有牌時觸發重新循環
 - **THEN** 系統將 Waste 的牌放回 Stock（反面朝上）並允許重新開始抽牌，不限制已循環的次數
 
-### Requirement: SOLITAIRE 分數計算 SHALL 對「翻出新牌」設有防重複刷分限制
-系統 SHALL 只在某張牌於本局中**第一次**翻為正面時，給予翻牌對應的分數；
-同一張牌因 Stock/Waste 循環而重複翻正面，MUST NOT 重複給予翻牌分數。
+### Requirement: SOLITAIRE 翻牌動作本身 MUST NOT 產生任何分數
+系統 SHALL 只在牌被實際移動並接上合法序列（Tableau 或 Foundation）時計分；
+翻牌本身（Tableau 自動翻牌、Stock 抽牌到 Waste）純粹是狀態變化，MUST NOT 因此增加分數，不論是否為該牌本局第一次翻正面。
 
-#### Scenario: 首次翻正面給分
-- **WHEN** 某張牌在本局第一次從反面翻為正面（不論是 Tableau 自動翻牌或 Stock 抽牌到 Waste）
-- **THEN** 系統加上對應的翻牌分數
+#### Scenario: 自動翻牌不加分
+- **WHEN** Tableau 某欄因牌被移走而自動翻出下一張正面牌
+- **THEN** 系統 MUST NOT 因這次翻牌增加分數
 
-#### Scenario: 循環重複翻正面不重複給分
-- **WHEN** 某張牌因為 Stock/Waste 重新循環，再次從 Stock 被抽到 Waste 翻為正面，但這張牌本局先前已經翻過正面
-- **THEN** 系統 MUST NOT 因這次翻正面再次給予翻牌分數
+#### Scenario: Stock 抽牌不加分
+- **WHEN** 玩家點擊 Stock 抽一張牌到 Waste
+- **THEN** 系統 MUST NOT 因這次抽牌增加分數，不論這張牌是否為本局第一次翻正面
+
+### Requirement: 同一張牌反覆移到同一個目的地 MUST NOT 重複計分
+系統 SHALL 只在某張牌（或以其為錨點搬動的合法牌組）**第一次**移動到某個目的地（某個 Tableau 欄、或某個 Foundation）時給予對應分數；
+之後這張牌不論被移走幾次、又移回同一個目的地幾次，都 MUST NOT 因為「回到之前已經計過分的位置」而重複給分。移動本身（包含來回搬動）MUST NOT 被禁止，只有重複的計分事件被排除。
+
+#### Scenario: 來回搬動同一張牌到已計分過的 Tableau 欄不重複給分
+- **WHEN** 玩家把某張牌移到 Tableau 欄 A（已計過分），又移到欄 B，再移回欄 A
+- **THEN** 系統只在第一次移到欄 A 與第一次移到欄 B 時給分，第二次移回欄 A MUST NOT 再給分
+
+#### Scenario: 把牌移回已經計分過的 Foundation 不重複給分
+- **WHEN** 玩家把已經在 Foundation 上並拿過分數的牌移回 Tableau，再移回同一個 Foundation
+- **THEN** 系統 MUST NOT 因為這次移回 Foundation 再次給予 Foundation 分數
+
+#### Scenario: 移動到全新的目的地仍正常計分
+- **WHEN** 玩家把一張牌移到它在本局中從未移動過去的 Tableau 欄或 Foundation
+- **THEN** 系統正常給予該次移動對應的分數
 
 ### Requirement: SOLITAIRE SHALL 以點擊選取＋點擊目標區完成移動，且所有移動皆須通過同一套規則驗證
 系統 SHALL 提供點擊操作：第一次點擊選取一張牌（或合法的連續牌組），第二次點擊目標區嘗試移動；

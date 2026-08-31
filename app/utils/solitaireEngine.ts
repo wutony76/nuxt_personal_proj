@@ -39,9 +39,11 @@ export type SolitaireSnapshot = {
 const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades']
 const COLUMN_COUNT = 7
 
-/** 計分常數，估算值，見 design.md Decision 5，上線後應依實測校準 */
+/**
+ * 計分常數，估算值，見 design.md Decision 5，上線後應依實測校準。
+ * 翻牌（自動翻牌／Stock 抽牌）不計分，只有實際把牌接上合法序列（Tableau／Foundation）才算分。
+ */
 const MOVE_SCORE = 5
-const FLIP_SCORE = 10
 const FOUNDATION_SCORE = 10
 const WIN_BONUS = 200
 
@@ -86,9 +88,11 @@ export default class SolitaireCoreEngine {
   private waste: Card[] = []
   private score = 0
   private moves = 0
-  /** 防刷分：記錄本局曾經翻正面過的牌，Stock/Waste 循環重複翻同一張牌不再加分（見 Decision 5） */
-  private everFlipped = new Set<string>()
   private wonBonusAwarded = false
+  /** 防刷分：牌可以自由從 Foundation 移回 Tableau 再移回去（比照原版規則），但同一張牌只有第一次上 Foundation 才計分（見 design.md Decision 5） */
+  private foundationScored = new Set<string>()
+  /** 防刷分：同一張牌（以抓取時的錨點牌 id 為準）移動到同一欄，只有第一次計分，防止兩欄之間來回搬動無限刷 +5（見 Decision 5） */
+  private tableauScored = new Set<string>()
 
   constructor() {
     this.reset()
@@ -97,8 +101,9 @@ export default class SolitaireCoreEngine {
   reset() {
     this.score = 0
     this.moves = 0
-    this.everFlipped = new Set()
     this.wonBonusAwarded = false
+    this.foundationScored = new Set()
+    this.tableauScored = new Set()
     this.foundations = { hearts: [], diamonds: [], clubs: [], spades: [] }
     this.tableau = Array.from({ length: COLUMN_COUNT }, () => [])
 
@@ -112,7 +117,6 @@ export default class SolitaireCoreEngine {
         card.faceUp = faceUp
         card.location = { zone: 'tableau', column: col }
         this.tableau[col]!.push(card)
-        if (faceUp) this.everFlipped.add(card.id)
       }
     }
     this.stock = deck.slice(cursor)
@@ -165,15 +169,14 @@ export default class SolitaireCoreEngine {
     return sequence.map((c) => ({ ...c }))
   }
 
-  private flipTopIfNeeded(column: number): { flippedCardId?: string; scoreDelta: number } {
+  /** 自動翻牌本身不計分（見 design.md Decision 5：只有實際接上合法序列才算分） */
+  private flipTopIfNeeded(column: number): { flippedCardId?: string } {
     const col = this.tableau[column]!
-    if (col.length === 0) return { scoreDelta: 0 }
+    if (col.length === 0) return {}
     const top = col[col.length - 1]!
-    if (top.faceUp) return { scoreDelta: 0 }
+    if (top.faceUp) return {}
     top.faceUp = true
-    if (this.everFlipped.has(top.id)) return { flippedCardId: top.id, scoreDelta: 0 }
-    this.everFlipped.add(top.id)
-    return { flippedCardId: top.id, scoreDelta: FLIP_SCORE }
+    return { flippedCardId: top.id }
   }
 
   private finalizeMove(sourceZone: CardLocation, baseScore: number): MoveResult {
@@ -181,9 +184,7 @@ export default class SolitaireCoreEngine {
     let scoreDelta = baseScore
     let flippedCardId: string | undefined
     if (sourceZone.zone === 'tableau') {
-      const flip = this.flipTopIfNeeded(sourceZone.column)
-      scoreDelta += flip.scoreDelta
-      flippedCardId = flip.flippedCardId
+      flippedCardId = this.flipTopIfNeeded(sourceZone.column).flippedCardId
     }
     const won = this.checkWin()
     if (won && !this.wonBonusAwarded) {
@@ -218,7 +219,10 @@ export default class SolitaireCoreEngine {
         c.location = { zone: 'tableau', column: target.column }
       })
       destCol.push(...sequence)
-      return this.finalizeMove(sourceZone, MOVE_SCORE)
+      const moveKey = `${anchor.id}:${target.column}`
+      const alreadyScored = this.tableauScored.has(moveKey)
+      if (!alreadyScored) this.tableauScored.add(moveKey)
+      return this.finalizeMove(sourceZone, alreadyScored ? 0 : MOVE_SCORE)
     }
 
     // target.zone === 'foundation'：一次只能移動單張牌
@@ -230,7 +234,9 @@ export default class SolitaireCoreEngine {
     array.splice(index, 1)
     anchor.location = { zone: 'foundation', suit: target.suit }
     foundationStack.push(anchor)
-    return this.finalizeMove(sourceZone, FOUNDATION_SCORE)
+    const alreadyScored = this.foundationScored.has(anchor.id)
+    if (!alreadyScored) this.foundationScored.add(anchor.id)
+    return this.finalizeMove(sourceZone, alreadyScored ? 0 : FOUNDATION_SCORE)
   }
 
   /** 雙擊自動上疊：依這張牌自己的花色嘗試對應的 Foundation（見 Decision 3） */
@@ -241,21 +247,18 @@ export default class SolitaireCoreEngine {
     return this.tryMove(cardId, { zone: 'foundation', suit: card.suit })
   }
 
-  /** Draw 1：Stock 抽一張到 Waste，見 design.md（本專案無既有 Solitaire 規格，採用業界最常見預設） */
-  drawFromStock(): { drewCardId?: string; scoreDelta: number } {
-    if (this.stock.length === 0) return { scoreDelta: 0 }
+  /**
+   * Draw 1：Stock 抽一張到 Waste，見 design.md（本專案無既有 Solitaire 規格，採用業界最常見預設）。
+   * 抽牌本身不計分（見 Decision 5），只計入 moves。
+   */
+  drawFromStock(): { drewCardId?: string } {
+    if (this.stock.length === 0) return {}
     const card = this.stock.pop()!
     card.faceUp = true
     card.location = { zone: 'waste' }
     this.waste.push(card)
     this.moves += 1
-    let scoreDelta = 0
-    if (!this.everFlipped.has(card.id)) {
-      this.everFlipped.add(card.id)
-      scoreDelta = FLIP_SCORE
-    }
-    this.score += scoreDelta
-    return { drewCardId: card.id, scoreDelta }
+    return { drewCardId: card.id }
   }
 
   /** Stock 空了才能呼叫：Waste 依序反轉放回 Stock，讓下一輪抽牌重現相同順序，次數不限（見 Decision 5） */

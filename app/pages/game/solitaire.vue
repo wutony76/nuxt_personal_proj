@@ -9,7 +9,7 @@ type SolitaireStatus = 'ready' | 'playing' | 'pause' | 'win' | 'gameover'
 const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades']
 const SUIT_SYMBOL: Record<Suit, string> = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' }
 const CARD_HEIGHT = 90
-const CASCADE_OFFSET = 24
+const CASCADE_OFFSET = 14
 const READY_START = 3
 const DEFAULT_MESSAGE = '按「開始」後可點擊操作紙牌，雙擊可自動上疊 Foundation。'
 
@@ -51,7 +51,7 @@ const SOLITAIRE_RULE = {
     'Tableau 只能交替顏色（紅/黑）且點數遞減疊放，合法的連續牌組可整組搬動；空欄只能放 K（或以 K 開頭的合法牌組）。Stock 採 Draw 1，抽完後可重新循環 Waste 繼續抽，次數不限。' +
     'Tableau 某欄最上面的正面牌被移走後，若下方還有反面牌會自動翻正面。',
   scoreRule:
-    'SCORE ＝ 合法移動 +5、翻出本局第一次正面的牌 +10（循環重複翻同一張牌不會重複得分）、移到 Foundation +10 累加，完成牌局額外 +200。',
+    'SCORE ＝ 合法移動 +5、移到 Foundation +10 累加，完成牌局額外 +200；翻牌（自動翻牌／Stock 抽牌）本身不計分，只有實際把牌接上合法序列才算分。',
   levelsTitle: '操作方式',
   levels: [
     { level: '點擊', condition: '第一次點擊選取，第二次點擊目標區嘗試移動' },

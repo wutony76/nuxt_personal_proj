@@ -8,7 +8,7 @@
 - [x] 1.6 自動翻牌：Tableau 某欄最下面正面牌被移走後，若下面還有反面牌自動翻正面
 - [x] 1.7 `tryAutoMoveToFoundation(cardId)`：依牌本身花色嘗試對應 Foundation，呼叫 `tryMove()`
 - [x] 1.8 `checkWin()`：4 個 Foundation 皆滿（各 13 張）
-- [x] 1.9 計分事件與防刷分：合法移動 +5、該牌本局首次翻正面 +10（用 `Set<cardId>` 防止循環重複抽牌刷分，見 design.md Decision 5）、移到 Foundation +10、完成 Bonus +200；已用 `vite-node` 跑過 52 張不重複不缺牌／發牌正確／規則判定／防刷分等案例，全數通過
+- [x] 1.9 計分事件：合法移動到 Tableau +5、移到 Foundation +10、完成 Bonus +200；翻牌（自動翻牌／Stock 抽牌）不計分，已移除原本的 `everFlipped` 防刷分追蹤（不再需要，見 design.md Decision 5 異動記錄）；已用 `vite-node` 跑過 52 張不重複不缺牌／發牌正確／規則判定／各計分事件確切金額（+5/+10）／翻牌與抽牌零分等案例，全數通過
 - [x] 1.10 `getSnapshot()`：回傳可供 UI 渲染的純資料快照（tableau/foundation/stock/waste 陣列、score、moves）
 
 ## 2. Server 端服務層
@@ -51,6 +51,7 @@
 
 - [x] 9.1 掛載共用 `GameRateDialog` / `GameRuleDialog`，`accent-color` 採 `#2ecc71`（撲克綠，不與現有十一款遊戲撞色）
 - [x] 9.2 格線背景（`.sol-overlay` + `::before/::after` + `ambient-drift/ambient-pulse/grid-drift`，比照其他遊戲慣例）
+- [x] 9.3 Tableau 層疊間距（`CASCADE_OFFSET`）依使用者回饋兩次調緊：24px → 18px → 14px，卡片角落點數/花色仍可讀
 
 ## 10. game-hall 入口
 
@@ -64,12 +65,12 @@
 
 ## 12. 驗證
 
-- [x] 12.1 規則引擎單獨驗證：用 `vite-node` 直接跑 `solitaireEngine.ts`，涵蓋 52 張不重複不缺牌、洗牌後發牌數量與正反面正確、交替色/遞減判定、防刷分（循環抽牌不重複加分）等案例，全數通過
+- [x] 12.1 規則引擎單獨驗證：用 `vite-node` 直接跑 `solitaireEngine.ts`，涵蓋 52 張不重複不缺牌、洗牌後發牌數量與正反面正確、交替色/遞減判定、抽牌與翻牌不計分、合法移動確切為 +5、Foundation 確切為 +10 等案例，全數通過
 - [x] 12.2 `npm run dev` 啟動後，用 Playwright 實測點擊模式：發牌佈局正確（1~7 張遞增）、Stock 點擊抽牌／waste 顯示正確、點擊選取與再次點擊取消選取皆正常、雙擊 A 成功自動上疊 Foundation 且觸發自動翻牌（分數 +20＝Foundation+10＋翻牌+10）
 - [x] 12.3 拖曳模式已移除（見 design.md Decision 3），拿掉前已用 Playwright 驗證拖曳到不合法位置正確不移動、無殘留幽靈牌；點擊模式為現行唯一操作方式，已於 12.2 完整驗證
 - [ ] 12.4 觸控裝置（或瀏覽器裝置模擬）測試點擊操作是否順手——尚未測試，留待人工驗證
 - [ ] 12.5 Win 判定：刻意排出接近完成的牌局，確認 4 個 Foundation 滿後正確觸發 WIN——`checkWin()` 邏輯已單獨驗證正確，但尚未跑過完整真實牌局到底的 UI 端到端驗證
-- [x] 12.6 防刷分：`vite-node` 單元測試已驗證反覆循環 Stock/Waste 時同一張牌不會重複拿到「翻新牌 +10」
+- [x] 12.6 翻牌不計分：`vite-node` 單元測試與 Playwright 皆已驗證反覆循環 Stock/Waste、連續抽牌 5 次後 SCORE 仍為 0；Foundation 防刷分：`vite-node` 用直接注入盤面狀態的方式驗證「移出 Foundation（+5）→ 移回同一 Foundation（第二次起 +0）」，反覆兩輪皆確認不再重複給分；Tableau 防刷分：同樣用注入盤面狀態的方式驗證兩欄之間來回搬動同一張牌，第一次到訪各欄各算一次 +5，之後來回反覆皆為 +0（`tableauScored`），10 輪隨機牌局迴歸測試全數通過
 - [x] 12.7 未登入：Playwright 實測確認寫入 `localStorage`（key `game-history-v1`），紀錄含正確的 `score`／`meta.moves`／`meta.elapsedSeconds`
 - [ ] 12.8 已登入：尚未測試（需要登入帳號），coin 結算邏輯與其他十一款遊戲共用同一個 `RETRO_GAME_BASE`，架構上一致，留待人工驗證
 - [ ] 12.9 `GameHistoryDialog` 篩選 tab 能正確顯示 `SOLITAIRE` 紀錄與統計——程式碼已加對應項目，尚未實際點開 dialog 驗證畫面
