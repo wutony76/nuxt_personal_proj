@@ -52,9 +52,9 @@ const gameSlots = ref<GameSlot[]>([
   { id: 7, name: 'RUNNER', description: '側視角自動捲軸跑酷，跳躍下蹲閃避障礙', status: 'open', path: '/game/runner' },
   { id: 8, name: 'SPACE SHOOTER', description: '俯視角太空射擊，擊落敵機、閃避彈幕', status: 'open', path: '/game/space-shooter' },
   { id: 9, name: 'MINESWEEPER', description: '經典踩地雷，動動腦袋吧！', status: 'open', path: '/game/minesweeper' },
-  { id: 10, name: 'PAC-MAN', description: '經典小精靈迷宮吃豆，閃避四隻鬼魂', status: 'open', path: '/game/pac-man' },
+  { id: 10, name: 'PAC-MAN', description: '小精靈迷宮吃豆，閃避四隻鬼魂', status: 'open', path: '/game/pac-man' },
   { id: 11, name: 'SPACE INVADERS', description: '傳統太空侵略者，整排外星艦隊步步進逼', status: 'open', path: '/game/space-invaders' },
-  { id: 12, name: 'SOLITAIRE', description: '經典接龍，拖拉整理 52 張牌把 4 疊花色收齊', status: 'open', path: '/game/solitaire' },
+  { id: 12, name: 'SOLITAIRE', description: '接龍遊戲，整理 52 張牌把 4 疊花色收齊', status: 'open', path: '/game/solitaire' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)
