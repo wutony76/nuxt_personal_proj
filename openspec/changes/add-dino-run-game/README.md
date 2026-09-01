@@ -1,0 +1,3 @@
+# add-dino-run-game（已決議：不執行，保留為分析紀錄）
+
+**核心結論：DINO RUN 與現有 RUNNER 高度重疊，使用者已拍板採用方案 B——不新增 DINO RUN 這款獨立遊戲。** 經實際讀過 `app/pages/game/runner.vue`（948 行）確認，RUNNER 已完整實作 DINO RUN 需求文件列出的「第一階段 MVP」全部項目，甚至連「第二階段」的 Flying Obstacle（`ObstacleType = 'ground' | 'air'`）與 Duck/Crouch（`PlayerState = 'ducking'`、`duckHeld`）都已經做完，若照單全收會做出一個玩法機制幾乎一模一樣、只是把美術主題從像素跑者換成恐龍的「換皮重複遊戲」。本文件保留完整分析紀錄（差異比較／可重用模組／需獨立部分／建議檔案結構／MVP 實作順序，見 design.md），但 proposal.md／tasks.md 描述的方案 A 內容**不會執行**。Double Jump／Day-Night／Challenge Mode 這些構想改以獨立的 RUNNER 擴充提案（例如 `update-runner-game-endless-extras`，待另行建立）處理，繼續使用 RUNNER 既有 `gameKey`。本批遊戲清單最終為 8 款，DINO RUN 名額不遞補。

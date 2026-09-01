@@ -219,6 +219,30 @@ game-hall 的遊戲紀錄功能（`openspec/changes/add-game-history/`）已登�
 - 若使用者之後說要開始做這個後台管理功能，這則記憶就是它的需求起點，設計時記得涵蓋：調整 coin 兌換三常數、（可能）查看/清除玩家遊戲紀錄。
 EOF
 
+# ── 9. GAME 17-25 openspec 提案 ────────────────────────────────
+cat > "$MEMORY_DIR/project_pixel_games_17-25_proposals.md" << 'EOF'
+---
+name: project-pixel-games-17-25-proposals
+description: GAME 17-25 的 openspec 提案已建立且關鍵決議已拍板；Dino Run 改採方案 B 不新增，最終為 8 款遊戲
+metadata:
+  type: project
+---
+
+依 `prompt/pixel_game_prompts_17-25.txt` 的 9 款遊戲開發計畫（2048/Flappy/Frogger/Connect4/Whack-a-mole/Lights Out/Tower Stack/Arkanoid/Dino Run），已於 2026-09-01 建立對應 9 個 openspec 提案（`openspec/changes/add-<game>-game/`，各含 README/proposal/design/tasks/specs/game-history/spec.md），純文件、未動任何 `app/`/`server/`/`shared/` 程式碼。
+
+game-hall id 依序登記 17~25，gameKey：`2048`／`flappy`／`frogger`／`connect4`／`whackAMole`／`lightsOut`／`towerStack`／`arkanoid`／`dinoRun`。
+
+**Why:** 使用者要求依序（一次全部輸出）建立這 9 款遊戲的第一階段分析＋openspec 提案，格式比照既有 `add-battleship-game` 範例，深度用平行 subagent 產出。
+
+**2026-09-01 使用者已拍板 4 項關鍵決議（對應文件已同步更新為「已拍板」狀態）：**
+- **add-dino-run-game → 方案 B**：**不新增 DINO RUN 這款獨立遊戲**。README/proposal/design/tasks 已全部更新標記「不執行，保留為分析紀錄」。Double Jump／Day-Night／Challenge Mode 改由未來獨立的 RUNNER 擴充提案（例如 `update-runner-game-endless-extras`，**尚未建立**，需使用者指示才會動工）處理，繼續用 RUNNER 既有 `gameKey`。**本批遊戲最終為 8 款**（2048/Flappy/Frogger/Connect4/Whack-a-mole/Lights Out/Tower Stack/Arkanoid），game-hall id 17-24，DINO RUN 的 id 25 名額不遞補。
+- **add-arkanoid-game → 方案 b**：ARKANOID 獨立實作 `app/utils/arkanoidEngine.ts`，**不修改 `breakout.vue`**，共用 engine 重構（方案 a）不執行。
+- **add-connect4-game → 效率加成計分**：採「固定基礎分＋落子效率加成」（`WIN_BASE=60`＋最高 40 效率加成，`DRAW=20`，`LOSE=0`），非單純固定值模型。
+- **add-flappy-game／add-tower-stack-game → 沿用 DOM/CSS**：確認不使用 Canvas，與全專案既有渲染慣例一致。
+
+**下一步**：8 款遊戲（不含 dino-run）的架構分析與關鍵決議已全數確認，可依各自 `tasks.md` 進入 implementation，彼此獨立、可分開實作。若要處理 RUNNER 的 Double Jump／Day-Night／Challenge Mode 擴充，需使用者明確指示才建立新提案。
+EOF
+
 # ── MEMORY.md 索引 ────────────────────────────────────────────
 cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 # Memory Index
@@ -231,6 +255,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [同步 setup script](feedback_sync_setup_script.md) — 新增/修改 agent 或記憶後，必須同步更新 ~/setup-claude-memory.sh 與 claude/setup-claude-memory.sh 兩個檔案
 - [暫不處理：限額 P2](project_quota_p2_pending.md) — 6hc-cd 限額只到分頁層級，跨分頁單期總上限與玩家層級限額使用者決定不做
 - [遊戲紀錄 coin 每日上限](project_game_history_coin_reward.md) — 三款遊戲皆訂 100000；之後需要後台管理介面調整這些常數
+- [GAME 17-25 openspec 提案](project_pixel_games_17-25_proposals.md) — 8 款遊戲提案已拍板定案（Dino Run 改採方案 B 不新增），可進入 implementation
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
