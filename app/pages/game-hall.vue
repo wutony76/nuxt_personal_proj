@@ -57,6 +57,7 @@ const gameSlots = ref<GameSlot[]>([
   { id: 12, name: 'SOLITAIRE', description: '接龍遊戲，整理 52 張牌把 4 疊花色收齊', status: 'open', path: '/game/solitaire' },
   { id: 13, name: 'TYPING', description: '打字遊戲，看字輸入搶分數，快來試試你的手速', status: 'open', path: '/game/typing' },
   { id: 14, name: 'BREAKOUT', description: '經典打磚塊，控制擋板反彈球體，清光磚塊過關', status: 'open', path: '/game/breakout' },
+  { id: 15, name: 'ORB MATCH', description: '轉珠玩法，按住珠子連續拖曳跨格滑動，放開手指觸發消除連鎖', status: 'open', path: '/game/orb-match' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)

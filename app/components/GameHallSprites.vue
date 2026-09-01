@@ -35,6 +35,7 @@ const BASE_PLACEMENTS: BasePlacement[] = [
   { key: 'breakout', side: 'right', offset: '3vw', top: '50vh', size: 24, duration: '3.8s', delay: '0.5s' },
   { key: 'pong', side: 'left', offset: '3vw', top: '56vh', size: 26, duration: '4.5s', delay: '0.2s' },
   { key: 'minesweeper', side: 'right', offset: '4vw', top: '62vh', size: 26, duration: '2.4s', delay: '0.6s' },
+  { key: 'orbMatch', side: 'left', offset: '3vw', top: '68vh', size: 26, duration: '2.8s', delay: '0.9s' },
   { key: 'spaceShooter', side: 'left', offset: '2.5vw', top: '74vh', size: 28, duration: '6s', delay: '1s' },
   { key: 'match3', side: 'right', offset: '3.5vw', top: '80vh', size: 26, duration: '3.2s', delay: '0.3s' },
   { key: 'runner', side: 'left', offset: '4vw', top: '90vh', size: 28, duration: '2.2s', delay: '0.5s' },

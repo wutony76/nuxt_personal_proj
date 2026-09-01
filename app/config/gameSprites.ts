@@ -28,7 +28,8 @@ export const GAME_SPRITES: GameSpriteDef[] = [
   { key: 'spaceInvaders', match: (n) => n.includes('SPACE INVADERS'), icon: '👾', anim: 'march', glow: '#ff3b3b' },
   { key: 'solitaire', match: (n) => n.includes('SOLITAIRE'), icon: '🃏', anim: 'flip', glow: '#2ecc71' },
   { key: 'typing', match: (n) => n.includes('TYPING'), icon: '⌨️', anim: 'jitter', glow: '#ffb627' },
-  { key: 'breakout', match: (n) => n.includes('BREAKOUT'), icon: '🧱', anim: 'bounce', glow: '#1de9b6' }
+  { key: 'breakout', match: (n) => n.includes('BREAKOUT'), icon: '🧱', anim: 'bounce', glow: '#1de9b6' },
+  { key: 'orbMatch', match: (n) => n.includes('ORB MATCH'), icon: '🔮', anim: 'sparkle', glow: '#9d4edd' }
 ]
 
 const DEFAULT_SPRITE: GameSpriteDef = { key: 'default', match: () => true, icon: '🎮', anim: 'drift', glow: '#00e5ff' }
