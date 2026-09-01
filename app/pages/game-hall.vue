@@ -64,6 +64,7 @@ const gameSlots = ref<GameSlot[]>([
   { id: 15, name: 'ORB MATCH', description: '轉珠玩法，按住珠子連續拖曳跨格滑動，放開手指觸發消除連鎖', status: 'open', path: '/game/orb-match' },
   { id: 16, name: 'BATTLESHIP', description: '戰艦對戰，佈署艦隊、輪流猜測座標，先擊沉敵方全部戰艦獲勝', status: 'open', path: '/game/battleship' },
   { id: 17, name: '2048', description: '數字合併玩法，滑動讓相同數字相撞加倍，一路挑戰合成出 2048', status: 'open', path: '/game/2048' },
+  { id: 18, name: 'FLAPPY', description: '點擊給角色向上衝力，連續重力下墜穿越管道空隙，看你能通過幾組', status: 'open', path: '/game/flappy' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)
