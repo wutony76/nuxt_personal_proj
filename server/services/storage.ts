@@ -43,6 +43,7 @@ import RetroBattleshipClass from './game/retro/battleship'
 import Retro2048Class from './game/retro/2048'
 import RetroFlappyClass from './game/retro/flappy'
 import RetroFroggerClass from './game/retro/frogger'
+import RetroConnect4Class from './game/retro/connect4'
 import { LOTTERY } from '~/config/constants'
 
 export const verifyPasswordHash = (password: string, storedHash: string): boolean => {
@@ -198,6 +199,7 @@ export class Storage {
       new Retro2048Class()
       new RetroFlappyClass()
       new RetroFroggerClass()
+      new RetroConnect4Class()
       console.log('SUCCESS ---BASE>retroGames.init')
     }
   }

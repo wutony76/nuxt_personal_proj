@@ -66,6 +66,7 @@ const gameSlots = ref<GameSlot[]>([
   { id: 17, name: '2048', description: '數字合併玩法，滑動讓相同數字相撞加倍，一路挑戰合成出 2048', status: 'open', path: '/game/2048' },
   { id: 18, name: 'FLAPPY', description: '點擊給角色向上衝力，連續重力下墜穿越管道空隙，看你能通過幾組', status: 'open', path: '/game/flappy' },
   { id: 19, name: 'FROGGER', description: '方向鍵跳格閃避車流、踩浮木橫渡河道，把青蛙送進五個蓮花座過關', status: 'open', path: '/game/frogger' },
+  { id: 20, name: 'CONNECT 4', description: '四子棋對戰，與 AI 輪流選欄落子，搶先讓自己的棋子連成四子獲勝', status: 'open', path: '/game/connect4' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)

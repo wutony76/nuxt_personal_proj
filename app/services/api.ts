@@ -777,7 +777,7 @@ export type LotteryOpenCodeHistoryResponse = {
 }
 
 // ── 遊戲中心 · 遊戲紀錄（game-hall 小遊戲，非彩票）──
-export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman' | 'spaceInvaders' | 'solitaire' | 'typing' | 'breakout' | 'orbMatch' | 'battleship' | '2048' | 'flappy' | 'frogger'
+export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman' | 'spaceInvaders' | 'solitaire' | 'typing' | 'breakout' | 'orbMatch' | 'battleship' | '2048' | 'flappy' | 'frogger' | 'connect4'
 
 export type GameHistoryRecord = {
   id: string
@@ -1207,6 +1207,11 @@ export const api = {
       recordFrogger: (payload: GameHistoryRecordPayload) =>
         $fetch<GameHistorySettleResponse>('/api/games/retro/frogger/history', { method: 'POST', body: payload }),
       clearFrogger: () => $fetch<{ ok: boolean }>('/api/games/retro/frogger/history', { method: 'DELETE' }),
+
+      historyConnect4: () => $fetch<GameHistoryListResponse>('/api/games/retro/connect4/history'),
+      recordConnect4: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/connect4/history', { method: 'POST', body: payload }),
+      clearConnect4: () => $fetch<{ ok: boolean }>('/api/games/retro/connect4/history', { method: 'DELETE' }),
 
       /** 各遊戲最新紀錄混排 5 筆（依 playedAt，需登入） */
       leaderboard: () => $fetch<RetroLeaderboardResponse>('/api/games/retro/leaderboard'),
