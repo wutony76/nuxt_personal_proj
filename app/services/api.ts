@@ -777,7 +777,7 @@ export type LotteryOpenCodeHistoryResponse = {
 }
 
 // ── 遊戲中心 · 遊戲紀錄（game-hall 小遊戲，非彩票）──
-export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman' | 'spaceInvaders' | 'solitaire'
+export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman' | 'spaceInvaders' | 'solitaire' | 'typing' | 'breakout'
 
 export type GameHistoryRecord = {
   id: string
@@ -1079,6 +1079,16 @@ export const api = {
       recordSolitaire: (payload: GameHistoryRecordPayload) =>
         $fetch<GameHistorySettleResponse>('/api/games/retro/solitaire/history', { method: 'POST', body: payload }),
       clearSolitaire: () => $fetch<{ ok: boolean }>('/api/games/retro/solitaire/history', { method: 'DELETE' }),
+
+      historyTyping: () => $fetch<GameHistoryListResponse>('/api/games/retro/typing/history'),
+      recordTyping: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/typing/history', { method: 'POST', body: payload }),
+      clearTyping: () => $fetch<{ ok: boolean }>('/api/games/retro/typing/history', { method: 'DELETE' }),
+
+      historyBreakout: () => $fetch<GameHistoryListResponse>('/api/games/retro/breakout/history'),
+      recordBreakout: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/breakout/history', { method: 'POST', body: payload }),
+      clearBreakout: () => $fetch<{ ok: boolean }>('/api/games/retro/breakout/history', { method: 'DELETE' }),
 
       /** 公開端點，訪客不登入也能查詢——見 server/middleware/auth.ts 的 PUBLIC_GAME_PATHS */
       rates: () => $fetch<RetroGameRatesResponse>('/api/games/retro/rates')

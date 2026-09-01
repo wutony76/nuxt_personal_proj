@@ -29,8 +29,10 @@ const BASE_PLACEMENTS: BasePlacement[] = [
   { key: 'solitaire', side: 'right', offset: '3vw', top: '6vh', size: 28, duration: '3.6s', delay: '0.7s' },
   { key: 'snake', side: 'left', offset: '2vw', top: '14vh', size: 30, duration: '9s', delay: '0s' },
   { key: 'spaceInvaders', side: 'right', offset: '3vw', top: '20vh', size: 28, duration: '5.5s', delay: '0.4s' },
+  { key: 'typing', side: 'left', offset: '3.5vw', top: '28vh', size: 26, duration: '1.8s', delay: '0.4s' },
   { key: 'tetriminos', side: 'left', offset: '4vw', top: '36vh', size: 26, duration: '6.5s', delay: '0.8s' },
   { key: 'pacman', side: 'right', offset: '2.5vw', top: '44vh', size: 30, duration: '7.5s', delay: '1.2s' },
+  { key: 'breakout', side: 'right', offset: '3vw', top: '50vh', size: 24, duration: '3.8s', delay: '0.5s' },
   { key: 'pong', side: 'left', offset: '3vw', top: '56vh', size: 26, duration: '4.5s', delay: '0.2s' },
   { key: 'minesweeper', side: 'right', offset: '4vw', top: '62vh', size: 26, duration: '2.4s', delay: '0.6s' },
   { key: 'spaceShooter', side: 'left', offset: '2.5vw', top: '74vh', size: 28, duration: '6s', delay: '1s' },
@@ -120,6 +122,11 @@ const PLACEMENTS: Placement[] = BASE_PLACEMENTS.map((p) => ({ ...p, icon: byKey(
 .anim-flip {
   animation-name: sprite-flip;
   animation-timing-function: ease-in-out;
+}
+
+.anim-jitter {
+  animation-name: sprite-jitter;
+  animation-timing-function: steps(1, end);
 }
 
 @keyframes sprite-crawl {
@@ -284,6 +291,30 @@ const PLACEMENTS: Placement[] = BASE_PLACEMENTS.map((p) => ({ ...p, icon: byKey(
   60%,
   100% {
     transform: rotateY(0deg) scale(1);
+  }
+}
+
+@keyframes sprite-jitter {
+
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  20% {
+    transform: translate(-2px, 1px);
+  }
+
+  40% {
+    transform: translate(2px, -1px);
+  }
+
+  60% {
+    transform: translate(-1px, -1px);
+  }
+
+  80% {
+    transform: translate(1px, 1px);
   }
 }
 </style>

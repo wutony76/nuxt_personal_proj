@@ -55,6 +55,8 @@ const gameSlots = ref<GameSlot[]>([
   { id: 10, name: 'PAC-MAN', description: '小精靈迷宮吃豆，閃避四隻鬼魂', status: 'open', path: '/game/pac-man' },
   { id: 11, name: 'SPACE INVADERS', description: '傳統太空侵略者，整排外星艦隊步步進逼', status: 'open', path: '/game/space-invaders' },
   { id: 12, name: 'SOLITAIRE', description: '接龍遊戲，整理 52 張牌把 4 疊花色收齊', status: 'open', path: '/game/solitaire' },
+  { id: 13, name: 'TYPING', description: '打字遊戲，看字輸入搶分數，快來試試你的手速', status: 'open', path: '/game/typing' },
+  { id: 14, name: 'BREAKOUT', description: '經典打磚塊，控制擋板反彈球體，清光磚塊過關', status: 'open', path: '/game/breakout' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)

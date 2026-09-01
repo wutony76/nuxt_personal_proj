@@ -26,9 +26,11 @@ const FILTERS: Array<{ key: FilterKey; label: string }> = [
   { key: 'minesweeper', label: 'MINESWEEPER' },
   { key: 'pacman', label: 'PAC-MAN' },
   { key: 'spaceInvaders', label: 'SPACE INVADERS' },
-  { key: 'solitaire', label: 'SOLITAIRE' }
+  { key: 'solitaire', label: 'SOLITAIRE' },
+  { key: 'typing', label: 'TYPING' },
+  { key: 'breakout', label: 'BREAKOUT' }
 ]
-const GAME_KEYS: RetroGameKey[] = ['snake', 'racing', 'tetriminos', 'match3rush', 'match3classic', 'pong', 'runner', 'spaceShooter', 'minesweeper', 'pacman', 'spaceInvaders', 'solitaire']
+const GAME_KEYS: RetroGameKey[] = ['snake', 'racing', 'tetriminos', 'match3rush', 'match3classic', 'pong', 'runner', 'spaceShooter', 'minesweeper', 'pacman', 'spaceInvaders', 'solitaire', 'typing', 'breakout']
 const GAME_NAME: Record<RetroGameKey, string> = {
   snake: 'SNAKE',
   racing: 'RACING',
@@ -41,7 +43,9 @@ const GAME_NAME: Record<RetroGameKey, string> = {
   minesweeper: 'MINESWEEPER',
   pacman: 'PAC-MAN',
   spaceInvaders: 'SPACE INVADERS',
-  solitaire: 'SOLITAIRE'
+  solitaire: 'SOLITAIRE',
+  typing: 'TYPING',
+  breakout: 'BREAKOUT'
 }
 
 const ui = reactive({
