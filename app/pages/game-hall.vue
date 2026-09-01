@@ -51,12 +51,12 @@ const gameSlots = ref<GameSlot[]>([
   { id: 6, name: 'PONG', description: '經典乒乓球，馬上PK', status: 'open', path: '/game/pong' },
   { id: 7, name: 'RUNNER', description: '側視角自動捲軸跑酷，跳躍下蹲閃避障礙', status: 'open', path: '/game/runner' },
   { id: 8, name: 'SPACE SHOOTER', description: '俯視角太空射擊，擊落敵機、閃避彈幕', status: 'open', path: '/game/space-shooter' },
-  { id: 9, name: 'MINESWEEPER', description: '經典踩地雷，動動腦袋吧！', status: 'open', path: '/game/minesweeper' },
+  { id: 9, name: 'MINESWEEPER', description: '踩地雷，不要點到炸彈了，動動腦袋吧！', status: 'open', path: '/game/minesweeper' },
   { id: 10, name: 'PAC-MAN', description: '小精靈迷宮吃豆，閃避四隻鬼魂', status: 'open', path: '/game/pac-man' },
   { id: 11, name: 'SPACE INVADERS', description: '傳統太空侵略者，整排外星艦隊步步進逼', status: 'open', path: '/game/space-invaders' },
   { id: 12, name: 'SOLITAIRE', description: '接龍遊戲，整理 52 張牌把 4 疊花色收齊', status: 'open', path: '/game/solitaire' },
   { id: 13, name: 'TYPING', description: '打字遊戲，看字輸入搶分數，快來試試你的手速', status: 'open', path: '/game/typing' },
-  { id: 14, name: 'BREAKOUT', description: '經典打磚塊，控制擋板反彈球體，清光磚塊過關', status: 'open', path: '/game/breakout' },
+  { id: 14, name: 'BREAKOUT', description: '打磚塊遊戲，清光磚塊過關', status: 'open', path: '/game/breakout' },
   { id: 15, name: 'ORB MATCH', description: '轉珠玩法，按住珠子連續拖曳跨格滑動，放開手指觸發消除連鎖', status: 'open', path: '/game/orb-match' },
 ])
 
