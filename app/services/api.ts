@@ -777,7 +777,7 @@ export type LotteryOpenCodeHistoryResponse = {
 }
 
 // ── 遊戲中心 · 遊戲紀錄（game-hall 小遊戲，非彩票）──
-export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman' | 'spaceInvaders' | 'solitaire' | 'typing' | 'breakout' | 'orbMatch'
+export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman' | 'spaceInvaders' | 'solitaire' | 'typing' | 'breakout' | 'orbMatch' | 'battleship'
 
 export type GameHistoryRecord = {
   id: string
@@ -804,6 +804,20 @@ export type GameHistorySettleResponse = {
   coinReward: number
   coinCapped: boolean
   newCoinBalance: number
+}
+
+export type RetroLeaderboardEntry = {
+  rank: number
+  gameKey: RetroGameKey
+  gameName: string
+  score: number
+  userId: string
+  userName: string
+  playedAt: string
+}
+
+export type RetroLeaderboardResponse = {
+  entries: RetroLeaderboardEntry[]
 }
 
 export type RetroGameRateInfo = {
@@ -1173,6 +1187,14 @@ export const api = {
       recordOrbMatch: (payload: GameHistoryRecordPayload) =>
         $fetch<GameHistorySettleResponse>('/api/games/retro/orb-match/history', { method: 'POST', body: payload }),
       clearOrbMatch: () => $fetch<{ ok: boolean }>('/api/games/retro/orb-match/history', { method: 'DELETE' }),
+
+      historyBattleship: () => $fetch<GameHistoryListResponse>('/api/games/retro/battleship/history'),
+      recordBattleship: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/battleship/history', { method: 'POST', body: payload }),
+      clearBattleship: () => $fetch<{ ok: boolean }>('/api/games/retro/battleship/history', { method: 'DELETE' }),
+
+      /** 各遊戲最新紀錄混排 5 筆（依 playedAt，需登入） */
+      leaderboard: () => $fetch<RetroLeaderboardResponse>('/api/games/retro/leaderboard'),
 
       /** 公開端點，訪客不登入也能查詢——見 server/middleware/auth.ts 的 PUBLIC_GAME_PATHS */
       rates: () => $fetch<RetroGameRatesResponse>('/api/games/retro/rates'),

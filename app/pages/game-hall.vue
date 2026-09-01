@@ -58,6 +58,7 @@ const gameSlots = ref<GameSlot[]>([
   { id: 13, name: 'TYPING', description: '打字遊戲，看字輸入搶分數，快來試試你的手速', status: 'open', path: '/game/typing' },
   { id: 14, name: 'BREAKOUT', description: '打磚塊遊戲，清光磚塊過關', status: 'open', path: '/game/breakout' },
   { id: 15, name: 'ORB MATCH', description: '轉珠玩法，按住珠子連續拖曳跨格滑動，放開手指觸發消除連鎖', status: 'open', path: '/game/orb-match' },
+  { id: 16, name: 'BATTLESHIP', description: '戰艦對戰，佈署艦隊、輪流猜測座標，先擊沉敵方全部戰艦獲勝', status: 'open', path: '/game/battleship' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)

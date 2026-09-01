@@ -29,7 +29,8 @@ export const GAME_SPRITES: GameSpriteDef[] = [
   { key: 'solitaire', match: (n) => n.includes('SOLITAIRE'), icon: '🃏', anim: 'flip', glow: '#2ecc71' },
   { key: 'typing', match: (n) => n.includes('TYPING'), icon: '⌨️', anim: 'jitter', glow: '#ffb627' },
   { key: 'breakout', match: (n) => n.includes('BREAKOUT'), icon: '🧱', anim: 'bounce', glow: '#1de9b6' },
-  { key: 'orbMatch', match: (n) => n.includes('ORB MATCH'), icon: '🔮', anim: 'sparkle', glow: '#9d4edd' }
+  { key: 'orbMatch', match: (n) => n.includes('ORB MATCH'), icon: '🔮', anim: 'sparkle', glow: '#9d4edd' },
+  { key: 'battleship', match: (n) => n.includes('BATTLESHIP'), icon: '🚢', anim: 'drift', glow: '#3a86ff' }
 ]
 
 const DEFAULT_SPRITE: GameSpriteDef = { key: 'default', match: () => true, icon: '🎮', anim: 'drift', glow: '#00e5ff' }
