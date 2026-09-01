@@ -1,0 +1,600 @@
+================================================================================
+GAME 17
+================================================================================
+
+# 2048 — 開發計畫
+
+製作一款復古像素風 2048 數字益智遊戲。
+
+核心玩法：
+- 4×4 棋盤
+- 玩家使用方向鍵 / WASD / Touch Swipe 移動所有方塊
+- 相同數字碰撞時合併
+- 每次有效移動後隨機產生新的 2 或 4
+- 目標是合成 2048
+- 沒有可移動位置時 Game Over
+
+第一階段要求：
+只分析目前專案，不修改 Code。
+檢查 Game Center 架構、共用 Game Loop、Input、UI、Game State、Score、LocalStorage / Save System。
+輸出：
+1. 現有架構
+2. 可重用模組
+3. 建議檔案結構
+4. Game State
+5. Board / Tile Architecture
+6. Input Architecture
+7. Score Architecture
+8. MVP 實作順序
+完成後停止，等待確認。
+
+MVP：
+[ ] 4×4 Board
+[ ] Tile
+[ ] 上下左右移動
+[ ] 合併
+[ ] 新增 Tile
+[ ] Score
+[ ] Best Score
+[ ] 2048 判定
+[ ] Game Over
+[ ] Restart
+[ ] Pause
+[ ] Keyboard
+[ ] Touch Swipe
+[ ] Pixel UI
+
+開發原則：
+- 不修改無關遊戲
+- 優先重用 Game Center
+- 不新增不必要 dependency
+- 不使用外部圖片
+- Game Logic 與 Rendering 分離
+- Board Data 與 UI 分離
+- 不要過度設計
+
+完成後回報新增 / 修改檔案、實作功能、測試結果、已知問題。
+
+================================================================================
+GAME 18
+================================================================================
+
+# FLAPPY — 開發計畫
+
+製作一款復古像素風 Flappy 類反應遊戲。
+
+核心玩法：
+- 玩家控制角色上下高度
+- 點擊 / Space / Touch 讓角色向上
+- 沒有操作時角色受重力向下
+- 自動向右捲動
+- 穿過管道 / 障礙物的空隙
+- 每通過一組障礙 +1 分
+- 撞到障礙或地面後 Game Over
+- 目標是取得最高分
+
+注意：
+不要直接複製 Flappy Bird 的角色、素材、Logo 或受版權保護內容。
+使用原創 Pixel 角色與障礙物。
+
+第一階段要求：
+只分析目前專案，不修改 Code。
+檢查 Game Center、Game Loop、Input、Collision、Scroll、Score、Game State、High Score。
+輸出架構與 MVP 實作順序，完成後停止等待確認。
+
+MVP：
+[ ] Game Loop
+[ ] Player
+[ ] Gravity
+[ ] Jump
+[ ] Pipe / Obstacle
+[ ] Auto Scroll
+[ ] Collision
+[ ] Score
+[ ] High Score
+[ ] Game Over
+[ ] Restart
+[ ] Pause
+[ ] Keyboard
+[ ] Mouse / Touch
+[ ] Pixel UI
+
+遊戲參數集中管理：
+gravity
+jumpVelocity
+scrollSpeed
+pipeGap
+pipeSpawnInterval
+maxSpeed
+
+開發原則：
+- 低美術需求
+- 不使用外部圖片
+- 使用 Canvas / Pixel Shape
+- Game Logic 與 Rendering 分離
+- Collision 集中管理
+- 不修改無關程式
+
+完成後回報新增 / 修改檔案、功能、測試結果與已知問題。
+
+================================================================================
+GAME 19
+================================================================================
+
+# FROGGER — 開發計畫
+
+製作一款復古像素風 Frogger 類閃避遊戲。
+
+核心玩法：
+- 玩家控制角色從起點前進
+- 穿越多條道路
+- 閃避不同方向移動的車輛
+- 穿越河流時站在漂浮平台上
+- 掉入水中或撞車會失去 Life
+- 到達終點區域後完成一輪
+- 每輪難度增加
+- 目標是獲得最高分
+
+不要直接複製 Frogger 的角色、Logo、素材或受版權保護內容。
+使用原創 Pixel 角色與障礙物。
+
+第一階段：
+只分析目前專案，不修改 Code。
+檢查：
+Game Center、Grid、Game Loop、Input、Collision、Scrolling、Level、Score、Life。
+輸出：
+1. 現有架構
+2. 可重用模組
+3. 建議檔案結構
+4. Level Architecture
+5. Vehicle Architecture
+6. River / Platform Architecture
+7. Collision Architecture
+8. MVP 順序
+完成後停止。
+
+MVP：
+[ ] Grid
+[ ] Player
+[ ] Road
+[ ] Vehicle
+[ ] Vehicle Movement
+[ ] River
+[ ] Moving Platform
+[ ] Collision
+[ ] Goal
+[ ] Life
+[ ] Score
+[ ] Level
+[ ] Difficulty Increase
+[ ] Game Over
+[ ] Restart
+[ ] Pause
+[ ] Keyboard
+[ ] Touch
+
+所有速度、車輛數量、河流速度、Life、Score 集中設定。
+
+開發原則：
+低美術、無外部圖片、Logic / Rendering 分離、優先重用共用系統、不過度設計。
+
+完成後回報新增 / 修改檔案、功能、測試結果、已知問題。
+
+================================================================================
+GAME 20
+================================================================================
+
+# CONNECT 4 — 開發計畫
+
+製作一款復古像素風 Connect 4 四子棋遊戲。
+
+核心玩法：
+- 7 欄 × 6 列棋盤
+- 玩家 vs AI
+- 玩家輪流選擇欄位
+- 棋子由上往下掉落
+- 玩家與 AI 交替落子
+- 先連成 4 個棋子者獲勝
+- 可連線方向：
+  - Horizontal
+  - Vertical
+  - Diagonal
+- 棋盤填滿且沒有人連線則 Draw
+
+第一階段：
+只分析目前專案，不修改 Code。
+檢查 Game Center、Grid、Turn System、Input、AI、Game State、Animation。
+輸出架構、可重用模組、檔案結構、AI 方案與 MVP 順序。
+完成後停止等待確認。
+
+MVP：
+[ ] 7×6 Board
+[ ] Player
+[ ] AI
+[ ] Turn System
+[ ] Column Selection
+[ ] Gravity Drop
+[ ] Win Detection
+[ ] Horizontal Check
+[ ] Vertical Check
+[ ] Diagonal Check
+[ ] Draw
+[ ] AI Random / Basic Strategy
+[ ] Game Over
+[ ] Restart
+[ ] Pause
+[ ] Pixel UI
+
+AI 第一版：
+先做簡單 Rule-Based AI。
+- 優先可以直接獲勝的位置
+- 其次阻止玩家直接獲勝
+- 否則選擇合法欄位
+不要一開始導入複雜 AI。
+
+開發原則：
+- 不使用外部圖片
+- Logic / Rendering 分離
+- AI 使用與玩家相同規則
+- Win Detection 集中管理
+- 不修改無關程式
+- 不過度設計
+
+完成後回報新增 / 修改檔案、AI 邏輯、測試結果與已知問題。
+
+================================================================================
+GAME 21
+================================================================================
+
+# WHACK-A-MOLE — 開發計畫
+
+製作一款復古像素風打地鼠反應遊戲。
+
+核心玩法：
+- 畫面有多個洞穴 / 格子
+- 地鼠隨機出現
+- 玩家快速點擊地鼠
+- 正確點擊獲得分數
+- 地鼠消失後重新隨機出現
+- 隨時間增加速度
+- 點擊錯誤位置可扣分或不加分
+- 時間結束後 Game Over
+- 目標是最高分
+
+第一階段：
+只分析目前專案，不修改 Code。
+檢查 Game Center、Timer、Input、Random、Score、Game State、Animation。
+輸出現有架構、可重用模組、檔案結構、MVP 順序。
+完成後停止等待確認。
+
+MVP：
+[ ] Mole Spawn
+[ ] Random Position
+[ ] Spawn Timer
+[ ] Mole Lifetime
+[ ] Mouse Click
+[ ] Touch
+[ ] Score
+[ ] Combo
+[ ] Timer
+[ ] Difficulty Increase
+[ ] Game Over
+[ ] Restart
+[ ] Pause
+[ ] Pixel UI
+
+遊戲性：
+- 連續快速擊中增加 Combo
+- Combo 提高分數倍率
+- 時間越久地鼠出現時間越短
+- 可以加入特殊地鼠，但第二階段再做
+
+開發原則：
+低美術需求，不使用外部圖片，使用 Pixel Shape / Canvas / CSS。
+Timer、Spawn、Score、Game State 分離。
+不修改無關程式。
+
+完成後回報新增 / 修改檔案、功能、測試結果、已知問題。
+
+================================================================================
+GAME 22
+================================================================================
+
+# LIGHTS OUT — 開發計畫
+
+製作一款復古像素風 Lights Out 益智遊戲。
+
+核心玩法：
+- 建立 Grid 棋盤
+- 每個 Cell 有 ON / OFF 狀態
+- 點擊一格後：
+  - 自己
+  - 上
+  - 下
+  - 左
+  - 右
+  一起切換狀態
+- 目標是讓所有 Cell 都變成 OFF
+- 完成後進入下一關
+- 關卡越高棋盤越大或步數越少
+
+第一階段：
+只分析目前專案，不修改 Code。
+檢查 Grid、Input、Game State、Level、Move Counter、UI、Save System。
+輸出架構與 MVP 順序，完成後停止等待確認。
+
+MVP：
+[ ] Grid
+[ ] ON / OFF Cell
+[ ] Toggle Logic
+[ ] Neighbor Toggle
+[ ] Move Counter
+[ ] Level
+[ ] Win Detection
+[ ] Reset
+[ ] Next Level
+[ ] Game Over / Clear
+[ ] Restart
+[ ] Pause
+[ ] Keyboard
+[ ] Touch
+[ ] Pixel UI
+
+規則：
+- 點擊 Cell 時只切換自己與上下左右
+- 超出棋盤的鄰居忽略
+- 不允許 Undo 的話，先不要實作 Undo
+- 所有關卡資料集中管理
+
+第二階段：
+[ ] Random Puzzle Generator
+[ ] Hint
+[ ] Undo
+[ ] Best Moves
+[ ] Challenge Mode
+
+開發原則：
+不使用外部圖片、Logic / Rendering 分離、Grid Logic 集中管理、不修改無關程式。
+
+完成後回報新增 / 修改檔案、功能、測試結果與已知問題。
+
+================================================================================
+GAME 23
+================================================================================
+
+# TOWER STACK — 開發計畫
+
+製作一款復古像素風一鍵堆塔遊戲。
+
+核心玩法：
+- 方塊會水平移動
+- 玩家點擊 / Space 讓方塊落下
+- 新方塊需要疊在上一層
+- 如果位置偏移，重疊部分留下
+- 沒有重疊的部分掉落
+- 重疊越少，塔越窄
+- 完全沒有重疊時 Game Over
+- 塔越高分數越高
+- 連續完美堆疊可以增加 Combo
+
+第一階段：
+只分析目前專案，不修改 Code。
+檢查 Game Loop、Input、Collision、Animation、Score、Game State。
+輸出架構與 MVP 實作順序，完成後停止等待確認。
+
+MVP：
+[ ] Game Loop
+[ ] Moving Block
+[ ] Drop
+[ ] Overlap Detection
+[ ] Block Resize
+[ ] Block Falling
+[ ] Score
+[ ] Combo
+[ ] Difficulty Increase
+[ ] Game Over
+[ ] Restart
+[ ] Pause
+[ ] Keyboard
+[ ] Mouse
+[ ] Touch
+[ ] Pixel UI
+
+遊戲參數集中管理：
+blockSpeed
+speedIncrease
+perfectThreshold
+maxSpeed
+
+Perfect：
+如果新方塊與上一層幾乎完全重疊：
+- 保持完整寬度
+- Combo +1
+- 額外加分
+
+開發原則：
+低美術需求、Canvas / Pixel Shape、不使用外部圖片、Logic / Rendering 分離。
+不要加入複雜 Physics Engine。
+
+完成後回報新增 / 修改檔案、功能、測試結果與已知問題。
+
+================================================================================
+GAME 24
+================================================================================
+
+# ARKANOID — 開發計畫
+
+製作一款復古像素風 Arkanoid 類打磚塊遊戲。
+
+注意：
+目前專案已有 BREAKOUT，因此本遊戲必須明確作為「Breakout 的進階版本」，不能只是複製同一套玩法。
+
+核心玩法：
+- Paddle
+- Ball
+- Brick
+- Ball 反彈
+- 清除 Brick
+- 多種特殊 Brick
+- Power Up
+- 關卡
+- Boss / 特殊關卡可在後續加入
+
+第一階段：
+只分析目前 BREAKOUT 實作。
+不要修改 Code。
+找出可以重用的：
+- Ball Physics
+- Paddle
+- Collision
+- Brick
+- Score
+- Game Loop
+- Game State
+- Level System
+
+輸出：
+1. BREAKOUT 與 ARKANOID 的差異
+2. 可重用模組
+3. 建議共用 / 獨立架構
+4. 新增檔案
+5. 修改檔案
+6. MVP 順序
+完成後停止等待確認。
+
+MVP 差異化：
+[ ] Multi-Hit Brick
+[ ] Moving Brick
+[ ] Power Up
+[ ] Wide Paddle
+[ ] Multi Ball
+[ ] Fire Ball
+[ ] Brick Pattern
+[ ] Level System
+[ ] Score
+[ ] Combo
+[ ] Life
+[ ] Game Over
+[ ] Restart
+[ ] Pause
+
+Power Up：
+WIDE
+MULTI_BALL
+SLOW
+FIRE
+
+不要一次加入大量 Power Up。
+先完成 2～3 種。
+
+開發原則：
+優先重用 BREAKOUT 共用核心。
+不要複製程式碼。
+如果 BREAKOUT 架構適合抽出共用模組，先提出方案，不要自行大幅重構。
+低美術、不使用外部圖片。
+
+完成後回報新增 / 修改檔案、共用模組、功能、測試結果與已知問題。
+
+================================================================================
+GAME 25
+================================================================================
+
+# DINO RUN — 開發計畫
+
+製作一款復古像素風極簡 Endless Runner。
+
+核心玩法：
+- 角色自動向前跑
+- 玩家主要控制 Jump
+- 閃避地面障礙
+- 可以加入 Flying Obstacle
+- 存活越久分數越高
+- 隨時間增加速度
+- 撞到障礙物後 Game Over
+- 目標是最高分
+
+注意：
+不要直接複製 Chrome Dino 的角色、Logo、素材或受版權保護內容。
+使用原創 Pixel Runner 角色與障礙物。
+
+第一階段：
+只分析目前專案。
+目前已存在 RUNNER，因此先比較：
+RUNNER vs DINO RUN
+
+不要直接修改 Code。
+
+檢查：
+- Game Loop
+- Player
+- Input
+- Gravity
+- Jump
+- Collision
+- Obstacle
+- Auto Scroll
+- Score
+- Difficulty
+
+輸出：
+1. RUNNER 與 DINO RUN 的差異
+2. 可以重用哪些模組
+3. 哪些需要獨立
+4. 建議檔案結構
+5. MVP 實作順序
+
+完成後停止等待確認。
+
+MVP：
+[ ] Auto Run
+[ ] Player
+[ ] Jump
+[ ] Gravity
+[ ] Ground
+[ ] Ground Obstacle
+[ ] Obstacle Spawn
+[ ] Auto Scroll
+[ ] Collision
+[ ] Score
+[ ] High Score
+[ ] Difficulty Increase
+[ ] Game Over
+[ ] Restart
+[ ] Pause
+[ ] Keyboard
+[ ] Touch
+[ ] Pixel UI
+
+遊戲性：
+- 存活時間增加 Score
+- 距離增加 Score
+- 速度逐漸增加
+- 障礙物生成間隔逐漸縮短
+- 不要讓難度增加到無法遊玩
+
+第二階段：
+[ ] Flying Obstacle
+[ ] Duck / Crouch
+[ ] Double Jump
+[ ] Power Up
+[ ] Day / Night
+[ ] Challenge Mode
+
+開發原則：
+- 優先重用現有 RUNNER 的共用模組
+- 不要複製程式碼
+- 低美術需求
+- 不使用外部圖片
+- Game Logic / Rendering 分離
+- 不使用不必要 dependency
+- 不修改其他無關遊戲
+
+完成後回報：
+1. 新增檔案
+2. 修改檔案
+3. 重用的共用模組
+4. 實作功能
+5. 測試結果
+6. 已知問題
+7. 下一階段建議
+

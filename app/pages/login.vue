@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 
 const state = reactive({
@@ -10,13 +10,27 @@ const state = reactive({
   isSubmitting: false
 })
 
+const route = useRoute()
 const router = useRouter()
 const { isLoggedIn, init, login } = useAuth()
+
+/**
+ * 登入成功後的導向目標；僅允許站內相對路徑，避免 open redirect。
+ * @returns {string} 安全的路由路徑
+ */
+const resolveRedirect = (): string => {
+  const raw = route.query.redirect
+  const target = typeof raw === 'string' ? raw : Array.isArray(raw) ? raw[0] ?? '' : ''
+  if (!target || !target.startsWith('/') || target.startsWith('//')) {
+    return '/'
+  }
+  return target
+}
 
 onMounted(async () => {
   await init()
   if (isLoggedIn.value) {
-    router.replace('/')
+    router.replace(resolveRedirect())
   }
 })
 
@@ -36,7 +50,7 @@ const _actions = {
       return
     }
 
-    router.replace('/')
+    router.replace(resolveRedirect())
   }
 }
 </script>

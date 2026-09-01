@@ -78,10 +78,12 @@ const click = {
   --text-dim: #c9a480;
   --text-mute: #8a6a4a;
 
-  flex: 1;
+  width: 100%;
+  max-width: 100%;
   height: 100%;
-  min-height: 220px;
-  max-height: 320px;
+  min-height: 0;
+  flex: 1;
+  box-sizing: border-box;
   background: var(--panel);
   border: 1px solid var(--line);
   display: flex;
@@ -101,11 +103,16 @@ const click = {
   border-bottom: 1px solid var(--line);
   color: var(--text-dim);
   letter-spacing: 0.08em;
+  min-width: 0;
 
   .online {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 
     .dot {
       width: 6px;
@@ -119,6 +126,8 @@ const click = {
 
   .disconnected {
     color: #ff5e5e;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 }
 
@@ -155,10 +164,10 @@ const click = {
 }
 
 .chp-row {
-  display: flex;
-  align-items: baseline;
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr) auto;
   gap: 8px;
-  flex-wrap: wrap;
+  align-items: baseline;
   line-height: 1.5;
 
   &.is-admin .user {
@@ -170,19 +179,21 @@ const click = {
   .user {
     font-weight: 700;
     color: var(--accent);
-    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .text {
     color: var(--text);
     word-break: break-word;
+    min-width: 0;
   }
 
   .time {
-    margin-left: auto;
-    flex-shrink: 0;
     color: var(--text-mute);
     font-size: 10px;
+    white-space: nowrap;
   }
 }
 
@@ -228,6 +239,7 @@ const click = {
   display: flex;
   gap: 8px;
   padding: 8px;
+  margin: 0;
   border-top: 1px solid var(--line);
 
   input {

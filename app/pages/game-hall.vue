@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import ChatPanelHud from '~/components/social/ChatPanelHud.vue'
+import GameHighScoreHud from '~/components/social/GameHighScoreHud.vue'
+import { useAuth } from '~/composables/useAuth'
 
 type HallTab = 'lobby' | 'lottery' | 'taiwan'
 type GameSlot = {
@@ -32,6 +34,8 @@ useHead({
     },
   ],
 })
+
+const { isLoggedIn } = useAuth()
 
 const TABS: Array<{ key: HallTab; label: string }> = [
   { key: 'lobby', label: '經典遊戲' },
@@ -130,6 +134,10 @@ onBeforeUnmount(() => {
       </nav>
       <div class="right-tools">
         <button type="button" class="status-pill history-btn" @click="click.openHistory">遊戲紀錄</button>
+        <NuxtLink v-if="!isLoggedIn" :to="{ path: '/login', query: { redirect: '/game-hall' } }"
+          class="status-pill login-btn">
+          登入
+        </NuxtLink>
         <span class="status-pill"><span class="dot" />SYS.ONLINE</span>
       </div>
     </header>
@@ -158,6 +166,29 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
+
+      <GameHallArcadeLane />
+
+      <!-- 登入後：左側高分排行 + 右側聊天室 -->
+      <div v-if="isLoggedIn" class="social-row">
+        <section class="hud-panel score-panel">
+          <div class="panel-title">
+            <h2>SCORE.RANK</h2>
+            <div class="meta">// 遊戲高分排行 · <b>最新 5 筆</b></div>
+          </div>
+          <GameHighScoreHud />
+        </section>
+
+        <section class="hud-panel chat-panel">
+          <div class="panel-title">
+            <h2>CHAT.LINK</h2>
+            <div class="meta">// 綜合聊天室 · <b>LIVE</b></div>
+          </div>
+          <ChatPanelHud accent-color="#ff8a2b" />
+        </section>
+      </div>
+
+
       <!-- 清單面板：俐落 HUD 風（比照 Cyberpunk.html） -->
       <section class="hud-panel">
         <div class="panel-title">
@@ -181,14 +212,7 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
-      <!-- CHAT：橙色主題，重用全站既有 useChat／useAuth 聊天室後端（登入才能發言，比照 ChatPanel 慣例） -->
-      <section class="hud-panel chat-panel">
-        <div class="panel-title">
-          <h2>CHAT.LINK</h2>
-          <div class="meta">// 綜合聊天室 · <b>LIVE</b></div>
-        </div>
-        <ChatPanelHud accent-color="#ff8a2b" />
-      </section>
+
 
       <!-- STATUS BAR -->
       <div class="status-bar">
@@ -220,6 +244,7 @@ onBeforeUnmount(() => {
   --green: #39ffa0;
   --orange: #ff8a2b;
   --orange-soft: #ffab6e;
+  --orange-deep: #a35412;
 
   /* Hero 專用的像素復古配色（獨立於清單面板，故意不共用同一組變數） */
   --px-panel: #1a0a2e;
@@ -434,6 +459,20 @@ onBeforeUnmount(() => {
         border-color: var(--cyan);
       }
     }
+
+    &.login-btn {
+      cursor: pointer;
+      color: var(--cyan);
+      border-color: var(--cyan);
+      background: rgba(0, 229, 255, 0.12);
+      text-decoration: none;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+
+      &:hover {
+        color: #02131a;
+        background: var(--cyan);
+      }
+    }
   }
 }
 
@@ -563,16 +602,81 @@ onBeforeUnmount(() => {
 }
 
 /*
- * 聊天室面板：沿用 .hud-panel 版型，但比照 .pixel-hero 給自己一整套獨立的暖色調
- * （背景、外框、發光陰影、標題與 meta 文字都改橙色），不只是邊框換色。
+ * 登入後社交列：左排行（紅色）+ 右聊天（橙色）
+ */
+.social-row {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 20px;
+  margin-top: 20px;
+  margin-bottom: 24px;
+  align-items: stretch;
+  /* 5 筆排行基準高度：每行 40px + 間距 10px × 4 */
+  --rank-body-h: calc(5 * 40px + 4 * 10px);
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+
+  >.hud-panel {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .score-panel> :not(.panel-title),
+  .chat-panel> :not(.panel-title) {
+    flex: 1;
+    min-height: var(--rank-body-h);
+    height: auto;
+    max-height: none;
+  }
+
+  .panel-title {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin-bottom: 12px;
+  }
+}
+
+.score-panel {
+  background:
+    radial-gradient(520px 180px at 15% 0%, rgba(255, 59, 74, 0.12), transparent 65%),
+    #150808;
+  border-color: #ff3b4a;
+  box-shadow:
+    0 0 24px rgba(255, 59, 74, 0.16),
+    inset 0 0 26px rgba(255, 59, 74, 0.05),
+    0 8px 28px rgba(0, 0, 0, 0.28);
+
+  .panel-title h2 {
+    color: #ff8a92;
+    text-shadow: 0 0 10px rgba(255, 59, 74, 0.45);
+  }
+
+  .panel-title .meta {
+    color: #a85a5a;
+
+    b {
+      color: #ff3b4a;
+    }
+  }
+}
+
+/*
+ * 聊天室面板：box-shadow 與 .pixel-hero 一致（像素位移陰影 + 外框描邊）
  */
 .chat-panel {
-  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-color: var(--orange);
+  box-shadow: 6px 6px 0 0 var(--orange-deep), 0 0 0 2px var(--orange);
+
   background:
     radial-gradient(600px 200px at 15% 0%, rgba(255, 138, 43, 0.1), transparent 65%),
     #150e07;
-  border-color: var(--orange);
-  box-shadow: 0 0 24px rgba(255, 138, 43, 0.16), inset 0 0 26px rgba(255, 138, 43, 0.05);
 
   .panel-title h2 {
     color: var(--orange-soft);

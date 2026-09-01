@@ -174,8 +174,31 @@ const click = {
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
   font-family: "Share Tech Mono", monospace;
   animation: ghdPopIn 0.22s ease-out both;
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--cyan) var(--panel);
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--panel);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--cyan);
+    border-radius: 999px;
+    border: 2px solid var(--panel);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--cyan-soft);
+  }
 }
 
 .ghd-confirm-mask {
@@ -352,33 +375,9 @@ const click = {
 }
 
 .ghd-list {
-  flex: 1;
-  overflow-y: auto;
   margin: 14px 20px 0;
   border: 1px solid var(--line);
   min-height: 120px;
-
-  /* 捲軸改成 Cyberpunk HUD 風格，比照 game-hall.vue／專案既有的自訂捲軸慣例 */
-  scrollbar-width: thin;
-  scrollbar-color: var(--cyan) var(--panel);
-
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: var(--panel);
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--cyan);
-    border-radius: 999px;
-    border: 2px solid var(--panel);
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: var(--cyan-soft);
-  }
 }
 
 .ghd-empty {
