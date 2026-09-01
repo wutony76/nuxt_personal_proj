@@ -94,6 +94,7 @@ export const STATUS_TIME = {
 export const STATUS_ERR_CODE = {
   40001: { code: 40001, httpStatus: 401, message: '登入已過期', },
   40002: { code: 40002, httpStatus: 400, message: '帳號或密碼錯誤', },
+  40003: { code: 40003, httpStatus: 403, message: '無管理員權限', },
 
   50001: { code: 50001, httpStatus: 400, message: '餘額不足', },
 }

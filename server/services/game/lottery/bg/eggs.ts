@@ -1,6 +1,7 @@
 import { Storage } from '../../../storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import LOTTERY_BASE from './base'
+import { recordPoolReseed, recordFloorOverpay } from './poolAudit'
 // ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
 //    ./base 才是本層的彩票基底（期表／狀態機／訂單）
 import { MEMORY } from '../../../base'
@@ -498,6 +499,9 @@ export default class EGGS extends LOTTERY_BASE {
             const prizePerUnit = tier.minAmount !== undefined
               ? Math.max(naturalPerUnit, tier.minAmount)
               : naturalPerUnit
+            if (prizePerUnit > naturalPerUnit && totalWinnerBets > 0) {
+              recordFloorOverpay(this.key, safeIssue, Number(((prizePerUnit - naturalPerUnit) * totalWinnerBets).toFixed(2)))
+            }
             winners.forEach((row) => {
               row.payout = Number((prizePerUnit * Number(row.coin ?? 1)).toFixed(2))
             })
@@ -697,8 +701,10 @@ export default class EGGS extends LOTTERY_BASE {
     const issue = this._get.latestIssue()
     const distributable = this.distributablePool(issue)
     if (this.poolBase > 0 && distributable >= EGGS_POOL_FLOOR) return this.poolBase
+    const before = distributable
     this.poolBase = LOTTERY_BASE.jackpotBase(EGGS_POOL_BASE_MIN, EGGS_POOL_BASE_MAX)
     this.poolBaseSetAt = Date.now()
+    recordPoolReseed(this.key, issue, before, this.poolBase)
     return this.poolBase
   }
 

@@ -1,6 +1,7 @@
 import { Storage } from '../../../storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import LOTTERY_BASE, { CYCLE_MS, TOTAL_ISSUES_PER_DAY, type OpenCodeRecord } from './base'
+import { recordFloorOverpay } from './poolAudit'
 // ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
 //    ./base 才是本層的彩票基底（期表／狀態機／訂單）
 import { MEMORY } from '../../../base'
@@ -497,6 +498,9 @@ export default class K3_OF extends LOTTERY_BASE {
             const prizePerUnit = tier.minAmount !== undefined
               ? Math.max(naturalPerUnit, tier.minAmount)
               : naturalPerUnit
+            if (prizePerUnit > naturalPerUnit && totalWinnerBets > 0) {
+              recordFloorOverpay(this.key, safeIssue, Number(((prizePerUnit - naturalPerUnit) * totalWinnerBets).toFixed(2)))
+            }
             winners.forEach((row) => {
               row.payout = Number((row.payout + Number((prizePerUnit * Number(row.coin ?? 1)).toFixed(2))).toFixed(2))
               row.tierName = tier.name

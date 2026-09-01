@@ -2,6 +2,7 @@ import { Storage } from '../../../storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import { prdDbId } from './config'
 import LOTTERY_BASE from './base'
+import { recordFloorOverpay } from './poolAudit'
 
 type OpenCodeHistoryItem = {
   issue: string
@@ -269,6 +270,9 @@ export default class LHC_OF extends LOTTERY_BASE {
             const prizePerUnit = tier.minAmount !== undefined
               ? Math.max(naturalPerUnit, tier.minAmount)
               : naturalPerUnit
+            if (prizePerUnit > naturalPerUnit && totalWinnerBets > 0) {
+              recordFloorOverpay(this.key, safeIssue, Number(((prizePerUnit - naturalPerUnit) * totalWinnerBets).toFixed(2)))
+            }
             winners.forEach((row) => {
               const coin = Number(row.coin ?? 1)
               row.payout = Number((row.payout + Number((prizePerUnit * coin).toFixed(2))).toFixed(2))

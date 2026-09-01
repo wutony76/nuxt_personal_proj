@@ -1,4 +1,5 @@
 import LOTTERY_BASE, { type OpenCodeRecord } from './base'
+import { recordPoolReseed } from './poolAudit'
 import {
   buildJackpotShares,
   type JackpotHitRecord,
@@ -88,10 +89,13 @@ export const SSC_POOL_FLOOR = SSC_TOP_TIER && SSC_TOP_TIER.type === 'pool' && SS
  */
 export function sscEnsurePoolBase(): number {
   const pool = SSC_SHARED.pool
-  const distributable = sscDistributablePool(SSC_SHARED.recordOpenCode[0]?.issue ?? '')
+  const issue = SSC_SHARED.recordOpenCode[0]?.issue ?? ''
+  const distributable = sscDistributablePool(issue)
   if (pool.base > 0 && distributable >= SSC_POOL_FLOOR) return pool.base
+  const before = distributable
   pool.base = LOTTERY_BASE.jackpotBase(SSC_POOL_BASE_MIN, SSC_POOL_BASE_MAX)
   pool.baseSetAt = Date.now()
+  recordPoolReseed('SSC', issue, before, pool.base)
   return pool.base
 }
 

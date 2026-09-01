@@ -1,4 +1,5 @@
 import LOTTERY_BASE, { type OpenCodeRecord } from './base'
+import { recordPoolReseed } from './poolAudit'
 import {
   buildJackpotShares,
   type JackpotHitRecord,
@@ -85,10 +86,13 @@ export const X5_POOL_FLOOR = X5_TOP_TIER && X5_TOP_TIER.type === 'pool' && X5_TO
  */
 export function x5EnsurePoolBase(): number {
   const pool = X5_SHARED.pool
-  const distributable = x5DistributablePool(X5_SHARED.recordOpenCode[0]?.issue ?? '')
+  const issue = X5_SHARED.recordOpenCode[0]?.issue ?? ''
+  const distributable = x5DistributablePool(issue)
   if (pool.base > 0 && distributable >= X5_POOL_FLOOR) return pool.base
+  const before = distributable
   pool.base = LOTTERY_BASE.jackpotBase(X5_POOL_BASE_MIN, X5_POOL_BASE_MAX)
   pool.baseSetAt = Date.now()
+  recordPoolReseed('X5', issue, before, pool.base)
   return pool.base
 }
 

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameHistory } from '~/composables/useGameHistory'
+import { api } from '~/services/api'
 
 type Status = 'ready' | 'playing' | 'pause' | 'gameover'
 type Dir = 'up' | 'down' | 'left' | 'right' | 'none'
@@ -104,47 +105,31 @@ function buildRandomMaze(): CellType[][] {
 type FixedMazeTemplate = { name: string; rows: string[] }
 
 /**
- * 固定樣板迷宮：跟 `buildRandomMaze()` 的程序隨機生成並存，讓「開後台管理固定樣板」這件事
- * 有現成的擴充點——目前專案尚未有後台管理介面（比照既有 coin 兌換三常數的既有慣例，
- * 這類「之後要能在後台調整」的設定先用程式碼內常數頂著），這份陣列之後應改為從 server 端
- * 設定檔／API 讀取，新增/修改樣板時不需要動這裡的邏輯，只需要調整資料本身。
+ * 固定樣板迷宮：原本是這裡的程式碼常數，現在已經搬到 server 端（見
+ * server/services/game/retro/mazeTemplates.ts），後台 /admin/games 可以新增／刪除樣板。
+ * 開局時（resetGame()）呼叫 loadFixedMazeTemplates() 向 server fetch 一次目前的清單、
+ * 快取在這個模組變數供該局使用，不用每個 tick 都打 API；fetch 失敗或清單是空的都安全
+ * 退回純隨機生成（pickMaze() 的候選池本來就把隨機生成當成固定一個成員），不影響遊戲可玩性。
  *
- * 樣板格式（設計上比照未來後台可能用「貼上一段文字」編輯的方式）：
+ * 樣板格式（設計上比照後台「貼上一段文字」編輯的方式）：
  *   `rows` 是長度 ROWS（21）的字串陣列，每個字串長度需為 COLS（19）；
  *   `#` 代表牆，其餘任何字元一律視為通道（會自動鋪豆子，不需要特別標記）。
  *   邊界（第 0／ROWS-1 列、第 0／COLS-1 欄）必須是牆，唯獨穿隧列（第 TUNNEL_ROW 列）
  *   的最左／最右格必須是通道；大力丸與 Pac-Man／鬼魂出生格由程式自動覆蓋，樣板不需要處理。
- *   每個樣板載入時都會先做連通性驗證（BFS，見 `parseFixedTemplate()`），格式錯誤或
- *   驗證失敗一律安全退回隨機生成並在 console 印警告，不會讓玩家卡在無法過關的壞版面。
+ *   每個樣板使用前都會先做連通性驗證（BFS，見 `parseFixedTemplate()`），格式錯誤或
+ *   驗證失敗一律安全退回隨機生成並在 console 印警告，不會讓玩家卡在無法過關的壞版面
+ *   （server 端寫入時也會驗證一次，這裡的驗證是 client 端的第二層防線）。
  */
-const FIXED_MAZE_TEMPLATES: FixedMazeTemplate[] = [
-  {
-    name: 'classic-01',
-    rows: [
-      '###################',
-      '#.................#',
-      '#...#.#...#...#.#.#',
-      '#.................#',
-      '#.....#.#.....#.#.#',
-      '#.................#',
-      '#.#.#...#...#.#...#',
-      '#.................#',
-      '#.#.#...#.#.#...#.#',
-      '#.................#',
-      '...................',
-      '#.................#',
-      '#.#.#.#.#...#...#.#',
-      '#.................#',
-      '#...#.#...........#',
-      '#.................#',
-      '#.#.#.#...#.#.#.#.#',
-      '#.................#',
-      '#.......#...#...#.#',
-      '#.................#',
-      '###################'
-    ]
+let fixedMazeTemplates: FixedMazeTemplate[] = []
+
+async function loadFixedMazeTemplates() {
+  try {
+    const result = await api.games.retro.pacmanMazeTemplates()
+    fixedMazeTemplates = result.templates
+  } catch {
+    fixedMazeTemplates = []
   }
-]
+}
 
 /** 從 Pac-Man 出生點對整張迷宮做 BFS，確認每一格通道皆可抵達（不會有被牆困住、吃不到的豆子） */
 function isMazeFullyConnected(grid: CellType[][]): boolean {
@@ -210,13 +195,14 @@ function parseFixedTemplate(template: FixedMazeTemplate): CellType[][] | null {
 
 /**
  * 混合挑選本關迷宮：把「隨機生成」跟「已設定的固定樣板」放進同一個候選池等機率抽選。
- * 目前 `FIXED_MAZE_TEMPLATES` 只有 1 筆示範資料，之後後台新增更多筆，固定樣板出現的機率
- * 會自然跟著提高，不需要調整這裡的邏輯；固定樣板驗證失敗會自動退回隨機生成。
+ * `fixedMazeTemplates` 是開局時從後台 fetch 回來的清單（見 loadFixedMazeTemplates()），
+ * 筆數由後台管理者決定，固定樣板出現的機率會隨筆數自然提高，不需要調整這裡的邏輯；
+ * 固定樣板驗證失敗會自動退回隨機生成。
  */
 function pickMaze(): CellType[][] {
   const pool: Array<() => CellType[][] | null> = [
     buildRandomMaze,
-    ...FIXED_MAZE_TEMPLATES.map((template) => () => parseFixedTemplate(template))
+    ...fixedMazeTemplates.map((template) => () => parseFixedTemplate(template))
   ]
   const pick = pool[Math.floor(Math.random() * pool.length)]!
   const result = pick()
@@ -913,10 +899,11 @@ const onKeydown = (event: KeyboardEvent) => {
   if (handled) event.preventDefault()
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (typeof window !== 'undefined') {
     window.addEventListener('keydown', onKeydown)
   }
+  await loadFixedMazeTemplates()
   _actions.resetGame()
 })
 

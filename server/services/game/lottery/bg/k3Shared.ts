@@ -1,4 +1,5 @@
 import LOTTERY_BASE, { type OpenCodeRecord } from './base'
+import { recordPoolReseed } from './poolAudit'
 import {
   buildJackpotShares,
   type JackpotHitRecord,
@@ -80,10 +81,13 @@ export const K3_POOL_FLOOR = K3_TOP_TIER && K3_TOP_TIER.type === 'pool' && K3_TO
  */
 export function k3EnsurePoolBase(): number {
   const pool = K3_SHARED.pool
-  const distributable = k3DistributablePool(K3_SHARED.recordOpenCode[0]?.issue ?? '')
+  const issue = K3_SHARED.recordOpenCode[0]?.issue ?? ''
+  const distributable = k3DistributablePool(issue)
   if (pool.base > 0 && distributable >= K3_POOL_FLOOR) return pool.base
+  const before = distributable
   pool.base = LOTTERY_BASE.jackpotBase(K3_POOL_BASE_MIN, K3_POOL_BASE_MAX)
   pool.baseSetAt = Date.now()
+  recordPoolReseed('K3', issue, before, pool.base)
   return pool.base
 }
 

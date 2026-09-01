@@ -814,8 +814,58 @@ export type RetroGameRateInfo = {
   coinDailyCap: number
 }
 
+export type MazeTemplate = { id: string; name: string; rows: string[] }
+
 export type RetroGameRatesResponse = {
   rates: RetroGameRateInfo[]
+}
+
+export type BgPoolReseedEvent = {
+  id: string
+  lotteryKey: string
+  lotteryName: string
+  issue: string
+  before: number
+  after: number
+  timestamp: number
+  timeStr: string
+}
+
+export type BgFloorOverpayEvent = {
+  id: string
+  lotteryKey: string
+  lotteryName: string
+  issue: string
+  overpay: number
+  timestamp: number
+  timeStr: string
+}
+
+export type BgPoolAuditSummary = {
+  key: string
+  name: string
+  reseedCount: number
+  totalOverpay: number
+}
+
+export type BgPoolAuditResponse = {
+  reseed: BgPoolReseedEvent[]
+  overpay: BgFloorOverpayEvent[]
+  summary: BgPoolAuditSummary[]
+  stats: { reseedCount: number; overpayCount: number; totalOverpay: number }
+}
+
+export type ChatScheduleRepeat = 'daily' | 'once'
+
+export type ChatSchedule = {
+  id: string
+  text: string
+  hour: number
+  minute: number
+  repeat: ChatScheduleRepeat
+  createdBy: string
+  createdAt: number
+  lastFiredKey?: string
 }
 
 export const api = {
@@ -833,6 +883,35 @@ export const api = {
       $fetch('/api/logout', {
         method: 'POST'
       })
+  },
+  admin: {
+    me: () => $fetch<{ isAdmin: boolean; user: AuthUser }>('/api/admin/me'),
+    roles: () => $fetch<{ admins: Array<{ id: string; name: string; email: string }> }>('/api/admin/roles'),
+    games: {
+      updateRetroRates: (key: RetroGameKey, payload: { coinRate: number; coinCapPerRun: number; coinDailyCap: number }) =>
+        $fetch<RetroGameRateInfo>(`/api/admin/games/retro/${key}/rates`, { method: 'PUT', body: payload }),
+      addMazeTemplate: (payload: { name: string; rows: string[] }) =>
+        $fetch<{ template: MazeTemplate }>('/api/admin/games/pacman/maze-templates', { method: 'POST', body: payload }),
+      removeMazeTemplate: (id: string) =>
+        $fetch<{ ok: boolean }>(`/api/admin/games/pacman/maze-templates/${id}`, { method: 'DELETE' }),
+      /** 玩家遊戲紀錄與 coin 兌換查詢，見 design.md Decision 5 */
+      playerHistory: (userId: string) =>
+        $fetch<{ records: GameHistoryRecord[]; balanceChanges: Array<{ id: string; gameKey: string; amount: number; note: string; createdAt: number }> }>(
+          '/api/admin/games/history',
+          { query: { userId } }
+        )
+    },
+    bgLottery: {
+      poolAudit: (params?: { lotteryKey?: string; range?: '7d' | '30d' | 'all' }) =>
+        $fetch<BgPoolAuditResponse>('/api/admin/bg-lottery/pool-audit', { query: params })
+    },
+    chat: {
+      listSchedules: () => $fetch<{ schedules: ChatSchedule[] }>('/api/admin/chat/schedules'),
+      addSchedule: (payload: { text: string; time: string; repeat: ChatScheduleRepeat }) =>
+        $fetch<{ schedule: ChatSchedule }>('/api/admin/chat/schedules', { method: 'POST', body: payload }),
+      removeSchedule: (id: string) =>
+        $fetch<{ ok: boolean }>(`/api/admin/chat/schedules/${id}`, { method: 'DELETE' })
+    }
   },
   lottery: {
     currentInfo: (lotteryId: string | number) => {
@@ -1091,7 +1170,9 @@ export const api = {
       clearBreakout: () => $fetch<{ ok: boolean }>('/api/games/retro/breakout/history', { method: 'DELETE' }),
 
       /** 公開端點，訪客不登入也能查詢——見 server/middleware/auth.ts 的 PUBLIC_GAME_PATHS */
-      rates: () => $fetch<RetroGameRatesResponse>('/api/games/retro/rates')
+      rates: () => $fetch<RetroGameRatesResponse>('/api/games/retro/rates'),
+      /** 公開端點：PAC-MAN 開局要 fetch 這份固定樣板清單混入隨機生成池，見 PUBLIC_GAME_PATHS */
+      pacmanMazeTemplates: () => $fetch<{ templates: MazeTemplate[] }>('/api/games/retro/pacman/maze-templates')
     }
   }
 }

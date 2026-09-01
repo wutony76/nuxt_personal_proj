@@ -16,7 +16,7 @@ const { isLoggedIn, init, login } = useAuth()
 onMounted(async () => {
   await init()
   if (isLoggedIn.value) {
-    router.replace('/admin')
+    router.replace('/')
   }
 })
 
@@ -36,7 +36,7 @@ const _actions = {
       return
     }
 
-    router.replace('/admin')
+    router.replace('/')
   }
 }
 </script>

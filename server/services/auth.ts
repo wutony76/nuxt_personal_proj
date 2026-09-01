@@ -2,6 +2,7 @@ import type { H3Event } from 'h3'
 import { Storage, verifyPasswordHash } from './storage'
 import type { AuthUser } from '../types/storage'
 import { throwErrCode } from '../utils/error'
+import { ADMIN_USER_IDS } from '../config/admin'
 
 const SESSION_COOKIE_NAME = 'portfolio_auth_token'
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7
@@ -39,6 +40,13 @@ export const sessionController = {
     const user = sessionController.get(event)
     // 未登入回 401；若送業務碼 40001 會被 h3 退成 500，GET 還會被 ofetch 自動重試
     if (!user) throwErrCode(40001)
+    return user
+  },
+  isAdmin: (user: AuthUser): boolean => ADMIN_USER_IDS.includes(user.id),
+  /** 先驗證登入（未登入拋 40001），再驗證白名單（不在白名單拋 40003） */
+  requireAdmin: (event: H3Event): AuthUser => {
+    const user = sessionController.require(event)
+    if (!sessionController.isAdmin(user)) throwErrCode(40003)
     return user
   },
   save: (event: H3Event, user: AuthUser) => {

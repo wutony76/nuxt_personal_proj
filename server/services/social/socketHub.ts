@@ -82,9 +82,10 @@ export const socketHub = {
     }
 
     if (envelope.type === 'chat:send') {
-      const rawPayload = envelope.payload as { text?: unknown } | undefined
+      const rawPayload = envelope.payload as { text?: unknown; asAdmin?: unknown } | undefined
       const text = typeof rawPayload?.text === 'string' ? rawPayload.text : ''
-      const result = chatService.handleSend(peer, text)
+      const asAdmin = rawPayload?.asAdmin === true
+      const result = chatService.handleSend(peer, text, { asAdmin })
       if (!result.ok) {
         safeSend(peer, 'error', { code: result.code, message: result.message })
         return

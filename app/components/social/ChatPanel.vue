@@ -39,7 +39,7 @@ const click = {
 
     <div ref="listRef" class="chat-list">
       <p v-if="messages.length === 0" class="chat-empty">尚無訊息，開啟話題吧！</p>
-      <div v-for="msg in messages" :key="msg.id" class="chat-row">
+      <div v-for="msg in messages" :key="msg.id" class="chat-row" :class="{ 'is-admin': msg.asAdmin }">
         <span class="user">{{ msg.userName }}</span>
         <span class="text">{{ msg.text }}</span>
         <span class="time">{{ formatTime(msg.ts) }}</span>
@@ -122,6 +122,13 @@ const click = {
   gap: 6px;
   flex-wrap: wrap;
   line-height: 1.5;
+
+  &.is-admin .user {
+    background: #c53b33;
+    color: #fff;
+    padding: 0 5px;
+    border-radius: 2px;
+  }
 
   .user {
     font-weight: 700;

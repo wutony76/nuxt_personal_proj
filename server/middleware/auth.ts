@@ -15,7 +15,7 @@ const PUBLIC_LOTTERY_SUFFIXES = ['/jackpot', '/pool']
  * 讓訪客也能在遊戲頁面看到「登入後可賺多少 coin」藉此引導登入，比照上面 PUBLIC_LOTTERY_SUFFIXES
  * 的公開模式；其餘 `/api/games/*`（history 讀寫）仍然要登入。
  */
-const PUBLIC_GAME_PATHS = ['/api/games/retro/rates']
+const PUBLIC_GAME_PATHS = ['/api/games/retro/rates', '/api/games/retro/pacman/maze-templates']
 
 export default defineEventHandler((event) => {
   const pathname = getRequestURL(event).pathname

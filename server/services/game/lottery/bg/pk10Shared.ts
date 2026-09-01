@@ -1,4 +1,5 @@
 import LOTTERY_BASE, { type OpenCodeRecord } from './base'
+import { recordPoolReseed } from './poolAudit'
 import {
   buildJackpotShares,
   type JackpotHitRecord,
@@ -85,10 +86,13 @@ export const PK10_POOL_FLOOR = PK10_TOP_TIER && PK10_TOP_TIER.type === 'pool' &&
  */
 export function pk10EnsurePoolBase(): number {
   const pool = PK10_SHARED.pool
-  const distributable = pk10DistributablePool(PK10_SHARED.recordOpenCode[0]?.issue ?? '')
+  const issue = PK10_SHARED.recordOpenCode[0]?.issue ?? ''
+  const distributable = pk10DistributablePool(issue)
   if (pool.base > 0 && distributable >= PK10_POOL_FLOOR) return pool.base
+  const before = distributable
   pool.base = LOTTERY_BASE.jackpotBase(PK10_POOL_BASE_MIN, PK10_POOL_BASE_MAX)
   pool.baseSetAt = Date.now()
+  recordPoolReseed('PK10', issue, before, pool.base)
   return pool.base
 }
 

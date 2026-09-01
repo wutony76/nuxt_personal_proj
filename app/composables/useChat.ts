@@ -7,6 +7,13 @@ export type ChatMessage = {
   userName: string
   text: string
   ts: number
+  /** 後台以管理者身分送出時為 true */
+  asAdmin?: boolean
+}
+
+export type ChatSendOptions = {
+  /** 後台總覽聊天室帶 true → server 驗白名單後顯示「管理者: XXX」 */
+  asAdmin?: boolean
 }
 
 const MAX_MESSAGES = 50
@@ -38,15 +45,22 @@ if (import.meta.client) {
 }
 
 const _actions = {
-  /** loading guard 用「前端節流窗口內直接忽略」取代，聊天室不需要 loading 狀態（單向 fire-and-forget） */
-  sendMessage: (text: string) => {
+  /**
+   * loading guard 用「前端節流窗口內直接忽略」取代，聊天室不需要 loading 狀態（單向 fire-and-forget）
+   * @param text 訊息內容
+   * @param options.asAdmin 後台管理者發言
+   */
+  sendMessage: (text: string, options: ChatSendOptions = {}) => {
     state.errorMessage = ''
     const trimmed = text.trim()
     if (!trimmed) return
     const now = Date.now()
     if (now - lastSentAt < CLIENT_THROTTLE_MS) return
     lastSentAt = now
-    useSocket().actions.send('chat:send', { text: trimmed })
+    useSocket().actions.send('chat:send', {
+      text: trimmed,
+      ...(options.asAdmin ? { asAdmin: true } : {})
+    })
   }
 }
 

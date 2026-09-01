@@ -2,8 +2,9 @@
 import { Storage } from '../services/storage'
 import BaseClass from '../services/base'
 import { socketHub } from '../services/social/socketHub'
+import { chatScheduleService } from '../services/social/chatSchedule'
 
-export default defineNitroPlugin((nitroApp) => {
+export default defineNitroPlugin((_nitroApp) => {
   console.log('')
   console.log('')
   console.log('')
@@ -19,6 +20,7 @@ export default defineNitroPlugin((nitroApp) => {
         ; (game as { circle: () => void }).circle()
       }
     })
+    chatScheduleService.tick()
   })
   console.log('SERV.RUN')
 })

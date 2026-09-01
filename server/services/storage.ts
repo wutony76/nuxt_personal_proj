@@ -7,6 +7,7 @@ import type {
 import { encodePasswordBcjs } from '../utils/encrypt'
 import { compareSync } from 'bcryptjs'
 import UsersClass from './users'
+import { DEFAULT_MAZE_TEMPLATES, type MazeTemplate } from './game/retro/mazeTemplates'
 import ConfigClass from './game/lottery/bg/config'
 import LhcOfClass from './game/lottery/bg/6hcOf'
 import LhcCdClass from './game/lottery/bg/6hcCd'
@@ -113,12 +114,17 @@ export class Storage {
   static games: Record<string, any> = {}
   static lotteryStore: LotteryStore = createDefaultLotteryStore()
   static lottery = {
-    orders: {}
+    orders: {},
+    poolAudit: {
+      reseed: [] as import('./game/lottery/bg/poolAudit').PoolReseedEvent[],
+      overpay: [] as import('./game/lottery/bg/poolAudit').FloorOverpayEvent[]
+    }
   }
   /** 復古遊戲（snake/racing/tetriminos）獨立於彩票的 games 註冊表，避免跟 LOTTERY_BASE 型別耦合 */
-  static retroGames: { instances: Record<string, any>; history: Record<string, any> } = {
+  static retroGames: { instances: Record<string, any>; history: Record<string, any>; pacmanMazeTemplates: MazeTemplate[] } = {
     instances: {},
-    history: {}
+    history: {},
+    pacmanMazeTemplates: DEFAULT_MAZE_TEMPLATES.map((t) => ({ ...t }))
   }
 
   static handle = {
