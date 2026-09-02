@@ -71,6 +71,7 @@ const gameSlots = ref<GameSlot[]>([
   { id: 22, name: 'LIGHTS OUT', description: '關燈益智玩法，點一格連動翻轉上下左右鄰格，在限定步數內把全部燈熄滅過關', status: 'open', path: '/game/lights-out' },
   { id: 23, name: 'TOWER STACK', description: '疊塔玩法，抓時機讓移動方塊落在塔頂，重疊越少塔越窄，完美對齊觸發 Perfect 連擊衝高分', status: 'open', path: '/game/tower-stack' },
   { id: 24, name: 'ARKANOID', description: 'BREAKOUT 進階版打磚塊，多次命中磚塊、移動磚塊與道具讓玩法更有變化', status: 'open', path: '/game/arkanoid' },
+  { id: 25, name: 'TOWER DEFENSE', description: '塔防玩法，放置防禦塔抵禦無限波敵人，擊殺取得金幣升級，挑戰能撐到第幾波', status: 'open', path: '/game/tower-defense' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)

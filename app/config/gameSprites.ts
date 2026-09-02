@@ -38,7 +38,8 @@ export const GAME_SPRITES: GameSpriteDef[] = [
   { key: 'whackAMole', match: (n) => n.includes('WHACK-A-MOLE'), icon: '🐹', anim: 'hop', glow: '#a0522d' },
   { key: 'lightsOut', match: (n) => n.includes('LIGHTS OUT'), icon: '💡', anim: 'blink', glow: '#adb5bd' },
   { key: 'towerStack', match: (n) => n.includes('TOWER STACK'), icon: '🗼', anim: 'fall', glow: '#118ab2' },
-  { key: 'arkanoid', match: (n) => n.includes('ARKANOID'), icon: '⚡', anim: 'bounce', glow: '#ef476f' }
+  { key: 'arkanoid', match: (n) => n.includes('ARKANOID'), icon: '⚡', anim: 'bounce', glow: '#ef476f' },
+  { key: 'towerDefense', match: (n) => n.includes('TOWER DEFENSE'), icon: '🏰', anim: 'blink', glow: '#6a994e' }
 ]
 
 const DEFAULT_SPRITE: GameSpriteDef = { key: 'default', match: () => true, icon: '🎮', anim: 'drift', glow: '#00e5ff' }

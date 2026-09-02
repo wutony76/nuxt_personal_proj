@@ -33,7 +33,8 @@ const PLAY_PATHS: Record<RetroGameKey, string> = {
   whackAMole: '/game/whack-a-mole',
   lightsOut: '/game/lights-out',
   towerStack: '/game/tower-stack',
-  arkanoid: '/game/arkanoid'
+  arkanoid: '/game/arkanoid',
+  towerDefense: '/game/tower-defense'
 }
 
 /** 起始草稿沿用已知合法的 classic-01 樣板，讓管理員從一份確定通過驗證的版面開始改，而不是空白或破損的骨架 */

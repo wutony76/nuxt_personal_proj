@@ -48,6 +48,7 @@ import RetroWhackAMoleClass from './game/retro/whackAMole'
 import RetroLightsOutClass from './game/retro/lightsOut'
 import RetroTowerStackClass from './game/retro/tower-stack'
 import RetroArkanoidClass from './game/retro/arkanoid'
+import RetroTowerDefenseClass from './game/retro/towerDefense'
 import { LOTTERY } from '~/config/constants'
 
 export const verifyPasswordHash = (password: string, storedHash: string): boolean => {
@@ -208,6 +209,7 @@ export class Storage {
       new RetroLightsOutClass()
       new RetroTowerStackClass()
       new RetroArkanoidClass()
+      new RetroTowerDefenseClass()
       console.log('SUCCESS ---BASE>retroGames.init')
     }
   }
