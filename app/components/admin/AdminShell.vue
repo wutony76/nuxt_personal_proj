@@ -111,9 +111,14 @@ onMounted(() => {
 
       <template v-else>
         <header class="ash-page-header">
-          <div class="admin-en">{{ props.kicker }}</div>
-          <h1 class="ash-page-title">{{ props.title }}</h1>
-          <p class="ash-page-desc">{{ props.desc }}</p>
+          <div class="ash-page-header-main">
+            <div class="admin-en">{{ props.kicker }}</div>
+            <h1 class="ash-page-title">{{ props.title }}</h1>
+            <p class="ash-page-desc">{{ props.desc }}</p>
+          </div>
+          <aside v-if="$slots['page-aside']" class="ash-page-header-aside">
+            <slot name="page-aside" />
+          </aside>
         </header>
         <slot />
       </template>
@@ -243,6 +248,20 @@ onMounted(() => {
 
 .ash-page-header {
   margin-bottom: 44px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.ash-page-header-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.ash-page-header-aside {
+  flex-shrink: 0;
+  align-self: flex-start;
 }
 
 .ash-page-title {

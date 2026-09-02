@@ -8,6 +8,8 @@ type Body = {
   /** 也可傳 "07:00" 這種 time 字串，優先於 hour/minute */
   time?: unknown
   repeat?: unknown
+  /** interval 模式：間隔秒數 */
+  intervalSeconds?: unknown
 }
 
 /**
@@ -17,6 +19,21 @@ type Body = {
 export default defineEventHandler(async (event) => {
   const user = sessionController.requireAdmin(event)
   const body = await readBody<Body>(event)
+
+  const repeatRaw = String(body?.repeat ?? 'daily')
+  const repeat: ChatScheduleRepeat =
+    repeatRaw === 'once' ? 'once' : repeatRaw === 'interval' ? 'interval' : 'daily'
+
+  if (repeat === 'interval') {
+    const schedule = chatScheduleService.add({
+      text: typeof body?.text === 'string' ? body.text : '',
+      repeat: 'interval',
+      intervalSeconds: Number(body?.intervalSeconds),
+      createdBy: user.id,
+      createdByName: user.name
+    })
+    return { schedule }
+  }
 
   let hour = Number(body?.hour)
   let minute = Number(body?.minute)
@@ -28,15 +45,13 @@ export default defineEventHandler(async (event) => {
     minute = Number(m[2])
   }
 
-  const repeatRaw = String(body?.repeat ?? 'daily')
-  const repeat: ChatScheduleRepeat = repeatRaw === 'once' ? 'once' : 'daily'
-
   const schedule = chatScheduleService.add({
     text: typeof body?.text === 'string' ? body.text : '',
     hour,
     minute,
     repeat,
-    createdBy: user.id
+    createdBy: user.id,
+    createdByName: user.name
   })
   return { schedule }
 })

@@ -1,6 +1,6 @@
 import type { Peer } from 'crossws'
 import { socketAuth } from '../../utils/socketAuth'
-import { ADMIN_USER_IDS } from '../../config/admin'
+import { adminAccessService } from '../admin/adminAccess'
 
 export type ChatMessage = {
   id: string
@@ -13,7 +13,7 @@ export type ChatMessage = {
 }
 
 type SendOptions = {
-  /** 僅後台總覽聊天室會帶 true；server 會再驗 ADMIN_USER_IDS，不信前端宣稱 */
+  /** 僅後台總覽聊天室會帶 true；server 會再驗動態白名單，不信前端宣稱 */
   asAdmin?: boolean
 }
 
@@ -46,10 +46,10 @@ export const chatService = {
   /**
    * 排程／系統代管理者發言（不經 WebSocket peer、不走 rate limit）。
    * @param text 訊息內容
-   * @param userName 顯示名，預設「管理者: 排程」
+   * @param userName 顯示名，例如「管理者: XXX」
    * @returns 寫入歷史後的訊息
    */
-  pushAdminMessage: (text: string, userName = '管理者: 排程'): ChatMessage => {
+  pushAdminMessage: (text: string, userName: string): ChatMessage => {
     const trimmed = text.trim()
     const now = Date.now()
     return _pushMessage({
@@ -75,7 +75,7 @@ export const chatService = {
     if (!user) return { ok: false, code: 'unauthorized', message: '請先登入才能發言' }
 
     const wantAdmin = Boolean(options.asAdmin)
-    if (wantAdmin && !ADMIN_USER_IDS.includes(user.id)) {
+    if (wantAdmin && !adminAccessService.isAdmin(user.id)) {
       return { ok: false, code: 'forbidden', message: '無管理員權限，無法以管理者身分發言' }
     }
 

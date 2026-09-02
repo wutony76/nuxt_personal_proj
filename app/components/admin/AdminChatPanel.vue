@@ -2,6 +2,7 @@
 /**
  * 後台總覽用聊天室：版面結構比照 ChatPanel.vue，操作控件統一走 admin-input／admin-btn。
  * 送出帶 asAdmin，server 驗白名單後顯示「管理者: {name}」。
+ * 跟捲：在底部附近 → 新訊息自動貼底；往上滑查看時不強制拉回。
  */
 import { nextTick, ref, watch } from 'vue'
 import { useChat } from '~/composables/useChat'
@@ -10,13 +11,34 @@ const { messages, errorMessage, onlineCount, connected, actions } = useChat()
 
 const draft = ref('')
 const listRef = ref<HTMLElement | null>(null)
+/** 距底部小於這個距離視為「貼底」，新訊息才自動跟捲 */
+const NEAR_BOTTOM_PX = 48
+/** 是否貼底跟捲；由列表 scroll 事件更新 */
+const stickToBottom = ref(true)
 
-const scrollToBottom = () => {
-  nextTick(() => {
-    if (listRef.value) listRef.value.scrollTop = listRef.value.scrollHeight
-  })
+const _handlers = {
+  isNearBottom: () => {
+    const el = listRef.value
+    if (!el) return true
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_PX
+  },
+  syncStickToBottom: () => {
+    stickToBottom.value = _handlers.isNearBottom()
+  },
+  scrollToBottom: () => {
+    nextTick(() => {
+      const el = listRef.value
+      if (!el) return
+      // 只動列表本身；不要用 scrollIntoView（會牽動 body）
+      el.scrollTop = el.scrollHeight
+      stickToBottom.value = true
+    })
+  }
 }
-watch(messages, scrollToBottom, { deep: true })
+
+watch(messages, () => {
+  if (stickToBottom.value) _handlers.scrollToBottom()
+})
 
 const formatTime = (ts: number) => {
   const date = new Date(ts)
@@ -28,6 +50,11 @@ const click = {
     if (!draft.value.trim()) return
     actions.sendMessage(draft.value, { asAdmin: true })
     draft.value = ''
+    // 自己發言一律跟到底
+    _handlers.scrollToBottom()
+  },
+  onListScroll: () => {
+    _handlers.syncStickToBottom()
   }
 }
 </script>
@@ -39,7 +66,7 @@ const click = {
       <span v-if="!connected" class="disconnected">連線中斷，重新連線中...</span>
     </div>
 
-    <div ref="listRef" class="chat-list">
+    <div ref="listRef" class="chat-list" @scroll="click.onListScroll">
       <p v-if="messages.length === 0" class="chat-empty">尚無訊息，開啟話題吧！</p>
       <div v-for="msg in messages" :key="msg.id" class="chat-row" :class="{ 'is-admin': msg.asAdmin }">
         <span class="user">{{ msg.userName }}</span>
@@ -73,9 +100,9 @@ const click = {
 
 <style scoped lang="scss">
 .chat-panel {
-  flex: 1;
-  height: 100%;
-  min-height: 280px;
+  /* 固定高度：避免 grid min-height:auto 被訊息內容一路撐高 */
+  height: 420px;
+  min-height: 0;
   max-height: 420px;
   background: var(--paper);
   border: 1px solid var(--line);
@@ -84,6 +111,13 @@ const click = {
   flex-direction: column;
   overflow: hidden;
   font-size: 12px;
+  /* 子樹都不可當 document scroll anchor，否則排程刷訊息會扯動 body 捲動 */
+  overflow-anchor: none;
+  contain: layout size;
+}
+
+.chat-panel * {
+  overflow-anchor: none;
 }
 
 .chat-head {
@@ -118,6 +152,8 @@ const click = {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* 預留捲軸寬，避免訊息一多捲軸出現、列寬重排造成跳動 */
+  scrollbar-gutter: stable;
   padding: 6px 10px;
   display: flex;
   flex-direction: column;

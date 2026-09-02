@@ -869,7 +869,7 @@ export type BgPoolAuditResponse = {
   stats: { reseedCount: number; overpayCount: number; totalOverpay: number }
 }
 
-export type ChatScheduleRepeat = 'daily' | 'once'
+export type ChatScheduleRepeat = 'daily' | 'once' | 'interval'
 
 export type ChatSchedule = {
   id: string
@@ -877,9 +877,25 @@ export type ChatSchedule = {
   hour: number
   minute: number
   repeat: ChatScheduleRepeat
+  /** 僅 interval：間隔秒數 */
+  intervalSeconds?: number
+  /** 是否啟用；新增預設 true */
+  enabled: boolean
   createdBy: string
+  /** 建立者顯示名，觸發時組成「管理者: {name}」 */
+  createdByName: string
   createdAt: number
   lastFiredKey?: string
+  lastFiredAt?: number
+}
+
+export type UserRole = 'admin' | 'user'
+
+export type AdminAccessUser = {
+  id: string
+  name: string
+  email: string
+  role: UserRole
 }
 
 export const api = {
@@ -900,7 +916,20 @@ export const api = {
   },
   admin: {
     me: () => $fetch<{ isAdmin: boolean; user: AuthUser }>('/api/admin/me'),
-    roles: () => $fetch<{ admins: Array<{ id: string; name: string; email: string }> }>('/api/admin/roles'),
+    roles: () =>
+      $fetch<{ users: AdminAccessUser[]; admins: Array<{ id: string; name: string; email: string }> }>(
+        '/api/admin/roles'
+      ),
+    setRole: (id: string, role: UserRole) =>
+      $fetch<{ user: AdminAccessUser }>(`/api/admin/roles/${id}`, {
+        method: 'PATCH',
+        body: { role }
+      }),
+    createMember: (payload: { name: string; email: string; password: string; role?: UserRole }) =>
+      $fetch<{ user: AdminAccessUser }>('/api/admin/members', {
+        method: 'POST',
+        body: payload
+      }),
     games: {
       updateRetroRates: (key: RetroGameKey, payload: { coinRate: number; coinCapPerRun: number; coinDailyCap: number }) =>
         $fetch<RetroGameRateInfo>(`/api/admin/games/retro/${key}/rates`, { method: 'PUT', body: payload }),
@@ -921,10 +950,20 @@ export const api = {
     },
     chat: {
       listSchedules: () => $fetch<{ schedules: ChatSchedule[] }>('/api/admin/chat/schedules'),
-      addSchedule: (payload: { text: string; time: string; repeat: ChatScheduleRepeat }) =>
+      addSchedule: (payload: {
+        text: string
+        repeat: ChatScheduleRepeat
+        time?: string
+        intervalSeconds?: number
+      }) =>
         $fetch<{ schedule: ChatSchedule }>('/api/admin/chat/schedules', { method: 'POST', body: payload }),
       removeSchedule: (id: string) =>
-        $fetch<{ ok: boolean }>(`/api/admin/chat/schedules/${id}`, { method: 'DELETE' })
+        $fetch<{ ok: boolean }>(`/api/admin/chat/schedules/${id}`, { method: 'DELETE' }),
+      setScheduleEnabled: (id: string, enabled: boolean) =>
+        $fetch<{ schedule: ChatSchedule }>(`/api/admin/chat/schedules/${id}`, {
+          method: 'PATCH',
+          body: { enabled }
+        })
     }
   },
   lottery: {
@@ -1228,7 +1267,7 @@ export const api = {
         $fetch<GameHistorySettleResponse>('/api/games/retro/tower-stack/history', { method: 'POST', body: payload }),
       clearTowerStack: () => $fetch<{ ok: boolean }>('/api/games/retro/tower-stack/history', { method: 'DELETE' }),
 
-      /** 各遊戲最新紀錄混排 5 筆（依 playedAt，需登入） */
+      /** 各遊戲全站最高分一筆；混排依該遊戲最近遊玩時間取 5（需登入） */
       leaderboard: () => $fetch<RetroLeaderboardResponse>('/api/games/retro/leaderboard'),
 
       /** 公開端點，訪客不登入也能查詢——見 server/middleware/auth.ts 的 PUBLIC_GAME_PATHS */

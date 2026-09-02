@@ -42,7 +42,7 @@ onMounted(() => {
       <section>
         <div class="admin-sechead">
           <div class="admin-sechead-left"><span class="admin-en">Whitelist</span><h2>管理員白名單</h2></div>
-          <span class="admin-meta">ADMIN_USER_IDS — read only</span>
+          <span class="admin-meta">adminAccessService — runtime</span>
         </div>
         <div v-if="state.status === 'loading'" class="admin-empty">載入中...</div>
         <div v-else-if="state.status === 'error'" class="admin-empty">載入失敗，請重新整理再試一次</div>
@@ -64,7 +64,7 @@ onMounted(() => {
             </tr>
           </tbody>
         </table>
-        <p class="ar-note">新增或移除管理員需修改程式碼常數並重新部署，後台不提供異動介面（避免雞生蛋問題）。</p>
+        <p class="ar-note">角色可在總覽「權限設定」調整；重啟後回復程式碼種子預設。詳細操作請至 /admin。</p>
       </section>
 
       <section>

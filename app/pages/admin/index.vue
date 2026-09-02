@@ -4,6 +4,8 @@
  * 一律回首頁）。管理員從 AppTopbar.vue 的「後台」連結進來就是這一頁。
  * 權限判斷、頂部導覽、40003 拒絕畫面統一交給 AdminShell 處理。
  */
+import { ref } from 'vue'
+
 const CARDS = [
   {
     no: '02',
@@ -30,29 +32,60 @@ const CARDS = [
     tag: 'Coming soon'
   }
 ]
+
+/** 新增會員成功後遞增，讓權限列表重抓 */
+const memberReloadToken = ref(0)
+
+const click = {
+  onMemberCreated: () => {
+    memberReloadToken.value += 1
+  }
+}
 </script>
 
 <template>
   <AdminShell active="overview" kicker="Overview" title="總覽" desc="後台的入口，從這裡前往各項管理功能。">
-    <section class="ao-chat">
+    <template #page-aside>
+      <AdminOverviewPageNav />
+    </template>
+
+    <section id="ao-chat" class="ao-chat">
       <div class="admin-sechead">
         <div class="admin-sechead-left">
           <span class="admin-en">Live chat</span>
           <h2>聊天室</h2>
         </div>
-        <span class="admin-meta">此處發言顯示為「管理者: XXX」；排程到點以「管理者: 排程」自動發送</span>
+        <span class="admin-meta">此處發言與排程到點皆顯示為「管理者: XXX」</span>
       </div>
       <div class="ao-chat-grid">
         <AdminChatPanel />
-        <div class="ao-schedule">
-          <div class="ao-schedule-label admin-en">Schedule</div>
-          <div class="ao-schedule-title">自動發言排程</div>
-          <AdminChatSchedule />
-        </div>
+        <AdminChatSchedule />
       </div>
     </section>
 
-    <section class="ao-cards admin-grid1">
+    <section id="ao-members" class="ao-members">
+      <div class="admin-sechead">
+        <div class="admin-sechead-left">
+          <span class="admin-en">Members</span>
+          <h2>新增會員</h2>
+        </div>
+        <span class="admin-meta">左側列表 · 右側新增 · in-memory</span>
+      </div>
+      <AdminCreateMember :reload-token="memberReloadToken" @created="click.onMemberCreated" />
+    </section>
+
+    <section id="ao-perms" class="ao-perms">
+      <div class="admin-sechead">
+        <div class="admin-sechead-left">
+          <span class="admin-en">Access</span>
+          <h2>權限設定</h2>
+        </div>
+        <span class="admin-meta">Admin / User — in-memory</span>
+      </div>
+      <AdminAccessPanel :reload-token="memberReloadToken" />
+    </section>
+
+    <section id="ao-cards" class="ao-cards admin-grid1">
       <NuxtLink v-for="c in CARDS" :key="c.to" :to="c.to" class="ao-card admin-panel">
         <div class="ao-card-top">
           <span class="admin-num ao-card-no">{{ c.no }}</span>
@@ -70,6 +103,7 @@ const CARDS = [
 <style scoped lang="scss">
 .ao-chat {
   margin-bottom: 44px;
+  scroll-margin-top: 24px;
 }
 
 .ao-chat-grid {
@@ -83,18 +117,15 @@ const CARDS = [
   }
 }
 
-.ao-schedule-label {
-  margin-bottom: 2px;
-}
-
-.ao-schedule-title {
-  font-size: 13px;
-  font-weight: 700;
-  margin-bottom: 8px;
+.ao-members,
+.ao-perms {
+  margin-bottom: 44px;
+  scroll-margin-top: 24px;
 }
 
 .ao-cards {
   grid-template-columns: repeat(3, 1fr);
+  scroll-margin-top: 24px;
 
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
@@ -147,5 +178,10 @@ const CARDS = [
   margin-top: auto;
   font-size: 11px;
   color: var(--ink);
+}
+
+.admin-tag.is-soon {
+  background: color-mix(in srgb, #1c1c22 6%, var(--paper));
+  color: var(--muted);
 }
 </style>

@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 import { Storage, verifyPasswordHash } from './storage'
 import type { AuthUser } from '../types/storage'
 import { throwErrCode } from '../utils/error'
-import { ADMIN_USER_IDS } from '../config/admin'
+import { adminAccessService } from './admin/adminAccess'
 
 const SESSION_COOKIE_NAME = 'portfolio_auth_token'
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7
@@ -42,7 +42,7 @@ export const sessionController = {
     if (!user) throwErrCode(40001)
     return user
   },
-  isAdmin: (user: AuthUser): boolean => ADMIN_USER_IDS.includes(user.id),
+  isAdmin: (user: AuthUser): boolean => adminAccessService.isAdmin(user.id),
   /** 先驗證登入（未登入拋 40001），再驗證白名單（不在白名單拋 40003） */
   requireAdmin: (event: H3Event): AuthUser => {
     const user = sessionController.require(event)
