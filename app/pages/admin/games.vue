@@ -29,7 +29,8 @@ const PLAY_PATHS: Record<RetroGameKey, string> = {
   '2048': '/game/2048',
   flappy: '/game/flappy',
   frogger: '/game/frogger',
-  connect4: '/game/connect4'
+  connect4: '/game/connect4',
+  whackAMole: '/game/whack-a-mole'
 }
 
 /** 起始草稿沿用已知合法的 classic-01 樣板，讓管理員從一份確定通過驗證的版面開始改，而不是空白或破損的骨架 */

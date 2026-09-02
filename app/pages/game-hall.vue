@@ -67,6 +67,7 @@ const gameSlots = ref<GameSlot[]>([
   { id: 18, name: 'FLAPPY', description: '點擊給角色向上衝力，連續重力下墜穿越管道空隙，看你能通過幾組', status: 'open', path: '/game/flappy' },
   { id: 19, name: 'FROGGER', description: '方向鍵跳格閃避車流、踩浮木橫渡河道，把青蛙送進五個蓮花座過關', status: 'open', path: '/game/frogger' },
   { id: 20, name: 'CONNECT 4', description: '四子棋對戰，與 AI 輪流選欄落子，搶先讓自己的棋子連成四子獲勝', status: 'open', path: '/game/connect4' },
+  { id: 21, name: 'WHACK-A-MOLE', description: '打地鼠反應遊戲，地鼠隨機冒出快手擊中連擊加倍，越玩越快限時 60 秒衝高分', status: 'open', path: '/game/whack-a-mole' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)

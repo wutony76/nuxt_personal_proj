@@ -777,7 +777,7 @@ export type LotteryOpenCodeHistoryResponse = {
 }
 
 // ── 遊戲中心 · 遊戲紀錄（game-hall 小遊戲，非彩票）──
-export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman' | 'spaceInvaders' | 'solitaire' | 'typing' | 'breakout' | 'orbMatch' | 'battleship' | '2048' | 'flappy' | 'frogger' | 'connect4'
+export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman' | 'spaceInvaders' | 'solitaire' | 'typing' | 'breakout' | 'orbMatch' | 'battleship' | '2048' | 'flappy' | 'frogger' | 'connect4' | 'whackAMole'
 
 export type GameHistoryRecord = {
   id: string
@@ -1212,6 +1212,11 @@ export const api = {
       recordConnect4: (payload: GameHistoryRecordPayload) =>
         $fetch<GameHistorySettleResponse>('/api/games/retro/connect4/history', { method: 'POST', body: payload }),
       clearConnect4: () => $fetch<{ ok: boolean }>('/api/games/retro/connect4/history', { method: 'DELETE' }),
+
+      historyWhackAMole: () => $fetch<GameHistoryListResponse>('/api/games/retro/whack-a-mole/history'),
+      recordWhackAMole: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/whack-a-mole/history', { method: 'POST', body: payload }),
+      clearWhackAMole: () => $fetch<{ ok: boolean }>('/api/games/retro/whack-a-mole/history', { method: 'DELETE' }),
 
       /** 各遊戲最新紀錄混排 5 筆（依 playedAt，需登入） */
       leaderboard: () => $fetch<RetroLeaderboardResponse>('/api/games/retro/leaderboard'),
