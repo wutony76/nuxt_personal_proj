@@ -15,10 +15,12 @@ const listRef = ref<HTMLElement | null>(null)
 
 const scrollToBottom = () => {
   nextTick(() => {
-    if (listRef.value) listRef.value.scrollTop = listRef.value.scrollHeight
+    const el = listRef.value
+    if (!el) return
+    if (el.scrollHeight > el.clientHeight) el.scrollTop = el.scrollHeight
   })
 }
-watch(messages, scrollToBottom, { deep: true })
+watch(messages, scrollToBottom)
 
 const formatTime = (ts: number) => {
   const date = new Date(ts)
@@ -91,6 +93,12 @@ const click = {
   overflow: hidden;
   font-family: "Share Tech Mono", "JetBrains Mono", monospace;
   font-size: 12px;
+  overflow-anchor: none;
+  contain: layout;
+}
+
+.chp * {
+  overflow-anchor: none;
 }
 
 .chp-head {

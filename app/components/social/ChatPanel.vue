@@ -11,10 +11,12 @@ const listRef = ref<HTMLElement | null>(null)
 
 const scrollToBottom = () => {
   nextTick(() => {
-    if (listRef.value) listRef.value.scrollTop = listRef.value.scrollHeight
+    const el = listRef.value
+    if (!el) return
+    if (el.scrollHeight > el.clientHeight) el.scrollTop = el.scrollHeight
   })
 }
-watch(messages, scrollToBottom, { deep: true })
+watch(messages, scrollToBottom)
 
 const formatTime = (ts: number) => {
   const date = new Date(ts)
@@ -70,6 +72,12 @@ const click = {
   flex-direction: column;
   overflow: hidden;
   font-size: 12px;
+  overflow-anchor: none;
+  contain: layout;
+}
+
+.chat-panel * {
+  overflow-anchor: none;
 }
 
 .chat-head {
@@ -104,6 +112,7 @@ const click = {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 6px 10px;
   display: flex;
   flex-direction: column;
