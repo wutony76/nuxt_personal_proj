@@ -68,6 +68,7 @@ const gameSlots = ref<GameSlot[]>([
   { id: 19, name: 'FROGGER', description: '方向鍵跳格閃避車流、踩浮木橫渡河道，把青蛙送進五個蓮花座過關', status: 'open', path: '/game/frogger' },
   { id: 20, name: 'CONNECT 4', description: '四子棋對戰，與 AI 輪流選欄落子，搶先讓自己的棋子連成四子獲勝', status: 'open', path: '/game/connect4' },
   { id: 21, name: 'WHACK-A-MOLE', description: '打地鼠反應遊戲，地鼠隨機冒出快手擊中連擊加倍，越玩越快限時 60 秒衝高分', status: 'open', path: '/game/whack-a-mole' },
+  { id: 22, name: 'LIGHTS OUT', description: '關燈益智玩法，點一格連動翻轉上下左右鄰格，在限定步數內把全部燈熄滅過關', status: 'open', path: '/game/lights-out' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)
