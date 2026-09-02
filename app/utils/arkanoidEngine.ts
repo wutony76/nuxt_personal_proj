@@ -9,7 +9,7 @@
  *     不與其他磚塊重疊（範圍由 build 期掃描同列空格計算，並以靜態磚塊作為分隔避免兩顆移動磚塊互撞）。
  *   - Power-Up（Decision 4，本次只做 WIDE／MULTI_BALL／SLOW，FIRE 留待下一版）：磚塊摧毀時
  *     依機率掉落膠囊，擋板接住即生效；WIDE／SLOW 限時 8 秒，MULTI_BALL 即時分裂。
- *   - Multi Ball（Decision 5）：`balls: Ball[]` 陣列，每顆球各自判定；**只有 `balls.length === 0`
+ *   - Multi Ball（Decision 5）：`balls: BallAk[]` 陣列，每顆球各自判定；**只有 `balls.length === 0`
  *     （所有球都離開場地）才扣一命**，不是任一顆落地就扣命。
  *   - Combo（Decision 6）：每次命中磚塊 +1，碰到擋板或失去一命即歸零，倍率套用在摧毀得分上。
  *
@@ -21,7 +21,7 @@
 /** engine 不持有 phase；ready/countdown/pause/gameover 一律由頁面層管理（比照 breakout.vue） */
 export type ArkanoidPhase = 'ready' | 'playing' | 'pause' | 'gameover'
 /** 單顆球：各自帶速度向量與是否已發射（未發射時黏在擋板上，等玩家按空白鍵） */
-export type Ball = { id: number; x: number; y: number; vx: number; vy: number; launched: boolean }
+export type BallAk = { id: number; x: number; y: number; vx: number; vy: number; launched: boolean }
 /**
  * 磚塊：`hitPoints` 為剩餘命中次數（Multi-Hit），`maxHitPoints` 供計分層數加成與視覺分層；
  * `moving` 存在時為 Moving Brick，於 [minX,maxX] 間水平來回（design.md Decision 3）。
@@ -251,7 +251,7 @@ export const computeMovingRange = (
  */
 export class ArkanoidEngine {
   paddleX = AK_STAGE_WIDTH / 2 - PADDLE_WIDTH / 2
-  balls: Ball[] = []
+  balls: BallAk[] = []
   bricks: Brick[] = []
   powerUps: PowerUp[] = []
   score = 0
@@ -353,7 +353,7 @@ export class ArkanoidEngine {
     this.speedMul = cfg.ballSpeedMul
   }
 
-  private spawnBallOnPaddle(): Ball {
+  private spawnBallOnPaddle(): BallAk {
     const w = this.paddleWidth()
     return {
       id: this.nextBallId++,
@@ -455,7 +455,7 @@ export class ArkanoidEngine {
   }
 
   /** 單顆球撞磚塊：AABB＋最小重疊軸判斷撞擊面，同一 tick 每顆球只處理第一個重疊磚塊 */
-  private resolveBrickCollision(ball: Ball): ArkanoidBrickHit | null {
+  private resolveBrickCollision(ball: BallAk): ArkanoidBrickHit | null {
     const ballBox = { x: ball.x, y: ball.y, w: BALL_SIZE, h: BALL_SIZE }
     for (let i = 0; i < this.bricks.length; i += 1) {
       const brick = this.bricks[i]!
@@ -493,7 +493,7 @@ export class ArkanoidEngine {
   }
 
   /** 單顆球的位移、牆面反彈、擋板反彈；回傳是否擊中擋板（供 Combo 歸零） */
-  private stepBall(ball: Ball): { paddleBounced: boolean } {
+  private stepBall(ball: BallAk): { paddleBounced: boolean } {
     if (!ball.launched) return { paddleBounced: false }
     const mul = this.effectiveSpeedMul()
     ball.x += ball.vx * mul
