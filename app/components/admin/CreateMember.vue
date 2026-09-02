@@ -532,7 +532,9 @@ watch(
 
 <style scoped lang="scss">
 .acm {
-  min-height: 560px;
+  height: 560px;
+  min-height: 0;
+  max-height: 560px;
   border: 1px solid var(--line);
   border-radius: 2px;
   background: var(--paper);
@@ -542,8 +544,8 @@ watch(
 .acm-grid {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(260px, 1fr);
-  min-height: 560px;
   height: 100%;
+  min-height: 0;
 
   @media (max-width: 800px) {
     grid-template-columns: 1fr;
@@ -635,7 +637,7 @@ watch(
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .acm-tabs {
@@ -690,6 +692,7 @@ watch(
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .acm-info-card {
@@ -838,7 +841,9 @@ watch(
 .acm-ledger-table-wrap {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--line);
   border-radius: 2px;
   background: var(--wash);
