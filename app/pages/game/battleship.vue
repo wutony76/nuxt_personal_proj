@@ -4,13 +4,13 @@ import { useRouter } from 'vue-router'
 import { useGameHistory } from '~/composables/useGameHistory'
 import {
   BattleshipEngine,
-  BOARD_SIZE,
+  BOARD_SIZE_BS,
   AI_DELAY_MIN_MS,
   AI_DELAY_MAX_MS,
   SHIP_CONFIG,
   coordToLabel,
-  type Board,
-  type Cell,
+  type BoardBs,
+  type CellBs,
   type Coord,
   type GamePhase,
   type Orientation,
@@ -58,8 +58,8 @@ const state = reactive({
   round: 1,
   score: 0,
   stats: { shots: 0, hits: 0, misses: 0 },
-  playerBoard: [] as Board,
-  enemyBoardView: [] as Board,
+  playerBoard: [] as BoardBs,
+  enemyBoardView: [] as BoardBs,
   playerShips: [] as ShipSummary[],
   enemyShips: [] as ShipSummary[],
   winner: null as Winner,
@@ -83,7 +83,7 @@ const state = reactive({
 let aiTimer: ReturnType<typeof setTimeout> | null = null
 
 const stageStyle = computed(() => `--cell: ${CELL_SIZE}px;`)
-const boardStyle = computed(() => `grid-template-columns: repeat(${BOARD_SIZE}, var(--cell));`)
+const boardStyle = computed(() => `grid-template-columns: repeat(${BOARD_SIZE_BS}, var(--cell));`)
 const flatPlayerCells = computed(() => state.playerBoard.flat())
 const flatEnemyCells = computed(() => state.enemyBoardView.flat())
 const previewSet = computed(() => new Set(state.placement.previewCells.map((c) => `${c.x},${c.y}`)))
@@ -131,7 +131,7 @@ const _handlers = {
       aiTimer = null
     }
   },
-  playerCellClass: (cell: Cell): string => {
+  playerCellClass: (cell: CellBs): string => {
     const classes: string[] = []
     if (cell.state === 'SHIP') classes.push('is-ship')
     else if (cell.state === 'HIT') classes.push('is-hit')
@@ -141,17 +141,17 @@ const _handlers = {
     }
     return classes.join(' ')
   },
-  playerCellChar: (cell: Cell): string => {
+  playerCellChar: (cell: CellBs): string => {
     if (cell.state === 'HIT') return 'X'
     if (cell.state === 'MISS') return '·'
     return ''
   },
-  enemyCellClass: (cell: Cell): string => {
+  enemyCellClass: (cell: CellBs): string => {
     if (cell.state === 'HIT') return 'is-hit'
     if (cell.state === 'MISS') return 'is-miss'
     return 'is-unknown'
   },
-  enemyCellChar: (cell: Cell): string => {
+  enemyCellChar: (cell: CellBs): string => {
     if (cell.state === 'HIT') return 'X'
     if (cell.state === 'MISS') return '·'
     return ''

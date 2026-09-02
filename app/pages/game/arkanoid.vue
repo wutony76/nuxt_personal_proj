@@ -12,7 +12,7 @@ import ArkanoidEngine, {
   BALL_SIZE,
   POWER_UP_WIDTH,
   POWER_UP_HEIGHT,
-  LIVES_START,
+  LIVES_START_AK,
   type ArkanoidSnapshot,
   type PowerUpType
 } from '~/utils/arkanoidEngine'
@@ -40,7 +40,7 @@ const state = reactive({
   powerUps: [] as PowerUpView[],
   score: 0,
   level: 1,
-  lives: LIVES_START,
+  lives: LIVES_START_AK,
   combo: 0,
   maxCombo: 0,
   comboMultiplier: 1,

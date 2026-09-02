@@ -1,7 +1,7 @@
 /**
  * 2048 遊戲核心邏輯（純 TypeScript，完全不依賴 Vue／DOM，見 design.md Decision 5）。
  *
- * Board 用 `(Tile | null)[4][4]` 二維陣列表示，Tile 帶遞增 `id` 供頁面 Vue `:key` 使用
+ * Board2048 用 `(Tile | null)[4][4]` 二維陣列表示，Tile 帶遞增 `id` 供頁面 Vue `:key` 使用
  * （合併/位移時避免 DOM 節點誤重用，見 design.md Decision 1）。
  *
  * 合併採「壓縮 → 相鄰同值合併（一次移動每格只合併一次）→ 再壓縮」，四方向共用同一份
@@ -9,7 +9,7 @@
  * 頁面只負責把 `getSnapshot()` 的 board 攤平渲染，不在 template 內做任何合併/判斷邏輯。
  */
 
-export const BOARD_SIZE = 4
+export const BOARD_SIZE_2048 = 4
 export const WIN_VALUE = 2048
 /** 新 Tile 數值分布：10% 機率為 4，其餘 90% 為 2（見 design.md Decision 3） */
 export const NEW_TILE_FOUR_PROB = 0.1
@@ -17,17 +17,17 @@ export const NEW_TILE_FOUR_PROB = 0.1
 export const SWIPE_THRESHOLD = 30
 
 export type Tile = { id: number; value: number }
-export type Board = (Tile | null)[][]
+export type Board2048 = (Tile | null)[][]
 export type Direction = 'up' | 'down' | 'left' | 'right'
 /**
  * 對外共用的狀態型別：engine 只會產生 'playing' / 'gameover'（依棋盤是否還能移動計算），
  * 'won' 由 snapshot 的 `won` 布林旗標另外表示、'paused' 為頁面層自行管理的暫停狀態，
  * 一併收攏進同一個 union 讓頁面 reactive state 可以重用（見 design.md 第 4 節）。
  */
-export type GameStatus = 'playing' | 'won' | 'gameover' | 'paused'
+export type GameStatus2048 = 'playing' | 'won' | 'gameover' | 'paused'
 
 export type Game2048Snapshot = {
-  board: Board
+  board: Board2048
   score: number
   status: 'playing' | 'gameover'
   /** 是否已達成過 2048（一旦為真維持為真，只在 reset 時歸零，見 design.md Decision 7） */
@@ -43,8 +43,8 @@ export type LineResult = {
 }
 
 /** 產生一個全空的 4×4 棋盤 */
-export const createEmptyBoard = (): Board =>
-  Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null as Tile | null))
+export const createEmptyBoard2048 = (): Board2048 =>
+  Array.from({ length: BOARD_SIZE_2048 }, () => Array.from({ length: BOARD_SIZE_2048 }, () => null as Tile | null))
 
 /**
  * 單行/列合併核心（見 design.md Decision 2）：壓縮 → 相鄰同值合併（一次只合併一次）→ 再壓縮。
@@ -73,7 +73,7 @@ export const compressAndMergeLine = (line: (Tile | null)[], nextId: () => number
       i += 1
     }
   }
-  while (merged.length < BOARD_SIZE) merged.push(null)
+  while (merged.length < BOARD_SIZE_2048) merged.push(null)
 
   // 與原始行逐格比對（id 或 value 有任一不同即代表有移動/合併發生）
   const moved = line.some((before, idx) => {
@@ -87,10 +87,10 @@ export const compressAndMergeLine = (line: (Tile | null)[], nextId: () => number
 }
 
 /** 棋盤轉置（行列互換），供上/下移把「直向」轉成「橫向」後共用左/右移邏輯 */
-const transpose = (board: Board): Board => {
-  const out = createEmptyBoard()
-  for (let r = 0; r < BOARD_SIZE; r += 1) {
-    for (let c = 0; c < BOARD_SIZE; c += 1) {
+const transpose = (board: Board2048): Board2048 => {
+  const out = createEmptyBoard2048()
+  for (let r = 0; r < BOARD_SIZE_2048; r += 1) {
+    for (let c = 0; c < BOARD_SIZE_2048; c += 1) {
       out[c]![r] = board[r]![c]!
     }
   }
@@ -98,7 +98,7 @@ const transpose = (board: Board): Board => {
 }
 
 /** 反轉每一行（左右鏡射），供右移把方向轉成左移後共用同一份合併邏輯 */
-const reverseRows = (board: Board): Board => board.map((row) => [...row].reverse())
+const reverseRows = (board: Board2048): Board2048 => board.map((row) => [...row].reverse())
 
 /**
  * 四方向移動（見 design.md Decision 2）：左移直接逐行呼叫 `compressAndMergeLine`；
@@ -107,20 +107,20 @@ const reverseRows = (board: Board): Board => board.map((row) => [...row].reverse
  * 本函式不會就地修改傳入的 board（回傳全新陣列）。
  */
 export const applyMove = (
-  board: Board,
+  board: Board2048,
   direction: Direction,
   nextId: () => number
-): { board: Board; scoreGained: number; moved: boolean } => {
+): { board: Board2048; scoreGained: number; moved: boolean } => {
   const vertical = direction === 'up' || direction === 'down'
   const reverse = direction === 'right' || direction === 'down'
 
-  let work: Board = board.map((row) => [...row])
+  let work: Board2048 = board.map((row) => [...row])
   if (vertical) work = transpose(work)
   if (reverse) work = reverseRows(work)
 
   let scoreGained = 0
   let moved = false
-  let result: Board = work.map((row) => {
+  let result: Board2048 = work.map((row) => {
     const res = compressAndMergeLine(row, nextId)
     scoreGained += res.scoreGained
     if (res.moved) moved = true
@@ -137,10 +137,10 @@ export const applyMove = (
  * 於棋盤任一空格隨機產生新 Tile（90% 為 2、10% 為 4，見 design.md Decision 3）。
  * 會就地寫入傳入的 board；若已無空格則回傳 null。
  */
-export const spawnRandomTile = (board: Board, nextId: () => number): Tile | null => {
+export const spawnRandomTile = (board: Board2048, nextId: () => number): Tile | null => {
   const empties: Array<[number, number]> = []
-  for (let r = 0; r < BOARD_SIZE; r += 1) {
-    for (let c = 0; c < BOARD_SIZE; c += 1) {
+  for (let r = 0; r < BOARD_SIZE_2048; r += 1) {
+    for (let c = 0; c < BOARD_SIZE_2048; c += 1) {
       if (board[r]![c] === null) empties.push([r, c])
     }
   }
@@ -156,26 +156,26 @@ export const spawnRandomTile = (board: Board, nextId: () => number): Tile | null
  * Game Over 判定（見 design.md Decision / tasks 5.6）：棋盤仍有空格即可移動；
  * 棋盤已滿時，只要存在任一相鄰（水平或垂直）同值可合併，就仍可移動。皆不符合才無法移動。
  */
-export const canMove = (board: Board): boolean => {
-  for (let r = 0; r < BOARD_SIZE; r += 1) {
-    for (let c = 0; c < BOARD_SIZE; c += 1) {
+export const canMove = (board: Board2048): boolean => {
+  for (let r = 0; r < BOARD_SIZE_2048; r += 1) {
+    for (let c = 0; c < BOARD_SIZE_2048; c += 1) {
       if (board[r]![c] === null) return true
     }
   }
-  for (let r = 0; r < BOARD_SIZE; r += 1) {
-    for (let c = 0; c < BOARD_SIZE; c += 1) {
+  for (let r = 0; r < BOARD_SIZE_2048; r += 1) {
+    for (let c = 0; c < BOARD_SIZE_2048; c += 1) {
       const value = board[r]![c]!.value
-      if (c + 1 < BOARD_SIZE && board[r]![c + 1]!.value === value) return true
-      if (r + 1 < BOARD_SIZE && board[r + 1]![c]!.value === value) return true
+      if (c + 1 < BOARD_SIZE_2048 && board[r]![c + 1]!.value === value) return true
+      if (r + 1 < BOARD_SIZE_2048 && board[r + 1]![c]!.value === value) return true
     }
   }
   return false
 }
 
 /** 2048 判定（見 design.md Decision 7）：任一 Tile 數值達到 WIN_VALUE 即為真 */
-export const hasReachedTarget = (board: Board): boolean => {
-  for (let r = 0; r < BOARD_SIZE; r += 1) {
-    for (let c = 0; c < BOARD_SIZE; c += 1) {
+export const hasReachedTarget = (board: Board2048): boolean => {
+  for (let r = 0; r < BOARD_SIZE_2048; r += 1) {
+    for (let c = 0; c < BOARD_SIZE_2048; c += 1) {
       if ((board[r]![c]?.value ?? 0) >= WIN_VALUE) return true
     }
   }
@@ -183,10 +183,10 @@ export const hasReachedTarget = (board: Board): boolean => {
 }
 
 /** 目前棋盤上的最大 Tile 數值（供頁面 HUD 與紀錄 meta 使用） */
-export const maxTileValue = (board: Board): number => {
+export const maxTileValue = (board: Board2048): number => {
   let max = 0
-  for (let r = 0; r < BOARD_SIZE; r += 1) {
-    for (let c = 0; c < BOARD_SIZE; c += 1) {
+  for (let r = 0; r < BOARD_SIZE_2048; r += 1) {
+    for (let c = 0; c < BOARD_SIZE_2048; c += 1) {
       const value = board[r]![c]?.value ?? 0
       if (value > max) max = value
     }
@@ -195,11 +195,11 @@ export const maxTileValue = (board: Board): number => {
 }
 
 /**
- * 2048 引擎：整合 Board／合併／新 Tile／Game Over／2048 判定（見 tasks 5.8）。
+ * 2048 引擎：整合 Board2048／合併／新 Tile／Game Over／2048 判定（見 tasks 5.8）。
  * 內部維護遞增 id 計數器與棋盤狀態；頁面以 `getSnapshot()` 取得純資料鏡像。
  */
 export default class Game2048Engine {
-  private board: Board = createEmptyBoard()
+  private board: Board2048 = createEmptyBoard2048()
   private score = 0
   private won = false
   private over = false
@@ -218,7 +218,7 @@ export default class Game2048Engine {
 
   /** 完整重置：棋盤、分數、勝利旗標、Game Over 旗標、id 計數器歸零，並放入兩顆初始 Tile */
   reset(): void {
-    this.board = createEmptyBoard()
+    this.board = createEmptyBoard2048()
     this.score = 0
     this.won = false
     this.over = false

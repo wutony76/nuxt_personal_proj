@@ -25,7 +25,7 @@ export const MEDIAN_ROW = 6 // 安全中線（無 NPC）
 export const GOAL_SLOT_COLS = [0, 2, 5, 8, 10]
 
 // ── Life / Score / Tick 常數（集中設定，見 design.md Decision 6）──
-export const LIVES_START = 3
+export const LIVES_START_FR = 3
 export const HOP_SCORE = 10 // 每次往終點方向推進一格（本命最遠進度更新）
 export const GOAL_SCORE = 200 // 跳進一個未佔用的蓮花座
 export const LEVEL_CLEAR_BONUS = 500 // 5 個蓮花座全部佔用、完成一輪
@@ -46,7 +46,7 @@ export type MoveDirection = 'up' | 'down' | 'left' | 'right'
 export type LaneDirection = 1 | -1
 /**
  * 引擎內部狀態（僅 'playing'／'gameover'；頁面另有自己的 4 態 status）。刻意不 export：
- * 名稱與 game2048Engine 的 GameStatus 撞名會觸發 Nuxt auto-import 衝突警告，且外部無人以此名引用。
+ * 外部無人以此名引用，且維持這個泛用名稱不對外曝露可避免跟其他引擎的 GameStatus 系列撞名。
  */
 type GameStatus = 'playing' | 'gameover'
 
@@ -348,7 +348,7 @@ export default class FroggerEngine {
     tickDtMs: 0
   }
   private score = 0
-  private lives = LIVES_START
+  private lives = LIVES_START_FR
   private status: GameStatus = 'playing'
   /** 本命最遠進度（此趟到過最小的 row）；用來判斷「往終點推進一格」以計 HOP 分數，重生時重置 */
   private furthestRow = HOME_ROW
@@ -371,7 +371,7 @@ export default class FroggerEngine {
   /** 完整重置所有對局狀態（見 spec「Restart 完整重置」），不殘留上一局資料 */
   reset(): void {
     this.score = 0
-    this.lives = LIVES_START
+    this.lives = LIVES_START_FR
     this.status = 'playing'
     this.furthestRow = HOME_ROW
     this.roundsCleared = 0

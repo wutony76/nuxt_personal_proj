@@ -3,10 +3,10 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameHistory } from '~/composables/useGameHistory'
 import Game2048Engine, {
-  BOARD_SIZE,
+  BOARD_SIZE_2048,
   SWIPE_THRESHOLD,
   maxTileValue,
-  type Board,
+  type Board2048,
   type Direction
 } from '~/utils/game2048Engine'
 
@@ -27,7 +27,7 @@ const boardRef = ref<HTMLElement | null>(null)
 const state = reactive({
   status: 'waiting' as Page2048Status,
   /** engine snapshot 的鏡像；頁面只讀，不直接改動棋盤 */
-  board: [] as Board,
+  board: [] as Board2048,
   score: 0,
   moves: 0,
   maxTile: 0,
@@ -80,9 +80,9 @@ const canPause = computed(() => state.status === 'playing' && !state.winBannerVi
 const bestScore = computed(() => Math.max(gameHistory.statsByGame.value['2048']?.best ?? 0, state.score))
 const stageStyle = computed(() => `--cell: ${CELL_SIZE}px; --gap: ${CELL_GAP}px;`)
 const boardStyle = computed(
-  () => `grid-template-columns: repeat(${BOARD_SIZE}, var(--cell)); grid-template-rows: repeat(${BOARD_SIZE}, var(--cell));`
+  () => `grid-template-columns: repeat(${BOARD_SIZE_2048}, var(--cell)); grid-template-rows: repeat(${BOARD_SIZE_2048}, var(--cell));`
 )
-const slotCount = computed(() => BOARD_SIZE * BOARD_SIZE)
+const slotCount = computed(() => BOARD_SIZE_2048 * BOARD_SIZE_2048)
 /** 攤平棋盤成一維 Tile 清單（只含非空格），供 v-for 以 tile.id 為 key 渲染（見 design.md Decision 1） */
 const flatCells = computed<FlatTile[]>(() => {
   const out: FlatTile[] = []

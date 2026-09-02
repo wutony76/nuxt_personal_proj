@@ -472,10 +472,10 @@ class WaveSystem {
   }
 }
 
-export type TdGameStatus = 'ready' | 'playing' | 'gameover'
+export type GameStatusTd = 'ready' | 'playing' | 'gameover'
 
 export type TowerDefenseSnapshot = {
-  status: TdGameStatus
+  status: GameStatusTd
   gold: number
   hp: number
   wave: number
@@ -497,7 +497,7 @@ export default class TowerDefenseEngine {
   private towerSystem = new TowerSystem()
   private projectileSystem = new ProjectileSystem()
   private waveSystem = new WaveSystem()
-  private status: TdGameStatus = 'ready'
+  private status: GameStatusTd = 'ready'
   private hp = STARTING_HP
   private score = 0
   private clockSec = 0

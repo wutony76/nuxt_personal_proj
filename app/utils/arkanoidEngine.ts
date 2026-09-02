@@ -116,7 +116,7 @@ export const BRICK_GAP_Y = 6
 export const BRICK_TOP = 40
 const BRICK_STEP_X = BRICK_WIDTH + BRICK_GAP_X
 
-export const LIVES_START = 3
+export const LIVES_START_AK = 3
 
 // ── 集中管理的差異化參數（見 design.md Decision 4／6）──
 export const ARKANOID_CONFIG = {
@@ -256,7 +256,7 @@ export class ArkanoidEngine {
   powerUps: PowerUp[] = []
   score = 0
   level = 1
-  lives = LIVES_START
+  lives = LIVES_START_AK
   combo = 0
   maxCombo = 0
   wideMsLeft = 0
@@ -279,7 +279,7 @@ export class ArkanoidEngine {
     this.paddleX = AK_STAGE_WIDTH / 2 - PADDLE_WIDTH / 2
     this.score = 0
     this.level = 1
-    this.lives = LIVES_START
+    this.lives = LIVES_START_AK
     this.combo = 0
     this.maxCombo = 0
     this.wideMsLeft = 0

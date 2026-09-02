@@ -6,7 +6,7 @@ export type Winner = 'PLAYER' | 'AI' | null
 
 export type Coord = { x: number; y: number }
 
-export type Cell = {
+export type CellBs = {
   x: number
   y: number
   shipId: string | null
@@ -14,7 +14,7 @@ export type Cell = {
   state: CellState
 }
 
-export type Board = Cell[][]
+export type BoardBs = CellBs[][]
 
 export type Ship = {
   id: string
@@ -40,14 +40,14 @@ export type BattleshipSnapshot = {
   round: number
   score: number
   stats: { shots: number; hits: number; misses: number }
-  playerBoard: Board
-  enemyBoardView: Board
+  playerBoard: BoardBs
+  enemyBoardView: BoardBs
   playerShips: ShipSummary[]
   enemyShips: ShipSummary[]
   winner: Winner
 }
 
-export const BOARD_SIZE = 10
+export const BOARD_SIZE_BS = 10
 
 /** 5 種戰艦，共 17 格（需求第 6 點） */
 export const SHIP_CONFIG: Array<{ name: ShipName; length: number }> = [
@@ -79,13 +79,13 @@ export const labelToCoord = (label: string): Coord | null => {
   return { x, y }
 }
 
-const inBounds = ({ x, y }: Coord): boolean => x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE
+const inBounds = ({ x, y }: Coord): boolean => x >= 0 && x < BOARD_SIZE_BS && y >= 0 && y < BOARD_SIZE_BS
 
-export const createEmptyBoard = (): Board => {
-  const board: Board = []
-  for (let y = 0; y < BOARD_SIZE; y += 1) {
-    const row: Cell[] = []
-    for (let x = 0; x < BOARD_SIZE; x += 1) {
+export const createEmptyBoardBs = (): BoardBs => {
+  const board: BoardBs = []
+  for (let y = 0; y < BOARD_SIZE_BS; y += 1) {
+    const row: CellBs[] = []
+    for (let x = 0; x < BOARD_SIZE_BS; x += 1) {
       row.push({ x, y, shipId: null, shipPart: null, state: 'EMPTY' })
     }
     board.push(row)
@@ -116,14 +116,14 @@ export const getShipCells = (length: number, anchor: Coord, orientation: Orienta
 export type PlacementCheck = { valid: boolean; cells: Coord[] }
 
 /** 只檢查越界與重疊，允許戰艦相鄰（需求第 12 點／design.md Decision 3），玩家與 AI 佈局共用 */
-export const validateShipPlacement = (board: Board, length: number, anchor: Coord, orientation: Orientation): PlacementCheck => {
+export const validateShipPlacement = (board: BoardBs, length: number, anchor: Coord, orientation: Orientation): PlacementCheck => {
   const cells = getShipCells(length, anchor, orientation)
   const valid = cells.every((cell) => inBounds(cell) && board[cell.y]![cell.x]!.shipId === null)
   return { valid, cells }
 }
 
 /** 驗證通過才會呼叫；直接寫入 board 與 ship 本身，不重複驗證 */
-export const placeShip = (board: Board, ship: Ship, anchor: Coord, orientation: Orientation, cells: Coord[]): void => {
+export const placeShip = (board: BoardBs, ship: Ship, anchor: Coord, orientation: Orientation, cells: Coord[]): void => {
   cells.forEach((cell, index) => {
     const target = board[cell.y]![cell.x]!
     target.shipId = ship.id
@@ -135,12 +135,12 @@ export const placeShip = (board: Board, ship: Ship, anchor: Coord, orientation: 
 }
 
 /** AI 佈局：與玩家共用 validateShipPlacement，僅座標與方向來源改為 Math.random()，失敗即重試（需求第 16 點） */
-export const autoPlaceShips = (board: Board, ships: Ship[]): void => {
+export const autoPlaceShips = (board: BoardBs, ships: Ship[]): void => {
   ships.forEach((ship) => {
     let placed = false
     while (!placed) {
       const orientation: Orientation = Math.random() < 0.5 ? 'HORIZONTAL' : 'VERTICAL'
-      const anchor: Coord = { x: Math.floor(Math.random() * BOARD_SIZE), y: Math.floor(Math.random() * BOARD_SIZE) }
+      const anchor: Coord = { x: Math.floor(Math.random() * BOARD_SIZE_BS), y: Math.floor(Math.random() * BOARD_SIZE_BS) }
       const check = validateShipPlacement(board, ship.length, anchor, orientation)
       if (check.valid) {
         placeShip(board, ship, anchor, orientation, check.cells)
@@ -151,7 +151,7 @@ export const autoPlaceShips = (board: Board, ships: Ship[]): void => {
 }
 
 /** 玩家與 AI 共用的同一套攻擊判定（需求第 59 點）；已攻擊過的格子不消耗任何狀態變更 */
-export const attackCell = (board: Board, ships: Ship[], target: Coord): AttackResult => {
+export const attackCell = (board: BoardBs, ships: Ship[], target: Coord): AttackResult => {
   const cell = board[target.y]![target.x]!
   if (cell.state === 'HIT' || cell.state === 'MISS') return { result: 'ALREADY_ATTACKED' }
 
@@ -179,11 +179,11 @@ export const checkWin = (ships: Ship[]): boolean => ships.every((ship) => ship.s
  * 不需要額外分支——沉船的所有格子早已是 HIT、從未停留在 SHIP 狀態，這裡只要單純隱藏 SHIP 即可。
  * 規則集中在 engine 層，UI 只負責依 state 顯示對應圖案，不自己判斷要不要隱藏。
  */
-export const getPlayerViewOfEnemyBoard = (board: Board): Board =>
+export const getPlayerViewOfEnemyBoard = (board: BoardBs): BoardBs =>
   board.map((row) => row.map((cell) => (cell.state === 'SHIP' ? { ...cell, shipId: null, shipPart: null, state: 'EMPTY' } : { ...cell })))
 
 /** AI 攻擊策略（本次 MVP，Random）：從所有尚未攻擊的格子中隨機選一格（需求第 31 點） */
-export const chooseAttackTarget = (board: Board): Coord | null => {
+export const chooseAttackTarget = (board: BoardBs): Coord | null => {
   const candidates: Coord[] = []
   board.forEach((row) =>
     row.forEach((cell) => {
@@ -210,8 +210,8 @@ const toShipSummary = (ship: Ship): ShipSummary => ({
  * aiAttack()，頁面在 setTimeout callback 裡呼叫。
  */
 export class BattleshipEngine {
-  private playerBoard: Board = createEmptyBoard()
-  private enemyBoard: Board = createEmptyBoard()
+  private playerBoard: BoardBs = createEmptyBoardBs()
+  private enemyBoard: BoardBs = createEmptyBoardBs()
   private playerShips: Ship[] = createShips()
   private enemyShips: Ship[] = createShips()
   private phase: GamePhase = 'PLACEMENT'
@@ -221,8 +221,8 @@ export class BattleshipEngine {
   private winner: Winner = null
 
   reset(): void {
-    this.playerBoard = createEmptyBoard()
-    this.enemyBoard = createEmptyBoard()
+    this.playerBoard = createEmptyBoardBs()
+    this.enemyBoard = createEmptyBoardBs()
     this.playerShips = createShips()
     this.enemyShips = createShips()
     autoPlaceShips(this.enemyBoard, this.enemyShips)

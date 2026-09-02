@@ -13,13 +13,13 @@
  * 因此每一關天生保證「可在 |S| 步內解開」，而 |S| 一律小於該關 moveLimit（留有餘裕）。
  */
 
-export type Cell = boolean
-export type Grid = Cell[][]
+export type CellLo = boolean
+export type Grid = CellLo[][]
 /**
  * 對外共用的狀態型別：engine 只會產生 'playing' / 'levelClear' / 'gameover'
  * （'paused' 由頁面層自行管理，不進 engine，但一併收攏進同一 union 讓頁面 reactive state 可重用）。
  */
-export type GameStatus = 'playing' | 'levelClear' | 'gameover' | 'paused'
+export type GameStatusLo = 'playing' | 'levelClear' | 'gameover' | 'paused'
 /** 生成種子座標（row, col），對全滅盤面逐一 Toggle 產生該關初始盤面 */
 export type SeedCell = readonly [number, number]
 
@@ -116,7 +116,7 @@ export const toggleCell = (grid: Grid, row: number, col: number): Grid => {
   return next
 }
 
-/** Win Detection（見 tasks 5.4）：所有 Cell 皆為 OFF 才回傳 true */
+/** Win Detection（見 tasks 5.4）：所有 CellLo 皆為 OFF 才回傳 true */
 export const isAllOff = (grid: Grid): boolean => grid.every((row) => row.every((cell) => !cell))
 
 /** 依種子集合對全滅盤面逐一 Toggle，生成初始盤面（保證可用同一組種子解回全滅） */
