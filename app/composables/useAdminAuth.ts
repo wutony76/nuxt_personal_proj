@@ -1,5 +1,6 @@
 import { computed, reactive } from 'vue'
 import { api, type AuthUser } from '~/services/api'
+import { useAuth } from '~/composables/useAuth'
 
 /**
  * 是否為管理員的檢查結果，比照 useAuth.ts 的單例 reactive 模式：
@@ -22,7 +23,11 @@ export const useAdminAuth = () => {
           const result = await api.admin.me()
           state.isAdmin = result.isAdmin
           state.user = result.user
-        } catch {
+        } catch (e: unknown) {
+          const statusCode = (e as { statusCode?: number })?.statusCode
+          if (statusCode === 401) {
+            useAuth().clearSession()
+          }
           state.isAdmin = false
           state.user = null
         } finally {

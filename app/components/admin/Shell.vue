@@ -1,12 +1,12 @@
 <script setup lang="ts">
 /**
- * 所有 /admin/** 頁面共用的殼：權限判斷（未登入導去 /login、非管理員顯示 40003 拒絕畫面）、
+ * 所有 /admin/** 頁面共用的殼：權限判斷（未登入顯示登入按鈕、非管理員顯示 40003 拒絕畫面）、
  * 頂部導覽（總覽／角色權限／遊戲管理／報表分析）、in-memory 提示、頁首（kicker/title/desc）。
  * 各頁面把自己的內容放進預設 slot，只有 status 為 ok（已確認是管理員）才會渲染 slot。
  * 視覺風格見 app/assets/style/admin.scss，比照 SAMPLE/admin.design/main.dc.html。
  */
-import { computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
 import { useAdminAuth } from '~/composables/useAdminAuth'
 
@@ -18,11 +18,17 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
-const { isLoggedIn, init: initAuth } = useAuth()
-const { checked, isAdmin, user, check } = useAdminAuth()
+const route = useRoute()
+const { isLoggedIn, refresh: refreshAuth } = useAuth()
+const { checked, isAdmin, user, check, reset: resetAdminAuth } = useAdminAuth()
 
-type Status = 'checking' | 'denied' | 'ok'
+/** guard 跑完 session 確認後才切換 expired／denied／ok */
+const sessionReady = ref(false)
+
+type Status = 'checking' | 'expired' | 'denied' | 'ok'
 const status = computed<Status>(() => {
+  if (!sessionReady.value) return 'checking'
+  if (!isLoggedIn.value) return 'expired'
   if (!checked.value) return 'checking'
   return isAdmin.value ? 'ok' : 'denied'
 })
@@ -38,17 +44,20 @@ const adminInitial = computed(() => (user.value?.name ?? '').slice(0, 1))
 
 const _actions = {
   guard: async () => {
-    await initAuth()
-    if (!isLoggedIn.value) {
-      router.replace('/login')
-      return
-    }
+    sessionReady.value = false
+    resetAdminAuth()
+    await refreshAuth()
+    sessionReady.value = true
+    if (!isLoggedIn.value) return
     await check()
   }
 }
 
 const click = {
-  backHome: () => router.replace('/')
+  backHome: () => router.replace('/'),
+  goLogin: () => {
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+  }
 }
 
 onMounted(() => {
@@ -63,7 +72,7 @@ onMounted(() => {
         <div class="ash-brand-row">
           <div class="ash-brand">
             <div class="admin-en" style="color:color-mix(in srgb, #ffffff 55%, #1c1c22)">Administration</div>
-            <div class="ash-brand-title">後台管理</div>
+            <div class="ash-brand-title">HFYY後台</div>
           </div>
           <div v-if="status === 'ok'" class="ash-user">
             <div class="ash-user-text">
@@ -71,6 +80,9 @@ onMounted(() => {
               <div class="admin-en" style="color:color-mix(in srgb, #ffffff 55%, #1c1c22)">Admin whitelist</div>
             </div>
             <div class="ash-user-avatar">{{ adminInitial }}</div>
+          </div>
+          <div v-else-if="sessionReady && status === 'expired'" class="ash-user">
+            <button type="button" class="ash-login-btn" @click="click.goLogin">登入</button>
           </div>
         </div>
         <nav v-if="status === 'ok'" class="ash-nav">
@@ -89,6 +101,17 @@ onMounted(() => {
 
     <main class="ash-main">
       <div v-if="status === 'checking'" class="admin-empty">正在確認管理員權限...</div>
+
+      <template v-else-if="status === 'expired'">
+        <header class="ash-page-header">
+          <div class="admin-en">Session expired</div>
+          <h1 class="ash-page-title">登入已過期</h1>
+        </header>
+        <div class="ash-expired">
+          <p class="ash-expired-desc">請重新登入以繼續使用後台；登入成功後將返回此頁。</p>
+          <button type="button" class="admin-btn admin-btn-primary" @click="click.goLogin">登入</button>
+        </div>
+      </template>
 
       <template v-else-if="status === 'denied'">
         <header class="ash-page-header">
@@ -178,6 +201,23 @@ onMounted(() => {
   place-items: center;
   font-size: 12px;
   color: var(--paper);
+}
+
+.ash-login-btn {
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--paper);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.12s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
 }
 
 .ash-nav {
@@ -294,6 +334,22 @@ onMounted(() => {
 }
 
 .ash-denied-desc {
+  max-width: 54ch;
+  font-size: 13.5px;
+  color: color-mix(in srgb, #1c1c22 72%, #ffffff);
+  margin: 0;
+}
+
+.ash-expired {
+  border-top: 1px solid var(--ink);
+  padding-top: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.ash-expired-desc {
   max-width: 54ch;
   font-size: 13.5px;
   color: color-mix(in srgb, #1c1c22 72%, #ffffff);

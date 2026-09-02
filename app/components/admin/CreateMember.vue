@@ -7,6 +7,9 @@ import { api, type AdminAccessUser, type UserRole } from '~/services/api'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
+const DEFAULT_MEMBER_EMAIL = 'test@admin.hfyy'
+const DEFAULT_MEMBER_PASSWORD = '222222'
+
 const props = defineProps<{
   /** 父層在新增會員後遞增，觸發重新載入列表 */
   reloadToken?: number
@@ -22,8 +25,8 @@ const state = reactive({
   users: [] as AdminAccessUser[],
   selectedId: '' as string,
   name: '',
-  email: '',
-  password: '',
+  email: DEFAULT_MEMBER_EMAIL,
+  password: DEFAULT_MEMBER_PASSWORD,
   role: 'user' as UserRole,
   submitStatus: 'idle' as AsyncStatus,
   submitError: '',
@@ -84,8 +87,8 @@ const _actions = {
         role: state.role
       })
       state.name = ''
-      state.email = ''
-      state.password = ''
+      state.email = DEFAULT_MEMBER_EMAIL
+      state.password = DEFAULT_MEMBER_PASSWORD
       state.role = 'user'
       state.successId = res.user.id
       state.selectedId = res.user.id
@@ -149,8 +152,8 @@ watch(
         <form class="acm-form" @submit.prevent="click.submit">
           <div class="acm-fields">
             <div class="admin-field">
-              <label>名稱</label>
-              <input v-model="state.name" type="text" class="admin-input" maxlength="40" placeholder="顯示名稱"
+              <label>帳號</label>
+              <input v-model="state.name" type="text" class="admin-input" maxlength="40" placeholder="請輸入帳號"
                 autocomplete="off">
             </div>
             <div class="admin-field">
@@ -173,14 +176,21 @@ watch(
           </div>
 
           <div class="acm-footer">
-            <button type="submit" class="admin-btn admin-btn-primary" :disabled="state.submitStatus === 'loading'">
-              {{ state.submitStatus === 'loading' ? '新增中…' : '新增' }}
-            </button>
-            <p v-if="state.submitError" class="acm-error">{{ state.submitError }}</p>
-            <p v-else-if="state.submitStatus === 'success'" class="acm-ok">
-              已建立 <span class="admin-num">{{ state.successId }}</span>（in-memory，重啟後消失）
-            </p>
+            <div class="acm-footer-actions">
+              <button type="submit" class="admin-btn admin-btn-primary" :disabled="state.submitStatus === 'loading'">
+                {{ state.submitStatus === 'loading' ? '新增中…' : '新增' }}
+              </button>
+              <p v-if="state.submitError" class="acm-error">{{ state.submitError }}</p>
+              <p v-else-if="state.submitStatus === 'success'" class="acm-ok">
+                已建立 <span class="admin-num">{{ state.successId }}</span>（in-memory，重啟後消失）
+              </p>
+            </div>
           </div>
+          <p class="acm-hint">
+            預設 Email <span class="admin-num">{{ DEFAULT_MEMBER_EMAIL }}</span>、密碼
+            <span class="admin-num">{{ DEFAULT_MEMBER_PASSWORD }}</span>；含
+            <span class="admin-num">@admin</span> 的 Email 可重複建立（登入時對到第一筆符合帳號）。
+          </p>
         </form>
       </div>
     </div>
@@ -189,9 +199,7 @@ watch(
 
 <style scoped lang="scss">
 .acm {
-  height: 360px;
-  min-height: 0;
-  max-height: 360px;
+  min-height: 460px;
   border: 1px solid var(--line);
   border-radius: 2px;
   background: var(--paper);
@@ -201,8 +209,8 @@ watch(
 .acm-grid {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(260px, 1fr);
+  min-height: 460px;
   height: 100%;
-  min-height: 0;
 
   @media (max-width: 800px) {
     grid-template-columns: 1fr;
@@ -292,11 +300,14 @@ watch(
 .acm-detail {
   display: flex;
   flex-direction: column;
+  height: 100%;
   min-height: 0;
-  overflow-y: auto;
+  overflow: visible;
 }
 
 .acm-form {
+  flex: 1;
+  min-height: 0;
   padding: 8px 16px 16px;
   display: flex;
   flex-direction: column;
@@ -311,9 +322,25 @@ watch(
 
 .acm-footer {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.acm-footer-actions {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
+}
+
+.acm-hint {
+  margin: auto 0 0;
+  max-width: 42ch;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--muted);
 }
 
 .acm-error {

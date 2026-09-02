@@ -30,6 +30,27 @@ export const useAuth = () => {
     return initPromise
   }
 
+  /**
+   * 重新向伺服器確認 session（後台進入時用，避免 cookie 已過期但 client 仍快取登入態）。
+   */
+  const refresh = async () => {
+    try {
+      const result = await authService.fetchMe()
+      state.user = result.user
+    } catch {
+      state.user = null
+    } finally {
+      state.init = true
+      initPromise = null
+    }
+  }
+
+  const clearSession = () => {
+    state.user = null
+    state.init = true
+    initPromise = null
+  }
+
   const login = async (email: string, password: string) => {
     await init()
     try {
@@ -68,6 +89,8 @@ export const useAuth = () => {
     initialized,
     isLoggedIn,
     init,
+    refresh,
+    clearSession,
     login,
     logout
   }

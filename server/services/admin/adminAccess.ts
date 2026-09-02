@@ -24,6 +24,11 @@ function _uid(): string {
   return `U0xA${Date.now().toString(16).slice(-6)}${Math.random().toString(16).slice(2, 6)}`.toUpperCase()
 }
 
+/** @admin 網域測試用 Email 可重複建立（例：test@admin.hfyy） */
+function _isReusableAdminEmail(email: string): boolean {
+  return email.includes('@admin')
+}
+
 /**
  * 管理員白名單查詢／異動／新增會員。
  * 所有 isAdmin 判斷應走這裡，不要再直接讀 ADMIN_USER_IDS 陣列。
@@ -92,7 +97,7 @@ export const adminAccessService = {
   /**
    * 新增會員帳號（in-memory）
    * @param input.name 顯示名
-   * @param input.email 登入 email（唯一）
+   * @param input.email 登入 email（一般唯一；含 @admin 可重複）
    * @param input.password 明文密碼
    * @param input.role 預設 user
    * @returns 新建帳號（不含密碼）
@@ -124,7 +129,10 @@ export const adminAccessService = {
 
     Storage.get.account()
     const accounts = Storage.account as Record<string, AuthRecord>
-    if (Object.values(accounts).some((row) => row.email === email)) {
+    if (
+      !_isReusableAdminEmail(email) &&
+      Object.values(accounts).some((row) => row.email === email)
+    ) {
       throw createError({ statusCode: 400, message: '此 Email 已被使用。' })
     }
 
