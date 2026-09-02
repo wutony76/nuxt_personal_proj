@@ -1,0 +1,33 @@
+---
+description: app/components/admin 元件命名慣例（檔名不加 Admin 前綴）
+globs: app/components/admin/**/*
+alwaysApply: false
+---
+
+# Admin 元件命名
+
+`app/components/admin/` 下的 Vue 元件**檔名不得再加 `Admin` 前綴**——目錄本身已表示後台 scope。
+
+## 規則
+
+- ✅ `app/components/admin/Shell.vue` → 模板 `<AdminShell>`（Nuxt 依目錄自動加前綴）
+- ✅ `app/components/admin/ChatPanel.vue` → 模板 `<AdminChatPanel>`
+- ❌ `app/components/admin/AdminShell.vue`（重複前綴）
+
+## 範例
+
+| 檔案 | 模板標籤 |
+|------|----------|
+| `Shell.vue` | `<AdminShell>` |
+| `ChatPanel.vue` | `<AdminChatPanel>` |
+| `ChatSchedule.vue` | `<AdminChatSchedule>` |
+| `CreateMember.vue` | `<AdminCreateMember>` |
+| `AccessPanel.vue` | `<AdminAccessPanel>` |
+| `OverviewPageNav.vue` | `<AdminOverviewPageNav>` |
+| `GameNav.vue` | `<AdminGameNav>` |
+| `ComingSoon.vue` | `<AdminComingSoon>` |
+
+## 注意
+
+- 與 `app/components/social/ChatPanel.vue` 等同名時，依 Nuxt path prefix 區分（`AdminChatPanel` vs `SocialChatPanel`）。
+- 新增後台元件時，直接放在 `admin/` 並用語意化檔名，勿在檔名重複 `Admin`。

@@ -128,12 +128,8 @@ watch(
       <div class="acm-list-wrap">
         <div class="acm-col-label admin-en">Members</div>
         <ul v-if="state.users.length > 0" class="acm-list">
-          <li
-            v-for="row in state.users"
-            :key="row.id"
-            class="acm-item"
-            :class="{ 'is-active': row.id === state.selectedId }"
-          >
+          <li v-for="row in state.users" :key="row.id" class="acm-item"
+            :class="{ 'is-active': row.id === state.selectedId }">
             <button type="button" class="acm-item-btn" @click="click.select(row.id)">
               <span class="acm-item-name">{{ row.name }}</span>
               <span class="acm-item-meta">
@@ -154,36 +150,18 @@ watch(
           <div class="acm-fields">
             <div class="admin-field">
               <label>名稱</label>
-              <input
-                v-model="state.name"
-                type="text"
-                class="admin-input"
-                maxlength="40"
-                placeholder="顯示名稱"
-                autocomplete="off"
-              >
+              <input v-model="state.name" type="text" class="admin-input" maxlength="40" placeholder="顯示名稱"
+                autocomplete="off">
             </div>
             <div class="admin-field">
               <label>Email</label>
-              <input
-                v-model="state.email"
-                type="email"
-                class="admin-input"
-                placeholder="login@example.com"
-                autocomplete="off"
-              >
+              <input v-model="state.email" type="email" class="admin-input" placeholder="login@example.com"
+                autocomplete="off">
             </div>
             <div class="admin-field">
               <label>密碼</label>
-              <input
-                v-model="state.password"
-                type="text"
-                class="admin-input"
-                minlength="6"
-                maxlength="72"
-                placeholder="至少 6 字元"
-                autocomplete="off"
-              >
+              <input v-model="state.password" type="text" class="admin-input" minlength="6" maxlength="72"
+                placeholder="至少 6 字元" autocomplete="off">
             </div>
             <div class="admin-field">
               <label>角色</label>
@@ -195,12 +173,8 @@ watch(
           </div>
 
           <div class="acm-footer">
-            <button
-              type="submit"
-              class="admin-btn admin-btn-primary"
-              :disabled="state.submitStatus === 'loading'"
-            >
-              {{ state.submitStatus === 'loading' ? '新增中…' : '新增會員' }}
+            <button type="submit" class="admin-btn admin-btn-primary" :disabled="state.submitStatus === 'loading'">
+              {{ state.submitStatus === 'loading' ? '新增中…' : '新增' }}
             </button>
             <p v-if="state.submitError" class="acm-error">{{ state.submitError }}</p>
             <p v-else-if="state.submitStatus === 'success'" class="acm-ok">

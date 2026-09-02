@@ -3,7 +3,7 @@ import { api, type AuthUser } from '~/services/api'
 
 /**
  * 是否為管理員的檢查結果，比照 useAuth.ts 的單例 reactive 模式：
- * AdminShell.vue 只需要打一次 GET /api/admin/me，其他共用同一份結果，不用每個後台頁面各自重打。
+ * Shell.vue（admin/）只需要打一次 GET /api/admin/me，其他共用同一份結果，不用每個後台頁面各自重打。
  */
 const state = reactive({
   checked: false as boolean,

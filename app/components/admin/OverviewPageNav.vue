@@ -9,7 +9,7 @@ type NavItem = {
 }
 
 const ITEMS: NavItem[] = [
-  { id: 'ao-chat', en: 'Chat', label: '聊天' },
+  { id: 'ao-chat', en: 'Chat', label: '聊天室' },
   { id: 'ao-members', en: 'Members', label: '會員' },
   { id: 'ao-perms', en: 'Access', label: '權限' },
   { id: 'ao-cards', en: 'Go', label: '前往' }
@@ -24,13 +24,8 @@ const click = {
 
 <template>
   <nav class="aopn" aria-label="總覽頁面捷徑">
-    <button
-      v-for="item in ITEMS"
-      :key="item.id"
-      type="button"
-      class="aopn-card admin-panel"
-      @click="click.scrollTo(item.id)"
-    >
+    <button v-for="item in ITEMS" :key="item.id" type="button" class="aopn-card admin-panel"
+      @click="click.scrollTo(item.id)">
       <span class="aopn-en-slot">
         <span class="admin-en aopn-en">{{ item.en }}</span>
       </span>

@@ -2,7 +2,7 @@
 /**
  * 後台總覽（/admin）：後台入口頁，不是登入後自動導向的頁面（見 login.vue 的登入導向已簡化為
  * 一律回首頁）。管理員從 AppTopbar.vue 的「後台」連結進來就是這一頁。
- * 權限判斷、頂部導覽、40003 拒絕畫面統一交給 AdminShell 處理。
+ * 權限判斷、頂部導覽、40003 拒絕畫面統一交給 Shell（admin/）處理。
  */
 import { ref } from 'vue'
 
@@ -69,7 +69,7 @@ const click = {
           <span class="admin-en">Members</span>
           <h2>新增會員</h2>
         </div>
-        <span class="admin-meta">左側列表 · 右側新增 · in-memory</span>
+        <span class="admin-meta">會員功能</span>
       </div>
       <AdminCreateMember :reload-token="memberReloadToken" @created="click.onMemberCreated" />
     </section>
