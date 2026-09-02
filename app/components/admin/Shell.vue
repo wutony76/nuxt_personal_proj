@@ -5,10 +5,12 @@
  * 各頁面把自己的內容放進預設 slot，只有 status 為 ok（已確認是管理員）才會渲染 slot。
  * 視覺風格見 app/assets/style/admin.scss，比照 SAMPLE/admin.design/main.dc.html。
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
 import { useAdminAuth } from '~/composables/useAdminAuth'
+
+const { $dialog } = useNuxtApp()
 
 const props = defineProps<{
   active: 'overview' | 'roles' | 'gamemgmt' | 'reports'
@@ -19,11 +21,15 @@ const props = defineProps<{
 
 const router = useRouter()
 const route = useRoute()
-const { isLoggedIn, refresh: refreshAuth } = useAuth()
+const { isLoggedIn, refresh: refreshAuth, logout } = useAuth()
 const { checked, isAdmin, user, check, reset: resetAdminAuth } = useAdminAuth()
 
 /** guard 跑完 session 確認後才切換 expired／denied／ok */
 const sessionReady = ref(false)
+
+const state = reactive({
+  isLoggingOut: false
+})
 
 type Status = 'checking' | 'expired' | 'denied' | 'ok'
 const status = computed<Status>(() => {
@@ -50,11 +56,35 @@ const _actions = {
     sessionReady.value = true
     if (!isLoggedIn.value) return
     await check()
+  },
+  submitLogout: async () => {
+    if (state.isLoggingOut) return
+    state.isLoggingOut = true
+    try {
+      await logout()
+      resetAdminAuth()
+      sessionReady.value = true
+      await router.replace('/')
+    } finally {
+      state.isLoggingOut = false
+    }
   }
 }
 
 const click = {
-  backHome: () => router.replace('/')
+  backHome: () => router.replace('/'),
+  logout: () => {
+    $dialog.alert('請問，您確定要登出嗎？', {
+      title: '確認登出嗎？',
+      cb: () => {
+        _actions.submitLogout()
+      },
+      options: {
+        cancelButton: true,
+        className: 'is-admin is-admin-logout'
+      }
+    })
+  }
 }
 
 /** 登入頁導向（帶 redirect 回目前後台路徑） */
@@ -137,8 +167,16 @@ onMounted(() => {
             <h1 class="ash-page-title">{{ props.title }}</h1>
             <p class="ash-page-desc">{{ props.desc }}</p>
           </div>
-          <aside v-if="$slots['page-aside']" class="ash-page-header-aside">
+          <aside class="ash-page-header-aside">
             <slot name="page-aside" />
+            <button type="button" class="ash-aside-logout admin-panel"
+              :class="{ 'has-aside-slot': $slots['page-aside'] }" :disabled="state.isLoggingOut"
+              @click="click.logout">
+              <span class="ash-aside-logout-en-slot">
+                <span class="admin-en ash-aside-logout-en">Out</span>
+              </span>
+              <span class="ash-aside-logout-label">登出</span>
+            </button>
           </aside>
         </header>
         <slot />
@@ -283,6 +321,73 @@ onMounted(() => {
 .ash-page-header-aside {
   flex-shrink: 0;
   align-self: flex-start;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.ash-aside-logout {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  min-width: 40px;
+  min-height: 50px;
+  padding: 4px 8px;
+  border: 0;
+  cursor: pointer;
+  text-align: center;
+  color: inherit;
+  font-family: inherit;
+  transition: background 0.12s;
+
+  &:hover:not(:disabled) {
+    background: var(--wash);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &.has-aside-slot {
+    border-left: 1px solid var(--line);
+    margin-left: 2px;
+    padding-left: 10px;
+  }
+}
+
+.ash-aside-logout-en-slot {
+  flex: none;
+  width: 12px;
+  height: 36px;
+  position: relative;
+  overflow: visible;
+}
+
+.ash-aside-logout-en {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 7px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  transform-origin: top left;
+  transform: translateX(10%) rotate(90deg);
+}
+
+.ash-aside-logout-label {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.06em;
 }
 
 .ash-page-title {

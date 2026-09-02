@@ -89,6 +89,10 @@ const dialogClick = {
   justify-content: center;
   z-index: 1000;
   padding: 16px;
+
+  &:has(.dialog-container.is-admin) {
+    background: color-mix(in srgb, #1c1c22 32%, transparent);
+  }
 }
 
 .dialog-container {
@@ -188,6 +192,110 @@ const dialogClick = {
       border: 1px solid var(--color-red-main);
       background: #fff;
       color: var(--color-red-main);
+    }
+  }
+
+  /* ── 後台 admin 主題（呼叫端傳 className: 'is-admin' 或 'is-admin is-admin-logout'）──
+     黑白編輯風，token 對齊 app/assets/style/admin.scss；Teleport 到 body 故在此自帶變數。 */
+  &.is-admin {
+    --admin-ink: #1c1c22;
+    --admin-paper: #ffffff;
+    --admin-line: color-mix(in srgb, #1c1c22 14%, #ffffff);
+    --admin-muted: color-mix(in srgb, #1c1c22 58%, #ffffff);
+    --admin-wash: color-mix(in srgb, #1c1c22 4%, #ffffff);
+
+    max-width: 360px;
+    border: 1px solid var(--admin-line);
+    border-radius: 2px;
+    box-shadow: 0 8px 24px color-mix(in srgb, #1c1c22 12%, transparent);
+    background: var(--admin-paper);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Noto Sans TC', sans-serif;
+
+    .header {
+      background: var(--admin-ink);
+      border-bottom: 1px solid color-mix(in srgb, #ffffff 14%, #1c1c22);
+      padding: 10px 14px;
+
+      .title {
+        color: var(--admin-paper);
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+    }
+
+    .close {
+      color: color-mix(in srgb, #ffffff 72%, #1c1c22);
+
+      &:hover {
+        color: var(--admin-paper);
+      }
+    }
+
+    .dialog-content {
+      color: color-mix(in srgb, #1c1c22 72%, #ffffff);
+      font-size: 13.5px;
+      line-height: 1.75;
+      padding: 18px 14px;
+    }
+
+    .dialog-footer {
+      padding: 12px 14px 16px;
+      justify-content: flex-end;
+      gap: 8px;
+
+      .btn-dialog {
+        border-radius: 2px;
+        height: 34px;
+        padding: 0 16px;
+        font-size: 12.5px;
+        font-weight: 600;
+        min-width: 72px;
+        border: none;
+        transition: background 0.12s;
+      }
+
+      .btn-dialog-cancel {
+        border: 1px solid var(--admin-line);
+        background: transparent;
+        color: var(--admin-ink);
+
+        &:hover {
+          background: var(--admin-wash);
+        }
+      }
+
+      .btn-dialog-ok {
+        background: var(--admin-ink);
+        color: var(--admin-paper);
+
+        &:hover {
+          background: color-mix(in srgb, #1c1c22 82%, #ffffff);
+        }
+      }
+    }
+
+    /* 登出二次確認：取消（留在後台）用實心主色、確認登出改為外框，降低誤觸風險 */
+    &.is-admin-logout .dialog-footer {
+      .btn-dialog-cancel {
+        border: none;
+        background: var(--admin-ink);
+        color: var(--admin-paper);
+
+        &:hover {
+          background: color-mix(in srgb, #1c1c22 82%, #ffffff);
+        }
+      }
+
+      .btn-dialog-ok {
+        border: 1px solid var(--admin-line);
+        background: transparent;
+        color: var(--admin-ink);
+
+        &:hover {
+          background: var(--admin-wash);
+        }
+      }
     }
   }
 }

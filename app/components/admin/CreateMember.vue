@@ -5,6 +5,7 @@
 import { computed, onMounted, reactive, watch } from 'vue'
 import { api, type AdminAccessUser, type AdminMemberBalanceChange, type AdminMemberLoginRecord, type UserRole } from '~/services/api'
 import { balanceChangeTypeLabel } from '~/utils/balanceChangeLabel'
+import { formatUserAgentShort } from '~/utils/userAgentLabel'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 type DetailTab = 'info' | 'create'
@@ -67,7 +68,8 @@ const _handlers = {
     const t = Number(ms)
     if (!t) return '—'
     return new Date(t).toLocaleString('zh-TW')
-  }
+  },
+  formatDevice: (userAgent: string) => formatUserAgentShort(userAgent) || '—'
 }
 
 const _actions = {
@@ -548,7 +550,9 @@ watch(
                         <td class="acm-ledger-time">{{ _handlers.formatTime(row.createdAt) }}</td>
                         <td>{{ row.email }}</td>
                         <td class="acm-ledger-ip">{{ row.ip || '—' }}</td>
-                        <td class="acm-ledger-note">{{ row.userAgent || '—' }}</td>
+                        <td class="acm-ledger-note acm-ledger-device" :title="row.userAgent || undefined">
+                          {{ _handlers.formatDevice(row.userAgent) }}
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -1007,6 +1011,12 @@ watch(
 .acm-ledger-note {
   max-width: 120px;
   word-break: break-word;
+}
+
+.acm-ledger-device {
+  max-width: none;
+  white-space: nowrap;
+  cursor: help;
 }
 
 .acm-ledger-ip {
