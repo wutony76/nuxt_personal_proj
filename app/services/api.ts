@@ -777,7 +777,7 @@ export type LotteryOpenCodeHistoryResponse = {
 }
 
 // ── 遊戲中心 · 遊戲紀錄（game-hall 小遊戲，非彩票）──
-export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman' | 'spaceInvaders' | 'solitaire' | 'typing' | 'breakout' | 'orbMatch' | 'battleship' | '2048' | 'flappy' | 'frogger' | 'connect4' | 'whackAMole' | 'lightsOut' | 'towerStack'
+export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman' | 'spaceInvaders' | 'solitaire' | 'typing' | 'breakout' | 'orbMatch' | 'battleship' | '2048' | 'flappy' | 'frogger' | 'connect4' | 'whackAMole' | 'lightsOut' | 'towerStack' | 'arkanoid'
 
 export type GameHistoryRecord = {
   id: string
@@ -1310,6 +1310,11 @@ export const api = {
       recordTowerStack: (payload: GameHistoryRecordPayload) =>
         $fetch<GameHistorySettleResponse>('/api/games/retro/tower-stack/history', { method: 'POST', body: payload }),
       clearTowerStack: () => $fetch<{ ok: boolean }>('/api/games/retro/tower-stack/history', { method: 'DELETE' }),
+
+      historyArkanoid: () => $fetch<GameHistoryListResponse>('/api/games/retro/arkanoid/history'),
+      recordArkanoid: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/arkanoid/history', { method: 'POST', body: payload }),
+      clearArkanoid: () => $fetch<{ ok: boolean }>('/api/games/retro/arkanoid/history', { method: 'DELETE' }),
 
       /** 各遊戲全站最高分一筆；混排依該遊戲最近遊玩時間取 5（需登入） */
       leaderboard: () => $fetch<RetroLeaderboardResponse>('/api/games/retro/leaderboard'),

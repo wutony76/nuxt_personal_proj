@@ -37,9 +37,10 @@ const FILTERS: Array<{ key: FilterKey; label: string }> = [
   { key: 'connect4', label: 'CONNECT 4' },
   { key: 'whackAMole', label: 'WHACK-A-MOLE' },
   { key: 'lightsOut', label: 'LIGHTS OUT' },
-  { key: 'towerStack', label: 'TOWER STACK' }
+  { key: 'towerStack', label: 'TOWER STACK' },
+  { key: 'arkanoid', label: 'ARKANOID' }
 ]
-const GAME_KEYS: RetroGameKey[] = ['snake', 'racing', 'tetriminos', 'match3rush', 'match3classic', 'pong', 'runner', 'spaceShooter', 'minesweeper', 'pacman', 'spaceInvaders', 'solitaire', 'typing', 'breakout', 'orbMatch', 'battleship', '2048', 'flappy', 'frogger', 'connect4', 'whackAMole', 'lightsOut', 'towerStack']
+const GAME_KEYS: RetroGameKey[] = ['snake', 'racing', 'tetriminos', 'match3rush', 'match3classic', 'pong', 'runner', 'spaceShooter', 'minesweeper', 'pacman', 'spaceInvaders', 'solitaire', 'typing', 'breakout', 'orbMatch', 'battleship', '2048', 'flappy', 'frogger', 'connect4', 'whackAMole', 'lightsOut', 'towerStack', 'arkanoid']
 const GAME_NAME: Record<RetroGameKey, string> = {
   snake: 'SNAKE',
   racing: 'RACING',
@@ -63,7 +64,8 @@ const GAME_NAME: Record<RetroGameKey, string> = {
   connect4: 'CONNECT 4',
   whackAMole: 'WHACK-A-MOLE',
   lightsOut: 'LIGHTS OUT',
-  towerStack: 'TOWER STACK'
+  towerStack: 'TOWER STACK',
+  arkanoid: 'ARKANOID'
 }
 
 const ui = reactive({
