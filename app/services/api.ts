@@ -7,17 +7,6 @@ export type AuthUser = {
   email: string
 }
 
-export type LotteryGame = {
-  id: number
-  key: string
-  name: string
-  category: '6hc' | 'bg'
-  minBet: number
-  maxBet: number
-  defaultOdds: number
-  playTypes: string[]
-}
-
 export type BetRecord = {
   id: string
   gameId: number
@@ -1179,7 +1168,6 @@ export const api = {
     jackpotPl3: () => $fetch<CreditJackpotState>('/api/lottery/pl3/jackpot'),
     /** 三星直選分層彩池狀態，與上面的爆池是兩個獨立的池 */
     poolPl3: () => $fetch<PoolPlayState>('/api/lottery/pl3/pool'),
-    games: () => $fetch<{ games: LotteryGame[] }>('/api/lottery/games'),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),
     bet: (payload: LotteryBetPayload) =>

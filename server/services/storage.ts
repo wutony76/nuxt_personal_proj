@@ -1,13 +1,13 @@
 import type {
   AuthRecord,
-  SessionRecord,
-  LotteryGame,
-  LotteryStore
+  SessionRecord
 } from '../types/storage'
 import { encodePasswordBcjs } from '../utils/encrypt'
 import { compareSync } from 'bcryptjs'
 import UsersClass from './users'
 import { DEFAULT_MAZE_TEMPLATES, type MazeTemplate } from './game/retro/mazeTemplates'
+import HFYYManageClass from './admin/hfyyManage'
+
 import ConfigClass from './game/lottery/bg/config'
 import LhcOfClass from './game/lottery/bg/6hcOf'
 import LhcCdClass from './game/lottery/bg/6hcCd'
@@ -55,65 +55,6 @@ export const verifyPasswordHash = (password: string, storedHash: string): boolea
   return compareSync(password, storedHash)
 }
 
-const DEFAULT_GAMES: LotteryGame[] = [
-  {
-    id: 2001,
-    key: '6hc',
-    name: '六合彩',
-    category: '6hc',
-    minBet: 10,
-    maxBet: 5000,
-    defaultOdds: 48,
-    playTypes: ['特碼', '正碼', '大小', '單雙']
-  },
-  {
-    id: 2033,
-    key: 'a6',
-    name: '澳门⑥合彩(官方)',
-    category: 'a6',
-    minBet: 10,
-    maxBet: 5000,
-    defaultOdds: 49,
-    playTypes: ['特碼', '正特', '連碼']
-  },
-  {
-    id: 1213,
-    key: 'k3',
-    name: '快3',
-    category: 'bg',
-    minBet: 10,
-    maxBet: 10000,
-    defaultOdds: 2.5,
-    playTypes: ['和值', '大小', '三軍']
-  },
-  {
-    id: 1008,
-    key: 'ssc',
-    name: '時時彩',
-    category: 'bg',
-    minBet: 10,
-    maxBet: 10000,
-    defaultOdds: 9.8,
-    playTypes: ['五星', '前二', '後二']
-  },
-  {
-    id: 1405,
-    key: 'pk10',
-    name: 'PK10',
-    category: 'bg',
-    minBet: 10,
-    maxBet: 10000,
-    defaultOdds: 9.6,
-    playTypes: ['冠軍', '亞軍', '前二']
-  }
-]
-
-const createDefaultLotteryStore = (): LotteryStore => ({
-  balance: 100000,
-  games: DEFAULT_GAMES,
-  bets: []
-})
-
 export class Storage {
   constructor() { }
 
@@ -123,7 +64,6 @@ export class Storage {
   static sessions = new Map<string, SessionRecord>()
   static users: Record<string, unknown> = {}
   static games: Record<string, any> = {}
-  static lotteryStore: LotteryStore = createDefaultLotteryStore()
   static lottery = {
     orders: {},
     poolAudit: {
@@ -235,7 +175,6 @@ export class Storage {
     }
 
     this.sessions = new Map<string, SessionRecord>()
-    this.lotteryStore = createDefaultLotteryStore()
     this.initialized = true
 
 
@@ -253,10 +192,6 @@ export class Storage {
     sessions: (): Map<string, SessionRecord> => {
       this.init()
       return this.sessions
-    },
-    lotteryStore: (): LotteryStore => {
-      this.init()
-      return this.lotteryStore
     },
     user: (userId: string) => {
       this.init()
