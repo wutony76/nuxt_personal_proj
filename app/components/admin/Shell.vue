@@ -54,11 +54,14 @@ const _actions = {
 }
 
 const click = {
-  backHome: () => router.replace('/'),
-  goLogin: () => {
-    router.push({ path: '/login', query: { redirect: route.fullPath } })
-  }
+  backHome: () => router.replace('/')
 }
+
+/** 登入頁導向（帶 redirect 回目前後台路徑） */
+const loginTo = computed(() => ({
+  path: '/login',
+  query: { redirect: route.fullPath || '/admin' }
+}))
 
 onMounted(() => {
   _actions.guard()
@@ -81,9 +84,6 @@ onMounted(() => {
             </div>
             <div class="ash-user-avatar">{{ adminInitial }}</div>
           </div>
-          <div v-else-if="sessionReady && status === 'expired'" class="ash-user">
-            <button type="button" class="ash-login-btn" @click="click.goLogin">登入</button>
-          </div>
         </div>
         <nav v-if="status === 'ok'" class="ash-nav">
           <NuxtLink v-for="item in NAV" :key="item.key" :to="item.path" class="ash-nav-item"
@@ -103,13 +103,11 @@ onMounted(() => {
       <div v-if="status === 'checking'" class="admin-empty">正在確認管理員權限...</div>
 
       <template v-else-if="status === 'expired'">
-        <header class="ash-page-header">
-          <div class="admin-en">Session expired</div>
-          <h1 class="ash-page-title">登入已過期</h1>
-        </header>
         <div class="ash-expired">
+          <div class="admin-en">Session expired</div>
+          <h1 class="ash-expired-title">登入已過期</h1>
           <p class="ash-expired-desc">請重新登入以繼續使用後台；登入成功後將返回此頁。</p>
-          <button type="button" class="admin-btn admin-btn-primary" @click="click.goLogin">登入</button>
+          <NuxtLink :to="loginTo" class="ash-expired-login">登入</NuxtLink>
         </div>
       </template>
 
@@ -201,23 +199,6 @@ onMounted(() => {
   place-items: center;
   font-size: 12px;
   color: var(--paper);
-}
-
-.ash-login-btn {
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--paper);
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  padding: 6px 14px;
-  cursor: pointer;
-  border-radius: 2px;
-  transition: background 0.12s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.16);
-  }
 }
 
 .ash-nav {
@@ -341,7 +322,6 @@ onMounted(() => {
 }
 
 .ash-expired {
-  border-top: 1px solid var(--ink);
   padding-top: 44px;
   display: flex;
   flex-direction: column;
@@ -349,10 +329,43 @@ onMounted(() => {
   gap: 16px;
 }
 
+.ash-expired-title {
+  font-size: 40px;
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
 .ash-expired-desc {
   max-width: 54ch;
   font-size: 13.5px;
   color: color-mix(in srgb, #1c1c22 72%, #ffffff);
   margin: 0;
+}
+
+.ash-expired-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 2px;
+  border: 0;
+  background: var(--ink);
+  color: var(--paper) !important;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.12s;
+
+  &:hover,
+  &:focus-visible {
+    background: color-mix(in srgb, #1c1c22 82%, #ffffff);
+    color: var(--paper) !important;
+    text-decoration: none;
+  }
 }
 </style>

@@ -896,6 +896,7 @@ export type AdminAccessUser = {
   name: string
   email: string
   role: UserRole
+  coin: number
 }
 
 export const api = {
@@ -929,6 +930,11 @@ export const api = {
       $fetch<{ user: AdminAccessUser }>('/api/admin/members', {
         method: 'POST',
         body: payload
+      }),
+    setMemberPassword: (id: string, password: string) =>
+      $fetch<{ user: AdminAccessUser }>(`/api/admin/members/${id}`, {
+        method: 'PATCH',
+        body: { password }
       }),
     games: {
       updateRetroRates: (key: RetroGameKey, payload: { coinRate: number; coinCapPerRun: number; coinDailyCap: number }) =>

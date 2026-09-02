@@ -12,7 +12,7 @@ const state = reactive({
 
 const route = useRoute()
 const router = useRouter()
-const { isLoggedIn, init, login } = useAuth()
+const { isLoggedIn, refresh, login } = useAuth()
 
 /**
  * 登入成功後的導向目標；僅允許站內相對路徑，避免 open redirect。
@@ -28,7 +28,7 @@ const resolveRedirect = (): string => {
 }
 
 onMounted(async () => {
-  await init()
+  await refresh()
   if (isLoggedIn.value) {
     router.replace(resolveRedirect())
   }

@@ -11,6 +11,8 @@ export type AdminAccessUser = {
   name: string
   email: string
   role: UserRole
+  /** F幣餘額（Storage.users[userId].coin） */
+  coin: number
 }
 
 /** 執行期白名單；啟動時自程式碼常數複製，重啟回復。 */
@@ -27,6 +29,29 @@ function _uid(): string {
 /** @admin 網域測試用 Email 可重複建立（例：test@admin.hfyy） */
 function _isReusableAdminEmail(email: string): boolean {
   return email.includes('@admin')
+}
+
+/**
+ * @param userId 帳號 id
+ * @returns F幣餘額
+ */
+function _userCoin(userId: string): number {
+  const row = Storage.get.user(userId) as { coin?: number }
+  return Number(row?.coin ?? 0)
+}
+
+/**
+ * @param row 帳號列
+ * @returns 後台列表用使用者摘要
+ */
+function _toAdminUser(row: AuthRecord): AdminAccessUser {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    role: (adminIds.has(row.id) ? 'admin' : 'user') as UserRole,
+    coin: _userCoin(row.id)
+  }
 }
 
 /**
@@ -47,12 +72,7 @@ export const adminAccessService = {
   listUsers: (): AdminAccessUser[] => {
     const accounts = Storage.get.account()
     return Object.values(accounts)
-      .map((row) => ({
-        id: row.id,
-        name: row.name,
-        email: row.email,
-        role: (adminIds.has(row.id) ? 'admin' : 'user') as UserRole
-      }))
+      .map((row) => _toAdminUser(row))
       .toSorted((a, b) => {
         if (a.role !== b.role) return a.role === 'admin' ? -1 : 1
         return a.name.localeCompare(b.name, 'zh-Hant')
@@ -86,12 +106,30 @@ export const adminAccessService = {
       adminIds.delete(userId)
     }
 
-    return {
-      id: row.id,
-      name: row.name,
-      email: row.email,
-      role: adminIds.has(userId) ? 'admin' : 'user'
+    return _toAdminUser(row)
+  },
+
+  /**
+   * 重設會員登入密碼
+   * @param userId 目標帳號
+   * @param password 新明文密碼
+   * @returns 更新後的帳號列（不回傳密碼）
+   */
+  setPassword: (userId: string, password: string): AdminAccessUser => {
+    const accounts = Storage.get.account()
+    const row = accounts[userId]
+    if (!row) throw createError({ statusCode: 404, message: '找不到該帳號。' })
+
+    const next = String(password ?? '')
+    if (next.length < MIN_PASSWORD_LENGTH || next.length > MAX_PASSWORD_LENGTH) {
+      throw createError({
+        statusCode: 400,
+        message: `密碼長度須為 ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} 字元。`
+      })
     }
+
+    row.passwordHash = encodePasswordBcjs(next)
+    return _toAdminUser(row)
   },
 
   /**
@@ -150,11 +188,6 @@ export const adminAccessService = {
 
     if (role === 'admin') adminIds.add(id)
 
-    return {
-      id,
-      name,
-      email,
-      role: adminIds.has(id) ? 'admin' : 'user'
-    }
+    return _toAdminUser(accounts[id]!)
   }
 }
