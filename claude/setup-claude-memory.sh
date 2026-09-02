@@ -223,7 +223,7 @@ EOF
 cat > "$MEMORY_DIR/project_pixel_games_17-25_proposals.md" << 'EOF'
 ---
 name: project-pixel-games-17-25-proposals
-description: GAME 17-25 的 openspec 提案已建立且關鍵決議已拍板；Dino Run 改採方案 B 不新增，最終為 8 款遊戲
+description: GAME 17-25 全數完成並已上線；8 款（2048/Flappy/Frogger/Connect4/Whack-a-mole/Lights Out/Tower Stack/Arkanoid）皆已實作、測試、commit；Dino Run 不新增
 metadata:
   type: project
 ---
@@ -240,7 +240,14 @@ game-hall id 依序登記 17~25，gameKey：`2048`／`flappy`／`frogger`／`con
 - **add-connect4-game → 效率加成計分**：採「固定基礎分＋落子效率加成」（`WIN_BASE=60`＋最高 40 效率加成，`DRAW=20`，`LOSE=0`），非單純固定值模型。
 - **add-flappy-game／add-tower-stack-game → 沿用 DOM/CSS**：確認不使用 Canvas，與全專案既有渲染慣例一致。
 
-**下一步**：8 款遊戲（不含 dino-run）的架構分析與關鍵決議已全數確認，可依各自 `tasks.md` 進入 implementation，彼此獨立、可分開實作。若要處理 RUNNER 的 Double Jump／Day-Night／Challenge Mode 擴充，需使用者明確指示才建立新提案。
+**2026-09-02 8 款遊戲全部實作完成並各自 commit（game-hall id 17-24）：**
+- `1cb3991` 2048、`451875f` FLAPPY、`aef29de` FROGGER、`ffd39f1` CONNECT 4、`c12759c` WHACK-A-MOLE、`25eb094` LIGHTS OUT、`6572f48` TOWER STACK、`cc856a9` ARKANOID。
+- 每款皆：規則核心抽成 `app/utils/<game>Engine.ts`（零 Vue 依賴）、附獨立單元測試、並用 Playwright 實際啟動瀏覽器操作驗證核心玩法/計分/Pause-Resume/Restart，才進行 commit。
+- ARKANOID 全程確認 `app/pages/game/breakout.vue` 未被修改（方案 b 獨立實作）。
+- 過程中發現這個 repo 有另一個並行 session 在做 admin 角色管理／聊天排程功能，共用檔案（`api.ts`／`game-hall.vue`）多次交錯修改；改用「只 patch 自己新增的行到 git index」的手法（`git apply --cached` 搭配手刻 diff）避免把對方未完成的工作意外夾帶進本批 commit。若之後又遇到類似情境（同一 repo 有其他 session 同時在跑），記得比照這個做法。
+- 過程中 `server/api/admin/members.post.ts`（對方的檔案）有個 import 路徑寫錯（多一層 `../`）導致整個 dev server 起不來，已就地修正兩行 import 路徑但**沒有 commit**（那屬於對方的工作範圍），只是為了讓自己能繼續測試。
+
+**下一步**：若要處理 RUNNER 的 Double Jump／Day-Night／Challenge Mode 擴充（見上方 Dino Run 決議），需使用者明確指示才建立新提案。這批 9 款遊戲的規劃與實作至此全部結束。
 EOF
 
 # ── MEMORY.md 索引 ────────────────────────────────────────────
@@ -255,7 +262,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [同步 setup script](feedback_sync_setup_script.md) — 新增/修改 agent 或記憶後，必須同步更新 ~/setup-claude-memory.sh 與 claude/setup-claude-memory.sh 兩個檔案
 - [暫不處理：限額 P2](project_quota_p2_pending.md) — 6hc-cd 限額只到分頁層級，跨分頁單期總上限與玩家層級限額使用者決定不做
 - [遊戲紀錄 coin 每日上限](project_game_history_coin_reward.md) — 三款遊戲皆訂 100000；之後需要後台管理介面調整這些常數
-- [GAME 17-25 openspec 提案](project_pixel_games_17-25_proposals.md) — 8 款遊戲提案已拍板定案（Dino Run 改採方案 B 不新增），可進入 implementation
+- [GAME 17-25 openspec 提案](project_pixel_games_17-25_proposals.md) — 8 款遊戲已全數實作、測試、commit 完成（Dino Run 不新增）
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
