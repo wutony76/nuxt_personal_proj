@@ -477,11 +477,11 @@ watch(
 
             <section class="acm-ledger">
               <div class="acm-ledger-head">
-                <span class="admin-en acm-ledger-en">Records</span>
+                <!-- <span class="admin-en acm-ledger-en">Records</span> -->
                 <nav class="acm-ledger-tabs" aria-label="紀錄分類">
                   <button type="button" class="acm-ledger-tab" :class="{ 'is-active': state.ledgerTab === 'balance' }"
                     @click="click.setLedgerTab('balance')">
-                    <span class="acm-ledger-tab-label">變動紀錄</span>
+                    <span class="acm-ledger-tab-label">F幣 變動紀錄</span>
                     <span class="admin-en acm-ledger-tab-en">Balance</span>
                   </button>
                   <button type="button" class="acm-ledger-tab" :class="{ 'is-active': state.ledgerTab === 'login' }"
@@ -494,7 +494,8 @@ watch(
 
               <template v-if="state.ledgerTab === 'balance'">
                 <div v-if="state.balanceStatus === 'loading'" class="admin-empty acm-ledger-empty">載入中…</div>
-                <div v-else-if="state.balanceStatus === 'error'" class="acm-error acm-ledger-empty">{{ state.balanceError
+                <div v-else-if="state.balanceStatus === 'error'" class="acm-error acm-ledger-empty">{{
+                  state.balanceError
                   }}</div>
                 <div v-else-if="state.balanceRows.length === 0" class="admin-empty acm-ledger-empty">尚無變動紀錄</div>
                 <div v-else class="acm-ledger-table-wrap">
@@ -899,7 +900,6 @@ watch(
 .acm-ledger-tabs {
   display: flex;
   gap: 2px;
-  margin-left: auto;
 }
 
 .acm-ledger-tab {
