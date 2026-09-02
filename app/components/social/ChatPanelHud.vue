@@ -12,15 +12,33 @@ const panelStyle = computed(() => ({ '--accent': props.accentColor }))
 
 const draft = ref('')
 const listRef = ref<HTMLElement | null>(null)
+/** 距底部小於這個距離視為「貼底」，新訊息才自動跟捲 */
+const NEAR_BOTTOM_PX = 48
+/** 是否貼底跟捲；由列表 scroll 事件更新 */
+const stickToBottom = ref(true)
 
-const scrollToBottom = () => {
-  nextTick(() => {
+const _handlers = {
+  isNearBottom: () => {
     const el = listRef.value
-    if (!el) return
-    if (el.scrollHeight > el.clientHeight) el.scrollTop = el.scrollHeight
-  })
+    if (!el) return true
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_PX
+  },
+  syncStickToBottom: () => {
+    stickToBottom.value = _handlers.isNearBottom()
+  },
+  scrollToBottom: () => {
+    nextTick(() => {
+      const el = listRef.value
+      if (!el) return
+      el.scrollTop = el.scrollHeight
+      stickToBottom.value = true
+    })
+  }
 }
-watch(messages, scrollToBottom)
+
+watch(messages, () => {
+  if (stickToBottom.value) _handlers.scrollToBottom()
+})
 
 const formatTime = (ts: number) => {
   const date = new Date(ts)
@@ -32,6 +50,10 @@ const click = {
     if (!isLoggedIn.value || !draft.value.trim()) return
     actions.sendMessage(draft.value)
     draft.value = ''
+    _handlers.scrollToBottom()
+  },
+  onListScroll: () => {
+    _handlers.syncStickToBottom()
   }
 }
 </script>
@@ -43,7 +65,7 @@ const click = {
       <span v-if="!connected" class="disconnected">連線中斷，重新連線中...</span>
     </div>
 
-    <div ref="listRef" class="chp-list">
+    <div ref="listRef" class="chp-list" @scroll="click.onListScroll">
       <p v-if="messages.length === 0" class="chp-empty">// 尚無訊息，開啟話題吧</p>
       <div v-for="msg in messages" :key="msg.id" class="chp-row" :class="{ 'is-admin': msg.asAdmin }">
         <span class="user">{{ msg.userName }}</span>
@@ -143,6 +165,8 @@ const click = {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* 預留捲軸寬，避免訊息一多捲軸出現、列寬重排造成跳動 */
+  scrollbar-gutter: stable;
   padding: 8px 12px;
   display: flex;
   flex-direction: column;

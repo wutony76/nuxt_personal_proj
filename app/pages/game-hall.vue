@@ -47,31 +47,31 @@ const activeTab = ref<HallTab>('lobby')
 const activeTabLabel = computed(() => TABS.find((tab) => tab.key === activeTab.value)?.label ?? '')
 
 const gameSlots = ref<GameSlot[]>([
-  { id: 1, name: 'SNAKE', description: '經典像素貪吃蛇遊戲', status: 'open', path: '/game/snake' },
-  { id: 2, name: 'RACING', description: '經典像素賽車，閃避障礙物可以跑多遠', status: 'open', path: '/game/racing' },
+  { id: 1, name: 'SNAKE', description: '經典像素貪吃蛇遊戲，挑戰可以吃多長', status: 'open', path: '/game/snake' },
+  { id: 2, name: 'RACING', description: '賽車遊戲，閃避障礙物可以跑多遠', status: 'open', path: '/game/racing' },
   { id: 3, name: 'TETRIMINOS', description: '經典俄羅斯方塊，支援旋轉與消行', status: 'open', path: '/game/tetriminos' },
   { id: 4, name: 'MATCH3 RUSH', description: '限時消除寶石，考驗手速與爆發力', status: 'open', path: '/game/match3-rush' },
   { id: 5, name: 'MATCH3 CLASSIC', description: '限步數消除寶石，考驗策略與規劃', status: 'open', path: '/game/match3-classic' },
   { id: 6, name: 'PONG', description: '經典乒乓球，馬上PK', status: 'open', path: '/game/pong' },
   { id: 7, name: 'RUNNER', description: '側視角自動捲軸跑酷，跳躍下蹲閃避障礙', status: 'open', path: '/game/runner' },
-  { id: 8, name: 'SPACE SHOOTER', description: '俯視角太空射擊，擊落敵機、閃避彈幕', status: 'open', path: '/game/space-shooter' },
+  { id: 8, name: 'SPACE SHOOTER', description: '太空射擊，擊落敵機、閃避彈幕', status: 'open', path: '/game/space-shooter' },
   { id: 9, name: 'MINESWEEPER', description: '踩地雷，不要點到炸彈了，動動腦袋吧！', status: 'open', path: '/game/minesweeper' },
   { id: 10, name: 'PAC-MAN', description: '小精靈迷宮吃豆，閃避四隻鬼魂', status: 'open', path: '/game/pac-man' },
-  { id: 11, name: 'SPACE INVADERS', description: '傳統太空侵略者，整排外星艦隊步步進逼', status: 'open', path: '/game/space-invaders' },
+  { id: 11, name: 'SPACE INVADERS', description: '太空侵略者，整排外星艦隊步步進逼', status: 'open', path: '/game/space-invaders' },
   { id: 12, name: 'SOLITAIRE', description: '接龍遊戲，整理 52 張牌把 4 疊花色收齊', status: 'open', path: '/game/solitaire' },
   { id: 13, name: 'TYPING', description: '打字遊戲，看字輸入搶分數，快來試試你的手速', status: 'open', path: '/game/typing' },
-  { id: 14, name: 'BREAKOUT', description: '打磚塊遊戲，清光磚塊過關', status: 'open', path: '/game/breakout' },
+  { id: 14, name: 'BREAKOUT', description: '打磚塊遊戲，清光磚塊可以快速累積分數', status: 'open', path: '/game/breakout' },
   { id: 15, name: 'ORB MATCH', description: '轉珠玩法，按住珠子連續拖曳跨格滑動，放開手指觸發消除連鎖', status: 'open', path: '/game/orb-match' },
-  { id: 16, name: 'BATTLESHIP', description: '戰艦對戰，佈署艦隊、輪流猜測座標，先擊沉敵方全部戰艦獲勝', status: 'open', path: '/game/battleship' },
+  { id: 16, name: 'BATTLESHIP', description: '戰艦對戰，佈署艦隊，先擊沉敵方全部戰艦獲勝', status: 'open', path: '/game/battleship' },
   { id: 17, name: '2048', description: '數字合併玩法，滑動讓相同數字相撞加倍，一路挑戰合成出 2048', status: 'open', path: '/game/2048' },
-  { id: 18, name: 'FLAPPY', description: '點擊給角色向上衝力，連續重力下墜穿越管道空隙，看你能通過幾組', status: 'open', path: '/game/flappy' },
-  { id: 19, name: 'FROGGER', description: '方向鍵跳格閃避車流、踩浮木橫渡河道，把青蛙送進五個蓮花座過關', status: 'open', path: '/game/frogger' },
-  { id: 20, name: 'CONNECT 4', description: '四子棋對戰，與 AI 輪流選欄落子，搶先讓自己的棋子連成四子獲勝', status: 'open', path: '/game/connect4' },
-  { id: 21, name: 'WHACK-A-MOLE', description: '打地鼠反應遊戲，地鼠隨機冒出快手擊中連擊加倍，越玩越快限時 60 秒衝高分', status: 'open', path: '/game/whack-a-mole' },
+  { id: 18, name: 'FLAPPY', description: '連續重力下墜穿越管道空隙，看能通過幾組', status: 'open', path: '/game/flappy' },
+  { id: 19, name: 'FROGGER', description: '把青蛙順利送到另一邊', status: 'open', path: '/game/frogger' },
+  { id: 20, name: 'CONNECT 4', description: '四子棋對戰，棋子連成四子獲勝', status: 'open', path: '/game/connect4' },
+  { id: 21, name: 'WHACK-A-MOLE', description: '打地鼠', status: 'open', path: '/game/whack-a-mole' },
   { id: 22, name: 'LIGHTS OUT', description: '關燈益智玩法，點一格連動翻轉上下左右鄰格，在限定步數內把全部燈熄滅過關', status: 'open', path: '/game/lights-out' },
   { id: 23, name: 'TOWER STACK', description: '疊塔玩法，抓時機讓移動方塊落在塔頂，重疊越少塔越窄，完美對齊觸發 Perfect 連擊衝高分', status: 'open', path: '/game/tower-stack' },
   { id: 24, name: 'ARKANOID', description: 'BREAKOUT 進階版打磚塊，多次命中磚塊、移動磚塊與道具讓玩法更有變化', status: 'open', path: '/game/arkanoid' },
-  { id: 25, name: 'TOWER DEFENSE', description: '塔防玩法，放置防禦塔抵禦無限波敵人，擊殺取得金幣升級，挑戰能撐到第幾波', status: 'open', path: '/game/tower-defense' },
+  { id: 25, name: 'TOWER DEFENSE', description: '塔防，防禦抵禦敵人，挑戰能撐到第幾波', status: 'open', path: '/game/tower-defense' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)
@@ -191,7 +191,7 @@ onBeforeUnmount(() => {
         <section class="hud-panel chat-panel">
           <div class="panel-title">
             <h2>CHAT.LINK</h2>
-            <div class="meta">// 綜合聊天室 · <b>LIVE</b></div>
+            <div class="meta">// 聊天室 · <b>LIVE</b></div>
           </div>
           <ChatPanelHud accent-color="#ff8a2b" />
         </section>
@@ -633,12 +633,19 @@ onBeforeUnmount(() => {
     flex-direction: column;
   }
 
-  .score-panel> :not(.panel-title),
-  .chat-panel> :not(.panel-title) {
+  .score-panel> :not(.panel-title) {
     flex: 1;
     min-height: var(--rank-body-h);
     height: auto;
     max-height: none;
+  }
+
+  /* 聊天面板固定高度（比照排行榜），內部 chp-list 才會真的捲動，不會被訊息撐高 */
+  .chat-panel> :not(.panel-title) {
+    flex: 1;
+    min-height: var(--rank-body-h);
+    height: var(--rank-body-h);
+    max-height: var(--rank-body-h);
   }
 
   .panel-title {
