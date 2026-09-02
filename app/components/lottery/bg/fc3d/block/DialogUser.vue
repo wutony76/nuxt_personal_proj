@@ -3,6 +3,7 @@ import { computed, reactive } from 'vue'
 import Ball from '~/components/lottery/bg/fc3d/base/Ball.vue'
 import DialogShell from '~/components/lottery/bg/fc3d/block/DialogShell.vue'
 import { useFc3d } from '~/composables/useFc3d'
+import { balanceChangeTypeLabel } from '~/utils/balanceChangeLabel'
 
 /** 下注紀錄彈窗：餘額變動 / 下注紀錄 / 可領獎金（fc3d 只有官方盤，比照 eggs 拿掉盤口分支） */
 const props = defineProps<{ visible: boolean }>()
@@ -89,7 +90,7 @@ const statusText = (status: string) => ({ win: '中獎', lose: '未中', tie: '�
           <tr v-for="row in mxRecord.balanceChanges" :key="String(row.id)">
             <td>{{ timeOf(Number(row.createdAt)) }}</td>
             <td>{{ row.issue }}</td>
-            <td>{{ row.type === 'bet' ? '下注' : '領獎' }}</td>
+            <td>{{ balanceChangeTypeLabel(String(row.type)) }}</td>
             <td>{{ row.note }}</td>
             <td :class="Number(row.amount) < 0 ? 'is-minus' : 'is-plus'">{{ money(Number(row.amount)) }}</td>
             <td>{{ money(Number(row.after)) }}</td>

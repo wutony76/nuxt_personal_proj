@@ -1,6 +1,7 @@
 import { Storage } from '../../../services/storage'
 import { sessionController } from '../../../services/auth'
 import { LOTTERY } from '~/config/constants'
+import { walletBalanceService } from '../../../services/walletBalance'
 
 export default defineEventHandler((event) => {
   const login = sessionController.require(event)
@@ -22,7 +23,7 @@ export default defineEventHandler((event) => {
   const record = game?.get?.userDialogRecord?.(String(login.id))
   const jackpot = game?.get?.jackpotState?.()
   return {
-    balanceChanges: record?.balanceChanges ?? [],
+    balanceChanges: walletBalanceService.mergeForDialog(String(login.id), record?.balanceChanges ?? []),
     betHistory: record?.betHistory ?? [],
     claimableIssues: record?.claimableIssues ?? [],
     jackpot: jackpot ?? { issue: '', currentIssueJackpot: 0, carryJackpot: 0 }

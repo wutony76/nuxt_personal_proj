@@ -16,6 +16,9 @@ const WIN_STATUS_TEXT: Record<string, string> = {
 const BALANCE_TYPE_TEXT: Record<string, string> = {
   bet: '下注',
   claim: '領獎',
+  'game-reward': '遊戲獎勵',
+  'admin-topup': '後台充值',
+  'admin-deduct': '後台扣款',
 }
 
 const props = defineProps<{

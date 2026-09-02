@@ -1,6 +1,6 @@
 import { Storage } from './storage'
 
-type BalanceChangeType = 'bet' | 'claim' | 'game-reward'
+type BalanceChangeType = 'bet' | 'claim' | 'game-reward' | 'admin-topup' | 'admin-deduct'
 
 type UserBalanceChange = {
   id: string

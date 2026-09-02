@@ -3,12 +3,12 @@
  * 會員管理：左方會員列表、右方分頁（資訊／新增）。
  */
 import { computed, onMounted, reactive, watch } from 'vue'
-import { api, type AdminAccessUser, type UserRole } from '~/services/api'
+import { api, type AdminAccessUser, type AdminMemberBalanceChange, type UserRole } from '~/services/api'
+import { balanceChangeTypeLabel } from '~/utils/balanceChangeLabel'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 type DetailTab = 'info' | 'create'
 
-const DEFAULT_MEMBER_EMAIL = 'test@admin.hfyy'
 const DEFAULT_MEMBER_PASSWORD = '222222'
 
 const props = defineProps<{
@@ -26,17 +26,28 @@ const state = reactive({
   users: [] as AdminAccessUser[],
   selectedId: '' as string,
   name: '',
-  email: DEFAULT_MEMBER_EMAIL,
+  email: '',
   password: DEFAULT_MEMBER_PASSWORD,
   role: 'user' as UserRole,
   submitStatus: 'idle' as AsyncStatus,
   submitError: '',
   successId: '',
-  tab: 'info' as DetailTab,
+  tab: 'create' as DetailTab,
+  emailEditing: false,
+  emailDraft: '',
+  emailSaveStatus: 'idle' as AsyncStatus,
+  emailSaveError: '',
   passwordEditing: false,
   passwordDraft: '',
   passwordSaveStatus: 'idle' as AsyncStatus,
-  passwordSaveError: ''
+  passwordSaveError: '',
+  coinEditing: false,
+  coinDraft: '',
+  coinSaveStatus: 'idle' as AsyncStatus,
+  coinSaveError: '',
+  balanceStatus: 'idle' as AsyncStatus,
+  balanceError: '',
+  balanceRows: [] as AdminMemberBalanceChange[]
 })
 
 const selected = computed(() => state.users.find((u) => u.id === state.selectedId) ?? null)
@@ -44,7 +55,14 @@ const selected = computed(() => state.users.find((u) => u.id === state.selectedI
 const _handlers = {
   roleLabel: (role: UserRole) => (role === 'admin' ? 'Admin' : 'User'),
   formatCoin: (value: number) =>
-    Number(value ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+    Number(value ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+  formatMoney: (value: number) =>
+    Number(value ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
+  formatTime: (ms: number) => {
+    const t = Number(ms)
+    if (!t) return '—'
+    return new Date(t).toLocaleString('zh-TW')
+  }
 }
 
 const _actions = {
@@ -57,8 +75,12 @@ const _actions = {
       state.users = res.users
       if (state.successId && state.users.some((u) => u.id === state.successId)) {
         state.selectedId = state.successId
-      } else if (!state.selectedId || !state.users.some((u) => u.id === state.selectedId)) {
-        state.selectedId = state.users[0]?.id ?? ''
+      } else if (state.tab === 'info') {
+        if (!state.selectedId || !state.users.some((u) => u.id === state.selectedId)) {
+          state.selectedId = state.users[0]?.id ?? ''
+        }
+      } else if (state.selectedId && !state.users.some((u) => u.id === state.selectedId)) {
+        state.selectedId = ''
       }
       state.listStatus = 'success'
     } catch (e: unknown) {
@@ -97,7 +119,7 @@ const _actions = {
         role: state.role
       })
       state.name = ''
-      state.email = DEFAULT_MEMBER_EMAIL
+      state.email = ''
       state.password = DEFAULT_MEMBER_PASSWORD
       state.role = 'user'
       state.successId = res.user.id
@@ -113,11 +135,45 @@ const _actions = {
       state.submitStatus = 'error'
     }
   },
-  resetPasswordEdit: () => {
+  resetInfoEdit: () => {
+    state.emailEditing = false
+    state.emailDraft = ''
+    state.emailSaveStatus = 'idle'
+    state.emailSaveError = ''
     state.passwordEditing = false
     state.passwordDraft = ''
     state.passwordSaveStatus = 'idle'
     state.passwordSaveError = ''
+    state.coinEditing = false
+    state.coinDraft = ''
+    state.coinSaveStatus = 'idle'
+    state.coinSaveError = ''
+  },
+  saveEmail: async () => {
+    const row = selected.value
+    if (!row || state.emailSaveStatus === 'loading') return
+    const email = state.emailDraft.trim()
+    if (!email) {
+      state.emailSaveError = '請輸入 Email。'
+      state.emailSaveStatus = 'error'
+      return
+    }
+    state.emailSaveStatus = 'loading'
+    state.emailSaveError = ''
+    try {
+      const res = await api.admin.setMemberEmail(row.id, email)
+      const idx = state.users.findIndex((u) => u.id === res.user.id)
+      if (idx >= 0) state.users[idx] = res.user
+      state.emailEditing = false
+      state.emailDraft = ''
+      state.emailSaveError = ''
+      state.emailSaveStatus = 'success'
+    } catch (e: unknown) {
+      state.emailSaveError = (e as { message?: string; data?: { message?: string } })?.data?.message
+        ?? (e as { message?: string })?.message
+        ?? 'Email 更新失敗'
+      state.emailSaveStatus = 'error'
+    }
   },
   savePassword: async () => {
     const row = selected.value
@@ -144,6 +200,52 @@ const _actions = {
         ?? '密碼更新失敗'
       state.passwordSaveStatus = 'error'
     }
+  },
+  saveCoin: async () => {
+    const row = selected.value
+    if (!row || state.coinSaveStatus === 'loading') return
+    const delta = Math.trunc(Number(state.coinDraft))
+    if (!Number.isFinite(delta) || delta === 0) {
+      state.coinSaveError = '請輸入非 0 整數（正數充值、負數扣款）。'
+      state.coinSaveStatus = 'error'
+      return
+    }
+    state.coinSaveStatus = 'loading'
+    state.coinSaveError = ''
+    try {
+      const res = await api.admin.adjustMemberCoin(row.id, delta)
+      const idx = state.users.findIndex((u) => u.id === res.user.id)
+      if (idx >= 0) state.users[idx] = res.user
+      state.coinEditing = false
+      state.coinDraft = ''
+      state.coinSaveError = ''
+      state.coinSaveStatus = 'success'
+      await _actions.fetchBalanceHistory(row.id)
+    } catch (e: unknown) {
+      state.coinSaveError = (e as { message?: string; data?: { message?: string } })?.data?.message
+        ?? (e as { message?: string })?.message
+        ?? 'F幣調整失敗'
+      state.coinSaveStatus = 'error'
+    }
+  },
+  fetchBalanceHistory: async (userId?: string) => {
+    const id = userId ?? selected.value?.id
+    if (!id) {
+      state.balanceRows = []
+      state.balanceStatus = 'idle'
+      state.balanceError = ''
+      return
+    }
+    state.balanceStatus = 'loading'
+    state.balanceError = ''
+    try {
+      const res = await api.admin.memberBalanceChanges(id)
+      state.balanceRows = res.changes
+      state.balanceStatus = 'success'
+    } catch (e: unknown) {
+      state.balanceError = (e as { message?: string })?.message ?? '載入變動紀錄失敗'
+      state.balanceStatus = 'error'
+    }
   }
 }
 
@@ -151,26 +253,58 @@ const click = {
   select: (id: string) => {
     state.selectedId = id
     state.tab = 'info'
-    _actions.resetPasswordEdit()
+    _actions.resetInfoEdit()
   },
   setTab: (tab: DetailTab) => {
     state.tab = tab
-    if (tab !== 'info') _actions.resetPasswordEdit()
+    if (tab === 'info') {
+      const first = state.users[0]
+      if (!state.selectedId && first) {
+        state.selectedId = first.id
+      }
+    }
+    _actions.resetInfoEdit()
   },
   submit: () => _actions.create(),
+  startEmailEdit: () => {
+    _actions.resetInfoEdit()
+    state.emailEditing = true
+    state.emailDraft = selected.value?.email ?? ''
+  },
+  cancelEmailEdit: () => _actions.resetInfoEdit(),
+  saveEmail: () => _actions.saveEmail(),
   startPasswordEdit: () => {
+    _actions.resetInfoEdit()
     state.passwordEditing = true
     state.passwordDraft = ''
-    state.passwordSaveStatus = 'idle'
-    state.passwordSaveError = ''
   },
-  cancelPasswordEdit: () => _actions.resetPasswordEdit(),
-  savePassword: () => _actions.savePassword()
+  cancelPasswordEdit: () => _actions.resetInfoEdit(),
+  savePassword: () => _actions.savePassword(),
+  startCoinEdit: () => {
+    _actions.resetInfoEdit()
+    state.coinEditing = true
+    state.coinDraft = ''
+  },
+  cancelCoinEdit: () => _actions.resetInfoEdit(),
+  saveCoin: () => _actions.saveCoin()
 }
 
 onMounted(() => {
   _actions.fetch()
 })
+
+watch(
+  () => [state.selectedId, state.tab] as const,
+  ([id, tab]) => {
+    if (tab === 'info' && id) {
+      _actions.fetchBalanceHistory(id)
+      return
+    }
+    state.balanceRows = []
+    state.balanceStatus = 'idle'
+    state.balanceError = ''
+  }
+)
 
 watch(
   () => props.reloadToken,
@@ -206,21 +340,13 @@ watch(
 
       <div class="acm-detail">
         <nav class="acm-tabs" aria-label="會員功能分頁">
-          <button
-            type="button"
-            class="acm-tab"
-            :class="{ 'is-active': state.tab === 'info' }"
-            @click="click.setTab('info')"
-          >
+          <button type="button" class="acm-tab" :class="{ 'is-active': state.tab === 'info' }"
+            @click="click.setTab('info')">
             <span class="acm-tab-label">資訊</span>
             <span class="admin-en acm-tab-en">Info</span>
           </button>
-          <button
-            type="button"
-            class="acm-tab"
-            :class="{ 'is-active': state.tab === 'create' }"
-            @click="click.setTab('create')"
-          >
+          <button type="button" class="acm-tab" :class="{ 'is-active': state.tab === 'create' }"
+            @click="click.setTab('create')">
             <span class="acm-tab-label">新增</span>
             <span class="admin-en acm-tab-en">New</span>
           </button>
@@ -238,34 +364,45 @@ watch(
                 <span class="acm-info-k">帳號</span>
                 <span>{{ selected.name }}</span>
               </div>
-              <div class="acm-info-row">
+              <div class="acm-info-row acm-info-row-editable">
                 <span class="acm-info-k">Email</span>
-                <span>{{ selected.email }}</span>
-              </div>
-              <div class="acm-info-row acm-info-row-password">
-                <span class="acm-info-k">密碼</span>
-                <div v-if="!state.passwordEditing" class="acm-info-password">
-                  <span class="acm-info-mask">xxxxxx</span>
-                  <button type="button" class="acm-info-link" @click="click.startPasswordEdit">修改</button>
-                  <p v-if="state.passwordSaveStatus === 'success'" class="acm-ok acm-info-password-ok">密碼已更新</p>
+                <template v-if="!state.emailEditing">
+                  <span class="acm-info-v">{{ selected.email }}</span>
+                  <div class="acm-info-action-wrap">
+                    <span class="admin-en acm-info-action-k">email</span>
+                    <button type="button" class="acm-info-link" @click="click.startEmailEdit">修改</button>
+                  </div>
+                  <p v-if="state.emailSaveStatus === 'success'" class="acm-ok acm-info-feedback">Email 已更新</p>
+                </template>
+                <div v-else class="acm-info-edit">
+                  <input v-model="state.emailDraft" type="email" class="admin-input acm-info-edit-input" maxlength="120"
+                    placeholder="login@example.com" autocomplete="off">
+                  <div class="acm-info-edit-actions">
+                    <button type="button" class="admin-btn admin-btn-primary"
+                      :disabled="state.emailSaveStatus === 'loading'" @click="click.saveEmail">
+                      {{ state.emailSaveStatus === 'loading' ? '儲存中…' : '儲存' }}
+                    </button>
+                    <button type="button" class="admin-btn" @click="click.cancelEmailEdit">取消</button>
+                  </div>
+                  <p v-if="state.emailSaveError" class="acm-error">{{ state.emailSaveError }}</p>
                 </div>
-                <div v-else class="acm-info-password-edit">
-                  <input
-                    v-model="state.passwordDraft"
-                    type="text"
-                    class="admin-input acm-info-password-input"
-                    minlength="6"
-                    maxlength="72"
-                    placeholder="新密碼（至少 6 字元）"
-                    autocomplete="off"
-                  >
-                  <div class="acm-info-password-actions">
-                    <button
-                      type="button"
-                      class="admin-btn admin-btn-primary"
-                      :disabled="state.passwordSaveStatus === 'loading'"
-                      @click="click.savePassword"
-                    >
+              </div>
+              <div class="acm-info-row acm-info-row-editable">
+                <span class="acm-info-k">密碼</span>
+                <template v-if="!state.passwordEditing">
+                  <span class="acm-info-v acm-info-mask">xxxxxx</span>
+                  <div class="acm-info-action-wrap">
+                    <span class="admin-en acm-info-action-k">pwd</span>
+                    <button type="button" class="acm-info-link" @click="click.startPasswordEdit">修改</button>
+                  </div>
+                  <p v-if="state.passwordSaveStatus === 'success'" class="acm-ok acm-info-feedback">密碼已更新</p>
+                </template>
+                <div v-else class="acm-info-edit">
+                  <input v-model="state.passwordDraft" type="text" class="admin-input acm-info-edit-input" minlength="6"
+                    maxlength="72" placeholder="新密碼（至少 6 字元）" autocomplete="off">
+                  <div class="acm-info-edit-actions">
+                    <button type="button" class="admin-btn admin-btn-primary"
+                      :disabled="state.passwordSaveStatus === 'loading'" @click="click.savePassword">
                       {{ state.passwordSaveStatus === 'loading' ? '儲存中…' : '儲存' }}
                     </button>
                     <button type="button" class="admin-btn" @click="click.cancelPasswordEdit">取消</button>
@@ -279,11 +416,69 @@ watch(
                   {{ _handlers.roleLabel(selected.role) }}
                 </span>
               </div>
-              <div class="acm-info-row">
+              <div class="acm-info-row acm-info-row-editable">
                 <span class="acm-info-k">F幣</span>
-                <span class="acm-info-coin">{{ _handlers.formatCoin(selected.coin) }}</span>
+                <template v-if="!state.coinEditing">
+                  <span class="acm-info-v acm-info-coin">{{ _handlers.formatCoin(selected.coin) }}</span>
+                  <div class="acm-info-action-wrap">
+                    <span class="admin-en acm-info-action-k">coin</span>
+                    <button type="button" class="acm-info-link" @click="click.startCoinEdit">充值</button>
+                  </div>
+                  <p v-if="state.coinSaveStatus === 'success'" class="acm-ok acm-info-feedback">F幣已更新</p>
+                </template>
+                <div v-else class="acm-info-edit">
+                  <input v-model="state.coinDraft" type="number" class="admin-input acm-info-edit-input" step="1"
+                    placeholder="調整金額（正數充值、負數扣款）" autocomplete="off">
+                  <div class="acm-info-edit-actions">
+                    <button type="button" class="admin-btn admin-btn-primary"
+                      :disabled="state.coinSaveStatus === 'loading'" @click="click.saveCoin">
+                      {{ state.coinSaveStatus === 'loading' ? '處理中…' : '確認' }}
+                    </button>
+                    <button type="button" class="admin-btn" @click="click.cancelCoinEdit">取消</button>
+                  </div>
+                  <p v-if="state.coinSaveError" class="acm-error">{{ state.coinSaveError }}</p>
+                </div>
               </div>
             </div>
+
+            <section class="acm-ledger">
+              <div class="acm-ledger-head">
+                <span class="admin-en acm-ledger-en">Ledger</span>
+                <h3 class="acm-ledger-title">F幣 變動紀錄</h3>
+              </div>
+              <div v-if="state.balanceStatus === 'loading'" class="admin-empty acm-ledger-empty">載入中…</div>
+              <div v-else-if="state.balanceStatus === 'error'" class="acm-error acm-ledger-empty">{{ state.balanceError
+                }}</div>
+              <div v-else-if="state.balanceRows.length === 0" class="admin-empty acm-ledger-empty">尚無變動紀錄</div>
+              <div v-else class="acm-ledger-table-wrap">
+                <table class="acm-ledger-table">
+                  <thead>
+                    <tr>
+                      <th>時間</th>
+                      <th>來源</th>
+                      <th>類型</th>
+                      <th>期數</th>
+                      <th>備註</th>
+                      <th class="is-num">變動</th>
+                      <th class="is-num">餘額</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in state.balanceRows" :key="row.id">
+                      <td class="acm-ledger-time">{{ _handlers.formatTime(row.createdAt) }}</td>
+                      <td>{{ row.sourceLabel }}</td>
+                      <td>{{ balanceChangeTypeLabel(row.type) }}</td>
+                      <td>{{ row.issue || '—' }}</td>
+                      <td class="acm-ledger-note">{{ row.note || '—' }}</td>
+                      <td class="is-num" :class="row.amount < 0 ? 'acm-ledger-minus' : 'acm-ledger-plus'">
+                        {{ _handlers.formatMoney(row.amount) }}
+                      </td>
+                      <td class="is-num">{{ _handlers.formatMoney(row.after) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </template>
           <div v-else class="admin-empty acm-info-empty">請從左側選擇會員</div>
         </div>
@@ -326,9 +521,8 @@ watch(
             </div>
           </div>
           <p class="acm-hint">
-            預設 Email <span class="admin-num">{{ DEFAULT_MEMBER_EMAIL }}</span>、密碼
-            <span class="admin-num">{{ DEFAULT_MEMBER_PASSWORD }}</span>；含
-            <span class="admin-num">@admin</span> 的 Email 可重複建立（登入時對到第一筆符合帳號）。
+            Email 為登入的帳號，不可重複。預設密碼
+            <span class="admin-num">{{ DEFAULT_MEMBER_PASSWORD }}</span>。
           </p>
         </form>
       </div>
@@ -338,7 +532,7 @@ watch(
 
 <style scoped lang="scss">
 .acm {
-  min-height: 460px;
+  min-height: 560px;
   border: 1px solid var(--line);
   border-radius: 2px;
   background: var(--paper);
@@ -348,7 +542,7 @@ watch(
 .acm-grid {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(260px, 1fr);
-  min-height: 460px;
+  min-height: 560px;
   height: 100%;
 
   @media (max-width: 800px) {
@@ -499,10 +693,11 @@ watch(
 }
 
 .acm-info-card {
-  padding: 14px 16px 16px;
+  padding: 14px 16px 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .acm-info-name {
@@ -517,22 +712,55 @@ watch(
   font-size: 12px;
 }
 
-.acm-info-row-password {
-  align-items: flex-start;
-}
-
-.acm-info-password {
-  display: flex;
+.acm-info-row-editable {
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
 }
 
-.acm-info-password-ok {
+.acm-info-v {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+}
+
+.acm-info-action-wrap {
+  flex: none;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.acm-info-action-k {
+  font-size: 7px;
+  letter-spacing: 0.14em;
+  text-transform: lowercase;
+  color: var(--muted);
+  line-height: 1;
+}
+
+.acm-info-feedback {
   flex-basis: 100%;
   margin: 0;
+  padding-left: 76px;
+}
+
+.acm-info-edit {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.acm-info-edit-input {
+  width: 100%;
+}
+
+.acm-info-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .acm-info-mask {
@@ -556,24 +784,6 @@ watch(
   }
 }
 
-.acm-info-password-edit {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.acm-info-password-input {
-  width: 100%;
-}
-
-.acm-info-password-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .acm-info-k {
   width: 64px;
   flex-shrink: 0;
@@ -583,11 +793,107 @@ watch(
 .acm-info-coin {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #15803d;
+  color: #ca8a04;
 }
 
 .acm-info-empty {
   padding: 32px 16px;
+}
+
+.acm-ledger {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+  padding: 10px 16px 12px;
+}
+
+.acm-ledger-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.acm-ledger-en {
+  font-size: 7px;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+
+.acm-ledger-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.acm-ledger-empty {
+  padding: 20px 0;
+  font-size: 12px;
+}
+
+.acm-ledger-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--wash);
+}
+
+.acm-ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+
+  th,
+  td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--paper);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .is-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}
+
+.acm-ledger-time {
+  white-space: nowrap;
+}
+
+.acm-ledger-note {
+  max-width: 120px;
+  word-break: break-word;
+}
+
+.acm-ledger-plus {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.acm-ledger-minus {
+  color: #b91c1c;
+  font-weight: 700;
 }
 
 .acm-form {

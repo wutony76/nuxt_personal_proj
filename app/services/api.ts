@@ -899,6 +899,20 @@ export type AdminAccessUser = {
   coin: number
 }
 
+/** 後台會員 F幣變動列（跨彩種／遊戲彙總） */
+export type AdminMemberBalanceChange = {
+  id: string
+  source: string
+  sourceLabel: string
+  issue: string
+  type: string
+  amount: number
+  before: number
+  after: number
+  createdAt: number
+  note: string
+}
+
 export const api = {
   system: {
     servTime: () => $fetch<{ serverTime: number }>('/api/servTime')
@@ -936,6 +950,18 @@ export const api = {
         method: 'PATCH',
         body: { password }
       }),
+    setMemberEmail: (id: string, email: string) =>
+      $fetch<{ user: AdminAccessUser }>(`/api/admin/members/${id}`, {
+        method: 'PATCH',
+        body: { email }
+      }),
+    adjustMemberCoin: (id: string, coinDelta: number) =>
+      $fetch<{ user: AdminAccessUser }>(`/api/admin/members/${id}`, {
+        method: 'PATCH',
+        body: { coinDelta }
+      }),
+    memberBalanceChanges: (id: string) =>
+      $fetch<{ changes: AdminMemberBalanceChange[] }>(`/api/admin/members/${id}/balance-changes`),
     games: {
       updateRetroRates: (key: RetroGameKey, payload: { coinRate: number; coinCapPerRun: number; coinDailyCap: number }) =>
         $fetch<RetroGameRateInfo>(`/api/admin/games/retro/${key}/rates`, { method: 'PUT', body: payload }),

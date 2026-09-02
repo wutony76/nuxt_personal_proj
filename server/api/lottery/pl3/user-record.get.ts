@@ -1,6 +1,7 @@
 import { Storage } from '../../../services/storage'
 import { sessionController } from '../../../services/auth'
 import { LOTTERY } from '~/config/constants'
+import { walletBalanceService } from '../../../services/walletBalance'
 
 /** 排列3官方盤：該玩家的餘額變動／下注紀錄／可領獎金 */
 export default defineEventHandler((event) => {
@@ -17,7 +18,7 @@ export default defineEventHandler((event) => {
 
   const record = game?.get?.userDialogRecord?.(String(login.id))
   return {
-    balanceChanges: record?.balanceChanges ?? [],
+    balanceChanges: walletBalanceService.mergeForDialog(String(login.id), record?.balanceChanges ?? []),
     betHistory: record?.betHistory ?? [],
     claimableIssues: record?.claimableIssues ?? []
   }

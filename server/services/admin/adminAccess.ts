@@ -3,6 +3,7 @@ import { Storage } from '../storage'
 import { encodePasswordBcjs } from '../../utils/encrypt'
 import UsersClass from '../users'
 import type { AuthRecord } from '../../types/storage'
+import { walletBalanceService } from '../walletBalance'
 
 export type UserRole = 'admin' | 'user'
 
@@ -21,14 +22,48 @@ const adminIds = new Set<string>(ADMIN_USER_IDS)
 const MAX_NAME_LENGTH = 40
 const MIN_PASSWORD_LENGTH = 6
 const MAX_PASSWORD_LENGTH = 72
+const MAX_COIN_ADD = 100_000_000
 
 function _uid(): string {
   return `U0xA${Date.now().toString(16).slice(-6)}${Math.random().toString(16).slice(2, 6)}`.toUpperCase()
 }
 
-/** @admin 網域測試用 Email 可重複建立（例：test@admin.hfyy） */
-function _isReusableAdminEmail(email: string): boolean {
-  return email.includes('@admin')
+/**
+ * @param email 原始 email
+ * @returns 正規化後 email
+ */
+function _normalizeEmail(email: string): string {
+  return String(email ?? '').trim().toLowerCase()
+}
+
+/**
+ * @param email 待驗證 email
+ */
+function _validateEmail(email: string): void {
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw createError({ statusCode: 400, message: '請輸入有效的 Email。' })
+  }
+}
+
+/**
+ * @param email 目標 email
+ * @param exceptUserId 排除的帳號 id（更新自己時）
+ */
+function _assertEmailAvailable(email: string, exceptUserId?: string): void {
+  const accounts = Storage.get.account()
+  if (Object.values(accounts).some((row) => row.id !== exceptUserId && row.email === email)) {
+    throw createError({ statusCode: 400, message: '此 Email 已被使用。' })
+  }
+}
+
+/**
+ * @param userId 帳號 id
+ * @param email 新 email
+ */
+function _syncSessionEmail(userId: string, email: string): void {
+  for (const session of Storage.get.sessions().values()) {
+    if (session.user.id === userId) session.user.email = email
+  }
 }
 
 /**
@@ -133,9 +168,64 @@ export const adminAccessService = {
   },
 
   /**
+   * 更新會員登入 Email
+   * @param userId 目標帳號
+   * @param email 新 email
+   * @returns 更新後的帳號列
+   */
+  setEmail: (userId: string, email: string): AdminAccessUser => {
+    const accounts = Storage.get.account()
+    const row = accounts[userId]
+    if (!row) throw createError({ statusCode: 404, message: '找不到該帳號。' })
+
+    const next = _normalizeEmail(email)
+    _validateEmail(next)
+    if (next !== row.email) {
+      _assertEmailAvailable(next, userId)
+      row.email = next
+      _syncSessionEmail(userId, next)
+    }
+    return _toAdminUser(row)
+  },
+
+  /**
+   * 調整會員 F幣（正數充值、負數扣款）
+   * @param userId 目標帳號
+   * @param delta 變動量（非 0 整數）
+   * @returns 更新後的帳號列
+   */
+  adjustCoin: (userId: string, delta: number): AdminAccessUser => {
+    const accounts = Storage.get.account()
+    const row = accounts[userId]
+    if (!row) throw createError({ statusCode: 404, message: '找不到該帳號。' })
+
+    const amount = Math.trunc(Number(delta))
+    if (!Number.isFinite(amount) || amount === 0) {
+      throw createError({ statusCode: 400, message: '請輸入非 0 的整數金額（正數充值、負數扣款）。' })
+    }
+    const abs = Math.abs(amount)
+    if (abs > MAX_COIN_ADD) {
+      throw createError({
+        statusCode: 400,
+        message: `單次調整不可超過 ${MAX_COIN_ADD.toLocaleString('zh-TW')}。`
+      })
+    }
+
+    const isTopup = amount > 0
+    walletBalanceService.appendChange(userId, {
+      type: isTopup ? 'admin-topup' : 'admin-deduct',
+      amount,
+      note: isTopup
+        ? `後台充值 +${abs.toLocaleString('zh-TW')}`
+        : `後台扣款 -${abs.toLocaleString('zh-TW')}`
+    })
+    return _toAdminUser(row)
+  },
+
+  /**
    * 新增會員帳號（in-memory）
    * @param input.name 顯示名
-   * @param input.email 登入 email（一般唯一；含 @admin 可重複）
+   * @param input.email 登入 email（全站唯一，含 @admin 網域）
    * @param input.password 明文密碼
    * @param input.role 預設 user
    * @returns 新建帳號（不含密碼）
@@ -147,7 +237,7 @@ export const adminAccessService = {
     role?: UserRole
   }): AdminAccessUser => {
     const name = String(input.name ?? '').trim()
-    const email = String(input.email ?? '').trim().toLowerCase()
+    const email = _normalizeEmail(input.email)
     const password = String(input.password ?? '')
     const role: UserRole = input.role === 'admin' ? 'admin' : 'user'
 
@@ -155,9 +245,7 @@ export const adminAccessService = {
     if (name.length > MAX_NAME_LENGTH) {
       throw createError({ statusCode: 400, message: `名稱不能超過 ${MAX_NAME_LENGTH} 字。` })
     }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw createError({ statusCode: 400, message: '請輸入有效的 Email。' })
-    }
+    _validateEmail(email)
     if (password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
       throw createError({
         statusCode: 400,
@@ -167,12 +255,7 @@ export const adminAccessService = {
 
     Storage.get.account()
     const accounts = Storage.account as Record<string, AuthRecord>
-    if (
-      !_isReusableAdminEmail(email) &&
-      Object.values(accounts).some((row) => row.email === email)
-    ) {
-      throw createError({ statusCode: 400, message: '此 Email 已被使用。' })
-    }
+    _assertEmailAvailable(email)
 
     let id = _uid()
     while (accounts[id]) id = _uid()
