@@ -67,7 +67,7 @@ const click = {
       <div class="admin-sechead">
         <div class="admin-sechead-left">
           <span class="admin-en">Members</span>
-          <h2>新增會員</h2>
+          <h2>會員管理</h2>
         </div>
         <span class="admin-meta">會員功能</span>
       </div>
