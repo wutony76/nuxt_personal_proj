@@ -1,4 +1,5 @@
 import { sessionController, verifyUser } from '../services/auth'
+import { loginHistoryService } from '../services/loginHistory'
 import { throwErrCode } from '../utils/error'
 
 type LoginPayload = {
@@ -20,6 +21,7 @@ export default defineEventHandler(async (event) => {
   const user = verifyUser(email, password)
   if (!user) throwErrCode(40002)
 
+  loginHistoryService.record(event, user)
   sessionController.save(event, user)
   return { user }
 })

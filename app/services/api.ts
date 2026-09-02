@@ -899,6 +899,16 @@ export type AdminAccessUser = {
   coin: number
 }
 
+/** 後台會員登入紀錄 */
+export type AdminMemberLoginRecord = {
+  id: string
+  userId: string
+  email: string
+  ip: string
+  userAgent: string
+  createdAt: number
+}
+
 /** 後台會員 F幣變動列（跨彩種／遊戲彙總） */
 export type AdminMemberBalanceChange = {
   id: string
@@ -962,6 +972,8 @@ export const api = {
       }),
     memberBalanceChanges: (id: string) =>
       $fetch<{ changes: AdminMemberBalanceChange[] }>(`/api/admin/members/${id}/balance-changes`),
+    memberLoginHistory: (id: string) =>
+      $fetch<{ logins: AdminMemberLoginRecord[] }>(`/api/admin/members/${id}/login-history`),
     games: {
       updateRetroRates: (key: RetroGameKey, payload: { coinRate: number; coinCapPerRun: number; coinDailyCap: number }) =>
         $fetch<RetroGameRateInfo>(`/api/admin/games/retro/${key}/rates`, { method: 'PUT', body: payload }),

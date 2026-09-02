@@ -3,11 +3,12 @@
  * 會員管理：左方會員列表、右方分頁（資訊／新增）。
  */
 import { computed, onMounted, reactive, watch } from 'vue'
-import { api, type AdminAccessUser, type AdminMemberBalanceChange, type UserRole } from '~/services/api'
+import { api, type AdminAccessUser, type AdminMemberBalanceChange, type AdminMemberLoginRecord, type UserRole } from '~/services/api'
 import { balanceChangeTypeLabel } from '~/utils/balanceChangeLabel'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 type DetailTab = 'info' | 'create'
+type LedgerTab = 'balance' | 'login'
 
 const DEFAULT_MEMBER_PASSWORD = '222222'
 
@@ -47,7 +48,11 @@ const state = reactive({
   coinSaveError: '',
   balanceStatus: 'idle' as AsyncStatus,
   balanceError: '',
-  balanceRows: [] as AdminMemberBalanceChange[]
+  balanceRows: [] as AdminMemberBalanceChange[],
+  ledgerTab: 'balance' as LedgerTab,
+  loginStatus: 'idle' as AsyncStatus,
+  loginError: '',
+  loginRows: [] as AdminMemberLoginRecord[]
 })
 
 const selected = computed(() => state.users.find((u) => u.id === state.selectedId) ?? null)
@@ -246,6 +251,25 @@ const _actions = {
       state.balanceError = (e as { message?: string })?.message ?? '載入變動紀錄失敗'
       state.balanceStatus = 'error'
     }
+  },
+  fetchLoginHistory: async (userId?: string) => {
+    const id = userId ?? selected.value?.id
+    if (!id) {
+      state.loginRows = []
+      state.loginStatus = 'idle'
+      state.loginError = ''
+      return
+    }
+    state.loginStatus = 'loading'
+    state.loginError = ''
+    try {
+      const res = await api.admin.memberLoginHistory(id)
+      state.loginRows = res.logins
+      state.loginStatus = 'success'
+    } catch (e: unknown) {
+      state.loginError = (e as { message?: string })?.message ?? '載入登入紀錄失敗'
+      state.loginStatus = 'error'
+    }
   }
 }
 
@@ -286,7 +310,10 @@ const click = {
     state.coinDraft = ''
   },
   cancelCoinEdit: () => _actions.resetInfoEdit(),
-  saveCoin: () => _actions.saveCoin()
+  saveCoin: () => _actions.saveCoin(),
+  setLedgerTab: (tab: LedgerTab) => {
+    state.ledgerTab = tab
+  }
 }
 
 onMounted(() => {
@@ -294,15 +321,22 @@ onMounted(() => {
 })
 
 watch(
-  () => [state.selectedId, state.tab] as const,
-  ([id, tab]) => {
+  () => [state.selectedId, state.tab, state.ledgerTab] as const,
+  ([id, tab, ledgerTab]) => {
     if (tab === 'info' && id) {
-      _actions.fetchBalanceHistory(id)
+      if (ledgerTab === 'balance') {
+        _actions.fetchBalanceHistory(id)
+      } else {
+        _actions.fetchLoginHistory(id)
+      }
       return
     }
     state.balanceRows = []
     state.balanceStatus = 'idle'
     state.balanceError = ''
+    state.loginRows = []
+    state.loginStatus = 'idle'
+    state.loginError = ''
   }
 )
 
@@ -443,41 +477,82 @@ watch(
 
             <section class="acm-ledger">
               <div class="acm-ledger-head">
-                <span class="admin-en acm-ledger-en">Ledger</span>
-                <h3 class="acm-ledger-title">F幣 變動紀錄</h3>
+                <span class="admin-en acm-ledger-en">Records</span>
+                <nav class="acm-ledger-tabs" aria-label="紀錄分類">
+                  <button type="button" class="acm-ledger-tab" :class="{ 'is-active': state.ledgerTab === 'balance' }"
+                    @click="click.setLedgerTab('balance')">
+                    <span class="acm-ledger-tab-label">變動紀錄</span>
+                    <span class="admin-en acm-ledger-tab-en">Balance</span>
+                  </button>
+                  <button type="button" class="acm-ledger-tab" :class="{ 'is-active': state.ledgerTab === 'login' }"
+                    @click="click.setLedgerTab('login')">
+                    <span class="acm-ledger-tab-label">登入紀錄</span>
+                    <span class="admin-en acm-ledger-tab-en">Login</span>
+                  </button>
+                </nav>
               </div>
-              <div v-if="state.balanceStatus === 'loading'" class="admin-empty acm-ledger-empty">載入中…</div>
-              <div v-else-if="state.balanceStatus === 'error'" class="acm-error acm-ledger-empty">{{ state.balanceError
-                }}</div>
-              <div v-else-if="state.balanceRows.length === 0" class="admin-empty acm-ledger-empty">尚無變動紀錄</div>
-              <div v-else class="acm-ledger-table-wrap">
-                <table class="acm-ledger-table">
-                  <thead>
-                    <tr>
-                      <th>時間</th>
-                      <th>來源</th>
-                      <th>類型</th>
-                      <th>期數</th>
-                      <th>備註</th>
-                      <th class="is-num">變動</th>
-                      <th class="is-num">餘額</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="row in state.balanceRows" :key="row.id">
-                      <td class="acm-ledger-time">{{ _handlers.formatTime(row.createdAt) }}</td>
-                      <td>{{ row.sourceLabel }}</td>
-                      <td>{{ balanceChangeTypeLabel(row.type) }}</td>
-                      <td>{{ row.issue || '—' }}</td>
-                      <td class="acm-ledger-note">{{ row.note || '—' }}</td>
-                      <td class="is-num" :class="row.amount < 0 ? 'acm-ledger-minus' : 'acm-ledger-plus'">
-                        {{ _handlers.formatMoney(row.amount) }}
-                      </td>
-                      <td class="is-num">{{ _handlers.formatMoney(row.after) }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+
+              <template v-if="state.ledgerTab === 'balance'">
+                <div v-if="state.balanceStatus === 'loading'" class="admin-empty acm-ledger-empty">載入中…</div>
+                <div v-else-if="state.balanceStatus === 'error'" class="acm-error acm-ledger-empty">{{ state.balanceError
+                  }}</div>
+                <div v-else-if="state.balanceRows.length === 0" class="admin-empty acm-ledger-empty">尚無變動紀錄</div>
+                <div v-else class="acm-ledger-table-wrap">
+                  <table class="acm-ledger-table">
+                    <thead>
+                      <tr>
+                        <th>時間</th>
+                        <th>來源</th>
+                        <th>類型</th>
+                        <th>期數</th>
+                        <th>備註</th>
+                        <th class="is-num">變動</th>
+                        <th class="is-num">餘額</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in state.balanceRows" :key="row.id">
+                        <td class="acm-ledger-time">{{ _handlers.formatTime(row.createdAt) }}</td>
+                        <td>{{ row.sourceLabel }}</td>
+                        <td>{{ balanceChangeTypeLabel(row.type) }}</td>
+                        <td>{{ row.issue || '—' }}</td>
+                        <td class="acm-ledger-note">{{ row.note || '—' }}</td>
+                        <td class="is-num" :class="row.amount < 0 ? 'acm-ledger-minus' : 'acm-ledger-plus'">
+                          {{ _handlers.formatMoney(row.amount) }}
+                        </td>
+                        <td class="is-num">{{ _handlers.formatMoney(row.after) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </template>
+
+              <template v-else>
+                <div v-if="state.loginStatus === 'loading'" class="admin-empty acm-ledger-empty">載入中…</div>
+                <div v-else-if="state.loginStatus === 'error'" class="acm-error acm-ledger-empty">{{ state.loginError }}
+                </div>
+                <div v-else-if="state.loginRows.length === 0" class="admin-empty acm-ledger-empty">尚無登入紀錄</div>
+                <div v-else class="acm-ledger-table-wrap">
+                  <table class="acm-ledger-table">
+                    <thead>
+                      <tr>
+                        <th>時間</th>
+                        <th>Email</th>
+                        <th>IP</th>
+                        <th>裝置</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in state.loginRows" :key="row.id">
+                        <td class="acm-ledger-time">{{ _handlers.formatTime(row.createdAt) }}</td>
+                        <td>{{ row.email }}</td>
+                        <td class="acm-ledger-ip">{{ row.ip || '—' }}</td>
+                        <td class="acm-ledger-note">{{ row.userAgent || '—' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </template>
             </section>
           </template>
           <div v-else class="admin-empty acm-info-empty">請從左側選擇會員</div>
@@ -808,34 +883,67 @@ watch(
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   border-top: 1px solid var(--line);
   padding: 10px 16px 12px;
 }
 
 .acm-ledger-head {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 8px;
   flex-shrink: 0;
+}
+
+.acm-ledger-tabs {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.acm-ledger-tab {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-width: 64px;
+  height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    color: var(--ink);
+  }
+
+  &.is-active {
+    color: var(--ink);
+    border-bottom-color: var(--ink);
+  }
+}
+
+.acm-ledger-tab-label {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.acm-ledger-tab-en {
+  font-size: 7px;
+  letter-spacing: 0.14em;
+  line-height: 1;
 }
 
 .acm-ledger-en {
   font-size: 7px;
   letter-spacing: 0.16em;
   color: var(--muted);
-}
-
-.acm-ledger-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.acm-ledger-empty {
-  padding: 20px 0;
-  font-size: 12px;
 }
 
 .acm-ledger-table-wrap {
@@ -847,6 +955,16 @@ watch(
   border: 1px solid var(--line);
   border-radius: 2px;
   background: var(--wash);
+}
+
+.acm-ledger-empty {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+  font-size: 12px;
 }
 
 .acm-ledger-table {
@@ -889,6 +1007,11 @@ watch(
 .acm-ledger-note {
   max-width: 120px;
   word-break: break-word;
+}
+
+.acm-ledger-ip {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .acm-ledger-plus {
