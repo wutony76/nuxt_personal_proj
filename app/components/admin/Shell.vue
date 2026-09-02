@@ -168,10 +168,15 @@ onMounted(() => {
             <p class="ash-page-desc">{{ props.desc }}</p>
           </div>
           <aside class="ash-page-header-aside">
+            <NuxtLink to="/" class="ash-aside-home admin-panel">
+              <span class="ash-aside-home-en-slot">
+                <span class="admin-en ash-aside-home-en">Home</span>
+              </span>
+              <span class="ash-aside-home-label">首頁</span>
+            </NuxtLink>
             <slot name="page-aside" />
             <button type="button" class="ash-aside-logout admin-panel"
-              :class="{ 'has-aside-slot': $slots['page-aside'] }" :disabled="state.isLoggingOut"
-              @click="click.logout">
+              :class="{ 'has-aside-slot': $slots['page-aside'] }" :disabled="state.isLoggingOut" @click="click.logout">
               <span class="ash-aside-logout-en-slot">
                 <span class="admin-en ash-aside-logout-en">Out</span>
               </span>
@@ -327,6 +332,7 @@ onMounted(() => {
   gap: 6px;
 }
 
+.ash-aside-home,
 .ash-aside-logout {
   display: flex;
   flex-direction: row;
@@ -342,7 +348,55 @@ onMounted(() => {
   color: inherit;
   font-family: inherit;
   transition: background 0.12s;
+}
 
+.ash-aside-home {
+  text-decoration: none;
+  border-right: 1px solid var(--line);
+  margin-right: 2px;
+  padding-right: 10px;
+
+  &:hover {
+    background: var(--wash);
+    text-decoration: none;
+  }
+}
+
+.ash-aside-home-en-slot,
+.ash-aside-logout-en-slot {
+  flex: none;
+  width: 12px;
+  height: 36px;
+  position: relative;
+  overflow: visible;
+}
+
+.ash-aside-home-en,
+.ash-aside-logout-en {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 7px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  transform-origin: top left;
+  transform: translateX(10%) rotate(90deg);
+}
+
+.ash-aside-home-label,
+.ash-aside-logout-label {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.06em;
+}
+
+.ash-aside-logout {
   &:hover:not(:disabled) {
     background: var(--wash);
   }
@@ -357,37 +411,6 @@ onMounted(() => {
     margin-left: 2px;
     padding-left: 10px;
   }
-}
-
-.ash-aside-logout-en-slot {
-  flex: none;
-  width: 12px;
-  height: 36px;
-  position: relative;
-  overflow: visible;
-}
-
-.ash-aside-logout-en {
-  position: absolute;
-  top: 0;
-  left: 0;
-  font-size: 7px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  line-height: 1;
-  white-space: nowrap;
-  transform-origin: top left;
-  transform: translateX(10%) rotate(90deg);
-}
-
-.ash-aside-logout-label {
-  flex: none;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-  writing-mode: vertical-rl;
-  text-orientation: upright;
-  letter-spacing: 0.06em;
 }
 
 .ash-page-title {
