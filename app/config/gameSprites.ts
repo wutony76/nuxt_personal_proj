@@ -36,7 +36,8 @@ export const GAME_SPRITES: GameSpriteDef[] = [
   { key: 'frogger', match: (n) => n.includes('FROGGER'), icon: '🐸', anim: 'hop', glow: '#52b788' },
   { key: 'connect4', match: (n) => n.includes('CONNECT 4'), icon: '🔴', anim: 'fall', glow: '#e63946' },
   { key: 'whackAMole', match: (n) => n.includes('WHACK-A-MOLE'), icon: '🐹', anim: 'hop', glow: '#a0522d' },
-  { key: 'lightsOut', match: (n) => n.includes('LIGHTS OUT'), icon: '💡', anim: 'blink', glow: '#adb5bd' }
+  { key: 'lightsOut', match: (n) => n.includes('LIGHTS OUT'), icon: '💡', anim: 'blink', glow: '#adb5bd' },
+  { key: 'towerStack', match: (n) => n.includes('TOWER STACK'), icon: '🗼', anim: 'fall', glow: '#118ab2' }
 ]
 
 const DEFAULT_SPRITE: GameSpriteDef = { key: 'default', match: () => true, icon: '🎮', anim: 'drift', glow: '#00e5ff' }

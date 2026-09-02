@@ -31,7 +31,8 @@ const PLAY_PATHS: Record<RetroGameKey, string> = {
   frogger: '/game/frogger',
   connect4: '/game/connect4',
   whackAMole: '/game/whack-a-mole',
-  lightsOut: '/game/lights-out'
+  lightsOut: '/game/lights-out',
+  towerStack: '/game/tower-stack'
 }
 
 /** 起始草稿沿用已知合法的 classic-01 樣板，讓管理員從一份確定通過驗證的版面開始改，而不是空白或破損的骨架 */
