@@ -48,7 +48,7 @@ const wuxingDesc = (() => {
 /** 各玩法的爆池權重（讀看板設定，與實際分配用的是同一份資料） */
 const JACKPOT_WEIGHTS = (C_PLAYS as any[]).map((play) => {
   const items = (play.list ?? []).flatMap((tab: any) => (tab.tabGroup ?? []).flatMap((group: any) => group.groupList ?? []))
-  const levels = Array.from(new Set(items.map((item: any) => Number(item.weight ?? 0)))).sort((a, b) => b - a)
+  const levels = Array.from(new Set<number>(items.map((item: any) => Number(item.weight ?? 0)))).sort((a, b) => b - a)
   return { name: String(play.name ?? ''), tabs: (play.list ?? []).length, levels }
 })
 

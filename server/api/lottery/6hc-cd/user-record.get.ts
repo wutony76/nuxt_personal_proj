@@ -1,14 +1,14 @@
 import { Storage } from '../../../services/storage'
 import { sessionController } from '../../../services/auth'
 import { LOTTERY } from '~/config/constants'
-import { walletBalanceService } from '../../../services/walletBalance'
+import { walletBalanceService, type WalletBalanceChange } from '../../../services/walletBalance'
 
 export default defineEventHandler((event) => {
   const login = sessionController.require(event)
   const game = Storage.games[LOTTERY['LHC-CD'].key] as {
     get?: {
       userDialogRecord?: (userId: string) => {
-        balanceChanges: Array<Record<string, unknown>>
+        balanceChanges: WalletBalanceChange[]
         betHistory: Array<Record<string, unknown>>
         claimableIssues: Array<Record<string, unknown>>
       }

@@ -51,8 +51,8 @@ const _pickRandomSlots = (count: number): number[] => {
   const picked: number[] = []
   for (let i = 0; i < count && pool.length > 0; i++) {
     const idx = Math.floor(Math.random() * pool.length)
-    picked.push(pool[idx])
-    pool.splice(idx, 1)
+    const [slot] = pool.splice(idx, 1)
+    if (slot !== undefined) picked.push(slot)
   }
   return picked.toSorted((a, b) => a - b)
 }

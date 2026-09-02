@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, type PropType } from 'vue'
+import type { PlayOption } from '#shared/config/6hc-cd'
 
 const props = defineProps({
   options: {
-    type: Array,
+    type: Array as PropType<PlayOption[]>,
     default: () => []
   },
   selectedCodes: {
-    type: Array,
+    type: Array as PropType<string[]>,
     default: () => []
   },
   selectedType: {
@@ -41,14 +42,14 @@ const rowGroups = computed(() => {
 })
 
 const click = {
-  toggle: (option) => {
+  toggle: (option: PlayOption) => {
     emit('toggle', option)
   }
 }
 
 const _handlers = {
-  isSelected: (option) => props.selectedCodes.includes(option?.label),
-  getOdds: (option) => {
+  isSelected: (option: PlayOption | null) => props.selectedCodes.includes(option?.label ?? ''),
+  getOdds: (option: PlayOption | null) => {
     const label = String(option?.label || '')
     if (/^\d+$/.test(label)) {
       return '49.0'

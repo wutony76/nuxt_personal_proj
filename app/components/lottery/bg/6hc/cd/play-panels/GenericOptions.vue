@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import type { PropType } from 'vue'
+import type { PlayOption } from '#shared/config/6hc-cd'
+
 const props = defineProps({
   options: {
-    type: Array,
+    type: Array as PropType<PlayOption[]>,
     default: () => []
   },
   selectedCodes: {
-    type: Array,
+    type: Array as PropType<string[]>,
     default: () => []
   }
 })
@@ -13,7 +16,7 @@ const props = defineProps({
 const emit = defineEmits(['toggle'])
 
 const click = {
-  toggle: (option) => {
+  toggle: (option: PlayOption) => {
     emit('toggle', option)
   }
 }

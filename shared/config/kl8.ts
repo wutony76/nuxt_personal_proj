@@ -218,7 +218,7 @@ export function kl8SumCounts(): Record<number, bigint> {
         const row = dp[j]!
         for (let s = maxS; s >= n; s--) {
           const prev = prevRow[s - n]!
-          if (prev !== BigInt(0)) row[s] = row[s] + prev
+          if (prev !== BigInt(0)) row[s] = row[s]! + prev
         }
       }
     }

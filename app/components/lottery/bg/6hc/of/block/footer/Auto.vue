@@ -71,7 +71,7 @@
 
 <script setup lang="ts">
 import { cloneDeep } from 'lodash'
-import { PLAYLIST } from '#shared/config/6hc-of'
+import { PLAYLIST, type PlaylistItem } from '#shared/config/6hc-of'
 import Ball from '~/components/lottery/bg/6hc/of/base/Ball.vue'
 
 const { state: mxState, fetch: mxFetch, current, wallet, isOpen } = use6hcOfficial()
@@ -91,7 +91,7 @@ const state = reactive({
     enabled: false,
     amount: 1,
     maxPeriods: 5,
-    numbers: [],
+    numbers: [] as PlaylistItem[],
     period: 0,
     isRunning: false,
     lastIssue: '',
@@ -102,27 +102,29 @@ const state = reactive({
 
 const _handlers = {
   // --- 自動投注 ---
-  setStatus(text, type) {
+  setStatus(text: string, type: string) {
     state.statusText = text
     state.statusType = type
   },
-  normalizeAmount(val) {
+  normalizeAmount(val: string | number) {
     return Math.min(99999, Math.max(1, Math.trunc(Number(val) || 1)))
   },
-  normalizeCount(val) {
+  normalizeCount(val: string | number) {
     return Math.min(1000, Math.max(1, Math.trunc(Number(val) || 1)))
   },
-  onAmountInput(e) {
-    const val = _handlers.normalizeAmount(e.target.value)
+  onAmountInput(e: Event) {
+    const target = e.target as HTMLInputElement
+    const val = _handlers.normalizeAmount(target.value)
     state.betAmount = val
-    e.target.value = String(val)
+    target.value = String(val)
   },
-  onCountInput(e) {
-    const val = _handlers.normalizeCount(e.target.value)
+  onCountInput(e: Event) {
+    const target = e.target as HTMLInputElement
+    const val = _handlers.normalizeCount(target.value)
     state.betCount = val
-    e.target.value = String(val)
+    target.value = String(val)
   },
-  buildGroups(count) {
+  buildGroups(count: number) {
     return Array.from({ length: count }, (_, i) => {
       const pool = cloneDeep(PLAYLIST.slice(0, 49))
       const picked = [...pool].sort(() => Math.random() - 0.5).slice(0, 6)
@@ -134,7 +136,7 @@ const _handlers = {
     })
   },
   // --- 自動追號 ---
-  setTrackStatus(text, type) {
+  setTrackStatus(text: string, type: string) {
     state.track.statusText = text
     state.track.statusType = type
   },
@@ -142,15 +144,17 @@ const _handlers = {
     const pool = cloneDeep(PLAYLIST.slice(0, 49))
     return [...pool].sort(() => Math.random() - 0.5).slice(0, 6).map(p => ({ ...p, selected: true }))
   },
-  onTrackAmountInput(e) {
-    const val = _handlers.normalizeAmount(e.target.value)
+  onTrackAmountInput(e: Event) {
+    const target = e.target as HTMLInputElement
+    const val = _handlers.normalizeAmount(target.value)
     state.track.amount = val
-    e.target.value = String(val)
+    target.value = String(val)
   },
-  onTrackPeriodInput(e) {
-    const val = Math.min(50, Math.max(1, Math.trunc(Number(e.target.value) || 1)))
+  onTrackPeriodInput(e: Event) {
+    const target = e.target as HTMLInputElement
+    const val = Math.min(50, Math.max(1, Math.trunc(Number(target.value) || 1)))
     state.track.maxPeriods = val
-    e.target.value = String(val)
+    target.value = String(val)
   },
 }
 
@@ -164,7 +168,7 @@ const _actions = {
     if (state.track.enabled && issue !== state.track.lastIssue) _actions.trackBet(issue)
   },
 
-  async autoBet(issue) {
+  async autoBet(issue: string) {
     if (state.isRunning) return
     state.isRunning = true
 
@@ -197,7 +201,7 @@ const _actions = {
     }
   },
 
-  async trackBet(issue) {
+  async trackBet(issue: string) {
     if (state.track.isRunning) return
     state.track.isRunning = true
 

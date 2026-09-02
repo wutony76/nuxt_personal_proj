@@ -57,10 +57,10 @@ const isShowBetsCount = computed(() => {
 
 const ui = {
   // BALL COLOR
-  getClassColor: (num) => {
-    if (LHC_COLORS.red.includes(num)) return 'red'
-    if (LHC_COLORS.blue.includes(num)) return 'blue'
-    if (LHC_COLORS.green.includes(num)) return 'green'
+  getClassColor: (num: string) => {
+    if ((LHC_COLORS.red as readonly string[]).includes(num)) return 'red'
+    if ((LHC_COLORS.blue as readonly string[]).includes(num)) return 'blue'
+    if ((LHC_COLORS.green as readonly string[]).includes(num)) return 'green'
     return 'yellow' // 預設顏色
   },
 }

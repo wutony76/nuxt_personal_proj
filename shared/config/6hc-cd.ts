@@ -505,9 +505,9 @@ export function creditLianweiOddsOf(
 
 // ── CREDIT_PLAY_DEFINITIONS helpers ─────────────────────────────────────────
 
-type NumberOption = { id: string; label: string; num: number }
-type SimpleOption = { id: string; label: string }
-type PlayOption = NumberOption | SimpleOption
+export type NumberOption = { id: string; label: string; num: number }
+export type SimpleOption = { id: string; label: string }
+export type PlayOption = NumberOption | SimpleOption
 
 const makeNumberOptions = (prefix: string): NumberOption[] =>
   Array.from({ length: 49 }, (_, index) => {

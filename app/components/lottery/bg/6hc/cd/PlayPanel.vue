@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, type PropType } from 'vue'
+import type { CreditPlayDefinition, PlayOption } from '#shared/config/6hc-cd'
 import GenericOptions from './play-panels/GenericOptions.vue'
 import BanboOptions from './play-panels/BanboOptions.vue'
 import DuoxuanzhongyiOptions from './play-panels/DuoxuanzhongyiOptions.vue'
@@ -21,9 +22,8 @@ import ZixuanbuzhongOptions from './play-panels/ZixuanbuzhongOptions.vue'
  */
 
 const props = defineProps({
-  /** @type {CreditPlayDefinition|null} */
   play: {
-    type: Object,
+    type: Object as PropType<CreditPlayDefinition | null>,
     default: null
   },
   selectedType: {
@@ -31,11 +31,11 @@ const props = defineProps({
     default: ''
   },
   availableCodes: {
-    type: Array,
+    type: Array as PropType<PlayOption[]>,
     default: () => []
   },
   selectedCodes: {
-    type: Array,
+    type: Array as PropType<string[]>,
     default: () => []
   },
   amount: {
@@ -104,13 +104,13 @@ const optionBoard = computed(() => {
 })
 
 const click = {
-  handleSelectType: (typeName) => {
+  handleSelectType: (typeName: string) => {
     emit('select-type', typeName)
   },
-  handleToggleCode: (option) => {
+  handleToggleCode: (option: PlayOption) => {
     emit('toggle-code', option)
   },
-  handleQuickAmount: (amount) => {
+  handleQuickAmount: (amount: number) => {
     emit('quick-amount', amount)
   },
   handleSubmitBet: () => {
@@ -122,11 +122,11 @@ const click = {
   handleAppendCustomCode: () => {
     emit('append-custom-code')
   },
-  handleAmountInput: (event) => {
-    emit('update:amount', Number(event.target.value || 0))
+  handleAmountInput: (event: Event) => {
+    emit('update:amount', Number((event.target as HTMLInputElement).value || 0))
   },
-  handleCustomCodeInput: (event) => {
-    emit('update:custom-code-input', String(event.target.value || ''))
+  handleCustomCodeInput: (event: Event) => {
+    emit('update:custom-code-input', String((event.target as HTMLInputElement).value || ''))
   }
 }
 </script>

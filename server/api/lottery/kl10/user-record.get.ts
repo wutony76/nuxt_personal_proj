@@ -1,7 +1,7 @@
 import { Storage } from '../../../services/storage'
 import { sessionController } from '../../../services/auth'
 import { LOTTERY } from '~/config/constants'
-import { walletBalanceService } from '../../../services/walletBalance'
+import { walletBalanceService, type WalletBalanceChange } from '../../../services/walletBalance'
 
 /** 快樂十分：該玩家的餘額變動／下注紀錄／可領獎金 */
 export default defineEventHandler((event) => {
@@ -9,7 +9,7 @@ export default defineEventHandler((event) => {
   const game = Storage.games[LOTTERY.KL10.key] as {
     get?: {
       userDialogRecord?: (userId: string) => {
-        balanceChanges: Array<Record<string, unknown>>
+        balanceChanges: WalletBalanceChange[]
         betHistory: Array<Record<string, unknown>>
         claimableIssues: Array<Record<string, unknown>>
       }

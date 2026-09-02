@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-/**
- * @typedef {import('#shared/config/6hc-cd').CreditPlayDefinition} CreditPlayDefinition
- */
+import { computed, type PropType } from 'vue'
+import type { CreditPlayDefinition } from '#shared/config/6hc-cd'
 
 const props = defineProps({
-  /** @type {CreditPlayDefinition[]} */
   plays: {
-    type: Array,
+    type: Array as PropType<CreditPlayDefinition[]>,
     required: true
   },
   selectedKey: {
