@@ -497,6 +497,8 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 .td-page {
   --accent: #6a994e;
+  /** 亮綠：按鈕文字/hover 發光用，避免全頁只有單一 accent 色階 */
+  --bright: #a7c957;
   position: relative;
   min-height: 100vh;
   display: grid;
@@ -504,6 +506,27 @@ onBeforeUnmount(() => {
   background: radial-gradient(circle at top, #0e1f0e, #030903 60%);
   overflow: hidden;
   isolation: isolate;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -20%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  &::before {
+    background: radial-gradient(circle at 20% 20%, rgba(106, 153, 78, 0.18), transparent 45%),
+      radial-gradient(circle at 80% 70%, rgba(167, 201, 87, 0.1), transparent 40%);
+    filter: blur(40px);
+    animation: ambient-drift 12s ease-in-out infinite alternate;
+  }
+
+  &::after {
+    background: linear-gradient(115deg, rgba(106, 153, 78, 0.05), rgba(0, 0, 0, 0));
+    animation: ambient-pulse 4.6s ease-in-out infinite;
+  }
 
   .td-overlay {
     position: absolute;
@@ -513,6 +536,7 @@ onBeforeUnmount(() => {
     background-size: 28px 28px;
     pointer-events: none;
     z-index: 0;
+    animation: grid-drift 14s linear infinite;
   }
 
   .game-mask {
@@ -529,27 +553,29 @@ onBeforeUnmount(() => {
     color: #eafbe2;
 
     .mask-title {
-      font-family: 'Press Start 2P', monospace;
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: 2px;
       color: var(--accent);
-      text-shadow: 0 0 12px rgba(106, 153, 78, 0.6);
+      font-size: clamp(2rem, 8vw, 4rem);
+      letter-spacing: 0.25rem;
+      font-weight: 900;
+      text-shadow: 0 0 18px rgba(106, 153, 78, 0.5);
     }
 
     .waiting-subtitle {
-      font-size: 15px;
-      letter-spacing: 1px;
-      opacity: 0.85;
+      margin: 0;
+      color: var(--bright);
+      letter-spacing: 0.3rem;
+      font-size: 1.05rem;
+      font-weight: 800;
     }
 
     .waiting-hint {
+      margin: 0;
       font-size: 12px;
-      opacity: 0.6;
+      opacity: 0.65;
     }
 
     .waiting-btn {
-      min-width: 160px;
+      width: 200px;
     }
 
     .upgrade-hint {
@@ -571,18 +597,22 @@ onBeforeUnmount(() => {
       gap: 4px;
       min-width: 150px;
       padding: 12px 14px;
-      border: 2px solid var(--accent);
-      background: #0e1f0e;
+      border: 1px solid rgba(106, 153, 78, 0.45);
+      border-radius: 6px;
+      background: rgba(14, 31, 14, 0.85);
       color: #eafbe2;
       cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 
       &:hover {
-        background: var(--accent);
-        color: #08130a;
+        border-color: var(--accent);
+        box-shadow: 0 0 12px rgba(106, 153, 78, 0.4);
+        transform: translateY(-1px);
       }
 
       .upgrade-option-label {
         font-weight: 700;
+        color: var(--bright);
       }
 
       .upgrade-option-desc {
@@ -592,16 +622,19 @@ onBeforeUnmount(() => {
     }
 
     .result-list {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      font-size: 13px;
+      display: grid;
+      gap: 8px;
+      width: 280px;
 
       .result-item {
         display: flex;
         justify-content: space-between;
-        gap: 24px;
-        min-width: 220px;
+        border: 1px solid rgba(106, 153, 78, 0.4);
+        background: rgba(10, 24, 10, 0.65);
+        color: #eafbe2;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-variant-numeric: tabular-nums;
       }
     }
 
@@ -630,45 +663,64 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
 
-    &.right {
-      .td-help-panel {
-        border: 2px solid var(--accent);
-        padding: 10px;
-        background: rgba(10, 24, 10, 0.6);
+  .td-help-panel {
+    border: 1px solid rgba(106, 153, 78, 0.3);
+    border-radius: 8px;
+    padding: 10px;
+    background: rgba(10, 24, 10, 0.5);
 
-        .td-help-title {
-          font-weight: 700;
-          margin-bottom: 6px;
-          color: var(--accent);
-        }
+    .td-help-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--bright);
+    }
 
-        .td-help-text {
-          font-size: 11px;
-          line-height: 1.6;
-          opacity: 0.85;
-        }
-      }
+    .td-help-text {
+      font-size: 11px;
+      line-height: 1.6;
+      opacity: 0.85;
     }
   }
 
   .td-btn {
+    position: relative;
+    overflow: hidden;
     padding: 8px 10px;
-    border: 2px solid var(--accent);
-    background: #0e1f0e;
-    color: #eafbe2;
+    border: 1px solid rgba(106, 153, 78, 0.45);
+    border-radius: 6px;
+    background: rgba(14, 31, 14, 0.75);
+    color: var(--bright);
     font-weight: 700;
     letter-spacing: 0.5px;
     cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(105deg, transparent 35%, rgba(210, 240, 190, 0.25) 50%, transparent 65%);
+      transform: translateX(-150%);
+      transition: transform 0.35s ease;
+      pointer-events: none;
+    }
 
     &:hover:not(:disabled) {
-      background: var(--accent);
-      color: #08130a;
+      border-color: var(--accent);
+      box-shadow: 0 0 12px rgba(106, 153, 78, 0.4);
+      transform: translateY(-1px);
+
+      &::after {
+        transform: translateX(150%);
+      }
     }
 
     &:disabled {
       opacity: 0.35;
       cursor: not-allowed;
+      box-shadow: none;
     }
 
     &.link {
@@ -678,7 +730,7 @@ onBeforeUnmount(() => {
     }
 
     &.danger {
-      border-color: #ef476f;
+      border-color: rgba(239, 71, 111, 0.5);
       color: #ef476f;
     }
   }
@@ -697,24 +749,31 @@ onBeforeUnmount(() => {
     gap: 2px;
 
     .td-title {
-      font-family: 'Press Start 2P', monospace;
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: 2px;
+      margin: 0;
       color: var(--accent);
+      font-size: clamp(1.6rem, 4.6vw, 2.6rem);
+      letter-spacing: 0.12rem;
+      font-weight: 900;
+      text-shadow: 0 0 14px rgba(106, 153, 78, 0.55);
+      animation: title-float 2.6s ease-in-out infinite;
     }
 
     .td-status {
       font-size: 11px;
       letter-spacing: 1px;
-      opacity: 0.7;
+      opacity: 0.75;
+      color: #eafbe2;
 
       &.is-playing {
-        color: #6a994e;
+        color: var(--bright);
+      }
+
+      &.is-pause {
+        color: #ffcc33;
       }
 
       &.is-gameover {
-        color: #ef476f;
+        color: #ff5e5e;
       }
     }
   }
@@ -723,20 +782,29 @@ onBeforeUnmount(() => {
     display: flex;
     gap: 16px;
     font-size: 12px;
-    font-weight: 700;
-    color: #eafbe2;
+    font-weight: 800;
+    color: var(--bright);
+    text-shadow: 0 0 6px rgba(106, 153, 78, 0.45);
+    font-variant-numeric: tabular-nums;
   }
 
   .td-frame {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    padding: 14px;
+    background: #081206;
+    border: 10px solid #16260f;
+    border-radius: 18px;
+    box-shadow: 0 0 0 1px rgba(106, 153, 78, 0.2), 0 0 24px rgba(106, 153, 78, 0.18);
+    animation: frame-glow 5.4s ease-in-out infinite;
   }
 
   .td-stage {
     position: relative;
     border: 2px solid var(--accent);
+    border-radius: 8px;
     background: #16260f;
     overflow: hidden;
 
@@ -764,6 +832,7 @@ onBeforeUnmount(() => {
 
         &:hover {
           background: #3f6a2a;
+          box-shadow: inset 0 0 8px rgba(167, 201, 87, 0.5);
         }
       }
     }
@@ -799,15 +868,19 @@ onBeforeUnmount(() => {
       font-size: 16px;
       background: #10200a;
       border: 2px solid #eafbe2;
+      border-radius: 6px;
+      box-shadow: 0 0 8px rgba(234, 251, 226, 0.35), inset 0 0 6px rgba(255, 255, 255, 0.12);
       cursor: pointer;
       z-index: 3;
 
       &.is-cannon {
         border-color: #ff8a2b;
+        box-shadow: 0 0 8px rgba(255, 138, 43, 0.45), inset 0 0 6px rgba(255, 255, 255, 0.12);
       }
 
       &.is-ice {
         border-color: #7fd8ff;
+        box-shadow: 0 0 8px rgba(127, 216, 255, 0.45), inset 0 0 6px rgba(255, 255, 255, 0.12);
       }
 
       .td-tower-level {
@@ -817,7 +890,8 @@ onBeforeUnmount(() => {
         font-size: 9px;
         background: var(--accent);
         color: #08130a;
-        padding: 0 2px;
+        border-radius: 3px;
+        padding: 0 3px;
         font-weight: 700;
       }
     }
@@ -836,28 +910,34 @@ onBeforeUnmount(() => {
 
       .td-enemy-icon {
         font-size: 14px;
+        filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.6));
       }
 
       .td-enemy-hp {
         width: 20px;
         height: 3px;
         background: #380000;
+        border-radius: 2px;
         display: block;
         margin-top: 1px;
+        overflow: hidden;
 
         .td-enemy-hp-fill {
           display: block;
           height: 100%;
-          background: #6a994e;
+          background: var(--accent);
+          box-shadow: 0 0 4px rgba(106, 153, 78, 0.8);
         }
       }
 
       &.is-fast .td-enemy-hp-fill {
         background: #ffd400;
+        box-shadow: 0 0 4px rgba(255, 212, 0, 0.8);
       }
 
       &.is-tank .td-enemy-hp-fill {
         background: #4d7fff;
+        box-shadow: 0 0 4px rgba(77, 127, 255, 0.8);
       }
 
       &.is-boss {
@@ -870,6 +950,7 @@ onBeforeUnmount(() => {
 
         .td-enemy-hp-fill {
           background: #ef476f;
+          box-shadow: 0 0 4px rgba(239, 71, 111, 0.8);
         }
       }
     }
@@ -882,6 +963,7 @@ onBeforeUnmount(() => {
       height: 6px;
       border-radius: 50%;
       background: #ffd400;
+      box-shadow: 0 0 6px rgba(255, 212, 0, 0.85);
       z-index: 5;
       animation-name: td-projectile-fly;
       animation-timing-function: linear;
@@ -891,10 +973,12 @@ onBeforeUnmount(() => {
         width: 8px;
         height: 8px;
         background: #ff8a2b;
+        box-shadow: 0 0 6px rgba(255, 138, 43, 0.85);
       }
 
       &.is-ice {
         background: #7fd8ff;
+        box-shadow: 0 0 6px rgba(127, 216, 255, 0.85);
       }
     }
   }
@@ -910,25 +994,37 @@ onBeforeUnmount(() => {
     align-items: center;
     gap: 2px;
     padding: 6px 10px;
-    border: 2px solid var(--accent);
-    background: #0e1f0e;
+    border: 1px solid rgba(106, 153, 78, 0.45);
+    border-radius: 6px;
+    background: rgba(14, 31, 14, 0.75);
     color: #eafbe2;
     cursor: pointer;
     font-size: 11px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 
     .icon {
       font-size: 18px;
     }
 
+    &:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px rgba(106, 153, 78, 0.35);
+      transform: translateY(-1px);
+    }
+
     &.is-selected {
+      border-color: var(--accent);
       background: var(--accent);
       color: #08130a;
+      box-shadow: 0 0 12px rgba(106, 153, 78, 0.5);
     }
   }
 
   .td-tower-info {
-    border: 2px solid var(--accent);
+    border: 1px solid rgba(106, 153, 78, 0.45);
+    border-radius: 8px;
     background: rgba(10, 24, 10, 0.85);
+    box-shadow: 0 0 12px rgba(106, 153, 78, 0.2);
     padding: 8px 12px;
     font-size: 11px;
     display: flex;
@@ -938,7 +1034,7 @@ onBeforeUnmount(() => {
 
     .td-tower-info-title {
       font-weight: 700;
-      color: var(--accent);
+      color: var(--bright);
     }
 
     .td-tower-info-actions {
@@ -950,7 +1046,7 @@ onBeforeUnmount(() => {
 
   .td-placement-message {
     font-size: 11px;
-    color: #ef476f;
+    color: #ff9d7d;
   }
 
   .td-message {
@@ -960,12 +1056,83 @@ onBeforeUnmount(() => {
   }
 }
 
+@keyframes title-float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes frame-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(106, 153, 78, 0.2), 0 0 24px rgba(106, 153, 78, 0.18);
+  }
+
+  50% {
+    box-shadow: 0 0 0 1px rgba(167, 201, 87, 0.35), 0 0 40px rgba(106, 153, 78, 0.3);
+  }
+}
+
+@keyframes ambient-drift {
+  0% {
+    transform: translate(-1.5%, -1%) scale(1);
+  }
+
+  100% {
+    transform: translate(1.5%, 1%) scale(1.06);
+  }
+}
+
+@keyframes ambient-pulse {
+
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 0.75;
+  }
+}
+
+@keyframes grid-drift {
+  0% {
+    transform: translate(0, 0);
+  }
+
+  100% {
+    transform: translate(14px, 14px);
+  }
+}
+
 @keyframes td-projectile-fly {
   from {
     transform: translate(var(--from-x), var(--from-y));
   }
   to {
     transform: translate(var(--to-x), var(--to-y));
+  }
+}
+
+@media (max-width: 980px) {
+  .td-page {
+    .td-shell {
+      grid-template-columns: 1fr;
+      padding: 16px;
+    }
+
+    .td-side {
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
   }
 }
 </style>
