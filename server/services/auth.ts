@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 import { Storage, verifyPasswordHash } from './storage'
 import type { AuthUser } from '../types/storage'
 import { throwErrCode } from '../utils/error'
-import { adminAccessService } from './admin/adminAccess'
+import { adminAccessService } from 'serv/services/admin/modules/adminAccess'
 
 const SESSION_COOKIE_NAME = 'portfolio_auth_token'
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7

@@ -11,5 +11,5 @@ export default defineEventHandler((event) => {
     throw createError({ statusCode: 400, message: '請提供 userId。' })
   }
 
-  return Storage.manager.admin.gameHistory.list(userId)
+  return Storage.manager.gameRetro.gameHistory.list(userId)
 })

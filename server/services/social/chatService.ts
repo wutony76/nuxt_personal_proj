@@ -1,6 +1,6 @@
 import type { Peer } from 'crossws'
 import { socketAuth } from '../../utils/socketAuth'
-import { adminAccessService } from '../admin/adminAccess'
+import { adminAccessService } from 'serv/services/admin/modules/adminAccess'
 
 export type ChatMessage = {
   id: string

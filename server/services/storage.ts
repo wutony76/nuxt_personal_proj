@@ -7,6 +7,10 @@ import { compareSync } from 'bcryptjs'
 import UsersClass from './users'
 import { DEFAULT_MAZE_TEMPLATES, type MazeTemplate } from './game/retro/mazeTemplates'
 import HFYYManageClass from './admin/hfyyManage'
+import HFYYGameRetroClass from './admin/hfyyGameRetro'
+import HFYYGameCalcClass from './admin/hfyyGameCalc'
+import HFYYLotteryBgClass from './admin/hfyyLotteryBg'
+import HFYYLotteryTwClass from './admin/hfyyLotteryTw'
 
 import ConfigClass from './game/lottery/bg/config'
 import LhcOfClass from './game/lottery/bg/6hcOf'
@@ -62,7 +66,11 @@ export class Storage {
   static initialized = false
   static config: Record<string, Record<string, unknown>> = {}
   static manager = {
-    admin: new HFYYManageClass()
+    admin: new HFYYManageClass(),
+    gameRetro: new HFYYGameRetroClass(),
+    gameCalc: new HFYYGameCalcClass(),
+    lotteryBg: new HFYYLotteryBgClass(),
+    lotteryTw: new HFYYLotteryTwClass()
   }
   static account: Record<string, AuthRecord> = {}
   static sessions = new Map<string, SessionRecord>()

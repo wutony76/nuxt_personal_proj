@@ -1,6 +1,6 @@
 import { sessionController } from 'serv/services/auth'
 import { Storage } from 'serv/services/storage'
-import type { UserRole } from 'serv/services/admin/adminAccess'
+import type { UserRole } from 'serv/services/admin/modules/adminAccess'
 
 type Body = {
   role?: unknown

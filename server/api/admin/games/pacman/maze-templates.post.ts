@@ -20,11 +20,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: '樣板內容格式錯誤。' })
   }
 
-  const result = Storage.manager.admin.validateMazeRows(rows)
+  const result = Storage.manager.gameRetro.validateMazeRows(rows)
   if (!result.ok) {
     throw createError({ statusCode: 400, message: result.error })
   }
 
-  const template = Storage.manager.admin.mazeTemplates.add(name, rows)
+  const template = Storage.manager.gameRetro.mazeTemplates.add(name, rows)
   return { template }
 })

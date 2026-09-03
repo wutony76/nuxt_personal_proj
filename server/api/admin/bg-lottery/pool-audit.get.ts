@@ -13,5 +13,5 @@ export default defineEventHandler((event) => {
   const filterKey = String(query.lotteryKey ?? '').trim()
   const range = String(query.range ?? 'all').trim()
 
-  return Storage.manager.admin.poolAudit.list(filterKey, range)
+  return Storage.manager.lotteryBg.poolAudit.list(filterKey, range)
 })
