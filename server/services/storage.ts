@@ -178,7 +178,7 @@ export class Storage {
       },
       U0xA666666: {
         id: 'U0xA666666',
-        name: 'HappyFayYoYo',
+        name: 'HappyFatYoYo',
         email: 'hfyy@cc.cc',
         passwordHash: encodePasswordBcjs('123456')
       }
