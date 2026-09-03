@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 台彩甘仔店／遊戲試算／報表分析共用的佔位空狀態，比照參照稿的 pattern */
+/** 彩運來／遊戲試算／報表分析共用的佔位空狀態，比照參照稿的 pattern */
 import { useRouter } from 'vue-router'
 
 const router = useRouter()

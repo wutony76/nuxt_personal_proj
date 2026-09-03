@@ -12,7 +12,8 @@ const ITEMS: NavItem[] = [
   { id: 'ao-chat', en: 'Chat', label: '聊天室' },
   { id: 'ao-members', en: 'Members', label: '會員' },
   { id: 'ao-perms', en: 'Access', label: '權限' },
-  { id: 'ao-cards', en: 'Go', label: '前往' }
+  { id: 'ao-cards', en: 'Go', label: '前往' },
+  { id: 'ao-site', en: 'Site', label: '前台' }
 ]
 
 const click = {

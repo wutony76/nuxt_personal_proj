@@ -20,7 +20,7 @@ const CARDS = [
     to: '/admin/bg-lottery',
     en: 'Game Management',
     label: '遊戲管理',
-    desc: 'BG彩票、台彩甘仔店、經典遊戲、遊戲試算四個子頁。',
+    desc: 'BG彩票、彩運來、經典遊戲、遊戲試算四個子頁。',
     tag: '4 sub-pages'
   },
   {
@@ -31,6 +31,13 @@ const CARDS = [
     desc: '本次僅佔位。',
     tag: 'Coming soon'
   }
+]
+
+const SITE_LINKS = [
+  { no: '01', to: '/', en: 'Home', label: '首頁', desc: '回到網站首頁。', tag: 'Public' },
+  { no: '02', to: '/lottery-hall', en: 'BG Lottery', label: 'BG彩票', desc: '六合彩、快3、PK10 等信用盤／官方盤大廳。', tag: 'Public' },
+  { no: '03', to: '/lottery-hall-taiwan', en: 'Cai Yun Lai', label: '彩運來', desc: '彩運來開獎與中獎明細查詢大廳。', tag: 'Public' },
+  { no: '04', to: '/game-hall', en: 'Games', label: '遊戲中心', desc: '復古小遊戲大廳。', tag: 'Public' }
 ]
 
 /** 新增會員成功後遞增，讓權限列表重抓 */
@@ -97,6 +104,28 @@ const click = {
         <div class="admin-num ao-card-path">{{ c.to }}</div>
       </NuxtLink>
     </section>
+
+    <section id="ao-site" class="ao-site">
+      <div class="admin-sechead">
+        <div class="admin-sechead-left">
+          <span class="admin-en">Site</span>
+          <h2>GO 前台</h2>
+        </div>
+        <span class="admin-meta">快速跳轉前台頁面</span>
+      </div>
+      <div class="ao-site-grid">
+        <NuxtLink v-for="c in SITE_LINKS" :key="c.to" :to="c.to" class="ao-card ao-site-card admin-panel">
+          <div class="ao-card-top">
+            <span class="admin-num ao-card-no">{{ c.no }}</span>
+            <span class="admin-tag">{{ c.tag }}</span>
+          </div>
+          <div class="admin-en" style="margin-top:6px">{{ c.en }}</div>
+          <div class="ao-card-label">{{ c.label }}</div>
+          <p class="ao-card-desc">{{ c.desc }}</p>
+          <div class="admin-num ao-card-path">{{ c.to }}</div>
+        </NuxtLink>
+      </div>
+    </section>
   </AdminShell>
 </template>
 
@@ -132,6 +161,25 @@ const click = {
   }
 }
 
+.ao-site {
+  margin-bottom: 44px;
+  scroll-margin-top: 24px;
+}
+
+.ao-site-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+}
+
 .ao-card {
   text-align: left;
   border: 0;
@@ -146,6 +194,50 @@ const click = {
   &:hover {
     background: var(--wash);
     text-decoration: none;
+  }
+}
+
+.ao-card.ao-site-card {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, #1c1c22 3%, transparent),
+    0 3px 0 color-mix(in srgb, #1c1c22 7%, transparent);
+  transition:
+    border-color 0.12s,
+    background 0.12s,
+    box-shadow 0.12s,
+    transform 0.12s;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--ink);
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+
+  &:hover {
+    border-color: color-mix(in srgb, #1c1c22 24%, #ffffff);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, #1c1c22 8%, transparent),
+      0 5px 0 color-mix(in srgb, #1c1c22 11%, transparent);
+    transform: translateY(-1px);
+
+    &::before {
+      opacity: 1;
+    }
+  }
+
+  .ao-card-path {
+    padding-top: 10px;
+    border-top: 1px solid var(--line-soft);
+    color: var(--muted);
   }
 }
 

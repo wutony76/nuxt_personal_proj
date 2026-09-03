@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * 台彩中獎明細 dialog：比照 GameRateDialog.vue 的「自己 watch visible 觸發 fetch」慣例，
+ * 彩運來中獎明細 dialog：比照 GameRateDialog.vue 的「自己 watch visible 觸發 fetch」慣例，
  * 內部依 gameCode 快取已查過的中獎明細，同一次頁面停留切換不同遊戲不會重複打 API；
- * 視覺套用「台彩柑仔店」主題（見 app/assets/style/taiwan_lottery.scss）。
+ * 視覺套用「彩運來」主題（見 app/assets/style/taiwan_lottery.scss）。
  */
 import { computed, reactive, watch } from 'vue'
 import { TaiwanLotteryService } from '~/services/taiwanLotteryService'

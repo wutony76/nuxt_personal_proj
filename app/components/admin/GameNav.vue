@@ -1,12 +1,12 @@
 <script setup lang="ts">
-/** 「遊戲管理」大項底下的常駐左側次導覽：BG彩票／台彩甘仔店／經典遊戲／遊戲試算 */
+/** 「遊戲管理」大項底下的常駐左側次導覽：BG彩票／彩運來／經典遊戲／遊戲試算 */
 defineProps<{
   active: 'bg' | 'taiwan' | 'games' | 'simulator'
 }>()
 
 const SUBNAV = [
   { key: 'bg' as const, label: 'BG彩票', en: 'BG Lottery', path: '/admin/bg-lottery' },
-  { key: 'taiwan' as const, label: '台彩甘仔店', en: 'Taiwan Lottery', path: '/admin/taiwan-lottery' },
+  { key: 'taiwan' as const, label: '彩運來', en: 'Taiwan Lottery', path: '/admin/taiwan-lottery' },
   { key: 'games' as const, label: '經典遊戲', en: 'Retro Games', path: '/admin/games' },
   { key: 'simulator' as const, label: '遊戲試算', en: 'Simulator', path: '/admin/game-simulator' }
 ]

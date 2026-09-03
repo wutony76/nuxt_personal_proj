@@ -26,7 +26,7 @@ type TaiwanLotteryPrizeTier = {
   bonus?: string
 }
 
-// gameCode 對照台彩官方各遊戲的期別查詢端點；欄位命名（Assign key）皆為直接呼叫上游驗證取得，
+// gameCode 對照台灣彩券官方各遊戲的期別查詢端點；欄位命名（Assign key）皆為直接呼叫上游驗證取得，
 // 沒有官方文件保證穩定，若上游改版需重新核對（見 openspec/changes/add-taiwan-lottery-hall/design.md）。
 const GAME_DEFS: Record<number, GameDef> = {
   5134: {
@@ -129,7 +129,7 @@ export default defineEventHandler(async (event) => {
 
   const row = response?.content?.[def.resKey]?.[0] as Record<string, PrizeTierRaw> | undefined
   if (!response || response.rtCode !== 0 || !row) {
-    throw createError({ statusCode: 502, message: '台彩中獎明細取得失敗' })
+    throw createError({ statusCode: 502, message: '彩運來中獎明細取得失敗' })
   }
 
   const tiers: TaiwanLotteryPrizeTier[] = def.tiers.map(({ key, label }) => {

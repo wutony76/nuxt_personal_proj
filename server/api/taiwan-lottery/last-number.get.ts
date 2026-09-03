@@ -41,7 +41,7 @@ export default defineEventHandler(async () => {
   if (!response || response.rtCode !== 0 || !response.content) {
     throw createError({
       statusCode: 502,
-      message: '台彩開獎資料取得失敗'
+      message: '彩運來開獎資料取得失敗'
     })
   }
 

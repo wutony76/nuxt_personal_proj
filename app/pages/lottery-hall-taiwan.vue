@@ -79,7 +79,7 @@ const _actions = {
       state.updatedAt = response.updatedAt
       state.results = response.results
     } catch {
-      state.errorMessage = '目前無法取得台彩開獎資料，請稍後再試。'
+      state.errorMessage = '目前無法取得彩運來開獎資料，請稍後再試。'
     } finally {
       state.loading = false
     }
@@ -116,7 +116,7 @@ onMounted(async () => {
 
     <section v-else-if="!isLoggedIn" class="tw-shell">
       <h1>尚未登入</h1>
-      <p>請先登入後再進入台彩柑仔店。</p>
+      <p>請先登入後再進入彩運來。</p>
       <NuxtLink to="/login" class="tw-btn tw-btn-primary">前往登入</NuxtLink>
     </section>
 
@@ -125,7 +125,7 @@ onMounted(async () => {
         <div class="tw-brand">
           <span class="tw-brand-badge">彩</span>
           <div>
-            <div class="tw-brand-name">台彩柑仔店</div>
+            <div class="tw-brand-name">彩運來</div>
             <div class="tw-brand-sub">開 獎 大 廳</div>
           </div>
         </div>
@@ -162,7 +162,7 @@ onMounted(async () => {
       <div class="tw-content">
         <p v-if="state.errorMessage" class="tw-alert">{{ state.errorMessage }}</p>
 
-        <div v-else-if="state.loading" class="tw-loading">正在取得台彩開獎資料...</div>
+        <div v-else-if="state.loading" class="tw-loading">正在取得彩運來開獎資料...</div>
 
         <div v-else class="tw-grid">
           <article v-for="game in state.results" :key="game.gameCode" class="tw-card">
@@ -206,8 +206,8 @@ onMounted(async () => {
       <div class="tw-footer">
         <div class="tw-corrugated" />
         <div class="tw-footer-content">
-          <span class="tw-footer-brand">台彩柑仔店 · 開獎大廳</span>
-          <p>未滿十八歲不得購買、兌領彩券。理性投注，量力而為。開獎與中獎資料來源為台彩官方公開 API。</p>
+          <span class="tw-footer-brand">彩運來 · 開獎大廳</span>
+          <p>未滿十八歲不得購買、兌領彩券。理性投注，量力而為。彩運來開獎與中獎資料來源為台灣彩券官方公開 API。</p>
         </div>
       </div>
 

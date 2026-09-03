@@ -2,7 +2,7 @@
 </script>
 
 <template>
-  <AdminShell active="gamemgmt" kicker="Taiwan Lottery" title="台彩甘仔店" desc="本次僅建立導覽入口。">
+  <AdminShell active="gamemgmt" kicker="Taiwan Lottery" title="彩運來" desc="本次僅建立導覽入口。">
     <div class="atl-layout">
       <AdminGameNav active="taiwan" />
       <div class="atl-content">

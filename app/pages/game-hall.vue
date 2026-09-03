@@ -40,7 +40,7 @@ const { isLoggedIn } = useAuth()
 const TABS: Array<{ key: HallTab; label: string }> = [
   { key: 'lobby', label: '經典遊戲' },
   { key: 'lottery', label: 'BG彩票' },
-  { key: 'taiwan', label: '台彩柑仔店' },
+  { key: 'taiwan', label: '彩運來' },
 ]
 
 const activeTab = ref<HallTab>('lobby')
@@ -79,11 +79,11 @@ const openCount = computed(() => gameSlots.value.filter((slot) => slot.status ==
 const comingCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'coming').length)
 const pad2 = (value: number) => String(value).padStart(2, '0')
 
-/** 分頁對應的清單面板文案（彩票／台彩分頁沒有卡片清單，改顯示導頁面板） */
+/** 分頁對應的清單面板文案（彩票／彩運來分頁沒有卡片清單，改顯示導頁面板） */
 const PANEL_META: Record<HallTab, { title: string; meta: string }> = {
   lobby: { title: 'GAME.CARD', meta: '// 遊戲機台' },
   lottery: { title: 'LOTTERY.SYS', meta: '// BG彩票玩法' },
-  taiwan: { title: 'TAIWAN.SYS', meta: '// 台彩資訊入口' },
+  taiwan: { title: 'TAIWAN.SYS', meta: '// 彩運來資訊入口' },
 }
 const panel = computed(() => PANEL_META[activeTab.value])
 
@@ -217,12 +217,12 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-else class="link-panel">
-          <p>台彩開獎與中獎明細請進入台彩柑仔店查看。</p>
-          <NuxtLink to="/lottery-hall-taiwan" class="btn btn-primary">前往台彩柑仔店</NuxtLink>
+          <p>彩運來開獎與中獎明細請由此進入查看。</p>
+          <NuxtLink to="/lottery-hall-taiwan" class="btn btn-primary">前往彩運來</NuxtLink>
         </div>
       </section>
 
-
+      <GameHallInvasionLane />
 
       <!-- STATUS BAR -->
       <div class="status-bar">

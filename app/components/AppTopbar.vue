@@ -30,7 +30,7 @@ const handleLogout = async () => {
         </NuxtLink>
         <NuxtLink v-if="isLoggedIn" to="/lottery-hall-taiwan"
           class="rounded-md px-2 py-1 text-slate-900 hover:bg-indigo-50">
-          台彩
+          彩運來
         </NuxtLink>
         <NuxtLink to="/game-hall" class="rounded-md px-2 py-1 text-slate-900 hover:bg-indigo-50">
           遊戲
