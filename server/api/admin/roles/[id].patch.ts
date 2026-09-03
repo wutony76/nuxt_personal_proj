@@ -1,5 +1,6 @@
-import { sessionController } from '../../../services/auth'
-import { adminAccessService, type UserRole } from '../../../services/admin/adminAccess'
+import { sessionController } from 'serv/services/auth'
+import { Storage } from 'serv/services/storage'
+import type { UserRole } from 'serv/services/admin/adminAccess'
 
 type Body = {
   role?: unknown
@@ -21,6 +22,6 @@ export default defineEventHandler(async (event) => {
   }
   const role = roleRaw as UserRole
 
-  const user = adminAccessService.setRole(id, role, actor.id)
+  const user = Storage.manager.admin.access.setRole(id, role, actor.id)
   return { user }
 })

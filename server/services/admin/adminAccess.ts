@@ -1,9 +1,9 @@
-import { ADMIN_USER_IDS } from '../../config/admin'
-import { Storage } from '../storage'
-import { encodePasswordBcjs } from '../../utils/encrypt'
-import UsersClass from '../users'
-import type { AuthRecord } from '../../types/storage'
-import { walletBalanceService } from '../walletBalance'
+import { ADMIN_USER_IDS } from 'serv/config/admin'
+import { Storage } from 'serv/services/storage'
+import { encodePasswordBcjs } from 'serv/utils/encrypt'
+import UsersClass from 'serv/services/users'
+import type { AuthRecord } from 'serv/types/storage'
+import { walletBalanceService } from 'serv/services/walletBalance'
 
 export type UserRole = 'admin' | 'user'
 

@@ -1,5 +1,5 @@
-import { sessionController } from '../../../services/auth'
-import { adminAccessService } from '../../../services/admin/adminAccess'
+import { sessionController } from 'serv/services/auth'
+import { Storage } from 'serv/services/storage'
 
 type Body = {
   password?: unknown
@@ -25,15 +25,16 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: '請提供 email、password 或 coinDelta。' })
   }
 
-  let user = null as ReturnType<typeof adminAccessService.setEmail> | null
+  const access = Storage.manager.admin.access
+  let user = null as ReturnType<typeof access.setEmail> | null
   if (hasEmail) {
-    user = adminAccessService.setEmail(id, body.email as string)
+    user = access.setEmail(id, body.email as string)
   }
   if (hasPassword) {
-    user = adminAccessService.setPassword(id, body.password as string)
+    user = access.setPassword(id, body.password as string)
   }
   if (hasCoinDelta) {
-    user = adminAccessService.adjustCoin(id, Number(body.coinDelta))
+    user = access.adjustCoin(id, Number(body.coinDelta))
   }
 
   return { user: user! }

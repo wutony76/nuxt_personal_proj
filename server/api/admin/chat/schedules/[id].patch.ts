@@ -1,5 +1,5 @@
-import { sessionController } from '../../../../services/auth'
-import { chatScheduleService } from '../../../../services/social/chatSchedule'
+import { sessionController } from 'serv/services/auth'
+import { Storage } from 'serv/services/storage'
 
 type Body = {
   enabled?: unknown
@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'enabled 須為 boolean。' })
   }
 
-  const schedule = chatScheduleService.setEnabled(id, body.enabled)
+  const schedule = Storage.manager.admin.chatSchedule.setEnabled(id, body.enabled)
   if (!schedule) throw createError({ statusCode: 404, message: '找不到該排程。' })
   return { schedule }
 })

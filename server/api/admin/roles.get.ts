@@ -1,5 +1,5 @@
-import { sessionController } from '../../services/auth'
-import { adminAccessService } from '../../services/admin/adminAccess'
+import { sessionController } from 'serv/services/auth'
+import { Storage } from 'serv/services/storage'
 
 /**
  * 列出全部帳號與目前角色（admin／user）
@@ -7,7 +7,7 @@ import { adminAccessService } from '../../services/admin/adminAccess'
  */
 export default defineEventHandler((event) => {
   sessionController.requireAdmin(event)
-  const users = adminAccessService.listUsers()
+  const users = Storage.manager.admin.access.listUsers()
   return {
     users,
     /** 相容舊前端：僅 admin 列表 */

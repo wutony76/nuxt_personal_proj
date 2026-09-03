@@ -1,5 +1,5 @@
-import { sessionController } from '../../../../services/auth'
-import { memberBalanceHistoryService } from '../../../../services/admin/memberBalanceHistory'
+import { sessionController } from 'serv/services/auth'
+import { Storage } from 'serv/services/storage'
 
 /**
  * 取得會員 F幣變動總表（跨彩種／遊戲）
@@ -10,6 +10,6 @@ export default defineEventHandler((event) => {
   const id = String(getRouterParam(event, 'id') ?? '').trim()
   if (!id) throw createError({ statusCode: 400, message: '缺少帳號 id。' })
 
-  const changes = memberBalanceHistoryService.list(id)
+  const changes = Storage.manager.admin.balanceHistory.list(id)
   return { changes }
 })

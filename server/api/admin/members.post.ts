@@ -1,5 +1,6 @@
-import { sessionController } from '../../services/auth'
-import { adminAccessService, type UserRole } from '../../services/admin/adminAccess'
+import { sessionController } from 'serv/services/auth'
+import { Storage } from 'serv/services/storage'
+import type { UserRole } from 'serv/services/admin/adminAccess'
 
 type Body = {
   name?: unknown
@@ -18,7 +19,7 @@ export default defineEventHandler(async (event) => {
   const roleRaw = String(body?.role ?? 'user')
   const role: UserRole = roleRaw === 'admin' ? 'admin' : 'user'
 
-  const user = adminAccessService.createMember({
+  const user = Storage.manager.admin.access.createMember({
     name: typeof body?.name === 'string' ? body.name : '',
     email: typeof body?.email === 'string' ? body.email : '',
     password: typeof body?.password === 'string' ? body.password : '',

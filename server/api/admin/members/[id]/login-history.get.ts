@@ -1,6 +1,5 @@
-import { sessionController } from '../../../../services/auth'
-import { loginHistoryService } from '../../../../services/loginHistory'
-import { Storage } from '../../../../services/storage'
+import { sessionController } from 'serv/services/auth'
+import { Storage } from 'serv/services/storage'
 
 /**
  * 取得會員登入紀錄
@@ -16,5 +15,5 @@ export default defineEventHandler((event) => {
     throw createError({ statusCode: 404, message: '找不到該帳號。' })
   }
 
-  return { logins: loginHistoryService.list(id) }
+  return { logins: Storage.manager.admin.loginHistory.list(id) }
 })

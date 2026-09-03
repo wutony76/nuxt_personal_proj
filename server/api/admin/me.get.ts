@@ -1,4 +1,4 @@
-import { sessionController } from '../../services/auth'
+import { sessionController } from 'serv/services/auth'
 
 /**
  * 回傳「是否為管理員」，不因為不是管理員就丟 403——由呼叫端（各後台頁面）自行決定要顯示

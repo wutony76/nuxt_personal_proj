@@ -1,5 +1,6 @@
-import { sessionController } from '../../../services/auth'
-import { chatScheduleService, type ChatScheduleRepeat } from '../../../services/social/chatSchedule'
+import { sessionController } from 'serv/services/auth'
+import { Storage } from 'serv/services/storage'
+import type { ChatScheduleRepeat } from 'serv/services/social/chatSchedule'
 
 type Body = {
   text?: unknown
@@ -25,7 +26,7 @@ export default defineEventHandler(async (event) => {
     repeatRaw === 'once' ? 'once' : repeatRaw === 'interval' ? 'interval' : 'daily'
 
   if (repeat === 'interval') {
-    const schedule = chatScheduleService.add({
+    const schedule = Storage.manager.admin.chatSchedule.add({
       text: typeof body?.text === 'string' ? body.text : '',
       repeat: 'interval',
       intervalSeconds: Number(body?.intervalSeconds),
@@ -45,7 +46,7 @@ export default defineEventHandler(async (event) => {
     minute = Number(m[2])
   }
 
-  const schedule = chatScheduleService.add({
+  const schedule = Storage.manager.admin.chatSchedule.add({
     text: typeof body?.text === 'string' ? body.text : '',
     hour,
     minute,

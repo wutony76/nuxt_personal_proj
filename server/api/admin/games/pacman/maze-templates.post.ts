@@ -1,5 +1,5 @@
-import { sessionController } from '../../../../services/auth'
-import { mazeTemplates, validateMazeRows } from '../../../../services/game/retro/mazeTemplates'
+import { sessionController } from 'serv/services/auth'
+import { Storage } from 'serv/services/storage'
 
 type Body = { name?: unknown; rows?: unknown }
 
@@ -20,11 +20,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: '樣板內容格式錯誤。' })
   }
 
-  const result = validateMazeRows(rows)
+  const result = Storage.manager.admin.validateMazeRows(rows)
   if (!result.ok) {
     throw createError({ statusCode: 400, message: result.error })
   }
 
-  const template = mazeTemplates.add(name, rows)
+  const template = Storage.manager.admin.mazeTemplates.add(name, rows)
   return { template }
 })

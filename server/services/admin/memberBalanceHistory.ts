@@ -1,4 +1,4 @@
-import { Storage } from '../storage'
+import { Storage } from 'serv/services/storage'
 
 export type AdminMemberBalanceChange = {
   id: string
