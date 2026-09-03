@@ -49,6 +49,7 @@ export const socketHub = {
         safeSend(info.peer, 'ping', {})
       }
     }, HEARTBEAT_INTERVAL_MS)
+    console.log('SUCCESS ---SOCIAL>socketHub.init')
   },
 
   broadcast: (type: string, payload: unknown) => {

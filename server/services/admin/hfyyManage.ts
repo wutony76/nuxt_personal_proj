@@ -4,14 +4,16 @@ import { chatScheduleService } from 'serv/services/social/chatSchedule'
 
 export default class HFYYManage {
   constructor() {
-    this.init()
+    // 改Storage.init() 初始化
+    // this.init()
   }
 
   init() {
-    console.log('HFYY.Manager.init')
+    console.log('----- HFYY.Manager.init -----')
+    socketHub.init()
   }
 
   circle() {
-    console.log('HFYY.Manager.circle')
+    chatScheduleService.tick()
   }
 }
