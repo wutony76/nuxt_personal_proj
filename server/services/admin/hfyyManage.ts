@@ -25,9 +25,33 @@ export default class HFYYManage {
   init() {
     console.log('----- HFYY.Manager.init -----')
     socketHub.init()
+    this.setStartData()
   }
-
   circle() {
     this.chatSchedule.tick()
+  }
+
+  setStartData() {
+    // 聊天室排程：啟動時建幾筆 interval 測試排程，方便驗證聊天室訊息推播
+    const SEED_ADMIN_ID = 'U0xA000001'
+    const SEED_ADMIN_NAME = 'Admin'
+    ;[30, 20, 10, 5].forEach((seconds) => {
+      this.chatSchedule.add({
+        text: `${seconds}s 發送測試訊息`,
+        repeat: 'interval',
+        intervalSeconds: seconds,
+        createdBy: SEED_ADMIN_ID,
+        createdByName: SEED_ADMIN_NAME
+      })
+    })
+
+    // 初始會員：啟動時建幾筆測試帳號，方便本機／測試環境驗證後台會員功能
+    ;['01', '02', '03', '04', '05'].forEach((n) => {
+      this.access.createMember({
+        name: `test${n}`,
+        email: `test${n}@test.cc`,
+        password: '123456'
+      })
+    })
   }
 }
