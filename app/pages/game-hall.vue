@@ -794,7 +794,6 @@ onBeforeUnmount(() => {
 
 /* ══════════════════════════ STATUS BAR ══════════════════════════ */
 .status-bar {
-  margin-top: 20px;
   padding: 10px 22px;
   border-top: 1px solid var(--cyan);
   background: rgba(0, 229, 255, 0.025);
