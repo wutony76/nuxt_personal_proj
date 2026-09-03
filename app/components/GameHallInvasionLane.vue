@@ -152,6 +152,33 @@ const _startTyping = () => {
   showActors.value = true
 }
 
+const _stopTick = () => {
+  if (tickTimer) {
+    clearInterval(tickTimer)
+    tickTimer = null
+  }
+}
+
+/**
+ * 分頁不在前景時就不用跑（反正也看不到、瀏覽器也會把 setInterval 降頻),
+ * 只有在「不是凍結轉場中、目前沒有在跑、分頁可見」時才重啟計時器，避免跟凍結轉場的重啟時機互相搶跑
+ * @returns {void}
+ */
+const _resumeTickIfNeeded = () => {
+  if (!tickTimer && !pauseTimer && !document.hidden) {
+    tickTimer = setInterval(_tick, TICK_MS)
+  }
+}
+
+const _handleVisibilityChange = () => {
+  if (document.hidden) {
+    _stopTick()
+  }
+  else {
+    _resumeTickIfNeeded()
+  }
+}
+
 /**
  * 畫面凍結在目前狀態（不清空、不隱藏）幾秒後才重啟下一輪，比照使用者要求的「全部停住再接著跑」
  * @param {() => void} next 凍結時間到之後要執行的重啟函式
@@ -159,15 +186,13 @@ const _startTyping = () => {
  */
 const _pauseThen = (next: () => void) => {
   isFrozen.value = true
-  if (tickTimer) {
-    clearInterval(tickTimer)
-    tickTimer = null
-  }
+  _stopTick()
   if (pauseTimer) clearTimeout(pauseTimer)
   pauseTimer = setTimeout(() => {
     isFrozen.value = false
+    pauseTimer = null
     next()
-    tickTimer = setInterval(_tick, TICK_MS)
+    _resumeTickIfNeeded()
   }, FREEZE_MS)
 }
 
@@ -292,11 +317,13 @@ const _tick = () => {
 
 onMounted(() => {
   _startInvasion()
-  tickTimer = setInterval(_tick, TICK_MS)
+  _resumeTickIfNeeded()
+  document.addEventListener('visibilitychange', _handleVisibilityChange)
 })
 
 onBeforeUnmount(() => {
-  if (tickTimer) clearInterval(tickTimer)
+  document.removeEventListener('visibilitychange', _handleVisibilityChange)
+  _stopTick()
   if (pauseTimer) clearTimeout(pauseTimer)
 })
 </script>
@@ -407,6 +434,22 @@ onBeforeUnmount(() => {
   &.is-hit {
     color: #fff;
     filter: drop-shadow(0 0 8px #fff);
+  }
+
+  /*
+   * 欄距是依 stage 寬度算的百分比，寬度縮小時同樣的像素尺寸會擠在一起黏成一片，
+   * 所以窄螢幕改用較小的固定尺寸，維持跟欄距相近的比例、外星人之間才不會疊在一起
+   */
+  @media (max-width: 1024px) {
+    width: 24px;
+    height: 17px;
+    filter: drop-shadow(0 0 3px currentColor);
+  }
+
+  @media (max-width: 560px) {
+    width: 15px;
+    height: 11px;
+    filter: drop-shadow(0 0 2px currentColor);
   }
 }
 
