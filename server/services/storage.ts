@@ -49,6 +49,7 @@ import RetroLightsOutClass from './game/retro/lightsOut'
 import RetroTowerStackClass from './game/retro/tower-stack'
 import RetroArkanoidClass from './game/retro/arkanoid'
 import RetroTowerDefenseClass from './game/retro/towerDefense'
+import RetroPinballClass from './game/retro/pinball'
 import { LOTTERY } from '~/config/constants'
 
 export const verifyPasswordHash = (password: string, storedHash: string): boolean => {
@@ -60,6 +61,9 @@ export class Storage {
 
   static initialized = false
   static config: Record<string, Record<string, unknown>> = {}
+  static manager = {
+    admin: new HFYYManageClass()
+  }
   static account: Record<string, AuthRecord> = {}
   static sessions = new Map<string, SessionRecord>()
   static users: Record<string, unknown> = {}
@@ -150,6 +154,7 @@ export class Storage {
       new RetroTowerStackClass()
       new RetroArkanoidClass()
       new RetroTowerDefenseClass()
+      new RetroPinballClass()
       console.log('SUCCESS ---BASE>retroGames.init')
     }
   }
@@ -182,6 +187,8 @@ export class Storage {
     this.handle.usersInit()
     this.handle.gamesInit()
     this.handle.gamesInitRetro()
+
+    this.manager.admin.init()
   }
 
   static get = {

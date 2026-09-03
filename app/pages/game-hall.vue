@@ -72,6 +72,7 @@ const gameSlots = ref<GameSlot[]>([
   { id: 23, name: 'TOWER STACK', description: '疊塔玩法，抓時機讓移動方塊落在塔頂，重疊越少塔越窄，完美對齊觸發 Perfect 連擊衝高分', status: 'open', path: '/game/tower-stack' },
   { id: 24, name: 'ARKANOID', description: 'BREAKOUT 進階版打磚塊，多次命中磚塊、移動磚塊與道具讓玩法更有變化', status: 'open', path: '/game/arkanoid' },
   { id: 25, name: 'TOWER DEFENSE', description: '塔防，防禦抵禦敵人，挑戰能撐到第幾波', status: 'open', path: '/game/tower-defense' },
+  { id: 26, name: 'PINBALL', description: '像素彈珠台，操作 Flipper 累積 Combo，挑戰 FEVER 與高風險 Golden Hole', status: 'open', path: '/game/pinball' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)
