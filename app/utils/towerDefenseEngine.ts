@@ -108,9 +108,9 @@ export const TOWER_CONFIG: Record<TowerKind, TowerConfigEntry> = {
     icon: '🏹',
     buildCost: 50,
     levels: [
-      { damage: 8, atkSpeed: 1.2, range: 3.5, upgradeCost: 0 },
-      { damage: 14, atkSpeed: 1.5, range: 4, upgradeCost: 80 },
-      { damage: 22, atkSpeed: 1.8, range: 4.5, upgradeCost: 150, critChance: 0.1, critMultiplier: 2 }
+      { damage: 8, atkSpeed: 1.2, range: 2.5, upgradeCost: 0 },
+      { damage: 14, atkSpeed: 1.5, range: 3, upgradeCost: 80 },
+      { damage: 22, atkSpeed: 1.8, range: 3.7, upgradeCost: 150, critChance: 0.1, critMultiplier: 2 }
     ]
   },
   cannon: {
@@ -119,8 +119,8 @@ export const TOWER_CONFIG: Record<TowerKind, TowerConfigEntry> = {
     buildCost: 80,
     levels: [
       { damage: 25, atkSpeed: 0.6, range: 2, upgradeCost: 0, splashRadius: 1.2 },
-      { damage: 40, atkSpeed: 0.7, range: 3.2, upgradeCost: 120, splashRadius: 1.4 },
-      { damage: 60, atkSpeed: 0.8, range: 3.5, upgradeCost: 200, splashRadius: 1.6 }
+      { damage: 40, atkSpeed: 0.7, range: 2.2, upgradeCost: 120, splashRadius: 1.4 },
+      { damage: 60, atkSpeed: 0.8, range: 2.8, upgradeCost: 200, splashRadius: 1.6 }
     ]
   },
   ice: {
@@ -129,8 +129,8 @@ export const TOWER_CONFIG: Record<TowerKind, TowerConfigEntry> = {
     buildCost: 60,
     levels: [
       { damage: 3, atkSpeed: 1.0, range: 1.7, upgradeCost: 0, slowFactor: 0.2, slowDurationSec: 1.5 },
-      { damage: 5, atkSpeed: 1.1, range: 3.3, upgradeCost: 90, slowFactor: 0.3, slowDurationSec: 2 },
-      { damage: 8, atkSpeed: 1.2, range: 3.6, upgradeCost: 160, slowFactor: 0.4, slowDurationSec: 2.5, slowedBonusDamage: 0.1 }
+      { damage: 5, atkSpeed: 1.1, range: 2.0, upgradeCost: 90, slowFactor: 0.3, slowDurationSec: 2 },
+      { damage: 8, atkSpeed: 1.2, range: 2.5, upgradeCost: 160, slowFactor: 0.4, slowDurationSec: 2.5, slowedBonusDamage: 0.1 }
     ]
   }
 }
