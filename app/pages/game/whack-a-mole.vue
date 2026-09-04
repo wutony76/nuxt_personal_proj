@@ -85,7 +85,10 @@ const statusText = computed(() => {
   if (state.status === 'gameover') return 'GAME OVER'
   return 'READY'
 })
-const canPause = computed(() => state.status === 'playing')
+const canPauseWhilePlaying = computed(() => state.status === 'playing')
+const canResumeFromPause = computed(
+  () => state.status === 'paused' && !state.waitingOverlayVisible && !state.resultOverlayVisible
+)
 const lowTime = computed(() => state.status === 'playing' && state.remainingSec <= LOW_TIME_SEC)
 const accuracy = computed(() => {
   const attempts = state.hits + (state.spawns - state.hits)
@@ -217,6 +220,17 @@ const _actions = {
   playAgain: () => {
     _actions.resetGame()
     _actions.startPlay()
+  },
+  endGameNow: () => {
+    _handlers.stopGameTimer()
+    _handlers.stopHitPopTimer()
+    state.hitPop = null
+    engine.gameOver()
+    _handlers.syncSnapshot()
+    state.waitingOverlayVisible = false
+    state.message = '本局已結束。'
+    state.resultOverlayVisible = true
+    _actions.recordHistory()
   }
 }
 
@@ -226,6 +240,7 @@ const click = {
   pause: () => _actions.pause(),
   resume: () => _actions.resume(),
   restart: () => _actions.playAgain(),
+  end: () => _actions.endGameNow(),
   again: () => _actions.playAgain(),
   exit: () => router.replace('/game-hall'),
   openRateDialog: () => {
@@ -278,15 +293,6 @@ onBeforeUnmount(() => {
       <button class="wam-btn link waiting-btn" type="button" @click="click.openRuleDialog">RULE</button>
     </div>
 
-    <div v-if="state.status === 'paused'" class="game-mask pause-mask">
-      <div class="mask-title">PAUSED</div>
-      <div class="result-actions">
-        <button class="wam-btn" type="button" @click="click.resume">RESUME</button>
-        <button class="wam-btn" type="button" @click="click.restart">RESTART</button>
-        <button class="wam-btn danger" type="button" @click="click.exit">EXIT</button>
-      </div>
-    </div>
-
     <div v-if="state.resultOverlayVisible" class="game-mask result-mask">
       <div class="mask-title">TIME UP</div>
       <div class="result-list">
@@ -309,8 +315,10 @@ onBeforeUnmount(() => {
 
     <section class="wam-shell">
       <aside class="wam-side left">
-        <button class="wam-btn" type="button" :disabled="!canPause" @click="click.pause">PAUSE</button>
+        <button class="wam-btn" type="button" :disabled="!canResumeFromPause" @click="click.resume">START</button>
+        <button class="wam-btn" type="button" :disabled="!canPauseWhilePlaying" @click="click.pause">PAUSE</button>
         <button class="wam-btn" type="button" @click="click.restart">RESTART</button>
+        <button class="wam-btn link" type="button" @click="click.end">END</button>
         <button class="wam-btn" type="button" @click="click.openRateDialog">CONVERT</button>
         <button class="wam-btn" type="button" @click="click.openRuleDialog">RULE</button>
       </aside>
