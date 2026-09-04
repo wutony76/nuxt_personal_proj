@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useGameHistory } from '~/composables/useGameHistory'
 import ArkanoidEngine, {
   ARKANOID_CONFIG,
+  ARKANOID_LEVELS,
   AK_STAGE_WIDTH,
   AK_STAGE_HEIGHT,
   PADDLE_HEIGHT,
@@ -26,6 +27,8 @@ const TICK_MS = 16
 const READY_START = 3
 const RESULT_DELAY_MS = 500
 const ACCENT = '#ef476f'
+/** 測試用：跳關按鈕開關（比照 minesweeper.vue 慣例，預設關閉，非正式玩法，僅供除錯） */
+const TEST_TOOLS_ENABLED = false
 
 const router = useRouter()
 const engine = new ArkanoidEngine()
@@ -57,7 +60,9 @@ const state = reactive({
   readyCountdownValue: READY_START,
   resultOverlayVisible: false,
   rateDialogOpen: false,
-  ruleDialogOpen: false
+  ruleDialogOpen: false,
+  /** 測試用：生命無限開關（見 arkanoidEngine.ts infiniteLives，僅供除錯，預設關閉） */
+  debugInfiniteLives: false
 })
 
 const ARKANOID_RULE = {
@@ -325,6 +330,33 @@ const _actions = {
     state.resultOverlayVisible = true
     state.message = '本局已結束。'
     _actions.recordHistory()
+  },
+  /**
+   * 測試用：直接跳到指定關卡開局，略過「必須依序清光磚塊過關」的正常流程（見
+   * arkanoidEngine.ts jumpToLevel，這裡是測試工具、不是正式玩法，UI 上刻意跟正常操作區隔）。
+   * 跳關會重置分數／生命／Combo，避免測試分數混進正式紀錄；直接進入 playing，略過 READY 倒數，
+   * 方便連續測試多關。
+   */
+  testJumpToLevel: (level: number) => {
+    _handlers.stopTickTimer()
+    _handlers.stopReadyTimer()
+    _handlers.stopShakeTimer()
+    _handlers.stopTransientMessageTimer()
+    _handlers.stopResultDelayTimer()
+    leftHeld = false
+    rightHeld = false
+    engine.jumpToLevel(level)
+    _handlers.syncState()
+    state.hitFlashes = []
+    state.transientMessage = ''
+    state.stageShake = false
+    state.waitingOverlayVisible = false
+    state.readyOverlayVisible = false
+    state.resultOverlayVisible = false
+    state.rewardMessage = ''
+    state.status = 'playing'
+    state.message = `【測試模式】直接跳至第 ${level} 關，分數／生命已重置。`
+    _actions.startTickLoop()
   }
 }
 
@@ -368,6 +400,12 @@ const click = {
   again: () => _actions.playAgain(),
   exit: () => router.replace('/game-hall'),
   stageTap: () => _actions.launchBall(),
+  testLevel: (level: number) => _actions.testJumpToLevel(level),
+  /** 測試用：切換生命無限，直接反映到 engine（不觸碰對局狀態，見 arkanoidEngine.ts） */
+  toggleInfiniteLives: () => {
+    state.debugInfiniteLives = !state.debugInfiniteLives
+    engine.infiniteLives = state.debugInfiniteLives
+  },
   openRateDialog: () => {
     state.rateDialogOpen = true
   },
@@ -468,16 +506,19 @@ onBeforeUnmount(() => {
         </header>
 
         <div class="ak-frame">
-          <div class="ak-stage" :class="{ shake: state.stageShake }" :style="stageStyle" @pointerdown.prevent="click.stageTap">
+          <div class="ak-stage" :class="{ shake: state.stageShake }" :style="stageStyle"
+            @pointerdown.prevent="click.stageTap">
             <div v-for="brick in state.bricks" :key="brick.id" class="ak-brick" :class="_handlers.brickClass(brick)"
               :style="_handlers.brickStyle(brick)" />
             <div v-for="pu in state.powerUps" :key="pu.id" class="ak-powerup" :class="`is-${pu.type.toLowerCase()}`"
               :style="_handlers.powerUpStyle(pu)">{{ _handlers.powerUpIcon(pu.type) }}</div>
             <div v-for="ball in state.balls" :key="ball.id" class="ak-ball" :style="_handlers.ballStyle(ball)" />
             <div class="ak-paddle" :class="{ 'is-wide': state.wideMsLeft > 0 }" :style="_handlers.paddleStyle()" />
-            <div v-for="flash in state.hitFlashes" :key="flash.id" class="ak-flash" :style="`left:${flash.x}px; top:${flash.y}px;`" />
+            <div v-for="flash in state.hitFlashes" :key="flash.id" class="ak-flash"
+              :style="`left:${flash.x}px; top:${flash.y}px;`" />
 
-            <div v-if="state.transientMessage" class="ak-transient" :class="{ 'is-over': state.transientMessage === 'GAME OVER' }">
+            <div v-if="state.transientMessage" class="ak-transient"
+              :class="{ 'is-over': state.transientMessage === 'GAME OVER' }">
               {{ state.transientMessage }}
             </div>
           </div>
@@ -485,16 +526,34 @@ onBeforeUnmount(() => {
           <div class="ak-panel">
             <span>SCORE: {{ state.score }}</span>
             <span>LEVEL: {{ state.level }}</span>
-            <span>LIVES: {{ state.lives }}</span>
+            <span>LIVES: {{ state.debugInfiniteLives ? '∞' : state.lives }}</span>
             <span>COMBO: {{ state.combo }} (x{{ state.comboMultiplier.toFixed(2) }})</span>
           </div>
-          <div class="ak-effects" v-if="state.wideMsLeft > 0 || state.slowMsLeft > 0">
-            <span v-if="state.wideMsLeft > 0" class="ak-effect-tag">WIDE {{ Math.ceil(state.wideMsLeft / 1000) }}s</span>
-            <span v-if="state.slowMsLeft > 0" class="ak-effect-tag">SLOW {{ Math.ceil(state.slowMsLeft / 1000) }}s</span>
+          <div class="ak-effects">
+            <span class="ak-effect-tag" :class="{ 'is-hidden': state.wideMsLeft <= 0 }">WIDE {{ Math.ceil(state.wideMsLeft / 1000)
+            }}s</span>
+            <span class="ak-effect-tag" :class="{ 'is-hidden': state.slowMsLeft <= 0 }">SLOW {{ Math.ceil(state.slowMsLeft / 1000)
+            }}s</span>
           </div>
         </div>
 
         <p class="ak-message">{{ state.message }}</p>
+
+        <div v-if="TEST_TOOLS_ENABLED" class="ak-debug-toggle">
+          <button type="button" class="ak-debug-toggle-btn" :class="{ active: state.debugInfiniteLives }"
+            @click="click.toggleInfiniteLives">
+            ❤️ 測試：生命無限 {{ state.debugInfiniteLives ? 'ON' : 'OFF' }}
+          </button>
+        </div>
+
+        <div v-if="TEST_TOOLS_ENABLED" class="ak-debug-levels">
+          <span class="ak-debug-levels-label">🧪 測試：跳至關卡</span>
+          <button v-for="(lv, idx) in ARKANOID_LEVELS" :key="idx" type="button" class="ak-level-jump"
+            :class="{ active: state.status === 'playing' && state.level === idx + 1 }"
+            :title="`Ball Speed ×${lv.ballSpeedMul}`" @click="click.testLevel(idx + 1)">
+            {{ idx + 1 }}
+          </button>
+        </div>
       </section>
 
       <aside class="ak-side right">
@@ -877,6 +936,11 @@ onBeforeUnmount(() => {
         border-radius: 4px;
         padding: 2px 8px;
         font-size: 0.72rem;
+
+        /* 一開始就佔位、只切換可見度，避免道具生效/失效時面板高度跳動閃爍 */
+        &.is-hidden {
+          visibility: hidden;
+        }
       }
     }
 
@@ -884,6 +948,77 @@ onBeforeUnmount(() => {
       margin-top: 14px;
       color: #ffe1e9;
       font-size: 0.85rem;
+    }
+
+    /* 測試用按鈕改用橘色系，跟正式操作明顯區隔（比照 minesweeper.vue 的 is-debug 慣例） */
+    .ak-debug-toggle {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .ak-debug-toggle-btn {
+      border: 1px solid rgba(255, 180, 84, 0.4);
+      border-radius: 6px;
+      padding: 8px 16px;
+      background: rgba(26, 5, 16, 0.8);
+      color: #ffb454;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+      &:hover {
+        border-color: #ffb454;
+      }
+
+      &.active {
+        background: rgba(255, 180, 84, 0.22);
+        border-color: #ffb454;
+        color: #fff0d9;
+        box-shadow: 0 0 12px rgba(255, 180, 84, 0.4);
+      }
+    }
+
+    .ak-debug-levels {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .ak-debug-levels-label {
+      color: #ffb454;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      opacity: 0.85;
+    }
+
+    .ak-level-jump {
+      width: 28px;
+      height: 28px;
+      border: 1px solid rgba(255, 180, 84, 0.4);
+      border-radius: 6px;
+      background: rgba(26, 5, 16, 0.8);
+      color: #ffb454;
+      font-weight: 800;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+      &:hover {
+        border-color: #ffb454;
+      }
+
+      &.active {
+        background: rgba(255, 180, 84, 0.22);
+        border-color: #ffb454;
+        color: #fff0d9;
+        box-shadow: 0 0 10px rgba(255, 180, 84, 0.5);
+      }
     }
   }
 

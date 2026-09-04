@@ -261,6 +261,11 @@ export class ArkanoidEngine {
   maxCombo = 0
   wideMsLeft = 0
   slowMsLeft = 0
+  /**
+   * 測試用：開啟後失去一命不再扣血、也不會 gameOver（僅供除錯，比照 reset()／jumpToLevel()
+   * 皆不觸碰此欄位，讓開關獨立於對局重置之外，切換方式與時機由頁面層決定）。
+   */
+  infiniteLives = false
 
   private speedMul = 1
   private nextBallId = 1
@@ -289,6 +294,25 @@ export class ArkanoidEngine {
     this.nextBrickId = 1
     this.nextPowerUpId = 1
     this.buildBricks(this.level)
+    this.balls = [this.spawnBallOnPaddle()]
+  }
+
+  /**
+   * 測試用：直接跳到指定關卡開局，略過「必須清光磚塊才能進下一關」的正常流程
+   * （不是正式玩法，僅供關卡佈局／Moving Brick／難度曲線等除錯用）。
+   * 比照 reset()，會歸零分數／生命／Combo／限時效果／Power-Up，避免測試分數混進正式紀錄。
+   */
+  jumpToLevel(level: number): void {
+    const clamped = clamp(Math.floor(level), 1, ARKANOID_LEVELS.length)
+    this.score = 0
+    this.lives = LIVES_START_AK
+    this.combo = 0
+    this.maxCombo = 0
+    this.wideMsLeft = 0
+    this.slowMsLeft = 0
+    this.powerUps = []
+    this.level = clamped
+    this.buildBricks(clamped)
     this.balls = [this.spawnBallOnPaddle()]
   }
 
@@ -594,13 +618,14 @@ export class ArkanoidEngine {
     }
 
     // 扣命判定：**只有所有球都離開場地（balls.length === 0）才扣一命**（design.md Decision 5）
+    // infiniteLives 開啟時（測試用）仍視為 lifeLost（重新發球），但不扣血、不觸發 gameOver。
     let lifeLost = false
     let gameOver = false
     if (!levelCleared && this.balls.length === 0) {
-      this.lives -= 1
+      if (!this.infiniteLives) this.lives -= 1
       this.combo = 0
       lifeLost = true
-      if (this.lives > 0) {
+      if (this.infiniteLives || this.lives > 0) {
         this.balls = [this.spawnBallOnPaddle()]
       } else {
         gameOver = true
