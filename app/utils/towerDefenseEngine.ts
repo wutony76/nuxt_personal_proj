@@ -10,7 +10,7 @@
  */
 
 // ── 地圖 ──
-export const TD_CELL_SIZE = 48
+export const TD_CELL_SIZE = 32
 export const TD_GRID_COLS = 12
 export const TD_GRID_ROWS = 8
 export const TD_STAGE_WIDTH = TD_GRID_COLS * TD_CELL_SIZE
@@ -126,7 +126,7 @@ export const TOWER_CONFIG: Record<TowerKind, TowerConfigEntry> = {
     icon: '❄️',
     buildCost: 60,
     levels: [
-      { damage: 3, atkSpeed: 1.0, range: 3, upgradeCost: 0, slowFactor: 0.2, slowDurationSec: 1.5 },
+      { damage: 3, atkSpeed: 1.0, range: 1.7, upgradeCost: 0, slowFactor: 0.2, slowDurationSec: 1.5 },
       { damage: 5, atkSpeed: 1.1, range: 3.3, upgradeCost: 90, slowFactor: 0.3, slowDurationSec: 2 },
       { damage: 8, atkSpeed: 1.2, range: 3.6, upgradeCost: 160, slowFactor: 0.4, slowDurationSec: 2.5, slowedBonusDamage: 0.1 }
     ]
@@ -164,13 +164,15 @@ export type Enemy = {
 
 // ── Wave 強化 ──
 export type UpgradeOptionKey = 'damage' | 'atkSpeed' | 'gold' | 'range' | 'slow'
-export const UPGRADE_OPTION_POOL: Array<{ key: UpgradeOptionKey; label: string; desc: string }> = [
-  { key: 'damage', label: '攻擊力 +15%', desc: '所有防禦塔傷害提升 15%' },
-  { key: 'atkSpeed', label: '攻速 +15%', desc: '所有防禦塔攻擊速度提升 15%' },
-  { key: 'gold', label: 'Gold 收益 +20%', desc: '擊殺與過波獲得的 Gold 提升 20%' },
-  { key: 'range', label: '射程 +15%', desc: '所有防禦塔射程提升 15%' },
-  { key: 'slow', label: '減速強度 +20%', desc: '冰塔的減速效果提升 20%' }
+export const UPGRADE_OPTION_POOL: Array<{ key: UpgradeOptionKey; label: string; desc: string; baseCost: number }> = [
+  { key: 'damage', label: '攻擊力 +15%', desc: '所有防禦塔傷害提升 15%', baseCost: 50 },
+  { key: 'atkSpeed', label: '攻速 +15%', desc: '所有防禦塔攻擊速度提升 15%', baseCost: 50 },
+  { key: 'gold', label: 'Gold 收益 +20%', desc: '擊殺與過波獲得的 Gold 提升 20%', baseCost: 150 },
+  { key: 'range', label: '射程 +15%', desc: '所有防禦塔射程提升 15%', baseCost: 60 },
+  { key: 'slow', label: '減速強度 +20%', desc: '冰塔的減速效果提升 20%', baseCost: 50 }
 ]
+/** 每個強化各自獨立計價：每買一次，該項目的價格就漲一次（20 波前漲 5%~30%，20 波後漲 40%~70%），互不影響 */
+const priceGrowthRange = (wave: number): [number, number] => (wave > 20 ? [0.4, 0.7] : [0.05, 0.3])
 
 // ── 效能防護（design.md Decision 7）──
 const MAX_CONCURRENT_ENEMIES = 40
@@ -178,15 +180,33 @@ const MAX_SPAWN_PER_WAVE = 60
 const MIN_SPAWN_INTERVAL_MS = 350
 
 // ── 玩家初始資源 ──
-const STARTING_GOLD = 100
+const STARTING_GOLD = 350
 const STARTING_HP = 20
 
 type WaveEnemyGroup = { kind: EnemyKind; count: number }
 type WaveDefinition = { groups: WaveEnemyGroup[]; intervalMs: number; speedMul?: number }
 
+/**
+ * 波次未指定自己的 speedMul 時的預設值：前 5 波維持半速（新手教學期），
+ * 第 6～15 波線性爬回原速，第 15 波起（含 21+ 程序化波次）回到 1.0（design.md 難度曲線之外的額外緩坡）
+ */
+const defaultWaveSpeedMul = (wave: number): number => {
+  if (wave <= 5) return 0.5
+  if (wave >= 15) return 1
+  return 0.5 + ((wave - 5) / 10) * 0.5
+}
+
+/** 每次出怪的隨機批量（一次放一群，不再一隻一隻放）：第 1～5 波 1-5 隻，第 6 波起 3-8 隻 */
+const randomBatchSpawnCount = (wave: number): number => {
+  const [min, max] = wave <= 5 ? [1, 5] : [3, 8]
+  return min + Math.floor(Math.random() * (max - min + 1))
+}
+/** 同一批出怪的敵人沿路徑錯開的距離（px），避免疊在同一點看起來像一隻 */
+const BATCH_SPAWN_STAGGER_PX = 14
+
 // 第 1～20 波：手工設計的難度曲線（design.md Decision 6），Boss 於 wave10／wave20 出現
 const WAVE_TABLE: Record<number, WaveDefinition> = {
-  1: { groups: [{ kind: 'normal', count: 8 }], intervalMs: 1200 },
+  1: { groups: [{ kind: 'normal', count: 8 }], intervalMs: 1400 },
   2: { groups: [{ kind: 'normal', count: 12 }], intervalMs: 1100 },
   3: { groups: [{ kind: 'normal', count: 10 }, { kind: 'fast', count: 4 }], intervalMs: 1100 },
   4: { groups: [{ kind: 'normal', count: 10 }, { kind: 'fast', count: 8 }], intervalMs: 1000 },
@@ -279,6 +299,10 @@ class UpgradeSystem {
   globalRangeMult = 1
   slowMult = 1
   pendingOptions: UpgradeOptionKey[] | null = null
+  /** 每個強化各自獨立的目前價格，買越多次那一項越貴，其他項目不受影響 */
+  prices: Record<UpgradeOptionKey, number> = Object.fromEntries(
+    UPGRADE_OPTION_POOL.map((o) => [o.key, o.baseCost])
+  ) as Record<UpgradeOptionKey, number>
 
   reset() {
     this.globalDamageMult = 1
@@ -287,6 +311,11 @@ class UpgradeSystem {
     this.globalRangeMult = 1
     this.slowMult = 1
     this.pendingOptions = null
+    this.prices = Object.fromEntries(UPGRADE_OPTION_POOL.map((o) => [o.key, o.baseCost])) as Record<UpgradeOptionKey, number>
+  }
+
+  priceFor(key: UpgradeOptionKey): number {
+    return Math.round(this.prices[key])
   }
 
   rollOptions() {
@@ -299,15 +328,22 @@ class UpgradeSystem {
     this.pendingOptions = picked
   }
 
-  choose(key: UpgradeOptionKey): boolean {
+  choose(key: UpgradeOptionKey, wave: number): boolean {
     if (!this.pendingOptions || !this.pendingOptions.includes(key)) return false
     if (key === 'damage') this.globalDamageMult *= 1.15
     if (key === 'atkSpeed') this.globalAtkSpeedMult *= 1.15
     if (key === 'gold') this.goldMult *= 1.2
     if (key === 'range') this.globalRangeMult *= 1.15
     if (key === 'slow') this.slowMult *= 1.2
+    const [minPct, maxPct] = priceGrowthRange(wave)
+    this.prices[key] *= 1 + (minPct + Math.random() * (maxPct - minPct))
     this.pendingOptions = null
     return true
+  }
+
+  /** 不強化：略過本次選項，不花錢也不套用任何效果，價格也不會漲 */
+  skip() {
+    this.pendingOptions = null
   }
 }
 
@@ -321,7 +357,8 @@ class EnemySystem {
     this.nextId = 1
   }
 
-  spawn(kind: EnemyKind, wave: number) {
+  /** distanceOffset 可傳負值，讓同一批（batch）出怪的敵人錯開一點距離入場，不會疊在同一個點上 */
+  spawn(kind: EnemyKind, wave: number, distanceOffset = 0) {
     const cfg = ENEMY_CONFIG[kind]
     let hp = cfg.baseHp
     if (kind === 'boss') {
@@ -329,13 +366,13 @@ class EnemySystem {
     } else {
       hp = Math.round(cfg.baseHp * (1 + HP_WAVE_GROWTH_PER_WAVE * (wave - 1)))
     }
-    const start = positionAtDistance(0)
+    const start = positionAtDistance(distanceOffset)
     this.enemies.push({
       id: this.nextId++,
       kind,
       hp,
       maxHp: hp,
-      distance: 0,
+      distance: distanceOffset,
       x: start.x,
       y: start.y,
       slowUntil: 0,
@@ -397,7 +434,8 @@ class ProjectileSystem {
 
   spawn(kind: TowerKind, fromX: number, fromY: number, toX: number, toY: number) {
     const dist = Math.hypot(toX - fromX, toY - fromY)
-    const ttl = Math.min(0.25, Math.max(0.1, dist / 900))
+    // 下限抬到 0.15s（1.5 個 tick），確保近距離目標的子彈也至少能被畫面渲染一輪以上，不會一閃即逝
+    const ttl = Math.min(0.3, Math.max(0.15, dist / 900))
     this.projectiles.push({ id: this.nextId++, kind, fromX, fromY, toX, toY, ttl, totalTtlSec: ttl })
   }
 
@@ -485,7 +523,7 @@ export type TowerDefenseSnapshot = {
   towers: Array<Tower & { config: TowerLevelConfig }>
   enemies: Array<Enemy & { icon: string }>
   projectiles: Projectile[]
-  pendingUpgradeOptions: Array<{ key: UpgradeOptionKey; label: string; desc: string }> | null
+  pendingUpgradeOptions: Array<{ key: UpgradeOptionKey; label: string; desc: string; cost: number }> | null
   upgradeMultipliers: { damage: number; atkSpeed: number; gold: number; range: number; slow: number }
   maxWaveReached: number
 }
@@ -539,7 +577,20 @@ export default class TowerDefenseEngine {
 
   chooseWaveUpgrade(key: UpgradeOptionKey): boolean {
     if (!this.waveSystem.awaitingUpgradeChoice) return false
-    if (!this.upgrades.choose(key)) return false
+    if (!this.upgrades.pendingOptions?.includes(key)) return false
+    if (!this.economy.spend(this.upgrades.priceFor(key))) return false
+    this.upgrades.choose(key, this.waveSystem.wave)
+    this.waveSystem.awaitingUpgradeChoice = false
+    const nextWave = this.waveSystem.wave + 1
+    this.maxWaveReached = Math.max(this.maxWaveReached, nextWave)
+    this.waveSystem.startWave(nextWave)
+    return true
+  }
+
+  /** 不強化：免費略過，直接進下一波，價格不會漲 */
+  skipWaveUpgrade(): boolean {
+    if (!this.waveSystem.awaitingUpgradeChoice) return false
+    this.upgrades.skip()
     this.waveSystem.awaitingUpgradeChoice = false
     const nextWave = this.waveSystem.wave + 1
     this.maxWaveReached = Math.max(this.maxWaveReached, nextWave)
@@ -605,17 +656,28 @@ export default class TowerDefenseEngine {
     if (!this.waveSystem.awaitingUpgradeChoice) {
       this.waveSystem.spawnTimerSec -= dt * 1000
       if (this.waveSystem.spawnTimerSec <= 0 && this.waveSystem.spawnQueue.length > 0 && this.enemySystem.enemies.length < MAX_CONCURRENT_ENEMIES) {
-        const kind = this.waveSystem.spawnQueue.shift()!
-        this.enemySystem.spawn(kind, this.waveSystem.wave)
+        const batchSize = Math.min(
+          randomBatchSpawnCount(this.waveSystem.wave),
+          this.waveSystem.spawnQueue.length,
+          MAX_CONCURRENT_ENEMIES - this.enemySystem.enemies.length
+        )
+        for (let i = 0; i < batchSize; i++) {
+          const kind = this.waveSystem.spawnQueue.shift()!
+          this.enemySystem.spawn(kind, this.waveSystem.wave, -i * BATCH_SPAWN_STAGGER_PX)
+        }
         this.waveSystem.spawnTimerSec = this.waveSystem.currentDef.intervalMs
       }
     }
 
-    const waveSpeedMul = this.waveSystem.currentDef.speedMul ?? 1
+    const waveSpeedMul = this.waveSystem.currentDef.speedMul ?? defaultWaveSpeedMul(this.waveSystem.wave)
     const reached = this.enemySystem.tick(dt, this.clockSec, waveSpeedMul)
     for (const enemy of reached) {
       this.hp -= ENEMY_CONFIG[enemy.kind].hpPenalty
     }
+
+    // 先讓「上一輪」的子彈過期，再讓塔開火產生新子彈：避免近距離目標的子彈剛 spawn 就在同一 tick 被扣到 ttl<=0，
+    // 導致 getSnapshot() 從未回傳過它、畫面完全看不到子彈飛行
+    this.projectileSystem.tick(dt)
 
     this._towersTick(dt)
 
@@ -625,8 +687,6 @@ export default class TowerDefenseEngine {
       this.economy.add(reward)
       this.score += Math.round(ENEMY_CONFIG[enemy.kind].reward * 2)
     }
-
-    this.projectileSystem.tick(dt)
 
     if (this.hp <= 0) {
       this.hp = 0
@@ -654,7 +714,10 @@ export default class TowerDefenseEngine {
       enemies: this.enemySystem.enemies.map((e) => ({ ...e, icon: ENEMY_CONFIG[e.kind].icon })),
       projectiles: this.projectileSystem.projectiles,
       pendingUpgradeOptions: this.upgrades.pendingOptions
-        ? this.upgrades.pendingOptions.map((key) => UPGRADE_OPTION_POOL.find((o) => o.key === key)!)
+        ? this.upgrades.pendingOptions.map((key) => ({
+            ...UPGRADE_OPTION_POOL.find((o) => o.key === key)!,
+            cost: this.upgrades.priceFor(key)
+          }))
         : null,
       upgradeMultipliers: {
         damage: this.upgrades.globalDamageMult,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameHistory } from '~/composables/useGameHistory'
 import TowerDefenseEngine, {
@@ -45,7 +45,9 @@ const state = reactive({
   upgradeMultipliers: { damage: 1, atkSpeed: 1, gold: 1, range: 1, slow: 1 },
   maxWaveReached: 1,
   selectedTowerKind: null as TowerKind | null,
-  selectedTowerId: null as number | null,
+  hoverTowerId: null as number | null,
+  hoverTowerKind: null as TowerKind | null,
+  rangeTowerId: null as number | null,
   placementMessage: '',
   message: '選擇下方防禦塔後點擊草地格建造，抵禦沿路徑而來的敵人。',
   rewardMessage: '',
@@ -70,9 +72,18 @@ const TOWER_DEFENSE_RULE = {
   note: 'Boss 每 10 波固定重複出現（HP 隨波次成長），波次無上限，重點在挑戰「能撐到第幾波」。'
 }
 
+type FloatAnchor = { left: number; top: number; bottom: number; placement: 'above' | 'below' }
+/** 塔資訊浮動卡片的錨點：跟隨 hover 的目標（建塔選單按鈕／塔），frame 內相對座標 */
+const frameRef = ref<HTMLElement | null>(null)
+const floatAnchor = ref<FloatAnchor | null>(null)
+/** 「無法建造／Gold 不足」提示的浮動錨點，跟塔資訊卡片分開，兩者可能同時顯示 */
+const placementFloatAnchor = ref<FloatAnchor | null>(null)
+
 let tickTimer: ReturnType<typeof setInterval> | null = null
 let resultDelayTimer: ReturnType<typeof setTimeout> | null = null
 let placementMessageTimer: ReturnType<typeof setTimeout> | null = null
+/** 離開 hover 目標後延遲一小段時間才關閉浮動卡片，讓滑鼠能移到卡片上點擊 UPGRADE */
+let hoverCloseTimer: ReturnType<typeof setTimeout> | null = null
 
 const statusText = computed(() => {
   if (state.status === 'playing') return 'PLAYING'
@@ -90,11 +101,36 @@ const canResumeFromPause = computed(() => state.status === 'pause' && !state.wai
 const canPauseWhilePlaying = computed(() => state.status === 'playing')
 const stageStyle = computed(() => `width:${TD_STAGE_WIDTH}px; height:${TD_STAGE_HEIGHT}px;`)
 const gridStyle = computed(() => `grid-template-columns: repeat(${TD_GRID_COLS}, ${TD_CELL_SIZE}px); grid-template-rows: repeat(${TD_GRID_ROWS}, ${TD_CELL_SIZE}px);`)
-const selectedTower = computed(() => state.towers.find((t) => t.id === state.selectedTowerId) ?? null)
-const selectedTowerNextCost = computed(() => {
-  const t = selectedTower.value
+/** 塔／敵人視覺尺寸依格子大小等比縮放，避免格子縮放後圖示超出格子邊界（比例沿用 TD_CELL_SIZE=48 時的原始 32px／24px） */
+const TD_TOWER_SIZE = Math.round((TD_CELL_SIZE * 2) / 3)
+const TD_ENEMY_SIZE = Math.round(TD_CELL_SIZE / 2)
+/** hover 一座已建好的塔時顯示其資訊，滑鼠離開即關閉 */
+const hoveredTower = computed(() => state.towers.find((t) => t.id === state.hoverTowerId) ?? null)
+const hoveredTowerNextCost = computed(() => {
+  const t = hoveredTower.value
   if (!t || t.level >= TOWER_MAX_LEVEL) return null
   return TOWER_CONFIG[t.kind].levels[t.level]!.upgradeCost
+})
+/** hover 建塔選單按鈕時預覽該塔種 Lv1 數值，滑鼠離開即關閉 */
+const hoveredBuildPreview = computed(() => {
+  const kind = state.hoverTowerKind
+  if (!kind) return null
+  return { kind, ...TOWER_CONFIG[kind].levels[0]! }
+})
+const anchorToStyle = (anchor: FloatAnchor | null): string => {
+  if (!anchor) return ''
+  if (anchor.placement === 'above') return `left: ${anchor.left}px; bottom: ${anchor.bottom}px; top: auto;`
+  return `left: ${anchor.left}px; top: ${anchor.top}px; bottom: auto;`
+}
+const floatPanelStyle = computed(() => anchorToStyle(floatAnchor.value))
+const placementFloatStyle = computed(() => anchorToStyle(placementFloatAnchor.value))
+/** 點擊已建好的塔，用一個置中的圓圈顯示其攻擊範圍；再點一次同一座塔取消 */
+const rangeTower = computed(() => state.towers.find((t) => t.id === state.rangeTowerId) ?? null)
+const rangeCircleStyle = computed(() => {
+  const t = rangeTower.value
+  if (!t) return ''
+  const diameter = t.config.range * TD_CELL_SIZE * 2
+  return `width:${diameter}px; height:${diameter}px; transform: translate(${t.x - diameter / 2}px, ${t.y - diameter / 2}px);`
 })
 
 const cellRows = Array.from({ length: TD_GRID_ROWS }, (_, r) => r)
@@ -142,14 +178,76 @@ const _handlers = {
       placementMessageTimer = null
     }, 1400)
   },
+  /** 共用：把一個 viewport 座標的 rect 換算成 frame 內的浮動錨點座標，寫入指定的 anchor ref */
+  applyFloatAnchor: (
+    anchorRef: typeof floatAnchor,
+    targetRect: { left: number; top: number; bottom: number; width: number },
+    placement: 'above' | 'below'
+  ) => {
+    if (!frameRef.value) return
+    const frameRect = frameRef.value.getBoundingClientRect()
+    // 絕對定位子元素的 (0,0) 是 frame 的 padding box 原點，需扣掉 frame 自己的 border 寬度才能對齊
+    const frameStyle = getComputedStyle(frameRef.value)
+    const borderLeft = parseFloat(frameStyle.borderLeftWidth) || 0
+    const borderTop = parseFloat(frameStyle.borderTopWidth) || 0
+    const borderBottom = parseFloat(frameStyle.borderBottomWidth) || 0
+    const paddingBoxWidth = frameRect.width - borderLeft - (parseFloat(frameStyle.borderRightWidth) || 0)
+    const paddingBoxHeight = frameRect.height - borderTop - borderBottom
+    const halfPanelWidth = 115
+    const rawLeft = targetRect.left - frameRect.left - borderLeft + targetRect.width / 2
+    const left = Math.min(Math.max(rawLeft, halfPanelWidth), Math.max(paddingBoxWidth - halfPanelWidth, halfPanelWidth))
+    const top = targetRect.bottom - frameRect.top - borderTop + 10
+    const bottom = paddingBoxHeight - (targetRect.top - frameRect.top - borderTop) + 10
+    anchorRef.value = { left, top, bottom, placement }
+  },
+  setFloatAnchor: (event: MouseEvent | undefined, placement: 'above' | 'below' = 'below') => {
+    const target = event?.currentTarget as HTMLElement | undefined
+    if (!target) return
+    _handlers.applyFloatAnchor(floatAnchor, target.getBoundingClientRect(), placement)
+  },
+  /** 用格子座標（非 DOM 事件）算出錨點，供「無法建造」等非點擊觸發的提示定位用 */
+  setPlacementAnchorAtCell: (row: number, col: number, placement: 'above' | 'below' = 'below') => {
+    const stageEl = frameRef.value?.querySelector('.td-stage') as HTMLElement | null
+    if (!stageEl) return
+    const stageRect = stageEl.getBoundingClientRect()
+    const x = stageRect.left + (col + 0.5) * TD_CELL_SIZE
+    const y = stageRect.top + (row + 0.5) * TD_CELL_SIZE
+    _handlers.applyFloatAnchor(placementFloatAnchor, { left: x, top: y, bottom: y, width: 0 }, placement)
+  },
+  cancelHoverClose: () => {
+    if (hoverCloseTimer) {
+      clearTimeout(hoverCloseTimer)
+      hoverCloseTimer = null
+    }
+  },
+  scheduleHoverClose: () => {
+    _handlers.cancelHoverClose()
+    hoverCloseTimer = setTimeout(() => {
+      state.hoverTowerId = null
+      state.hoverTowerKind = null
+      hoverCloseTimer = null
+    }, 150)
+  },
+  hoverTower: (tower: TowerView, event: MouseEvent) => {
+    _handlers.cancelHoverClose()
+    state.hoverTowerId = tower.id
+    state.hoverTowerKind = null
+    _handlers.setFloatAnchor(event, 'below')
+  },
+  hoverBuildKind: (kind: TowerKind, event: MouseEvent) => {
+    _handlers.cancelHoverClose()
+    state.hoverTowerKind = kind
+    state.hoverTowerId = null
+    _handlers.setFloatAnchor(event, 'above')
+  },
   towerAt: (row: number, col: number): TowerView | undefined => state.towers.find((t) => t.row === row && t.col === col),
   cellClass: (row: number, col: number): string[] => {
     const classes = [isPathCell(row, col) ? 'is-path' : 'is-grass']
     if (!isPathCell(row, col) && state.selectedTowerKind && !_handlers.towerAt(row, col)) classes.push('is-buildable')
     return classes
   },
-  towerStyle: (t: TowerView): string => `transform: translate(${t.x - 16}px, ${t.y - 16}px);`,
-  enemyStyle: (e: EnemyView): string => `transform: translate(${e.x - 12}px, ${e.y - 12}px);`,
+  towerStyle: (t: TowerView): string => `transform: translate(${t.x - TD_TOWER_SIZE / 2}px, ${t.y - TD_TOWER_SIZE / 2}px);`,
+  enemyStyle: (e: EnemyView): string => `transform: translate(${e.x - TD_ENEMY_SIZE / 2}px, ${e.y - TD_ENEMY_SIZE / 2}px);`,
   enemyHpPercent: (e: EnemyView): string => `${Math.max(0, (e.hp / e.maxHp) * 100)}%`,
   projectileStyle: (p: ProjectileView): string =>
     `--from-x:${p.fromX}px; --from-y:${p.fromY}px; --to-x:${p.toX}px; --to-y:${p.toY}px; animation-duration:${p.totalTtlSec}s;`,
@@ -190,7 +288,10 @@ const _actions = {
     _handlers.syncState()
     state.status = 'ready'
     state.selectedTowerKind = null
-    state.selectedTowerId = null
+    state.hoverTowerId = null
+    state.hoverTowerKind = null
+    state.rangeTowerId = null
+    _handlers.cancelHoverClose()
     state.placementMessage = ''
     state.waitingOverlayVisible = true
     state.resultOverlayVisible = false
@@ -211,30 +312,41 @@ const _actions = {
     if (state.status !== 'playing') return
     const existing = _handlers.towerAt(row, col)
     if (existing) {
-      state.selectedTowerId = existing.id
       state.selectedTowerKind = null
+      state.rangeTowerId = state.rangeTowerId === existing.id ? null : existing.id
       return
     }
+    state.rangeTowerId = null
     if (!state.selectedTowerKind) return
     if (isPathCell(row, col)) {
+      _handlers.setPlacementAnchorAtCell(row, col, 'above')
       _handlers.showPlacementMessage('路徑格無法建造防禦塔')
       return
     }
     const ok = engine.placeTower(state.selectedTowerKind, row, col)
     if (!ok) {
+      _handlers.setPlacementAnchorAtCell(row, col, 'above')
       _handlers.showPlacementMessage('Gold 不足，無法建造')
       return
     }
     _handlers.syncState()
   },
-  upgradeSelectedTower: () => {
-    if (!state.selectedTowerId) return
-    const ok = engine.upgradeTower(state.selectedTowerId)
-    if (!ok) _handlers.showPlacementMessage('Gold 不足或已達最高等級')
+  upgradeHoveredTower: () => {
+    const tower = hoveredTower.value
+    if (!tower) return
+    const ok = engine.upgradeTower(tower.id)
+    if (!ok) {
+      _handlers.setPlacementAnchorAtCell(tower.row, tower.col, 'below')
+      _handlers.showPlacementMessage('Gold 不足或已達最高等級')
+    }
     _handlers.syncState()
   },
   chooseUpgrade: (key: UpgradeOptionKey) => {
     engine.chooseWaveUpgrade(key)
+    _handlers.syncState()
+  },
+  skipUpgrade: () => {
+    engine.skipWaveUpgrade()
     _handlers.syncState()
   },
   finishGame: () => {
@@ -290,20 +402,21 @@ const click = {
   pause: () => _actions.pauseGame(),
   resume: () => _actions.resumeGame(),
   replay: () => _actions.resetGame(),
-  restart: () => _actions.playAgain(),
   end: () => _actions.endGameNow(),
   again: () => _actions.playAgain(),
   exit: () => router.replace('/game-hall'),
   cell: (row: number, col: number) => _actions.placeTowerAt(row, col),
   selectTowerKind: (kind: TowerKind) => {
-    state.selectedTowerId = null
     state.selectedTowerKind = state.selectedTowerKind === kind ? null : kind
   },
-  upgrade: () => _actions.upgradeSelectedTower(),
-  closeTowerInfo: () => {
-    state.selectedTowerId = null
-  },
+  upgrade: () => _actions.upgradeHoveredTower(),
+  hoverTower: (tower: TowerView, event: MouseEvent) => _handlers.hoverTower(tower, event),
+  hoverBuildKind: (kind: TowerKind, event: MouseEvent) => _handlers.hoverBuildKind(kind, event),
+  hoverLeave: () => _handlers.scheduleHoverClose(),
+  hoverPanelEnter: () => _handlers.cancelHoverClose(),
+  hoverPanelLeave: () => _handlers.scheduleHoverClose(),
   chooseUpgrade: (key: UpgradeOptionKey) => _actions.chooseUpgrade(key),
+  skipUpgrade: () => _actions.skipUpgrade(),
   openRateDialog: () => {
     state.rateDialogOpen = true
   },
@@ -346,15 +459,6 @@ onBeforeUnmount(() => {
       <button class="td-btn link waiting-btn" type="button" @click="click.openRuleDialog">RULE</button>
     </div>
 
-    <div v-if="state.status === 'pause'" class="game-mask pause-mask">
-      <div class="mask-title">PAUSED</div>
-      <div class="result-actions">
-        <button class="td-btn" type="button" @click="click.resume">RESUME</button>
-        <button class="td-btn" type="button" @click="click.restart">RESTART</button>
-        <button class="td-btn danger" type="button" @click="click.exit">EXIT</button>
-      </div>
-    </div>
-
     <div v-if="state.resultOverlayVisible" class="game-mask result-mask">
       <div class="mask-title">GAME OVER</div>
       <div class="result-list">
@@ -371,17 +475,23 @@ onBeforeUnmount(() => {
 
     <div v-if="state.pendingUpgradeOptions" class="game-mask upgrade-mask">
       <div class="mask-title">WAVE {{ state.wave }} CLEAR</div>
-      <p class="upgrade-hint">選擇一項強化，效果會與先前已選的疊加</p>
+      <p class="upgrade-hint">選擇一項強化並花費 Gold 購買，效果會與先前已選的疊加；價格會在每次購買後上漲</p>
       <div class="upgrade-options">
         <button
           v-for="opt in state.pendingUpgradeOptions"
           :key="opt.key"
           class="upgrade-option"
           type="button"
+          :disabled="state.gold < opt.cost"
           @click="click.chooseUpgrade(opt.key)"
         >
           <span class="upgrade-option-label">{{ opt.label }}</span>
           <span class="upgrade-option-desc">{{ opt.desc }}</span>
+          <span class="upgrade-option-cost">{{ opt.cost }}g</span>
+        </button>
+        <button class="upgrade-option is-skip" type="button" @click="click.skipUpgrade">
+          <span class="upgrade-option-label">不強化</span>
+          <span class="upgrade-option-desc">直接進下一波，不花錢也不套用效果</span>
         </button>
       </div>
     </div>
@@ -415,7 +525,7 @@ onBeforeUnmount(() => {
           <span>SCORE: {{ state.score }}</span>
         </div>
 
-        <div class="td-frame">
+        <div class="td-frame" ref="frameRef">
           <div class="td-stage" :style="stageStyle">
             <div class="td-grid" :style="gridStyle">
               <template v-for="row in cellRows" :key="`r${row}`">
@@ -432,8 +542,10 @@ onBeforeUnmount(() => {
             <div class="td-start-flag">🏁</div>
             <div class="td-end-flag">🏰</div>
 
+            <div v-if="rangeTower" class="td-range-circle" :style="rangeCircleStyle" />
+
             <div v-for="tower in state.towers" :key="`t${tower.id}`" class="td-tower" :class="`is-${tower.kind}`" :style="_handlers.towerStyle(tower)"
-              @click.stop="click.cell(tower.row, tower.col)">
+              @click.stop="click.cell(tower.row, tower.col)" @mouseenter="click.hoverTower(tower, $event)" @mouseleave="click.hoverLeave">
               {{ _handlers.towerIcon(tower.kind) }}
               <span class="td-tower-level">L{{ tower.level }}</span>
             </div>
@@ -443,7 +555,8 @@ onBeforeUnmount(() => {
               <span class="td-enemy-hp"><span class="td-enemy-hp-fill" :style="`width:${_handlers.enemyHpPercent(enemy)};`" /></span>
             </div>
 
-            <div v-for="p in state.projectiles" :key="`p${p.id}`" class="td-projectile" :class="`is-${p.kind}`" :style="_handlers.projectileStyle(p)" />
+            <div v-for="p in state.projectiles" :key="`p${p.id}`" class="td-projectile"
+              :class="[`is-${p.kind}`, { 'is-paused': state.status === 'pause' }]" :style="_handlers.projectileStyle(p)" />
           </div>
 
           <div class="td-tower-menu">
@@ -454,6 +567,8 @@ onBeforeUnmount(() => {
               class="td-tower-btn"
               :class="{ 'is-selected': state.selectedTowerKind === kind }"
               @click="click.selectTowerKind(kind)"
+              @mouseenter="click.hoverBuildKind(kind, $event)"
+              @mouseleave="click.hoverLeave"
             >
               <span class="icon">{{ _handlers.towerIcon(kind) }}</span>
               <span class="name">{{ _handlers.towerName(kind) }}</span>
@@ -461,20 +576,29 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
-          <div v-if="selectedTower" class="td-tower-info">
-            <p class="td-tower-info-title">{{ _handlers.towerName(selectedTower.kind) }} · Lv{{ selectedTower.level }}</p>
-            <p>DAMAGE: {{ selectedTower.config.damage.toFixed(1) }}</p>
-            <p>ATK SPEED: {{ selectedTower.config.atkSpeed.toFixed(2) }}/s</p>
-            <p>RANGE: {{ selectedTower.config.range.toFixed(1) }}</p>
+          <div v-if="hoveredTower" class="td-tower-info" :style="floatPanelStyle" @mouseenter="click.hoverPanelEnter" @mouseleave="click.hoverPanelLeave">
+            <p class="td-tower-info-title">{{ _handlers.towerName(hoveredTower.kind) }} · Lv{{ hoveredTower.level }}</p>
+            <p>DAMAGE: {{ hoveredTower.config.damage.toFixed(1) }}</p>
+            <p>ATK SPEED: {{ hoveredTower.config.atkSpeed.toFixed(2) }}/s</p>
+            <p>RANGE: {{ hoveredTower.config.range.toFixed(1) }}</p>
             <div class="td-tower-info-actions">
-              <button class="td-btn" type="button" :disabled="selectedTowerNextCost === null" @click="click.upgrade">
-                {{ selectedTowerNextCost === null ? 'MAX LEVEL' : `UPGRADE (${selectedTowerNextCost}g)` }}
+              <button class="td-btn" type="button" :disabled="hoveredTowerNextCost === null" @click="click.upgrade">
+                {{ hoveredTowerNextCost === null ? 'MAX LEVEL' : `UPGRADE (${hoveredTowerNextCost}g)` }}
               </button>
-              <button class="td-btn link" type="button" @click="click.closeTowerInfo">CLOSE</button>
             </div>
           </div>
 
-          <p v-if="state.placementMessage" class="td-placement-message">{{ state.placementMessage }}</p>
+          <div v-else-if="hoveredBuildPreview" class="td-tower-info" :style="floatPanelStyle" @mouseenter="click.hoverPanelEnter" @mouseleave="click.hoverPanelLeave">
+            <p class="td-tower-info-title">{{ _handlers.towerName(hoveredBuildPreview.kind) }} · 建造中</p>
+            <p>COST: {{ TOWER_CONFIG[hoveredBuildPreview.kind].buildCost }}g</p>
+            <p>DAMAGE: {{ hoveredBuildPreview.damage.toFixed(1) }}</p>
+            <p>ATK SPEED: {{ hoveredBuildPreview.atkSpeed.toFixed(2) }}/s</p>
+            <p>RANGE: {{ hoveredBuildPreview.range.toFixed(1) }}</p>
+            <p v-if="hoveredBuildPreview.splashRadius">SPLASH: {{ hoveredBuildPreview.splashRadius.toFixed(1) }}</p>
+            <p v-if="hoveredBuildPreview.slowFactor">SLOW: {{ (hoveredBuildPreview.slowFactor * 100).toFixed(0) }}% / {{ hoveredBuildPreview.slowDurationSec?.toFixed(1) }}s</p>
+          </div>
+
+          <p v-if="state.placementMessage" class="td-placement-message" :style="placementFloatStyle">{{ state.placementMessage }}</p>
         </div>
 
         <p class="td-message">{{ state.message }}</p>
@@ -604,10 +728,15 @@ onBeforeUnmount(() => {
       cursor: pointer;
       transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 
-      &:hover {
+      &:hover:not(:disabled) {
         border-color: var(--accent);
         box-shadow: 0 0 12px rgba(106, 153, 78, 0.4);
         transform: translateY(-1px);
+      }
+
+      &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
       }
 
       .upgrade-option-label {
@@ -618,6 +747,25 @@ onBeforeUnmount(() => {
       .upgrade-option-desc {
         font-size: 11px;
         opacity: 0.8;
+      }
+
+      .upgrade-option-cost {
+        font-size: 11px;
+        font-weight: 700;
+        color: #ffd400;
+      }
+
+      &.is-skip {
+        border-color: rgba(255, 157, 125, 0.45);
+
+        &:hover {
+          border-color: #ff9d7d;
+          box-shadow: 0 0 12px rgba(255, 157, 125, 0.4);
+        }
+
+        .upgrade-option-label {
+          color: #ff9d7d;
+        }
       }
     }
 
@@ -652,10 +800,11 @@ onBeforeUnmount(() => {
   .td-shell {
     position: relative;
     z-index: 1;
+    width: min(1100px, 100%);
     display: grid;
-    grid-template-columns: 140px auto 200px;
+    grid-template-columns: 180px auto 200px;
     gap: 16px;
-    align-items: start;
+    align-items: center;
     padding: 20px;
   }
 
@@ -679,6 +828,7 @@ onBeforeUnmount(() => {
 
     .td-help-text {
       font-size: 11px;
+      color: #eafbe2;
       line-height: 1.6;
       opacity: 0.85;
     }
@@ -724,9 +874,8 @@ onBeforeUnmount(() => {
     }
 
     &.link {
-      border-color: transparent;
-      background: transparent;
-      text-decoration: underline;
+      text-align: center;
+      text-decoration: none;
     }
 
     &.danger {
@@ -789,6 +938,7 @@ onBeforeUnmount(() => {
   }
 
   .td-frame {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -856,16 +1006,28 @@ onBeforeUnmount(() => {
       top: v-bind('`${TD_STAGE_HEIGHT - TD_CELL_SIZE / 2}px`');
     }
 
+    .td-range-circle {
+      position: absolute;
+      left: 0;
+      top: 0;
+      border-radius: 50%;
+      background: rgba(106, 153, 78, 0.14);
+      border: 1px solid rgba(167, 201, 87, 0.65);
+      box-shadow: 0 0 12px rgba(106, 153, 78, 0.35), inset 0 0 12px rgba(106, 153, 78, 0.25);
+      pointer-events: none;
+      z-index: 2;
+    }
+
     .td-tower {
       position: absolute;
       left: 0;
       top: 0;
-      width: 32px;
-      height: 32px;
+      width: v-bind('`${TD_TOWER_SIZE}px`');
+      height: v-bind('`${TD_TOWER_SIZE}px`');
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 16px;
+      font-size: v-bind('`${TD_TOWER_SIZE / 2}px`');
       background: #10200a;
       border: 2px solid #eafbe2;
       border-radius: 6px;
@@ -900,8 +1062,8 @@ onBeforeUnmount(() => {
       position: absolute;
       left: 0;
       top: 0;
-      width: 24px;
-      height: 24px;
+      width: v-bind('`${TD_ENEMY_SIZE}px`');
+      height: v-bind('`${TD_ENEMY_SIZE}px`');
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -909,12 +1071,12 @@ onBeforeUnmount(() => {
       z-index: 4;
 
       .td-enemy-icon {
-        font-size: 14px;
+        font-size: v-bind('`${Math.round(TD_ENEMY_SIZE * 0.583)}px`');
         filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.6));
       }
 
       .td-enemy-hp {
-        width: 20px;
+        width: v-bind('`${Math.round(TD_ENEMY_SIZE * 0.833)}px`');
         height: 3px;
         background: #380000;
         border-radius: 2px;
@@ -959,26 +1121,33 @@ onBeforeUnmount(() => {
       position: absolute;
       left: 0;
       top: 0;
-      width: 6px;
-      height: 6px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       background: #ffd400;
-      box-shadow: 0 0 6px rgba(255, 212, 0, 0.85);
+      border: 1px solid #fff3b0;
+      box-shadow: 0 0 10px 2px rgba(255, 212, 0, 0.9);
       z-index: 5;
       animation-name: td-projectile-fly;
       animation-timing-function: linear;
       animation-fill-mode: forwards;
 
+      &.is-paused {
+        animation-play-state: paused;
+      }
+
       &.is-cannon {
-        width: 8px;
-        height: 8px;
+        width: 13px;
+        height: 13px;
         background: #ff8a2b;
-        box-shadow: 0 0 6px rgba(255, 138, 43, 0.85);
+        border-color: #ffd9ad;
+        box-shadow: 0 0 12px 3px rgba(255, 138, 43, 0.95);
       }
 
       &.is-ice {
         background: #7fd8ff;
-        box-shadow: 0 0 6px rgba(127, 216, 255, 0.85);
+        border-color: #e3f7ff;
+        box-shadow: 0 0 10px 2px rgba(127, 216, 255, 0.95);
       }
     }
   }
@@ -1021,12 +1190,18 @@ onBeforeUnmount(() => {
   }
 
   .td-tower-info {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
     border: 1px solid rgba(106, 153, 78, 0.45);
     border-radius: 8px;
     background: rgba(10, 24, 10, 0.85);
-    box-shadow: 0 0 12px rgba(106, 153, 78, 0.2);
+    box-shadow: 0 0 16px rgba(106, 153, 78, 0.35);
     padding: 8px 12px;
     font-size: 11px;
+    color: #eafbe2;
     display: flex;
     flex-direction: column;
     gap: 3px;
@@ -1045,12 +1220,25 @@ onBeforeUnmount(() => {
   }
 
   .td-placement-message {
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 10px);
+    transform: translateX(-50%);
+    z-index: 10;
+    margin: 0;
+    padding: 6px 10px;
+    border: 1px solid rgba(239, 71, 111, 0.5);
+    border-radius: 8px;
+    background: rgba(24, 10, 10, 0.9);
+    box-shadow: 0 0 16px rgba(239, 71, 111, 0.35);
     font-size: 11px;
     color: #ff9d7d;
+    white-space: nowrap;
   }
 
   .td-message {
     font-size: 11px;
+    color: #eafbe2;
     opacity: 0.75;
     min-height: 14px;
   }
@@ -1114,10 +1302,10 @@ onBeforeUnmount(() => {
 
 @keyframes td-projectile-fly {
   from {
-    transform: translate(var(--from-x), var(--from-y));
+    transform: translate(var(--from-x), var(--from-y)) translate(-50%, -50%);
   }
   to {
-    transform: translate(var(--to-x), var(--to-y));
+    transform: translate(var(--to-x), var(--to-y)) translate(-50%, -50%);
   }
 }
 

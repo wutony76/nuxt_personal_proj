@@ -69,7 +69,7 @@ const gameSlots = ref<GameSlot[]>([
   { id: 20, name: 'CONNECT 4', description: '四子棋對戰，棋子連成四子獲勝', status: 'open', path: '/game/connect4' },
   { id: 21, name: 'WHACK-A-MOLE', description: '打地鼠', status: 'open', path: '/game/whack-a-mole' },
   { id: 22, name: 'LIGHTS OUT', description: '關燈益智玩法，點一格連動翻轉上下左右鄰格，把全部燈熄滅過關，步數越少分數越高', status: 'open', path: '/game/lights-out' },
-  { id: 23, name: 'TOWER STACK', description: '疊塔玩法，抓時機讓移動方塊落在塔頂，重疊越少塔越窄，完美對齊觸發 Perfect 連擊衝高分', status: 'open', path: '/game/tower-stack' },
+  { id: 23, name: 'TOWER STACK', description: '疊塔玩法，抓時機讓移動方塊落在塔頂，完美對齊觸發 Perfect 連擊衝高分', status: 'open', path: '/game/tower-stack' },
   { id: 24, name: 'ARKANOID', description: 'BREAKOUT 進階版打磚塊，多次命中磚塊、移動磚塊與道具讓玩法更有變化', status: 'open', path: '/game/arkanoid' },
   { id: 25, name: 'TOWER DEFENSE', description: '塔防，防禦抵禦敵人，挑戰能撐到第幾波', status: 'open', path: '/game/tower-defense' },
   { id: 26, name: 'PINBALL', description: '彈珠台，操作 Flipper，不讓彈珠落下', status: 'open', path: '/game/pinball' },
