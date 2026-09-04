@@ -84,12 +84,11 @@ const click = {
 /* 沿用原本 11 份 Chat.vue placeholder 的配色 token（#efe6e6/#dcb4b4/var(--base-radius)），
    維持跟彩種頁面既有淺色系版面一致，不引入 game-hall 那套 Cyberpunk 深色配色 */
 .chat-panel {
-  flex: 1;
-  height: 100%;
-  min-height: 0;
-  /* 外層 bg-auto-panel-warp 用 align-items:stretch 讓左右等高，右側自動下注面板高度依玩法不一；
-     沒有上限的話訊息一多會把整個面板撐高，這裡跟 admin 聊天室一樣訂一個上限，改由 chat-list 內部捲動 */
-  max-height: 420px;
+  flex: 0 0 auto;
+  /* 外層 bg-auto-panel-warp 用 align-items:stretch，若只設 max-height 面板仍會隨左側自動下注
+     面板／聊天內容跟著變高；固定死 267px，不論訊息多寡或左側面板高度都不再變動，改由
+     chat-list 內部捲動 */
+  height: 267px;
   background: #efe6e6;
   border: 1px solid #dcb4b4;
   border-radius: var(--base-radius);
