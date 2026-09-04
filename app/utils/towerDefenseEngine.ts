@@ -80,6 +80,8 @@ const positionAtDistance = (distance: number): { x: number; y: number; reachedEn
 
 export const START_POINT = PATH_POINTS[0]!
 export const END_POINT = PATH_POINTS[PATH_POINTS.length - 1]!
+export const START_CELL = PATH_WAYPOINTS_CELLS[0]!
+export const END_CELL = PATH_WAYPOINTS_CELLS[PATH_WAYPOINTS_CELLS.length - 1]!
 
 // ── 塔 ──
 export type TowerKind = 'archer' | 'cannon' | 'ice'
@@ -116,7 +118,7 @@ export const TOWER_CONFIG: Record<TowerKind, TowerConfigEntry> = {
     icon: '💣',
     buildCost: 80,
     levels: [
-      { damage: 25, atkSpeed: 0.6, range: 3, upgradeCost: 0, splashRadius: 1.2 },
+      { damage: 25, atkSpeed: 0.6, range: 2, upgradeCost: 0, splashRadius: 1.2 },
       { damage: 40, atkSpeed: 0.7, range: 3.2, upgradeCost: 120, splashRadius: 1.4 },
       { damage: 60, atkSpeed: 0.8, range: 3.5, upgradeCost: 200, splashRadius: 1.6 }
     ]

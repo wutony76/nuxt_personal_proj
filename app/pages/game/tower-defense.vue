@@ -9,9 +9,12 @@ import TowerDefenseEngine, {
   TD_STAGE_WIDTH,
   TD_STAGE_HEIGHT,
   isPathCell,
+  START_CELL,
+  END_CELL,
   TOWER_CONFIG,
   TOWER_MAX_LEVEL,
   type TowerKind,
+  type EnemyKind,
   type TowerDefenseSnapshot,
   type UpgradeOptionKey
 } from '~/utils/towerDefenseEngine'
@@ -101,9 +104,17 @@ const canResumeFromPause = computed(() => state.status === 'pause' && !state.wai
 const canPauseWhilePlaying = computed(() => state.status === 'playing')
 const stageStyle = computed(() => `width:${TD_STAGE_WIDTH}px; height:${TD_STAGE_HEIGHT}px;`)
 const gridStyle = computed(() => `grid-template-columns: repeat(${TD_GRID_COLS}, ${TD_CELL_SIZE}px); grid-template-rows: repeat(${TD_GRID_ROWS}, ${TD_CELL_SIZE}px);`)
-/** 塔／敵人視覺尺寸依格子大小等比縮放，避免格子縮放後圖示超出格子邊界（比例沿用 TD_CELL_SIZE=48 時的原始 32px／24px） */
+/** 塔／敵人視覺尺寸依格子大小等比縮放，避免格子縮放後圖示超出格子邊界 */
 const TD_TOWER_SIZE = Math.round((TD_CELL_SIZE * 2) / 3)
-const TD_ENEMY_SIZE = Math.round(TD_CELL_SIZE / 2)
+/** 怪物放大到接近格子大小，看得更清楚；tank／boss 再依比例放更大，體型感覺更有壓迫感 */
+const TD_ENEMY_SIZE = Math.round(TD_CELL_SIZE * 0.85)
+const TD_TANK_SIZE = Math.round(TD_ENEMY_SIZE * 1.25)
+const TD_BOSS_SIZE = Math.round(TD_ENEMY_SIZE * 1.6)
+const enemySizeFor = (kind: EnemyKind): number => {
+  if (kind === 'boss') return TD_BOSS_SIZE
+  if (kind === 'tank') return TD_TANK_SIZE
+  return TD_ENEMY_SIZE
+}
 /** hover 一座已建好的塔時顯示其資訊，滑鼠離開即關閉 */
 const hoveredTower = computed(() => state.towers.find((t) => t.id === state.hoverTowerId) ?? null)
 const hoveredTowerNextCost = computed(() => {
@@ -244,10 +255,15 @@ const _handlers = {
   cellClass: (row: number, col: number): string[] => {
     const classes = [isPathCell(row, col) ? 'is-path' : 'is-grass']
     if (!isPathCell(row, col) && state.selectedTowerKind && !_handlers.towerAt(row, col)) classes.push('is-buildable')
+    if (row === START_CELL.r && col === START_CELL.c) classes.push('is-spawn')
+    if (row === END_CELL.r && col === END_CELL.c) classes.push('is-castle')
     return classes
   },
   towerStyle: (t: TowerView): string => `transform: translate(${t.x - TD_TOWER_SIZE / 2}px, ${t.y - TD_TOWER_SIZE / 2}px);`,
-  enemyStyle: (e: EnemyView): string => `transform: translate(${e.x - TD_ENEMY_SIZE / 2}px, ${e.y - TD_ENEMY_SIZE / 2}px);`,
+  enemyStyle: (e: EnemyView): string => {
+    const size = enemySizeFor(e.kind)
+    return `transform: translate(${e.x - size / 2}px, ${e.y - size / 2}px);`
+  },
   enemyHpPercent: (e: EnemyView): string => `${Math.max(0, (e.hp / e.maxHp) * 100)}%`,
   projectileStyle: (p: ProjectileView): string =>
     `--from-x:${p.fromX}px; --from-y:${p.fromY}px; --to-x:${p.toX}px; --to-y:${p.toY}px; animation-duration:${p.totalTtlSec}s;`,
@@ -309,7 +325,7 @@ const _actions = {
     _actions.startTickLoop()
   },
   placeTowerAt: (row: number, col: number) => {
-    if (state.status !== 'playing') return
+    if (state.status !== 'playing' && state.status !== 'pause') return
     const existing = _handlers.towerAt(row, col)
     if (existing) {
       state.selectedTowerKind = null
@@ -538,9 +554,6 @@ onBeforeUnmount(() => {
                 />
               </template>
             </div>
-
-            <div class="td-start-flag">🏁</div>
-            <div class="td-end-flag">🏰</div>
 
             <div v-if="rangeTower" class="td-range-circle" :style="rangeCircleStyle" />
 
@@ -985,25 +998,15 @@ onBeforeUnmount(() => {
           box-shadow: inset 0 0 8px rgba(167, 201, 87, 0.5);
         }
       }
-    }
 
-    .td-start-flag,
-    .td-end-flag {
-      position: absolute;
-      font-size: 18px;
-      pointer-events: none;
-      z-index: 2;
-      transform: translate(-9px, -9px);
-    }
+      /** 出怪格：紅色；城堡格：綠色，直接用顏色標示起點/終點，不再另外疊小 icon */
+      &.is-spawn {
+        background: #c0392b;
+      }
 
-    .td-start-flag {
-      left: v-bind('`${TD_CELL_SIZE / 2}px`');
-      top: v-bind('`${TD_CELL_SIZE / 2}px`');
-    }
-
-    .td-end-flag {
-      left: v-bind('`${TD_STAGE_WIDTH - TD_CELL_SIZE / 2}px`');
-      top: v-bind('`${TD_STAGE_HEIGHT - TD_CELL_SIZE / 2}px`');
+      &.is-castle {
+        background: #2ecc71;
+      }
     }
 
     .td-range-circle {
@@ -1097,17 +1100,34 @@ onBeforeUnmount(() => {
         box-shadow: 0 0 4px rgba(255, 212, 0, 0.8);
       }
 
-      &.is-tank .td-enemy-hp-fill {
-        background: #4d7fff;
-        box-shadow: 0 0 4px rgba(77, 127, 255, 0.8);
+      &.is-tank {
+        width: v-bind('`${TD_TANK_SIZE}px`');
+        height: v-bind('`${TD_TANK_SIZE}px`');
+
+        .td-enemy-icon {
+          font-size: v-bind('`${Math.round(TD_TANK_SIZE * 0.583)}px`');
+        }
+
+        .td-enemy-hp {
+          width: v-bind('`${Math.round(TD_TANK_SIZE * 0.833)}px`');
+        }
+
+        .td-enemy-hp-fill {
+          background: #4d7fff;
+          box-shadow: 0 0 4px rgba(77, 127, 255, 0.8);
+        }
       }
 
       &.is-boss {
-        width: 34px;
-        height: 34px;
+        width: v-bind('`${TD_BOSS_SIZE}px`');
+        height: v-bind('`${TD_BOSS_SIZE}px`');
 
         .td-enemy-icon {
-          font-size: 22px;
+          font-size: v-bind('`${Math.round(TD_BOSS_SIZE * 0.583)}px`');
+        }
+
+        .td-enemy-hp {
+          width: v-bind('`${Math.round(TD_BOSS_SIZE * 0.833)}px`');
         }
 
         .td-enemy-hp-fill {
