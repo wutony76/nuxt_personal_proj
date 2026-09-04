@@ -7,19 +7,27 @@
 // ---------------------------------------------------------------------------
 // Virtual Coordinate System（design.md Decision 1）
 // ---------------------------------------------------------------------------
-export const PINBALL_WIDTH = 360
-export const PINBALL_HEIGHT = 640
+export const PINBALL_WIDTH = 320
+export const PINBALL_HEIGHT = 440
 
 export const LIVES_START_PB = 3
-export const BALL_RADIUS = 6
+export const BALL_RADIUS = 8
 export const FLIPPER_RADIUS = 7
+/** 碰撞判定略大於視覺半徑，降低高速球穿透 Flipper 的機率 */
+export const FLIPPER_COLLISION_RADIUS = 10
 // 需要涵蓋大半桌面寬度，兩支 Flipper 中間只留一個明確的 Death Zone 缺口，
 // 否則球只要落在 Pivot 外側（桌面兩側）就會在任何 Flipper 角度下都接觸不到、直接漏球（見實測調校紀錄）
-export const FLIPPER_LENGTH = 130
+export const FLIPPER_LENGTH = 93
+export const FLIPPER_PIVOT_Y = PINBALL_HEIGHT - 70
+export const FLIPPER_PIVOT_INSET = 30
+/** 左 Flipper 軸心比右邊再往左移 15px */
+export const FLIPPER_PIVOT_INSET_LEFT = FLIPPER_PIVOT_INSET - 15
 export const BUMPER_RADIUS = 18
 export const TARGET_WIDTH = 28
-export const TARGET_HEIGHT = 10
+export const TARGET_HEIGHT = 16
 export const HOLE_RADIUS = 11
+/** Flipper 縮短後兩支中間縫隙變大，補一個固定的方形障礙物擋在縫隙正上方，降低直接漏球的機率 */
+export const CENTER_POST_SIZE = 40
 
 const GRAVITY = 0.32
 const AIR_FRICTION = 0.999
@@ -28,7 +36,7 @@ const WALL_RESTITUTION = 0.75
 const BUMPER_RESTITUTION = 1.4
 const BUMPER_MIN_KICK = 6.4
 const TARGET_RESTITUTION = 0.85
-const FLIPPER_ANGULAR_SPEED = 0.55 // rad / tick，約 4 ticks 內完成整段擺動
+const FLIPPER_ANGULAR_SPEED = 0.12 // rad / tick，約 6 ticks（~96ms）完成單程擺動，讓「按一次自動彈起再放下」的動作看得清楚
 const FLIPPER_UP_ANGLE = -0.62 // rad，相對 restAngle 的擺動量
 const FLIPPER_BASE_KICK = 3.2
 const FLIPPER_TANGENT_GAIN = 0.9
@@ -47,7 +55,7 @@ const FEVER_COMBO_WINDOW_MULT = 3
 const COMBO_MULT_STEP = 0.15
 const COMBO_MULT_CAP = 4
 
-const FEVER_DURATION_MS = 10000
+const FEVER_DURATION_MS = 5000
 const FEVER_SCORE_MULT = 3
 const FEVER_BUMPER_KICK_MULT = 1.3
 
@@ -61,6 +69,18 @@ const TARGET_COMBO_BONUS = 1
 const BUMPER_COIN_CHANCE = 0.05
 const HOLE_COIN_REWARD = 5
 const FEVER_END_COIN_REWARD = 10
+/** 趣味幣每 3 枚兌換 1 顆球，整局最多兌換 3 次 */
+const COIN_PER_EXTRA_BALL = 3
+const MAX_COIN_EXTRA_BALLS = 3
+/** 結算時，沒兌換完（不足 3 枚湊一次）的趣味幣，每枚額外加算的分數 */
+const COIN_LEFTOVER_SCORE_BONUS = 2000
+/** 側邊導流斜牆半徑（封住 Flipper 根部與外牆之間的縫隙） */
+const SIDE_WELL_WALL_RADIUS = 4
+const FLIPPER_PIVOT_COLLISION_RADIUS = FLIPPER_COLLISION_RADIUS + 2
+const FLIPPER_WELL_NUDGE_SPEED = 1.4
+/** 發球道左界：進行中球不可回到右側發球區（dock 在 x≈344） */
+const LAUNCH_LANE_TOP_Y = 130
+const LAUNCH_LANE_DIVIDER_X = PINBALL_WIDTH - 42
 
 // ---------------------------------------------------------------------------
 // 型別
@@ -68,6 +88,7 @@ const FEVER_END_COIN_REWARD = 10
 export type BallPb = { x: number; y: number; vx: number; vy: number; active: boolean }
 
 export type FlipperSide = 'left' | 'right'
+export type FlipperAutoPhase = 'idle' | 'up' | 'down'
 export type Flipper = {
   side: FlipperSide
   pivotX: number
@@ -78,11 +99,14 @@ export type Flipper = {
   angle: number
   angularVelocity: number
   held: boolean
+  /** 按一次自動彈起再放下（見 tryTriggerFlip）：idle=可再次觸發、up=正在彈起、down=正在放下 */
+  autoPhase: FlipperAutoPhase
 }
 
 export type Bumper = { id: number; x: number; y: number; radius: number; flashMsLeft: number }
 export type Target = { id: number; label: string; x: number; y: number; hit: boolean; flashMsLeft: number }
 export type GoldenHole = { x: number; y: number; radius: number; flashMsLeft: number }
+export type CenterPost = { x: number; y: number; size: number; flashMsLeft: number }
 
 export type UpgradeCategory = 'score' | 'combo' | 'control' | 'special'
 export type UpgradeModifiers = {
@@ -149,6 +173,7 @@ export type PinballSnapshot = {
   bumpers: Bumper[]
   targets: Target[]
   hole: GoldenHole
+  centerPost: CenterPost
   score: number
   lives: number
   ballIndex: number
@@ -160,6 +185,9 @@ export type PinballSnapshot = {
   feverMsLeft: number
   feverCount: number
   coinsCollected: number
+  coinBonusLivesGranted: number
+  finalCoinBonusAmount: number
+  finalLeftoverCoinCount: number
   pendingUpgradeChoices: Upgrade[]
   hitFlashes: Array<{ id: number; x: number; y: number; text: string }>
   shakeToken: number
@@ -200,6 +228,7 @@ export default class PinballEngine {
   private bumpers: Bumper[] = []
   private targets: Target[] = []
   private hole: GoldenHole
+  private centerPost: CenterPost
   private modifiers: UpgradeModifiers = DEFAULT_MODIFIERS()
 
   private status: PinballStatus = 'ready'
@@ -213,6 +242,11 @@ export default class PinballEngine {
   private feverMsLeft = 0
   private feverCount = 0
   private coinsCollected = 0
+  /** 已經兌換成球的次數（每次消耗 3 枚），最多 MAX_COIN_EXTRA_BALLS 次 */
+  private coinBonusLivesGranted = 0
+  /** 結算時（gameover）算出的「未兌換完趣味幣」加分與剩餘枚數，僅在遊戲結束當下計算一次 */
+  private finalCoinBonusAmount = 0
+  private finalLeftoverCoinCount = 0
   private pendingUpgradeChoices: Upgrade[] = []
   private ballDocked = true
 
@@ -222,21 +256,23 @@ export default class PinballEngine {
 
   private leftHeld = false
   private rightHeld = false
+  /** 剛發球、球還沒離開發球道時暫時隔絕右 Flipper 碰撞（見 moveBallWithFlipperCollisions 註解），球一離開發球道就恆久解除 */
+  private rightLaneLaunchGuard = false
 
   constructor() {
     this.leftFlipper = this.createFlipper('left')
     this.rightFlipper = this.createFlipper('right')
     this.hole = { x: PINBALL_WIDTH - 40, y: 120, radius: HOLE_RADIUS, flashMsLeft: 0 }
+    this.centerPost = { x: (FLIPPER_PIVOT_INSET_LEFT + (PINBALL_WIDTH - FLIPPER_PIVOT_INSET)) / 2, y: 332, size: CENTER_POST_SIZE, flashMsLeft: 0 }
     this.reset()
   }
 
   private createFlipper(side: FlipperSide): Flipper {
-    const pivotY = PINBALL_HEIGHT - 70
-    const pivotInset = 30
+    const pivotY = FLIPPER_PIVOT_Y
     if (side === 'left') {
-      return { side, pivotX: pivotInset, pivotY, length: FLIPPER_LENGTH, restAngle: 0.55, activeAngle: 0.55 + FLIPPER_UP_ANGLE, angle: 0.55, angularVelocity: 0, held: false }
+      return { side, pivotX: FLIPPER_PIVOT_INSET_LEFT, pivotY, length: FLIPPER_LENGTH, restAngle: 0.55, activeAngle: 0.55 + FLIPPER_UP_ANGLE, angle: 0.55, angularVelocity: 0, held: false, autoPhase: 'idle' }
     }
-    return { side, pivotX: PINBALL_WIDTH - pivotInset, pivotY, length: FLIPPER_LENGTH, restAngle: Math.PI - 0.55, activeAngle: Math.PI - 0.55 - FLIPPER_UP_ANGLE, angle: Math.PI - 0.55, angularVelocity: 0, held: false }
+    return { side, pivotX: PINBALL_WIDTH - FLIPPER_PIVOT_INSET, pivotY, length: FLIPPER_LENGTH, restAngle: Math.PI - 0.55, activeAngle: Math.PI - 0.55 - FLIPPER_UP_ANGLE, angle: Math.PI - 0.55, angularVelocity: 0, held: false, autoPhase: 'idle' }
   }
 
   reset() {
@@ -251,6 +287,9 @@ export default class PinballEngine {
     this.feverMsLeft = 0
     this.feverCount = 0
     this.coinsCollected = 0
+    this.coinBonusLivesGranted = 0
+    this.finalCoinBonusAmount = 0
+    this.finalLeftoverCoinCount = 0
     this.pendingUpgradeChoices = []
     this.hitFlashes = []
     this.status = 'ready'
@@ -268,19 +307,33 @@ export default class PinballEngine {
       { id: 4, label: 'D', x: 270, y: 120, hit: false, flashMsLeft: 0 }
     ]
     this.hole = { x: PINBALL_WIDTH - 34, y: 130, radius: HOLE_RADIUS, flashMsLeft: 0 }
+    this.centerPost = { x: (FLIPPER_PIVOT_INSET_LEFT + (PINBALL_WIDTH - FLIPPER_PIVOT_INSET)) / 2, y: 332, size: CENTER_POST_SIZE, flashMsLeft: 0 }
     this.dockBall()
   }
 
   private dockBall() {
     this.ball = { x: PINBALL_WIDTH - 16, y: PINBALL_HEIGHT - 40, vx: 0, vy: 0, active: false }
     this.ballDocked = true
+    this.rightLaneLaunchGuard = false
   }
 
+  /**
+   * Flipper 改成「按一次自動彈起再放下」：按下瞬間（rising edge）觸發一次完整的上彈-回落動作，
+   * 動作進行中（autoPhase !== 'idle'）不管按住不放或中途連按都不會再觸發，
+   * 一定要等這次動作完整放下回到 idle，下一次「按下」才會再生效（見 updateFlipper 的階段轉換）。
+   */
   setInput(input: { left: boolean; right: boolean }) {
+    this.tryTriggerFlip(this.leftFlipper, this.leftHeld, input.left)
+    this.tryTriggerFlip(this.rightFlipper, this.rightHeld, input.right)
     this.leftHeld = input.left
     this.rightHeld = input.right
-    this.leftFlipper.held = input.left
-    this.rightFlipper.held = input.right
+  }
+
+  private tryTriggerFlip(flipper: Flipper, prevRaw: boolean, nextRaw: boolean) {
+    if (!prevRaw && nextRaw && flipper.autoPhase === 'idle') {
+      flipper.autoPhase = 'up'
+      flipper.held = true
+    }
   }
 
   start() {
@@ -298,6 +351,7 @@ export default class PinballEngine {
     this.status = 'playing'
     this.ballDocked = false
     this.ball.active = true
+    this.rightLaneLaunchGuard = true
     this.ball.vy = -(LAUNCH_POWER + (Math.random() - 0.5) * LAUNCH_POWER_JITTER)
     this.ball.vx = LAUNCH_VX + (Math.random() - 0.5) * LAUNCH_VX_JITTER
   }
@@ -318,6 +372,17 @@ export default class PinballEngine {
 
   private triggerShake() {
     this.shakeToken += 1
+  }
+
+  /** 趣味幣每滿 3 枚自動兌換 1 顆球，整局最多兌換 MAX_COIN_EXTRA_BALLS 次；每次收集趣味幣都要檢查一次 */
+  private checkCoinBonusLife() {
+    const eligible = Math.min(MAX_COIN_EXTRA_BALLS, Math.floor(this.coinsCollected / COIN_PER_EXTRA_BALL))
+    if (eligible <= this.coinBonusLivesGranted) return
+    const grant = eligible - this.coinBonusLivesGranted
+    this.coinBonusLivesGranted = eligible
+    this.lives += grant
+    this.pushFlash(PINBALL_WIDTH / 2, PINBALL_HEIGHT / 2, grant > 1 ? `+${grant} BALLS` : '+1 BALL')
+    this.triggerShake()
   }
 
   private registerHit(comboGain: number) {
@@ -353,6 +418,7 @@ export default class PinballEngine {
     this.feverMsLeft = 0
     this.targets.forEach((t) => { t.hit = false })
     this.coinsCollected += FEVER_END_COIN_REWARD
+    this.checkCoinBonusLife()
   }
 
   private updateFlipper(flipper: Flipper, dt: number) {
@@ -365,6 +431,13 @@ export default class PinballEngine {
       flipper.angle += targetAngle > flipper.angle ? speed : -speed
     }
     flipper.angularVelocity = (flipper.angle - prevAngle) / dt
+
+    if (flipper.autoPhase === 'up' && flipper.angle === flipper.activeAngle) {
+      flipper.autoPhase = 'down'
+      flipper.held = false
+    } else if (flipper.autoPhase === 'down' && flipper.angle === flipper.restAngle) {
+      flipper.autoPhase = 'idle'
+    }
   }
 
   private flipperTip(flipper: Flipper) {
@@ -375,7 +448,7 @@ export default class PinballEngine {
   private resolveFlipperCollision(flipper: Flipper) {
     const tip = this.flipperTip(flipper)
     const { x: cx, y: cy, dist, t } = closestPointOnSegment(this.ball.x, this.ball.y, flipper.pivotX, flipper.pivotY, tip.x, tip.y)
-    const minDist = BALL_RADIUS + FLIPPER_RADIUS
+    const minDist = BALL_RADIUS + FLIPPER_COLLISION_RADIUS
     if (dist >= minDist || dist === 0) return
     const nx = (this.ball.x - cx) / dist
     const ny = (this.ball.y - cy) / dist
@@ -395,6 +468,139 @@ export default class PinballEngine {
     this.ball.vx += tx * tangentialSpeed * this.modifiers.flipperKickMult
     this.ball.vy += ty * tangentialSpeed * this.modifiers.flipperKickMult
     clampSpeed(this.ball)
+  }
+
+  /** Flipper 軸心圓形碰撞（補足線段碰不到根部與牆角縫隙） */
+  private resolveFlipperPivotCollision(flipper: Flipper) {
+    const dx = this.ball.x - flipper.pivotX
+    const dy = this.ball.y - flipper.pivotY
+    const dist = Math.hypot(dx, dy)
+    const minDist = BALL_RADIUS + FLIPPER_PIVOT_COLLISION_RADIUS
+    if (dist >= minDist || dist === 0) return
+    const nx = dx / dist
+    const ny = dy / dist
+    this.ball.x = flipper.pivotX + nx * minDist
+    this.ball.y = flipper.pivotY + ny * minDist
+    const inward = this.ball.vx * nx + this.ball.vy * ny
+    if (inward < 0) {
+      this.ball.vx -= 2 * inward * nx * WALL_RESTITUTION
+      this.ball.vy -= 2 * inward * ny * WALL_RESTITUTION
+    }
+    clampSpeed(this.ball)
+  }
+
+  /** 兩支 Flipper 縮短後中間縫隙變大，補一個固定方形障礙物擋在縫隙正上方，降低球直接漏球的機率（純物理阻擋，不計分） */
+  private resolveCenterPost() {
+    const half = this.centerPost.size / 2
+    const nearestX = Math.max(this.centerPost.x - half, Math.min(this.ball.x, this.centerPost.x + half))
+    const nearestY = Math.max(this.centerPost.y - half, Math.min(this.ball.y, this.centerPost.y + half))
+    const dx = this.ball.x - nearestX
+    const dy = this.ball.y - nearestY
+    const dist = Math.hypot(dx, dy)
+    if (dist >= BALL_RADIUS || dist === 0) return
+    const nx = dx / dist
+    const ny = dy / dist
+    const penetration = BALL_RADIUS - dist
+    this.ball.x += nx * penetration
+    this.ball.y += ny * penetration
+    const inward = this.ball.vx * nx + this.ball.vy * ny
+    if (inward < 0) {
+      this.ball.vx -= 2 * inward * nx * WALL_RESTITUTION
+      this.ball.vy -= 2 * inward * ny * WALL_RESTITUTION
+    }
+    clampSpeed(this.ball)
+    this.centerPost.flashMsLeft = 200
+  }
+
+  /**
+   * 左右下角導流斜牆：從外牆底部連到 Flipper 軸心外側，避免球卡在根部縫隙。
+   * @param ax 斜牆起點 x
+   * @param ay 斜牆起點 y
+   * @param bx 斜牆終點 x
+   * @param by 斜牆終點 y
+   * @param side 左／右側（決定法線朝場內）
+   */
+  private resolveSideWellWall(ax: number, ay: number, bx: number, by: number, side: FlipperSide) {
+    const { x: cx, y: cy, dist } = closestPointOnSegment(this.ball.x, this.ball.y, ax, ay, bx, by)
+    const minDist = BALL_RADIUS + SIDE_WELL_WALL_RADIUS
+    if (dist >= minDist || dist === 0) return
+    let nx = (this.ball.x - cx) / dist
+    let ny = (this.ball.y - cy) / dist
+    if (side === 'left' && nx < 0) {
+      nx = -nx
+      ny = -ny
+    }
+    if (side === 'right' && nx > 0) {
+      nx = -nx
+      ny = -ny
+    }
+    this.ball.x = cx + nx * minDist
+    this.ball.y = cy + ny * minDist
+    const inward = this.ball.vx * nx + this.ball.vy * ny
+    if (inward < 0) {
+      this.ball.vx -= 2 * inward * nx * WALL_RESTITUTION
+      this.ball.vy -= 2 * inward * ny * WALL_RESTITUTION
+    }
+    clampSpeed(this.ball)
+  }
+
+  private resolveSideWellWalls() {
+    const wellTopY = FLIPPER_PIVOT_Y + 22
+    const bottomY = PINBALL_HEIGHT + BALL_RADIUS
+    const leftWellEndX = FLIPPER_PIVOT_INSET_LEFT - 6
+    // 右側斜牆終點對齊發球道隔板，避免把球導回右側發球區
+    const rightWellEndX = LAUNCH_LANE_DIVIDER_X
+    this.resolveSideWellWall(0, bottomY, leftWellEndX, wellTopY, 'left')
+    this.resolveSideWellWall(PINBALL_WIDTH, bottomY, rightWellEndX, wellTopY, 'right')
+  }
+
+  /** 進行中的球不可穿過發球道隔板回到 plunger 區（僅擋往右移動，剛發球時球本就在發球道內、正往左移動不受影響） */
+  private resolveLaunchLaneDivider() {
+    if (!this.ball.active || this.ballDocked) return
+    if (this.ball.vx <= 0) return
+    if (this.ball.y < LAUNCH_LANE_TOP_Y) return
+    if (this.ball.x + BALL_RADIUS <= LAUNCH_LANE_DIVIDER_X) return
+
+    this.ball.x = LAUNCH_LANE_DIVIDER_X - BALL_RADIUS - 0.5
+    this.ball.vx = -Math.abs(this.ball.vx) * WALL_RESTITUTION
+    const speed = Math.hypot(this.ball.vx, this.ball.vy)
+    if (speed < FLIPPER_WELL_NUDGE_SPEED) {
+      this.ball.vx -= 1.1
+      this.ball.vy -= 0.45
+      clampSpeed(this.ball)
+    }
+  }
+
+  /** 低速球若仍卡在 Flipper 井裡，輕推回場內避免永久卡住 */
+  private resolveFlipperWellAntiStuck() {
+    const speed = Math.hypot(this.ball.vx, this.ball.vy)
+    if (speed >= FLIPPER_WELL_NUDGE_SPEED) return
+    const wells = [
+      { pivotX: FLIPPER_PIVOT_INSET_LEFT, maxX: PINBALL_WIDTH, nudgeX: 0.9, nudgeY: -0.55 },
+      {
+        pivotX: PINBALL_WIDTH - FLIPPER_PIVOT_INSET,
+        maxX: LAUNCH_LANE_DIVIDER_X,
+        nudgeX: -1.1,
+        nudgeY: -0.55
+      }
+    ] as const
+    for (const well of wells) {
+      const inWell = this.ball.y > FLIPPER_PIVOT_Y - 10
+        && this.ball.y < PINBALL_HEIGHT
+        && Math.abs(this.ball.x - well.pivotX) < 18
+        && this.ball.x < well.maxX
+      if (!inWell) continue
+      this.ball.vx += well.nudgeX
+      this.ball.vy += well.nudgeY
+      clampSpeed(this.ball)
+    }
+
+    // 球若垂直落在方形障礙物正中央（vx 剛好等於 0）會理論上無限平衡在頂面上，輕推破壞對稱性避免卡住
+    const half = this.centerPost.size / 2
+    const restingOnPost = Math.abs(this.ball.x - this.centerPost.x) < half + 1
+      && this.ball.y < this.centerPost.y
+      && this.ball.y > this.centerPost.y - half - BALL_RADIUS - 2
+    if (restingOnPost) this.ball.vx += this.ball.x >= this.centerPost.x ? 0.6 : -0.6
   }
 
   private resolveWalls() {
@@ -425,7 +631,10 @@ export default class PinballEngine {
       const gained = this.addScore(BUMPER_BASE_SCORE, this.modifiers.bumperScoreMult)
       this.pushFlash(bumper.x, bumper.y, `+${gained}`)
       this.triggerShake()
-      if (Math.random() < BUMPER_COIN_CHANCE + this.modifiers.bumperCoinChanceBonus) this.coinsCollected += 1
+      if (Math.random() < BUMPER_COIN_CHANCE + this.modifiers.bumperCoinChanceBonus) {
+        this.coinsCollected += 1
+        this.checkCoinBonusLife()
+      }
     }
   }
 
@@ -472,10 +681,54 @@ export default class PinballEngine {
     this.registerHit(HOLE_COMBO_BONUS)
     const gained = this.addScore(HOLE_BASE_SCORE, this.modifiers.holeScoreMult)
     this.coinsCollected += HOLE_COIN_REWARD
+    this.checkCoinBonusLife()
     this.pushFlash(this.hole.x, this.hole.y, `+${gained}`)
     this.triggerShake()
     this.dockBall()
     this.launchBall()
+  }
+
+  /**
+   * Flipper 擺動極快（單一 tick 可轉超過半個行程，tip 瞬間位移可達數十 px），
+   * 若碰撞判定只看這個 tick「轉完之後」的最終角度，球有機會剛好卡在「轉動前」與「轉動後」
+   * 兩個離散角度都碰不到的掃過範圍內，直接穿越 Flipper（見實測：轉動瞬間球直接穿越漏球）。
+   * 因此角度也要跟著球的 substep 一起內插，逐步碰撞判定，而非只判定最終角度。
+   */
+  private moveBallWithFlipperCollisions(leftAngleBefore: number, rightAngleBefore: number) {
+    const speed = Math.hypot(this.ball.vx, this.ball.vy)
+    const maxStep = (BALL_RADIUS + FLIPPER_COLLISION_RADIUS) * 0.55
+    const substeps = Math.max(1, Math.ceil(speed / maxStep))
+    const stepVx = this.ball.vx / substeps
+    const stepVy = this.ball.vy / substeps
+    const leftAngleAfter = this.leftFlipper.angle
+    const rightAngleAfter = this.rightFlipper.angle
+
+    for (let step = 0; step < substeps; step++) {
+      this.ball.x += stepVx
+      this.ball.y += stepVy
+      const t = (step + 1) / substeps
+      this.leftFlipper.angle = leftAngleBefore + (leftAngleAfter - leftAngleBefore) * t
+      this.rightFlipper.angle = rightAngleBefore + (rightAngleAfter - rightAngleBefore) * t
+      this.resolveWalls()
+      this.resolveSideWellWalls()
+      this.resolveLaunchLaneDivider()
+      this.resolveFlipperPivotCollision(this.leftFlipper)
+      this.resolveFlipperCollision(this.leftFlipper)
+      // 發球道與右 Flipper 機構在實體桌面上是分開的通道，剛發球、球還沒離開發球道時不應碰到右 Flipper／軸心，
+      // 否則新發球會直接撞上緊貼隔板的 Flipper 軸心被打偏（見實測：發球瞬間直接漏球）。
+      // 只在「剛發球」這段期間排除，球一離開發球道就恆久解除，避免球後續正常飛回右側時穿過 Flipper 直接漏球
+      if (this.rightLaneLaunchGuard && this.ball.x + BALL_RADIUS > LAUNCH_LANE_DIVIDER_X) {
+        // still inside the launch lane right after launch, skip right flipper collision this substep
+      } else {
+        this.rightLaneLaunchGuard = false
+        this.resolveFlipperPivotCollision(this.rightFlipper)
+        this.resolveFlipperCollision(this.rightFlipper)
+      }
+      this.resolveCenterPost()
+    }
+    this.leftFlipper.angle = leftAngleAfter
+    this.rightFlipper.angle = rightAngleAfter
+    this.resolveFlipperWellAntiStuck()
   }
 
   private loseBall() {
@@ -484,6 +737,9 @@ export default class PinballEngine {
     this.comboMsLeft = 0
     this.dockBall()
     if (this.lives <= 0) {
+      this.finalLeftoverCoinCount = Math.max(0, this.coinsCollected - this.coinBonusLivesGranted * COIN_PER_EXTRA_BALL)
+      this.finalCoinBonusAmount = this.finalLeftoverCoinCount * COIN_LEFTOVER_SCORE_BONUS
+      this.score += this.finalCoinBonusAmount
       this.status = 'gameover'
       return
     }
@@ -499,6 +755,8 @@ export default class PinballEngine {
     const ticks = Math.max(1, Math.round(dt))
 
     for (let i = 0; i < ticks; i++) {
+      const leftAngleBefore = this.leftFlipper.angle
+      const rightAngleBefore = this.rightFlipper.angle
       this.updateFlipper(this.leftFlipper, 1)
       this.updateFlipper(this.rightFlipper, 1)
 
@@ -507,12 +765,7 @@ export default class PinballEngine {
         this.ball.vx *= AIR_FRICTION
         this.ball.vy *= AIR_FRICTION
         clampSpeed(this.ball)
-        this.ball.x += this.ball.vx
-        this.ball.y += this.ball.vy
-
-        this.resolveWalls()
-        this.resolveFlipperCollision(this.leftFlipper)
-        this.resolveFlipperCollision(this.rightFlipper)
+        this.moveBallWithFlipperCollisions(leftAngleBefore, rightAngleBefore)
         this.resolveBumpers()
         this.resolveTargets()
         this.resolveHole()
@@ -543,6 +796,7 @@ export default class PinballEngine {
     this.bumpers.forEach((b) => { if (b.flashMsLeft > 0) b.flashMsLeft = Math.max(0, b.flashMsLeft - dtMs) })
     this.targets.forEach((t) => { if (t.flashMsLeft > 0) t.flashMsLeft = Math.max(0, t.flashMsLeft - dtMs) })
     if (this.hole.flashMsLeft > 0) this.hole.flashMsLeft = Math.max(0, this.hole.flashMsLeft - dtMs)
+    if (this.centerPost.flashMsLeft > 0) this.centerPost.flashMsLeft = Math.max(0, this.centerPost.flashMsLeft - dtMs)
   }
 
   getSnapshot(): PinballSnapshot {
@@ -554,6 +808,7 @@ export default class PinballEngine {
       bumpers: this.bumpers.map((b) => ({ ...b })),
       targets: this.targets.map((t) => ({ ...t })),
       hole: { ...this.hole },
+      centerPost: { ...this.centerPost },
       score: this.score,
       lives: this.lives,
       ballIndex: this.ballIndex,
@@ -565,6 +820,9 @@ export default class PinballEngine {
       feverMsLeft: this.feverMsLeft,
       feverCount: this.feverCount,
       coinsCollected: this.coinsCollected,
+      coinBonusLivesGranted: this.coinBonusLivesGranted,
+      finalCoinBonusAmount: this.finalCoinBonusAmount,
+      finalLeftoverCoinCount: this.finalLeftoverCoinCount,
       pendingUpgradeChoices: this.pendingUpgradeChoices,
       hitFlashes: this.hitFlashes.map((f) => ({ id: f.id, x: f.x, y: f.y, text: f.text })),
       shakeToken: this.shakeToken,

@@ -12,18 +12,21 @@ import PinballEngine, {
   TARGET_WIDTH,
   TARGET_HEIGHT,
   HOLE_RADIUS,
+  CENTER_POST_SIZE,
   LIVES_START_PB,
   type BallPb,
   type Flipper,
   type Bumper,
   type Target,
   type GoldenHole,
+  type CenterPost,
   type Upgrade
 } from '~/utils/pinballEngine'
 
 type PinballStatusView = 'ready' | 'playing' | 'pause' | 'upgrade' | 'gameover'
 
 const TICK_MS = 16
+const BALL_LOST_DELAY_MS = 2000
 const ACCENT = '#00f5d4'
 
 const router = useRouter()
@@ -40,6 +43,7 @@ const state = reactive({
   bumpers: [] as Bumper[],
   targets: [] as Target[],
   hole: null as GoldenHole | null,
+  centerPost: null as CenterPost | null,
   score: 0,
   lives: LIVES_START_PB,
   ballIndex: 1,
@@ -50,14 +54,19 @@ const state = reactive({
   feverActive: false,
   feverMsLeft: 0,
   coinsCollected: 0,
+  coinBonusLivesGranted: 0,
+  finalCoinBonusAmount: 0,
+  finalLeftoverCoinCount: 0,
   pendingUpgradeChoices: [] as Upgrade[],
   hitFlashes: [] as Array<{ id: number; x: number; y: number; text: string }>,
   ballDocked: true,
   shakeToken: 0,
   isShaking: false,
-  message: '按 START 開始，A／← 與 D／→ 操作 Flipper，空白鍵發球。',
+  message: '按 START 開始，A／← 與 L 操作 Flipper，空白鍵發球。',
   rewardMessage: '',
   waitingOverlayVisible: true,
+  ballLostOverlayVisible: false,
+  upgradeOverlayVisible: false,
   resultOverlayVisible: false,
   rateDialogOpen: false,
   ruleDialogOpen: false
@@ -65,18 +74,19 @@ const state = reactive({
 
 const PINBALL_RULE = {
   description:
-    'A／← 控制左 Flipper，D／→ 控制右 Flipper，空白鍵發球。球受重力持續下墜，撞到 Flipper 會依當下擺動角速度與撞擊點給予反彈與擊退，' +
+    'A 控制左 Flipper，L 控制右 Flipper，空白鍵發球。球受重力持續下墜，撞到 Flipper 會依當下擺動角速度與撞擊點給予反彈與擊退，' +
     '把球往上打是核心操作。撞擊 Bumper／Target／Golden Hole 都會得分並累積 Combo，Combo 有時限，掉球會立即歸零。',
   scoreRule:
     'SCORE ＝ 基礎分 × Combo 倍率 × Fever 加成（Fever 期間 ×3）。Bumper +100、Target +200、Golden Hole +1000 並額外 +3 Combo。' +
-    '四個 Target（A/B/C/D）全部命中會觸發 FEVER，持續 10 秒；Fever 結束後 Target 會重新開放挑戰。',
+    '四個 Target（A/B/C/D）全部命中會觸發 FEVER，持續 5 秒；Fever 結束後 Target 會重新開放挑戰。',
   levelsTitle: '目標物件',
   levels: [
     { level: 'BUMPER ×3', condition: '強力反彈，Score +100、Combo +1，有低機率掉落趣味幣' },
     { level: 'TARGET A/B/C/D', condition: '命中後亮起，Score +200、Combo +1，四個全亮觸發 FEVER' },
     { level: 'GOLDEN HOLE', condition: '位置偏刁鑽，命中 Score +1000、Combo +3、趣味幣 +5，球會重新發射回場上，不扣命' }
   ],
-  note: '球掉出雙 Flipper 之間即扣一命；若還有剩餘生命會顯示 3 選 1 隨機 Upgrade，選擇後即可再次發球。3 顆球用完即 GAME OVER。'
+  note: '球掉出雙 Flipper 之間即扣一命；若還有剩餘生命會顯示 3 選 1 隨機 Upgrade，選擇後即可再次發球。3 顆球用完即 GAME OVER。' +
+    '趣味幣每滿 3 枚自動兌換 1 顆球，整局最多兌換 3 次；結算時沒兌換完的趣味幣，每枚額外加 2000 分。'
 }
 
 let tickTimer: ReturnType<typeof setInterval> | null = null
@@ -87,14 +97,15 @@ let rightHeld = false
 // ---------------------------------------------------------------------------
 // Sound Manager：不下載音效素材，改用 Web Audio API 產生簡單音效（開發計畫第二十節）
 // ---------------------------------------------------------------------------
-type SoundName = 'bumper' | 'flipper' | 'target' | 'fever' | 'hole' | 'gameover'
+type SoundName = 'bumper' | 'flipper' | 'target' | 'fever' | 'hole' | 'gameover' | 'extraBall'
 const SOUND_DEF: Record<SoundName, { freq: number; dur: number; type: OscillatorType }> = {
   bumper: { freq: 440, dur: 0.09, type: 'square' },
   flipper: { freq: 240, dur: 0.05, type: 'square' },
   target: { freq: 680, dur: 0.08, type: 'triangle' },
   fever: { freq: 880, dur: 0.35, type: 'sawtooth' },
   hole: { freq: 980, dur: 0.28, type: 'sine' },
-  gameover: { freq: 160, dur: 0.45, type: 'sawtooth' }
+  gameover: { freq: 160, dur: 0.45, type: 'sawtooth' },
+  extraBall: { freq: 1200, dur: 0.3, type: 'triangle' }
 }
 let audioCtx: AudioContext | null = null
 const playSound = (name: SoundName) => {
@@ -133,13 +144,17 @@ const canResumeFromPause = computed(
 )
 const canPauseWhilePlaying = computed(() => state.status === 'playing')
 const bestScore = computed(() => Math.max(gameHistory.statsByGame.value['pinball']?.best ?? 0, state.score))
+const baseScoreBeforeCoinBonus = computed(() => state.score - state.finalCoinBonusAmount)
 const stageStyle = computed(() => `width:${PINBALL_WIDTH}px; height:${PINBALL_HEIGHT}px; transform: scale(${state.scale});`)
 
 let prevBumperFlash: number[] = []
 let prevTargetFlash: number[] = []
 let prevHoleFlash = 0
 let prevFeverActive = false
+let prevCoinBonusLivesGranted = 0
 let prevShakeToken = 0
+let prevSnapStatus: PinballStatusView = 'ready'
+let ballLostTimer: ReturnType<typeof setTimeout> | null = null
 let shakeResetTimer: ReturnType<typeof setTimeout> | null = null
 
 const _handlers = {
@@ -150,14 +165,22 @@ const _handlers = {
     const targetNewlyHit = snap.targets.some((t, i) => t.flashMsLeft > 0 && (prevTargetFlash[i] ?? 0) <= 0)
     const holeNewlyHit = snap.hole.flashMsLeft > 0 && prevHoleFlash <= 0
     const feverJustStarted = snap.feverActive && !prevFeverActive
+    const extraBallJustGranted = snap.coinBonusLivesGranted > prevCoinBonusLivesGranted
     if (bumperNewlyHit) playSound('bumper')
     if (targetNewlyHit) playSound('target')
     if (holeNewlyHit) playSound('hole')
     if (feverJustStarted) playSound('fever')
+    if (extraBallJustGranted) playSound('extraBall')
     prevBumperFlash = snap.bumpers.map((b) => b.flashMsLeft)
     prevTargetFlash = snap.targets.map((t) => t.flashMsLeft)
     prevHoleFlash = snap.hole.flashMsLeft
     prevFeverActive = snap.feverActive
+    prevCoinBonusLivesGranted = snap.coinBonusLivesGranted
+
+    if (prevSnapStatus === 'playing' && (snap.status === 'upgrade' || snap.status === 'gameover')) {
+      _actions.onBallLost(snap.status)
+    }
+    prevSnapStatus = snap.status
 
     state.status = snap.status
     state.ball = snap.ball
@@ -166,6 +189,7 @@ const _handlers = {
     state.bumpers = snap.bumpers
     state.targets = snap.targets
     state.hole = snap.hole
+    state.centerPost = snap.centerPost
     state.score = snap.score
     state.lives = snap.lives
     state.ballIndex = snap.ballIndex
@@ -176,6 +200,9 @@ const _handlers = {
     state.feverActive = snap.feverActive
     state.feverMsLeft = snap.feverMsLeft
     state.coinsCollected = snap.coinsCollected
+    state.coinBonusLivesGranted = snap.coinBonusLivesGranted
+    state.finalCoinBonusAmount = snap.finalCoinBonusAmount
+    state.finalLeftoverCoinCount = snap.finalLeftoverCoinCount
     state.pendingUpgradeChoices = snap.pendingUpgradeChoices
     state.hitFlashes = snap.hitFlashes
     state.ballDocked = snap.ballDocked
@@ -190,12 +217,14 @@ const _handlers = {
       })
     }
 
-    if (snap.status === 'upgrade' && !state.resultOverlayVisible) {
+    if (snap.status === 'upgrade' && state.upgradeOverlayVisible && !state.ballLostOverlayVisible) {
       state.message = '選一個 Upgrade，立即套用後按空白鍵發射下一顆球。'
     } else if (snap.status === 'playing' && snap.ballDocked) {
       state.message = '按空白鍵發球！'
     } else if (snap.status === 'playing') {
-      state.message = 'A/← 與 D/→ 操作 Flipper！'
+      state.message = 'A/← 與 L 操作 Flipper！'
+    } else if (snap.status === 'gameover' && !state.ballLostOverlayVisible) {
+      state.message = 'GAME OVER！按 RESTART 或 AGAIN 再來一次。'
     }
   },
   stopTickTimer: () => {
@@ -212,6 +241,7 @@ const _handlers = {
   bumperStyle: (b: Bumper) => `transform: translate3d(${b.x - b.radius}px, ${b.y - b.radius}px, 0) scale(${b.flashMsLeft > 0 ? 1.28 : 1}); width:${b.radius * 2}px; height:${b.radius * 2}px;`,
   targetStyle: (t: Target) => `transform: translate3d(${t.x - TARGET_WIDTH / 2}px, ${t.y - TARGET_HEIGHT / 2}px, 0) scale(${t.flashMsLeft > 0 ? 1.15 : 1});`,
   holeStyle: () => (state.hole ? `transform: translate3d(${state.hole.x - state.hole.radius}px, ${state.hole.y - state.hole.radius}px, 0) scale(${state.hole.flashMsLeft > 0 ? 1.4 : 1}); width:${state.hole.radius * 2}px; height:${state.hole.radius * 2}px;` : ''),
+  postStyle: () => (state.centerPost ? `transform: translate3d(${state.centerPost.x - state.centerPost.size / 2}px, ${state.centerPost.y - state.centerPost.size / 2}px, 0) scale(${state.centerPost.flashMsLeft > 0 ? 1.12 : 1});` : ''),
   flashStyle: (f: { x: number; y: number }) => `transform: translate3d(${f.x}px, ${f.y}px, 0);`
 }
 
@@ -236,8 +266,24 @@ const _actions = {
       engine.setInput({ left: leftHeld, right: rightHeld })
       engine.tick(TICK_MS)
       _handlers.syncState()
-      if (state.status === 'gameover' && !state.resultOverlayVisible) _actions.finishGame()
     }, TICK_MS)
+  },
+  onBallLost: (nextStatus: 'upgrade' | 'gameover') => {
+    if (state.ballLostOverlayVisible) return
+    state.ballLostOverlayVisible = true
+    state.upgradeOverlayVisible = false
+    state.message = '球掉進縫隙了…'
+    if (ballLostTimer) clearTimeout(ballLostTimer)
+    ballLostTimer = setTimeout(() => {
+      ballLostTimer = null
+      state.ballLostOverlayVisible = false
+      if (nextStatus === 'gameover') {
+        _actions.finishGame()
+      } else {
+        state.upgradeOverlayVisible = true
+        state.message = '選一個 Upgrade，立即套用後按空白鍵發射下一顆球。'
+      }
+    }, BALL_LOST_DELAY_MS)
   },
   finishGame: () => {
     state.resultOverlayVisible = true
@@ -246,21 +292,30 @@ const _actions = {
   },
   resetGame: () => {
     _handlers.stopTickTimer()
+    if (ballLostTimer) {
+      clearTimeout(ballLostTimer)
+      ballLostTimer = null
+    }
     engine.reset()
     prevBumperFlash = []
     prevTargetFlash = []
     prevHoleFlash = 0
     prevFeverActive = false
+    prevSnapStatus = 'ready'
     _handlers.syncState()
     state.waitingOverlayVisible = true
+    state.ballLostOverlayVisible = false
+    state.upgradeOverlayVisible = false
     state.resultOverlayVisible = false
     state.rewardMessage = ''
-    state.message = '按 START 開始，A／← 與 D／→ 操作 Flipper，空白鍵發球。'
+    state.message = '按 START 開始，A／← 與 L 操作 Flipper，空白鍵發球。'
   },
   startGame: () => {
     if (state.status === 'playing') return
     if (state.status === 'gameover') _actions.resetGame()
     state.waitingOverlayVisible = false
+    state.ballLostOverlayVisible = false
+    state.upgradeOverlayVisible = false
     state.resultOverlayVisible = false
     engine.start()
     _handlers.syncState()
@@ -281,7 +336,7 @@ const _actions = {
     _actions.startGame()
   },
   chooseUpgrade: (id: string) => {
-    if (state.status !== 'upgrade') return
+    if (state.status !== 'upgrade' || !state.upgradeOverlayVisible || state.ballLostOverlayVisible) return
     engine.applyUpgrade(id)
     _handlers.syncState()
   },
@@ -309,7 +364,7 @@ const onPinballKeydown = (event: KeyboardEvent) => {
     _actions.setFlipper('left', true)
     return
   }
-  if (key === 'd' || key === 'arrowright') {
+  if (key === 'l' || key === 'arrowright') {
     event.preventDefault()
     _actions.setFlipper('right', true)
     return
@@ -327,7 +382,7 @@ const onPinballKeydown = (event: KeyboardEvent) => {
 const onPinballKeyup = (event: KeyboardEvent) => {
   const key = event.key.toLowerCase()
   if (key === 'a' || key === 'arrowleft') _actions.setFlipper('left', false)
-  if (key === 'd' || key === 'arrowright') _actions.setFlipper('right', false)
+  if (key === 'l' || key === 'arrowright') _actions.setFlipper('right', false)
 }
 
 const click = {
@@ -377,6 +432,7 @@ onBeforeUnmount(() => {
     window.removeEventListener('keyup', onPinballKeyup)
   }
   if (shakeResetTimer) clearTimeout(shakeResetTimer)
+  if (ballLostTimer) clearTimeout(ballLostTimer)
   resizeObserver?.disconnect()
 })
 </script>
@@ -388,7 +444,7 @@ onBeforeUnmount(() => {
     <div v-if="state.waitingOverlayVisible" class="game-mask waiting-mask">
       <div class="mask-title">PINBALL</div>
       <p class="waiting-hint">
-        A／← 與 D／→ 操作左右 Flipper，空白鍵發球。撞擊 Bumper／Target 得分累積 Combo，
+        A 與 L 操作左右 Flipper，空白鍵發球。撞擊 Bumper／Target 得分累積 Combo，
         點亮全部 Target 觸發 FEVER，挑戰高風險的 Golden Hole！
       </p>
       <button class="pb-btn waiting-btn waiting-start" type="button" @click="click.start">START</button>
@@ -405,11 +461,17 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div v-if="state.status === 'upgrade'" class="game-mask upgrade-mask">
+    <div v-if="state.ballLostOverlayVisible" class="game-mask ball-lost-mask">
+      <div class="mask-title">BALL LOST</div>
+      <p class="waiting-hint">球掉進縫隙了…</p>
+    </div>
+
+    <div v-if="state.status === 'upgrade' && state.upgradeOverlayVisible" class="game-mask upgrade-mask">
       <div class="mask-title">CHOOSE UPGRADE</div>
       <p class="waiting-hint">掉球了！選一個 Upgrade 立即套用，再按空白鍵發射下一顆球。</p>
       <div class="upgrade-list">
-        <button v-for="u in state.pendingUpgradeChoices" :key="u.id" class="upgrade-card" type="button" @click="click.chooseUpgrade(u.id)">
+        <button v-for="u in state.pendingUpgradeChoices" :key="u.id" class="upgrade-card" type="button"
+          @click="click.chooseUpgrade(u.id)">
           <span class="upgrade-name">{{ u.name }}</span>
           <span class="upgrade-desc">{{ u.description }}</span>
         </button>
@@ -419,7 +481,11 @@ onBeforeUnmount(() => {
     <div v-if="state.resultOverlayVisible" class="game-mask result-mask">
       <div class="mask-title">GAME OVER</div>
       <div class="result-list">
-        <div class="result-item"><span>SCORE</span><b>{{ state.score }}</b></div>
+        <div class="result-item"><span>SCORE</span><b>{{ baseScoreBeforeCoinBonus }}</b></div>
+        <div class="result-item">
+          <span>COIN BONUS（剩 {{ state.finalLeftoverCoinCount }} 枚 × 2000）</span><b>+{{ state.finalCoinBonusAmount }}</b>
+        </div>
+        <div class="result-item"><span>TOTAL</span><b>{{ state.score }}</b></div>
         <div class="result-item"><span>BEST</span><b>{{ bestScore }}</b></div>
         <div class="result-item"><span>COINS</span><b>{{ state.coinsCollected }}</b></div>
       </div>
@@ -436,6 +502,13 @@ onBeforeUnmount(() => {
       @close="click.closeRuleDialog" />
 
     <section class="pb-shell">
+      <header class="pb-top">
+        <div class="pb-title-wrap">
+          <h1 class="pb-title">PINBALL</h1>
+          <p class="pb-status" :class="statusClass">{{ statusText }}</p>
+        </div>
+      </header>
+
       <aside class="pb-side left">
         <button class="pb-btn" type="button" :disabled="!canResumeFromPause" @click="click.resume">RESUME</button>
         <button class="pb-btn" type="button" :disabled="!canPauseWhilePlaying" @click="click.pause">PAUSE</button>
@@ -445,63 +518,70 @@ onBeforeUnmount(() => {
       </aside>
 
       <section class="pb-center">
-        <header class="pb-title-wrap">
-          <h1 class="pb-title">PINBALL</h1>
-          <p class="pb-status" :class="statusClass">{{ statusText }}</p>
-        </header>
+        <div class="pb-play-row">
+          <div class="pb-frame" :class="{ 'is-fever': state.feverActive, shake: state.isShaking }">
+            <div class="pb-stage-wrap" ref="stageWrapRef">
+              <div class="pb-stage" :style="stageStyle">
+                <div class="pb-launcher-lane" />
 
-        <div class="pb-hud">
-          <div class="hud-block">
-            <span class="hud-label">SCORE</span>
-            <span class="hud-value">{{ state.score.toLocaleString() }}</span>
-          </div>
-          <div class="hud-block combo" :class="{ active: state.combo > 0 }">
-            <span class="hud-label">COMBO</span>
-            <span class="hud-value">x{{ state.combo }}</span>
-          </div>
-          <div class="hud-block">
-            <span class="hud-label">COINS</span>
-            <span class="hud-value">{{ state.coinsCollected }}</span>
-          </div>
-        </div>
+                <div v-for="t in state.targets" :key="`t-${t.id}`" class="pb-target"
+                  :class="{ hit: t.hit, flash: t.flashMsLeft > 0 }" :style="_handlers.targetStyle(t)">
+                  {{ t.label }}
+                </div>
 
-        <div class="pb-frame" :class="{ 'is-fever': state.feverActive, shake: state.isShaking }">
-          <div class="pb-stage-wrap" ref="stageWrapRef">
-            <div class="pb-stage" :style="stageStyle">
-              <div class="pb-launcher-lane" />
+                <div v-for="b in state.bumpers" :key="`b-${b.id}`" class="pb-bumper"
+                  :class="{ flash: b.flashMsLeft > 0 }" :style="_handlers.bumperStyle(b)" />
 
-              <div v-for="t in state.targets" :key="`t-${t.id}`" class="pb-target" :class="{ hit: t.hit, flash: t.flashMsLeft > 0 }" :style="_handlers.targetStyle(t)">
-                {{ t.label }}
-              </div>
+                <div class="pb-hole" :class="{ flash: state.hole && state.hole.flashMsLeft > 0 }"
+                  :style="_handlers.holeStyle()" />
 
-              <div v-for="b in state.bumpers" :key="`b-${b.id}`" class="pb-bumper" :class="{ flash: b.flashMsLeft > 0 }" :style="_handlers.bumperStyle(b)" />
+                <div class="pb-post" :class="{ flash: state.centerPost && state.centerPost.flashMsLeft > 0 }"
+                  :style="_handlers.postStyle()">
+                  <div class="pb-post-spin" />
+                </div>
 
-              <div class="pb-hole" :class="{ flash: state.hole && state.hole.flashMsLeft > 0 }" :style="_handlers.holeStyle()" />
+                <div class="pb-flipper left" :style="_handlers.flipperStyle(state.leftFlipper)" />
+                <div class="pb-flipper right" :style="_handlers.flipperStyle(state.rightFlipper)" />
 
-              <div class="pb-flipper left" :style="_handlers.flipperStyle(state.leftFlipper)" />
-              <div class="pb-flipper right" :style="_handlers.flipperStyle(state.rightFlipper)" />
+                <div class="pb-ball" :class="{ docked: state.ballDocked }" :style="_handlers.ballStyle()" />
 
-              <div class="pb-ball" :class="{ docked: state.ballDocked }" :style="_handlers.ballStyle()" />
+                <div v-if="state.feverActive" class="pb-fever-banner">FEVER!</div>
 
-              <div v-if="state.feverActive" class="pb-fever-banner">FEVER!</div>
-
-              <div v-for="f in state.hitFlashes" :key="f.id" class="pb-flash" :style="_handlers.flashStyle(f)">
-                <span class="pb-flash-inner">{{ f.text }}</span>
+                <div v-for="f in state.hitFlashes" :key="f.id" class="pb-flash" :style="_handlers.flashStyle(f)">
+                  <span class="pb-flash-inner">{{ f.text }}</span>
+                </div>
               </div>
             </div>
+            <div class="pb-panel">
+              <span>BALL {{ state.ballIndex }} / {{ LIVES_START_PB }}</span>
+              <span>LIVES {{ state.lives }}</span>
+            </div>
           </div>
-          <div class="pb-panel">
-            <span>BALL {{ state.ballIndex }} / {{ LIVES_START_PB }}</span>
-            <span>LIVES {{ state.lives }}</span>
+
+          <div class="pb-hud">
+            <div class="hud-block">
+              <span class="hud-label">SCORE</span>
+              <span class="hud-value">{{ state.score.toLocaleString() }}</span>
+            </div>
+            <div class="hud-block combo" :class="{ active: state.combo > 0 }">
+              <span class="hud-label">COMBO</span>
+              <span class="hud-value">x{{ state.combo }}</span>
+            </div>
+            <div class="hud-block">
+              <span class="hud-label">COINS</span>
+              <span class="hud-value">{{ state.coinsCollected }}</span>
+            </div>
           </div>
         </div>
 
         <p class="pb-message">{{ state.message }}</p>
 
         <div class="pb-touch-controls">
-          <button class="pb-flip-btn" type="button" @pointerdown="click.leftDown" @pointerup="click.leftUp" @pointerleave="click.leftUp">◀ LEFT</button>
+          <button class="pb-flip-btn" type="button" @pointerdown="click.leftDown" @pointerup="click.leftUp"
+            @pointerleave="click.leftUp">◀ LEFT</button>
           <button class="pb-flip-btn launch" type="button" @click="click.launch">LAUNCH</button>
-          <button class="pb-flip-btn" type="button" @pointerdown="click.rightDown" @pointerup="click.rightUp" @pointerleave="click.rightUp">RIGHT ▶</button>
+          <button class="pb-flip-btn" type="button" @pointerdown="click.rightDown" @pointerup="click.rightUp"
+            @pointerleave="click.rightUp">RIGHT ▶</button>
         </div>
       </section>
 
@@ -509,8 +589,8 @@ onBeforeUnmount(() => {
         <div class="pb-help-panel">
           <p class="pb-help-title">HOW TO PLAY</p>
           <p class="pb-help-text">
-            A／← 與 D／→ 操作左右 Flipper，空白鍵發球。撞 Bumper／Target 得分並累積 Combo，
-            四個 Target 全亮觸發 FEVER（Score ×3，持續 10 秒）。Golden Hole 位置偏刁鑽，命中大量加分且不扣命。
+            A／← 與 L 操作左右 Flipper，空白鍵發球。撞 Bumper／Target 得分並累積 Combo，
+            四個 Target 全亮觸發 FEVER（Score ×3，持續 5 秒）。Golden Hole 位置偏刁鑽，命中大量加分且不扣命。
             球掉出雙 Flipper 之間扣一命，若還有剩餘生命可選 1 個 Upgrade 再戰。ESC／P 可暫停。
           </p>
         </div>
@@ -672,14 +752,31 @@ onBeforeUnmount(() => {
     padding: 24px;
     display: grid;
     grid-template-columns: 180px 1fr 180px;
+    grid-template-areas:
+      'top top top'
+      'left center right';
     gap: 20px;
     align-items: start;
+  }
+
+  .pb-top {
+    grid-area: top;
+    text-align: center;
   }
 
   .pb-side {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    margin-top: 80px;
+
+    &.left {
+      grid-area: left;
+    }
+
+    &.right {
+      grid-area: right;
+    }
   }
 
   .pb-btn {
@@ -718,8 +815,11 @@ onBeforeUnmount(() => {
   }
 
   .pb-center {
+    grid-area: center;
     text-align: center;
+  }
 
+  .pb-top {
     .pb-title-wrap {
       margin-bottom: 4px;
     }
@@ -757,11 +857,20 @@ onBeforeUnmount(() => {
     }
   }
 
-  .pb-hud {
+  .pb-play-row {
     display: flex;
+    align-items: flex-start;
     justify-content: center;
-    gap: 14px;
-    margin: 10px 0;
+    gap: 6px;
+  }
+
+  .pb-hud {
+    position: absolute;
+    right: 25%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
 
     .hud-block {
       display: flex;
@@ -797,7 +906,6 @@ onBeforeUnmount(() => {
 
   .pb-frame {
     width: fit-content;
-    margin: 0 auto;
     padding: 10px;
     background: #052622;
     border: 8px solid #0b4d43;
@@ -818,8 +926,8 @@ onBeforeUnmount(() => {
 
   .pb-stage-wrap {
     width: min(320px, 78vw);
-    aspect-ratio: 9 / 16;
-    max-height: 68vh;
+    aspect-ratio: 320 / 440;
+    max-height: 440px;
     margin: 0 auto;
     position: relative;
     overflow: hidden;
@@ -830,7 +938,7 @@ onBeforeUnmount(() => {
     transform-origin: top left;
     background: linear-gradient(180deg, #031814 0%, #020c0a 100%);
     border: 2px solid #000;
-    box-sizing: content-box;
+    box-sizing: border-box;
     overflow: hidden;
   }
 
@@ -926,6 +1034,40 @@ onBeforeUnmount(() => {
 
     &.flash {
       filter: brightness(1.8);
+    }
+  }
+
+  .pb-post {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: v-bind('CENTER_POST_SIZE + "px"');
+    height: v-bind('CENTER_POST_SIZE + "px"');
+    transition: transform 0.12s ease;
+
+    &.flash {
+      .pb-post-spin {
+        filter: brightness(1.5);
+      }
+    }
+  }
+
+  .pb-post-spin {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, #cfd8e3, #8a97a8);
+    border: 2px solid #5a6474;
+    box-shadow: 0 0 6px rgba(200, 210, 224, 0.5);
+    animation: post-spin 6s linear infinite;
+  }
+
+  @keyframes post-spin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
     }
   }
 
@@ -1117,6 +1259,11 @@ onBeforeUnmount(() => {
   .pb-page {
     .pb-shell {
       grid-template-columns: 1fr;
+      grid-template-areas:
+        'top'
+        'center'
+        'left'
+        'right';
       padding: 16px;
     }
 
@@ -1126,8 +1273,14 @@ onBeforeUnmount(() => {
       justify-content: center;
     }
 
-    .pb-side.left {
-      order: 2;
+    .pb-play-row {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .pb-hud {
+      flex-direction: row;
+      margin-top: 0;
     }
 
     .pb-touch-controls {
