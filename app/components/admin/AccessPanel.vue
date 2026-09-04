@@ -299,6 +299,8 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 1;
+  min-height: 0;
 }
 
 .aap-detail-name {
@@ -359,6 +361,7 @@ watch(
 
 .aap-hint {
   margin: 4px 0 0;
+  margin-top: auto;
   font-size: 11px;
   line-height: 1.55;
   color: color-mix(in srgb, #1c1c22 62%, #ffffff);

@@ -87,7 +87,10 @@ const click = {
           <span class="admin-en">Access</span>
           <h2>權限設定</h2>
         </div>
-        <span class="admin-meta">Admin / User — in-memory</span>
+        <div class="ao-perms-actions">
+          <span class="admin-meta">Admin / User — in-memory</span>
+          <NuxtLink to="/admin/roles" class="admin-btn admin-btn-secondary">設定權限</NuxtLink>
+        </div>
       </div>
       <AdminAccessPanel :reload-token="memberReloadToken" />
     </section>
@@ -150,6 +153,22 @@ const click = {
 .ao-perms {
   margin-bottom: 44px;
   scroll-margin-top: 24px;
+}
+
+.ao-perms-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .admin-btn {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: none;
+    }
+  }
 }
 
 .ao-cards {
