@@ -11,6 +11,11 @@ import {
   WIN_BASE,
   MAX_SCORE,
   DRAW_SCORE,
+  CHAIN_WIN_MULTIPLIER,
+  CHAIN_LOSE_MULTIPLIER,
+  MAX_CHAIN_WINS,
+  applyChainWin,
+  applyChainLose,
   getNextOpenRow,
   type Connect4Board,
   type Connect4Result,
@@ -68,7 +73,10 @@ const CONNECT4_RULE = {
     { level: '落敗', condition: 'AI 先連成 4 子 → 0 分' }
   ],
   levelsTitle: '計分級距',
-  note: 'AI 決策順序為「優先獲勝 → 優先阻擋你 → 隨機合法欄」；已落滿 6 顆的欄位不能再選、也不消耗回合。AI 回合會有短暫思考延遲。'
+  note:
+    'AI 決策順序為「優先獲勝 → 優先阻擋你 → 隨機合法欄」；已落滿 6 顆的欄位不能再選、也不消耗回合。AI 回合會有短暫思考延遲。' +
+    `贏了之後可選擇「結算」或「連勝加碼」：再戰贏了本局分數 x${CHAIN_WIN_MULTIPLIER} 累加進連勝分數，` +
+    `再戰輸了連勝分數打 ${CHAIN_LOSE_MULTIPLIER * 10} 折並強制結算，平手則分數不變並強制結算；最多可連續贏 ${MAX_CHAIN_WINS} 場，滿場自動結算。`
 }
 
 const router = useRouter()
@@ -94,7 +102,13 @@ const state = reactive({
   waitingOverlayVisible: true,
   resultOverlayVisible: false,
   rateDialogOpen: false,
-  ruleDialogOpen: false
+  ruleDialogOpen: false,
+  // ── 連勝加碼（Double or Nothing）──
+  chainWins: 0,
+  chainScore: 0,
+  chainChoiceVisible: false,
+  finalScore: 0,
+  finalChainWins: 0
 })
 
 /** 單一循序計時器：整個回合流程嚴格線性，任何時刻只會有一個待執行步驟 */
@@ -183,16 +197,18 @@ const _handlers = {
 }
 
 const _actions = {
-  recordHistory: async () => {
+  /** 送出「這次連勝加碼結算」的最終分數（state.finalScore），而非單局分數；送出後歸零連勝狀態 */
+  recordFinalScore: async () => {
     state.rewardMessage = ''
     try {
       const result = await gameHistory.actions.record('connect4', 'CONNECT 4', {
-        score: state.score,
+        score: state.finalScore,
         meta: {
           result: state.result,
           winner: state.winner,
           playerMoves: state.playerMoves,
-          aiMoves: state.aiMoves
+          aiMoves: state.aiMoves,
+          chainWins: state.finalChainWins
         }
       })
       if (result.coinReward > 0) {
@@ -200,6 +216,9 @@ const _actions = {
       }
     } catch {
       // 紀錄寫入失敗不影響遊戲本身，靜默略過
+    } finally {
+      state.chainWins = 0
+      state.chainScore = 0
     }
   },
   /** 循序排程：清掉舊 timer、記住待執行步驟；暫停中則凍結不排程（續玩時再跑） */
@@ -226,6 +245,10 @@ const _actions = {
     state.rewardMessage = ''
     state.waitingOverlayVisible = true
     state.message = '按「START」開始對局。'
+    // 手動 RESTART／EXIT 前置視為放棄連勝，不結算、不送分
+    state.chainWins = 0
+    state.chainScore = 0
+    state.chainChoiceVisible = false
   },
   startPlay: () => {
     state.waitingOverlayVisible = false
@@ -282,13 +305,53 @@ const _actions = {
     state.phase = 'PLAYER_TURN'
     state.message = '輪到你了，點欄位落子。'
   },
+  /** 贏了之後把最終結算分數快照進 state.finalScore，開啟結果 overlay 並送出紀錄 */
+  settleChain: () => {
+    state.finalScore = state.chainScore
+    state.finalChainWins = state.chainWins
+    state.resultOverlayVisible = true
+    _actions.recordFinalScore()
+  },
   finishGame: () => {
     _handlers.clearSeqTimer()
     pendingStep = null
     state.phase = 'GAME_OVER'
-    state.resultOverlayVisible = true
     state.message = turnLabel.value
-    _actions.recordHistory()
+
+    if (state.result === 'WIN') {
+      state.chainWins += 1
+      state.chainScore = state.chainWins === 1 ? state.score : applyChainWin(state.chainScore, state.score)
+      if (state.chainWins >= MAX_CHAIN_WINS) {
+        state.message = '連勝封頂，自動結算！'
+        _actions.settleChain()
+      } else {
+        state.chainChoiceVisible = true
+      }
+      return
+    }
+
+    if (state.result === 'LOSE' && state.chainWins > 0) {
+      state.chainScore = applyChainLose(state.chainScore)
+    } else {
+      state.chainScore = state.score
+    }
+    _actions.settleChain()
+  },
+  cashOut: () => {
+    state.chainChoiceVisible = false
+    _actions.settleChain()
+  },
+  /** 連勝加碼：重置棋盤但保留 chainWins/chainScore，直接進入下一局（不顯示 WELCOME/START） */
+  continueChain: () => {
+    _handlers.clearSeqTimer()
+    pendingStep = null
+    state.chainChoiceVisible = false
+    engine.reset()
+    _handlers.syncSnapshot()
+    state.phase = 'PLAYER_TURN'
+    state.hoverCol = null
+    state.rewardMessage = ''
+    state.message = `連勝加碼第 ${state.chainWins + 1} 戰，輪到你了，點欄位落子。`
   },
   playAgain: () => {
     _actions.resetGame()
@@ -326,6 +389,8 @@ const click = {
   resume: () => _actions.resume(),
   restart: () => _actions.playAgain(),
   again: () => _actions.playAgain(),
+  cashOut: () => _actions.cashOut(),
+  continueChain: () => _actions.continueChain(),
   exit: () => router.replace('/game-hall'),
   openRateDialog: () => {
     state.rateDialogOpen = true
@@ -382,14 +447,31 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <div v-if="state.chainChoiceVisible" class="game-mask result-mask chain-mask">
+      <div class="mask-title win">YOU WIN</div>
+      <div class="result-list">
+        <div class="result-item"><span>本局得分</span><b>{{ state.score }}</b></div>
+        <div class="result-item"><span>連勝次數</span><b>{{ state.chainWins }} / {{ MAX_CHAIN_WINS }}</b></div>
+        <div class="result-item"><span>累積分數</span><b>{{ state.chainScore }}</b></div>
+      </div>
+      <p class="chain-hint">
+        再戰贏了本局分數 x{{ CHAIN_WIN_MULTIPLIER }} 累加；再戰輸了累積分數打 {{ CHAIN_LOSE_MULTIPLIER * 10 }} 折並強制結算。
+      </p>
+      <div class="result-actions">
+        <button class="c4-btn" type="button" @click="click.cashOut">CASH OUT（{{ state.chainScore }} 分）</button>
+        <button class="c4-btn danger" type="button" @click="click.continueChain">DOUBLE OR NOTHING</button>
+      </div>
+    </div>
+
     <div v-if="state.resultOverlayVisible" class="game-mask result-mask">
       <div class="mask-title" :class="{ win: state.result === 'WIN', draw: state.result === 'DRAW' }">
         {{ turnLabel }}
       </div>
       <div class="result-list">
-        <div class="result-item"><span>SCORE</span><b>{{ state.score }}</b></div>
+        <div class="result-item"><span>SCORE</span><b>{{ state.finalScore }}</b></div>
         <div class="result-item"><span>YOUR DISCS</span><b>{{ state.playerMoves }}</b></div>
         <div class="result-item"><span>AI DISCS</span><b>{{ state.aiMoves }}</b></div>
+        <div v-if="state.finalChainWins > 0" class="result-item"><span>連勝加碼</span><b>{{ state.finalChainWins }} 場</b></div>
       </div>
       <p v-if="state.rewardMessage" class="result-reward">{{ state.rewardMessage }}</p>
       <div class="result-actions">
@@ -421,6 +503,7 @@ onBeforeUnmount(() => {
           <span>YOU: {{ state.playerMoves }}</span>
           <span>AI: {{ state.aiMoves }}</span>
           <span>SCORE: {{ state.score }}</span>
+          <span v-if="state.chainWins > 0">STREAK: {{ state.chainWins }}/{{ MAX_CHAIN_WINS }} · BANK: {{ state.chainScore }}</span>
         </div>
 
         <div class="c4-frame">
@@ -575,6 +658,15 @@ onBeforeUnmount(() => {
       letter-spacing: 0.05em;
     }
 
+    .chain-hint {
+      margin: 8px 0 0;
+      width: 260px;
+      color: #ffb3bb;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      text-align: center;
+    }
+
     .result-actions {
       margin-top: 8px;
       display: flex;
@@ -597,7 +689,7 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding-top: 60px;
+    padding-top: 160px;
   }
 
   .c4-btn {
