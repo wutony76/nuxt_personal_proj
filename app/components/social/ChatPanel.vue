@@ -84,10 +84,13 @@ const click = {
 /* 沿用原本 11 份 Chat.vue placeholder 的配色 token（#efe6e6/#dcb4b4/var(--base-radius)），
    維持跟彩種頁面既有淺色系版面一致，不引入 game-hall 那套 Cyberpunk 深色配色 */
 .chat-panel {
-  flex: 0 0 auto;
+  /* flex-grow 保留 1，寬度仍跟原本一樣撐滿 .bg-auto-panel-inner 剩餘寬度；
+     flex-basis 固定成 267px 高度不受影響，因為 basis 只作用在主軸（寬度） */
+  flex: 1 1 0%;
+  min-width: 0;
   /* 外層 bg-auto-panel-warp 用 align-items:stretch，若只設 max-height 面板仍會隨左側自動下注
-     面板／聊天內容跟著變高；固定死 267px，不論訊息多寡或左側面板高度都不再變動，改由
-     chat-list 內部捲動 */
+     面板／聊天內容跟著變高；明確設定 height 覆蓋 stretch，固定死 267px，不論訊息多寡或左側
+     面板高度都不再變動，改由 chat-list 內部捲動 */
   height: 267px;
   background: #efe6e6;
   border: 1px solid #dcb4b4;
