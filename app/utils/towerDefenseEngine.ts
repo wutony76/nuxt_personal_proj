@@ -316,8 +316,9 @@ class UpgradeSystem {
     this.prices = Object.fromEntries(UPGRADE_OPTION_POOL.map((o) => [o.key, o.baseCost])) as Record<UpgradeOptionKey, number>
   }
 
-  priceFor(key: UpgradeOptionKey): number {
-    return Math.round(this.prices[key])
+  /** globalMultiplier：跟塔的建造/升級共用的全域物價倍率，任何花費行為都會推它上漲 */
+  priceFor(key: UpgradeOptionKey, globalMultiplier: number): number {
+    return Math.round(this.prices[key] * globalMultiplier)
   }
 
   rollOptions() {
@@ -339,10 +340,6 @@ class UpgradeSystem {
     if (key === 'slow') this.slowMult *= 1.2
     const [minPct, maxPct] = priceGrowthRange(wave)
     this.prices[key] *= 1 + (minPct + Math.random() * (maxPct - minPct))
-    // 買了這項之後，其他還沒買的強化也會跟著漲價 3%（模擬物價連動）
-    for (const other of UPGRADE_OPTION_POOL) {
-      if (other.key !== key) this.prices[other.key] *= 1.03
-    }
     this.pendingOptions = null
     return true
   }
@@ -534,7 +531,7 @@ export type TowerDefenseSnapshot = {
   pendingUpgradeOptions: Array<{ key: UpgradeOptionKey; label: string; desc: string; cost: number }> | null
   upgradeMultipliers: { damage: number; atkSpeed: number; gold: number; range: number; slow: number }
   maxWaveReached: number
-  towerPriceMultiplier: number
+  priceMultiplier: number
 }
 
 export default class TowerDefenseEngine {
@@ -549,8 +546,12 @@ export default class TowerDefenseEngine {
   private score = 0
   private clockSec = 0
   private maxWaveReached = 1
-  /** 塔的建造／升級物價通膨倍率：每建一座塔 ×1.03，塔升到 Lv3 再額外 ×1.05 */
-  private towerPriceMultiplier = 1
+  /**
+   * 全域物價通膨倍率，套用在「塔的建造費／升級費」與「過波強化的價格」上：
+   * 建一座塔、花錢升一次塔（含滿到 Lv3 再額外多一次）、買一次過波強化，
+   * 都會讓這個倍率往上乘 1.015（Lv3 那次再多乘一次 1.025），任何花費行為都會讓全部物價一起漲
+   */
+  private priceMultiplier = 1
 
   reset() {
     this.economy.reset()
@@ -564,7 +565,7 @@ export default class TowerDefenseEngine {
     this.score = 0
     this.clockSec = 0
     this.maxWaveReached = 1
-    this.towerPriceMultiplier = 1
+    this.priceMultiplier = 1
   }
 
   start() {
@@ -574,32 +575,32 @@ export default class TowerDefenseEngine {
 
   placeTower(kind: TowerKind, row: number, col: number): boolean {
     if (this.status !== 'playing') return false
-    const cost = Math.round(TOWER_CONFIG[kind].buildCost * this.towerPriceMultiplier)
+    const cost = Math.round(TOWER_CONFIG[kind].buildCost * this.priceMultiplier)
     if (!this.economy.canAfford(cost)) return false
     if (!this.towerSystem.canPlace(row, col)) return false
     this.economy.spend(cost)
     this.towerSystem.place(kind, row, col)
-    this.towerPriceMultiplier *= 1.03
+    this.priceMultiplier *= 1.015
     return true
   }
 
   upgradeTower(id: number): boolean {
     if (this.status !== 'playing') return false
-    const leveledTo = this.towerSystem.upgrade(id, this.economy, this.towerPriceMultiplier)
+    const leveledTo = this.towerSystem.upgrade(id, this.economy, this.priceMultiplier)
     if (leveledTo === null) return false
-    // 只要花錢升級（不管升到 Lv2 還是 Lv3）都會推物價 +3%；升到 Lv3 再額外多 +5%
-    this.towerPriceMultiplier *= 1.03
-    if (leveledTo === TOWER_MAX_LEVEL) this.towerPriceMultiplier *= 1.05
+    // 只要花錢升級（不管升到 Lv2 還是 Lv3）都會推物價 +1.5%；升到 Lv3 再額外多 +2.5%
+    this.priceMultiplier *= 1.015
+    if (leveledTo === TOWER_MAX_LEVEL) this.priceMultiplier *= 1.025
     return true
   }
 
   chooseWaveUpgrade(key: UpgradeOptionKey): boolean {
     if (!this.waveSystem.awaitingUpgradeChoice) return false
     if (!this.upgrades.pendingOptions?.includes(key)) return false
-    if (!this.economy.spend(this.upgrades.priceFor(key))) return false
+    if (!this.economy.spend(this.upgrades.priceFor(key, this.priceMultiplier))) return false
     this.upgrades.choose(key, this.waveSystem.wave)
-    // 買強化也會推升塔的建造／升級物價
-    this.towerPriceMultiplier *= 1.03
+    // 買強化也會推升全域物價（包含其他強化跟塔的建造／升級費）
+    this.priceMultiplier *= 1.015
     this.waveSystem.awaitingUpgradeChoice = false
     const nextWave = this.waveSystem.wave + 1
     this.maxWaveReached = Math.max(this.maxWaveReached, nextWave)
@@ -736,7 +737,7 @@ export default class TowerDefenseEngine {
       pendingUpgradeOptions: this.upgrades.pendingOptions
         ? this.upgrades.pendingOptions.map((key) => ({
             ...UPGRADE_OPTION_POOL.find((o) => o.key === key)!,
-            cost: this.upgrades.priceFor(key)
+            cost: this.upgrades.priceFor(key, this.priceMultiplier)
           }))
         : null,
       upgradeMultipliers: {
@@ -747,7 +748,7 @@ export default class TowerDefenseEngine {
         slow: this.upgrades.slowMult
       },
       maxWaveReached: this.maxWaveReached,
-      towerPriceMultiplier: this.towerPriceMultiplier
+      priceMultiplier: this.priceMultiplier
     }
   }
 }

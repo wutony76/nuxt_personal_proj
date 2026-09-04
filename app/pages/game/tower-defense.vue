@@ -47,7 +47,7 @@ const state = reactive({
   pendingUpgradeOptions: null as TowerDefenseSnapshot['pendingUpgradeOptions'],
   upgradeMultipliers: { damage: 1, atkSpeed: 1, gold: 1, range: 1, slow: 1 },
   maxWaveReached: 1,
-  towerPriceMultiplier: 1,
+  priceMultiplier: 1,
   selectedTowerKind: null as TowerKind | null,
   hoverTowerId: null as number | null,
   hoverTowerKind: null as TowerKind | null,
@@ -116,10 +116,10 @@ const enemySizeFor = (kind: EnemyKind): number => {
   if (kind === 'tank') return TD_TANK_SIZE
   return TD_ENEMY_SIZE
 }
-/** 建塔／塔升級的物價會隨建塔數量與塔到 Lv3 通膨，顯示用的價格都要乘上這個倍率再四捨五入 */
-const towerBuildCost = (kind: TowerKind): number => Math.round(TOWER_CONFIG[kind].buildCost * state.towerPriceMultiplier)
+/** 建塔／升塔／買強化都會推升全域物價（state.priceMultiplier），顯示用的建塔/升塔價格都要乘上這個倍率再四捨五入 */
+const towerBuildCost = (kind: TowerKind): number => Math.round(TOWER_CONFIG[kind].buildCost * state.priceMultiplier)
 const towerUpgradeCost = (kind: TowerKind, currentLevel: number): number =>
-  Math.round(TOWER_CONFIG[kind].levels[currentLevel]!.upgradeCost * state.towerPriceMultiplier)
+  Math.round(TOWER_CONFIG[kind].levels[currentLevel]!.upgradeCost * state.priceMultiplier)
 /** hover 一座已建好的塔時顯示其資訊，滑鼠離開即關閉 */
 const hoveredTower = computed(() => state.towers.find((t) => t.id === state.hoverTowerId) ?? null)
 const hoveredTowerNextCost = computed(() => {
@@ -167,7 +167,7 @@ const _handlers = {
     state.pendingUpgradeOptions = snap.pendingUpgradeOptions
     state.upgradeMultipliers = snap.upgradeMultipliers
     state.maxWaveReached = snap.maxWaveReached
-    state.towerPriceMultiplier = snap.towerPriceMultiplier
+    state.priceMultiplier = snap.priceMultiplier
   },
   stopTickTimer: () => {
     if (tickTimer) {
