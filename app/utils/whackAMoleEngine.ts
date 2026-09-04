@@ -19,15 +19,37 @@
 // ── 型別 ──
 export type WhackStatus = 'idle' | 'playing' | 'paused' | 'gameover'
 
+/**
+ * 地鼠種類（隨機指派，見 design.md Decision 6）：
+ *   - normal    一般地鼠，全程無變色，維持既有計分方式
+ *   - orange    存活後段會漸變成橙色，橙色期間擊中固定 +15 分（不吃 combo 倍率）
+ *   - gray      存活後段會漸變成灰色，灰色期間擊中視為踩陷阱：-5 分且中斷 combo
+ *   - redFlash  存活後段會閃紅色（即將縮回警示），閃紅期間擊中額外 +5 秒
+ *   - mixed     全程持續在 orange／gray／redFlash 三態間循環切換，依擊中當下所在狀態套用對應規則
+ */
+export type MoleKind = 'normal' | 'orange' | 'gray' | 'redFlash' | 'mixed'
+/** 由 kind + 存活進度換算出的「當下視覺／規則狀態」，normal 代表尚未進入特殊狀態 */
+export type MoleVisualState = 'normal' | 'orange' | 'gray' | 'redFlash'
+
 /** 單一洞穴狀態；任一時刻最多一個洞穴的 `moleActive === true`（見 design.md Decision 1） */
 export type Hole = {
   index: number
   moleActive: boolean
   /** 該地鼠冒出的時間戳（Date.now()），供頁面播放動畫；無地鼠為 null */
   moleSpawnedAt: number | null
+  /** 本隻地鼠的種類；無地鼠為 null */
+  moleKind: MoleKind | null
+  /** 本隻地鼠這次排定的存活總時長（ms），供依「已過時間 ÷ 總時長」換算變色進度；無地鼠為 null */
+  moleDurationMs: number | null
 }
 
-export type HoleSnapshot = { index: number; moleActive: boolean; moleSpawnedAt: number | null }
+export type HoleSnapshot = {
+  index: number
+  moleActive: boolean
+  moleSpawnedAt: number | null
+  moleKind: MoleKind | null
+  moleDurationMs: number | null
+}
 
 export type WhackAMoleSnapshot = {
   holes: HoleSnapshot[]
@@ -44,13 +66,17 @@ export type WhackAMoleSnapshot = {
   spawns: number
 }
 
-/** clickHole 判定結果：HIT（命中）／MISS（點空洞穴）／IGNORED（非遊戲中或無效格） */
-export type ClickOutcome = 'HIT' | 'MISS' | 'IGNORED'
+/** clickHole 判定結果：HIT（命中加分）／TRAP（踩到灰色陷阱扣分）／MISS（點空洞穴）／IGNORED（非遊戲中或無效格） */
+export type ClickOutcome = 'HIT' | 'TRAP' | 'MISS' | 'IGNORED'
 export type ClickResult = {
   outcome: ClickOutcome
   holeIndex: number
-  /** HIT 時本次獲得的分數（HIT_BASE_SCORE × 當下倍率），非 HIT 為 0 */
+  /** 本次分數變動：一般 HIT 為 HIT_BASE_SCORE × 當下倍率、橙色 HIT 固定 +ORANGE_BONUS_SCORE、TRAP 為 -GRAY_PENALTY_SCORE、其餘為 0 */
   gained: number
+  /** 擊中當下該地鼠所在的視覺／規則狀態 */
+  moleState: MoleVisualState
+  /** 僅 redFlash 狀態命中時出現：本次額外延長的秒數 */
+  bonusSec?: number
 }
 
 // ── Grid / 對局常數（集中管理，需求「Timer、Spawn、Score、Game State 分離」，見 design.md Decision 1）──
@@ -78,6 +104,22 @@ export const COMBO_THRESHOLDS = [0, 5, 12, 24]
 export const COMBO_MULTIPLIERS = [1, 2, 3, 4]
 export const HIT_BASE_SCORE = 10
 
+// ── 地鼠種類常數（見 design.md Decision 6）──
+/** 5 種地鼠等機率隨機指派 */
+export const MOLE_KINDS: MoleKind[] = ['normal', 'orange', 'gray', 'redFlash', 'mixed']
+/** orange／gray／redFlash 三種「單向漸變」地鼠：存活進度達此比例後才轉為特殊狀態 */
+export const ORANGE_PROGRESS_THRESHOLD = 0.55
+export const GRAY_PROGRESS_THRESHOLD = 0.55
+export const RED_FLASH_PROGRESS_THRESHOLD = 0.75
+/** mixed 地鼠：全程每隔此間隔（ms）循環切換一次 orange → gray → redFlash */
+export const MIXED_CYCLE_MS = 380
+/** 橙色狀態命中固定加分（不吃 combo 倍率） */
+export const ORANGE_BONUS_SCORE = 15
+/** 灰色狀態命中固定扣分（陷阱，會中斷 combo） */
+export const GRAY_PENALTY_SCORE = 5
+/** 閃紅狀態命中額外延長的秒數 */
+export const RED_FLASH_BONUS_SEC = 5
+
 // ── 難度公式（純函式，方便單元測試，見 design.md Decision 3）──
 
 /** 依已過遊戲時間（ms）計算目前地鼠存活時間上限：線性遞減，夾住下限 */
@@ -104,9 +146,43 @@ export const calcMultiplier = (combo: number): number => {
   return multiplier
 }
 
+/**
+ * 依地鼠種類 + 存活進度換算「當下視覺／規則狀態」（純函式，方便單元測試）：
+ *   - normal／無地鼠：恆為 normal
+ *   - orange／gray／redFlash：存活進度跨過各自門檻後才轉為特殊狀態，之前維持 normal
+ *   - mixed：不受門檻限制，從一開始就持續在三態間循環（見 design.md Decision 6）
+ */
+export const resolveMoleVisualState = (
+  kind: MoleKind | null,
+  spawnedAt: number | null,
+  durationMs: number | null,
+  now: number
+): MoleVisualState => {
+  if (!kind || kind === 'normal' || spawnedAt === null || durationMs === null || durationMs <= 0) return 'normal'
+  const elapsedMs = Math.max(0, now - spawnedAt)
+
+  if (kind === 'mixed') {
+    const phase = Math.floor(elapsedMs / MIXED_CYCLE_MS) % 3
+    if (phase === 0) return 'orange'
+    if (phase === 1) return 'gray'
+    return 'redFlash'
+  }
+
+  const progress = Math.min(1, elapsedMs / durationMs)
+  if (kind === 'orange') return progress >= ORANGE_PROGRESS_THRESHOLD ? 'orange' : 'normal'
+  if (kind === 'gray') return progress >= GRAY_PROGRESS_THRESHOLD ? 'gray' : 'normal'
+  return progress >= RED_FLASH_PROGRESS_THRESHOLD ? 'redFlash' : 'normal'
+}
+
 /** 初始化 9 個空洞穴 */
 const createHoles = (): Hole[] =>
-  Array.from({ length: HOLE_COUNT }, (_, index) => ({ index, moleActive: false, moleSpawnedAt: null }))
+  Array.from({ length: HOLE_COUNT }, (_, index) => ({
+    index,
+    moleActive: false,
+    moleSpawnedAt: null,
+    moleKind: null,
+    moleDurationMs: null
+  }))
 
 type TimerHandle = ReturnType<typeof setTimeout>
 
@@ -195,10 +271,19 @@ export default class WhackAMoleEngine {
   private scheduleLifetime(holeIndex: number): void {
     this.clearLifetimeTimer()
     const duration = this.randomBetween(currentLifetimeCeiling(this.elapsedMs()))
+    // 存下本次排定的存活總時長，供 resolveMoleVisualState 換算「已過時間 ÷ 總時長」的變色進度
+    const hole = this.holes[holeIndex]
+    if (hole) hole.moleDurationMs = duration
     this.lifetimeTimerId = setTimeout(() => {
       this.lifetimeTimerId = null
       this.expireMole(holeIndex)
     }, duration)
+  }
+
+  /** 從 5 種地鼠種類等機率隨機挑一種（見 design.md Decision 6） */
+  private pickMoleKind(): MoleKind {
+    const index = Math.min(MOLE_KINDS.length - 1, Math.floor(this.random() * MOLE_KINDS.length))
+    return MOLE_KINDS[index]!
   }
 
   // ── Spawn / Lifetime 邏輯（tasks 5.3 / 5.4）──
@@ -216,6 +301,7 @@ export default class WhackAMoleEngine {
     const target = emptyHoles[Math.floor(this.random() * emptyHoles.length)]!
     target.moleActive = true
     target.moleSpawnedAt = Date.now()
+    target.moleKind = this.pickMoleKind()
     this.spawns += 1
     this.clearSpawnTimer()
     this.scheduleLifetime(target.index)
@@ -232,6 +318,8 @@ export default class WhackAMoleEngine {
     if (!hole || !hole.moleActive) return
     hole.moleActive = false
     hole.moleSpawnedAt = null
+    hole.moleKind = null
+    hole.moleDurationMs = null
     this.clearLifetimeTimer()
     this.scheduleSpawn()
     this.onChange()
@@ -240,33 +328,59 @@ export default class WhackAMoleEngine {
   // ── 玩家輸入（tasks 5.5，見 design.md Decision 5）──
 
   /**
-   * 玩家點擊某洞穴：
-   *   命中（moleActive）→ 得分（HIT_BASE_SCORE × 當下倍率）+ combo+1 + 清除該地鼠與其 Lifetime Timer
-   *                      + 排程下一次生成；
-   *   未命中（空洞穴／已消失地鼠格）→ combo 歸零、倍率回到最低，分數不變。
+   * 玩家點擊某洞穴，依擊中當下地鼠的視覺／規則狀態分流（見 design.md Decision 6）：
+   *   - gray（陷阱）  → TRAP：扣 GRAY_PENALTY_SCORE 分（下限 0）、combo 歸零，視同一次失手；
+   *   - orange        → HIT：固定加 ORANGE_BONUS_SCORE 分（不吃倍率），combo+1；
+   *   - redFlash      → HIT：一般分數（HIT_BASE_SCORE × 當下倍率）外，額外 +RED_FLASH_BONUS_SEC 秒；
+   *   - normal        → HIT：一般分數（HIT_BASE_SCORE × 當下倍率），combo+1；
+   *   未命中（空洞穴／已消失地鼠格）→ MISS：combo 歸零、倍率回到最低，分數不變。
    */
   clickHole(holeIndex: number): ClickResult {
-    if (this.status !== 'playing') return { outcome: 'IGNORED', holeIndex, gained: 0 }
+    if (this.status !== 'playing') return { outcome: 'IGNORED', holeIndex, gained: 0, moleState: 'normal' }
     const hole = this.holes[holeIndex]
-    if (!hole) return { outcome: 'IGNORED', holeIndex, gained: 0 }
+    if (!hole) return { outcome: 'IGNORED', holeIndex, gained: 0, moleState: 'normal' }
 
     if (hole.moleActive) {
-      this.combo += 1
-      this.multiplier = calcMultiplier(this.combo)
-      const gained = HIT_BASE_SCORE * this.multiplier
-      this.score += gained
-      this.hits += 1
+      const moleState = resolveMoleVisualState(hole.moleKind, hole.moleSpawnedAt, hole.moleDurationMs, Date.now())
       hole.moleActive = false
       hole.moleSpawnedAt = null
+      hole.moleKind = null
+      hole.moleDurationMs = null
       this.clearLifetimeTimer()
       this.scheduleSpawn()
-      return { outcome: 'HIT', holeIndex, gained }
+
+      if (moleState === 'gray') {
+        this.combo = 0
+        this.multiplier = COMBO_MULTIPLIERS[0]!
+        this.misses += 1
+        this.score = Math.max(0, this.score - GRAY_PENALTY_SCORE)
+        return { outcome: 'TRAP', holeIndex, gained: -GRAY_PENALTY_SCORE, moleState }
+      }
+
+      this.combo += 1
+      this.multiplier = calcMultiplier(this.combo)
+      this.hits += 1
+
+      if (moleState === 'orange') {
+        this.score += ORANGE_BONUS_SCORE
+        return { outcome: 'HIT', holeIndex, gained: ORANGE_BONUS_SCORE, moleState }
+      }
+
+      const gained = HIT_BASE_SCORE * this.multiplier
+      this.score += gained
+
+      if (moleState === 'redFlash') {
+        this.remainingSec += RED_FLASH_BONUS_SEC
+        return { outcome: 'HIT', holeIndex, gained, moleState, bonusSec: RED_FLASH_BONUS_SEC }
+      }
+
+      return { outcome: 'HIT', holeIndex, gained, moleState }
     }
 
     this.combo = 0
     this.multiplier = COMBO_MULTIPLIERS[0]!
     this.misses += 1
-    return { outcome: 'MISS', holeIndex, gained: 0 }
+    return { outcome: 'MISS', holeIndex, gained: 0, moleState: 'normal' }
   }
 
   // ── Game State / Timer（tasks 5.6）──
@@ -351,7 +465,13 @@ export default class WhackAMoleEngine {
   /** 對外回傳純資料快照（頁面用 reactive() 鏡像） */
   getSnapshot(): WhackAMoleSnapshot {
     return {
-      holes: this.holes.map((hole) => ({ index: hole.index, moleActive: hole.moleActive, moleSpawnedAt: hole.moleSpawnedAt })),
+      holes: this.holes.map((hole) => ({
+        index: hole.index,
+        moleActive: hole.moleActive,
+        moleSpawnedAt: hole.moleSpawnedAt,
+        moleKind: hole.moleKind,
+        moleDurationMs: hole.moleDurationMs
+      })),
       score: this.score,
       combo: this.combo,
       multiplier: this.multiplier,

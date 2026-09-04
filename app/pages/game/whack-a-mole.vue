@@ -6,8 +6,13 @@ import WhackAMoleEngine, {
   GAME_DURATION_SEC,
   HIT_BASE_SCORE,
   COMBO_THRESHOLDS,
+  ORANGE_BONUS_SCORE,
+  GRAY_PENALTY_SCORE,
+  RED_FLASH_BONUS_SEC,
+  resolveMoleVisualState,
   type WhackStatus,
-  type HoleSnapshot
+  type HoleSnapshot,
+  type MoleVisualState
 } from '~/utils/whackAMoleEngine'
 
 /**
@@ -45,8 +50,10 @@ const state = reactive({
   remainingSec: GAME_DURATION_SEC,
   hits: 0,
   spawns: 0,
-  /** 命中回饋：該格短暫顯示 bonk 效果與 +分數浮字；null 表示目前無 */
-  hitPop: null as { index: number; gained: number } | null,
+  /** 命中回饋：該格短暫顯示 bonk 效果與浮字；null 表示目前無 */
+  hitPop: null as { index: number; label: string; kind: 'score' | 'bonus' | 'penalty' | 'time' } | null,
+  /** 高頻率更新的時間戳，僅供換算地鼠變色進度（is-orange/is-gray/is-flash-red），不驅動任何計分邏輯 */
+  now: Date.now(),
   message: '按「START」開始打地鼠。',
   rewardMessage: '',
   waitingOverlayVisible: true,
@@ -59,10 +66,13 @@ const WHACK_RULE = {
   description:
     '限時 60 秒的打地鼠反應遊戲：地鼠隨機從 3×3 共 9 個洞穴中冒出，同一時間最多只有一隻。' +
     '在地鼠縮回前點擊／觸控牠所在的洞穴即可擊中得分；點到沒有地鼠的洞穴不加分，但會中斷連擊。' +
-    '隨遊戲進行，地鼠的存活時間與出現間隔會逐漸縮短，越到後段越快。',
+    '隨遊戲進行，地鼠的存活時間與出現間隔會逐漸縮短，越到後段越快。地鼠會隨機是 5 種之一：一般（無變化）、' +
+    '橙色（存活後段漸變橙色，此時擊中額外加分）、灰色（存活後段漸變灰色，此時擊中是陷阱會扣分斷連擊）、' +
+    '閃紅（即將縮回前閃紅色，此時擊中額外延長時間）、混合（全程持續在橙／灰／閃紅三態間循環切換）。',
   scoreRule:
-    `每擊中一隻地鼠得 ${HIT_BASE_SCORE} 分 × 當下連擊倍率（x1～x4）；連續命中累積 Combo 提高倍率，` +
-    '一次 miss（點空洞穴或已消失的格子）會讓 Combo 歸零、倍率回到 x1，但分數不會被扣。',
+    `一般地鼠擊中得 ${HIT_BASE_SCORE} 分 × 當下連擊倍率（x1～x4）；橙色狀態擊中固定 +${ORANGE_BONUS_SCORE} 分（不吃倍率）；` +
+    `灰色狀態擊中是陷阱：-${GRAY_PENALTY_SCORE} 分且中斷連擊；閃紅狀態擊中除正常得分外，額外 +${RED_FLASH_BONUS_SEC} 秒；` +
+    '混合地鼠依擊中當下所在的顏色套用對應規則。連續命中（非陷阱）累積 Combo 提高倍率，miss 或踩到陷阱會讓 Combo 歸零、倍率回到 x1。',
   levelsTitle: 'COMBO 倍率',
   levels: [
     { level: 'x1', condition: `Combo ${COMBO_THRESHOLDS[0]}～${COMBO_THRESHOLDS[1]! - 1}` },
@@ -70,13 +80,18 @@ const WHACK_RULE = {
     { level: 'x3', condition: `Combo ${COMBO_THRESHOLDS[2]}～${COMBO_THRESHOLDS[3]! - 1}` },
     { level: 'x4', condition: `Combo ${COMBO_THRESHOLDS[3]} 以上` }
   ],
-  note: '時間到立即結束並結算分數。ESC / P 可暫停，暫停期間不消耗時間、地鼠也不會冒出或消失。'
+  note: '時間到立即結束並結算分數。ESC / P 可暫停，暫停期間不消耗時間、地鼠也不會冒出或消失、也不會變色。'
 }
 
 /** Game Timer（60 秒倒數）：本頁持有的 setInterval，每秒推進 engine.tickGameTimer() */
 let gameTimerId: ReturnType<typeof setInterval> | null = null
 /** 命中浮字的清除計時器 */
 let hitPopTimer: ReturnType<typeof setTimeout> | null = null
+/**
+ * 地鼠變色純屬畫面效果，不影響 engine 計時器分工：這顆額外的高頻 interval 只推進 state.now，
+ * 讓 holeClass 能持續換算 resolveMoleVisualState 並套用對應的 is-orange/is-gray/is-flash-red class。
+ */
+let visualTimerId: ReturnType<typeof setInterval> | null = null
 
 const stageStyle = computed(() => `--cell: ${CELL_SIZE}px; --gap: ${GAP}px;`)
 const statusText = computed(() => {
@@ -114,6 +129,7 @@ const _handlers = {
       clearInterval(gameTimerId)
       gameTimerId = null
     }
+    _handlers.stopVisualTimer()
   },
   startGameTimer: () => {
     _handlers.stopGameTimer()
@@ -123,6 +139,19 @@ const _handlers = {
       _handlers.syncSnapshot()
       if (over) _actions.finishGame()
     }, 1000)
+    _handlers.startVisualTimer()
+  },
+  stopVisualTimer: () => {
+    if (visualTimerId) {
+      clearInterval(visualTimerId)
+      visualTimerId = null
+    }
+  },
+  startVisualTimer: () => {
+    _handlers.stopVisualTimer()
+    visualTimerId = setInterval(() => {
+      if (state.status === 'playing') state.now = Date.now()
+    }, 120)
   },
   stopHitPopTimer: () => {
     if (hitPopTimer) {
@@ -130,17 +159,28 @@ const _handlers = {
       hitPopTimer = null
     }
   },
-  showHitPop: (index: number, gained: number) => {
+  showHitPop: (index: number, label: string, kind: 'score' | 'bonus' | 'penalty' | 'time' = 'score') => {
     _handlers.stopHitPopTimer()
-    state.hitPop = { index, gained }
+    state.hitPop = { index, label, kind }
     hitPopTimer = setTimeout(() => {
       state.hitPop = null
       hitPopTimer = null
     }, HIT_POP_MS)
   },
+  /** 依 kind + 存活進度換算目前顏色狀態，套用對應 class；只是畫面效果，判定分數以 engine.clickHole 為準 */
+  moleVisualState: (hole: HoleSnapshot): MoleVisualState => {
+    if (!hole.moleActive) return 'normal'
+    return resolveMoleVisualState(hole.moleKind, hole.moleSpawnedAt, hole.moleDurationMs, state.now)
+  },
   holeClass: (hole: HoleSnapshot): string => {
     const classes: string[] = []
-    if (hole.moleActive) classes.push('is-up')
+    if (hole.moleActive) {
+      classes.push('is-up')
+      const visual = _handlers.moleVisualState(hole)
+      if (visual === 'orange') classes.push('is-orange')
+      else if (visual === 'gray') classes.push('is-gray')
+      else if (visual === 'redFlash') classes.push('is-flash-red')
+    }
     if (state.hitPop && state.hitPop.index === hole.index) classes.push('is-bonk')
     return classes.join(' ')
   }
@@ -191,7 +231,18 @@ const _actions = {
     const result = engine.clickHole(index)
     _handlers.syncSnapshot()
     if (result.outcome === 'HIT') {
-      _handlers.showHitPop(index, result.gained)
+      if (result.moleState === 'orange') {
+        _handlers.showHitPop(index, `+${result.gained}`, 'bonus')
+        state.message = '打中橙色地鼠！額外加分！'
+      } else if (result.moleState === 'redFlash') {
+        _handlers.showHitPop(index, `+${result.gained} +${result.bonusSec}s`, 'time')
+        state.message = `打中閃紅地鼠！時間 +${result.bonusSec} 秒！`
+      } else {
+        _handlers.showHitPop(index, `+${result.gained}`, 'score')
+      }
+    } else if (result.outcome === 'TRAP') {
+      _handlers.showHitPop(index, `${result.gained}`, 'penalty')
+      state.message = '踩到灰色陷阱地鼠！扣分並中斷連擊。'
     }
   },
   pause: () => {
@@ -348,7 +399,7 @@ onBeforeUnmount(() => {
                 </span>
               </span>
               <span class="wam-hole-front" />
-              <span v-if="state.hitPop && state.hitPop.index === hole.index" class="wam-pop">+{{ state.hitPop.gained }}</span>
+              <span v-if="state.hitPop && state.hitPop.index === hole.index" class="wam-pop" :class="`is-${state.hitPop.kind}`">{{ state.hitPop.label }}</span>
             </button>
           </div>
         </div>
@@ -671,6 +722,8 @@ onBeforeUnmount(() => {
         border-radius: 50% 50% 45% 45%;
         background: radial-gradient(circle at 50% 32%, #b9713f 0 55%, #8a4f28 100%);
         box-shadow: inset 0 -6px 8px rgba(0, 0, 0, 0.28), 0 3px 6px rgba(0, 0, 0, 0.35);
+        // orange／gray 兩態靠這個 transition 做出「慢慢轉變」的漸變效果，不用 JS 逐幀算顏色
+        transition: background 0.6s ease, box-shadow 0.6s ease;
 
         // 淺色口鼻區
         &::after {
@@ -726,6 +779,23 @@ onBeforeUnmount(() => {
         animation: wam-bonk 0.24s ease-out;
       }
 
+      // 橙色地鼠：存活後段漸變橙色，此時擊中額外加分
+      &.is-orange .wam-mole-body {
+        background: radial-gradient(circle at 50% 32%, #ffb35c 0 55%, #d97a1f 100%);
+        box-shadow: inset 0 -6px 8px rgba(0, 0, 0, 0.28), 0 0 14px rgba(255, 159, 60, 0.55);
+      }
+
+      // 灰色地鼠：存活後段漸變灰色，此時擊中是陷阱、扣分並斷連擊
+      &.is-gray .wam-mole-body {
+        background: radial-gradient(circle at 50% 32%, #9a9a9a 0 55%, #5f5f5f 100%);
+        box-shadow: inset 0 -6px 8px rgba(0, 0, 0, 0.28), 0 0 10px rgba(90, 90, 90, 0.5);
+      }
+
+      // 閃紅地鼠：即將縮回前閃紅警示，此時擊中額外延長時間
+      &.is-flash-red .wam-mole-body {
+        animation: wam-mole-flash-red 0.32s ease-in-out infinite;
+      }
+
       .wam-pop {
         position: absolute;
         left: 50%;
@@ -738,6 +808,22 @@ onBeforeUnmount(() => {
         pointer-events: none;
         z-index: 5;
         animation: wam-pop-float 0.52s ease-out both;
+        white-space: nowrap;
+
+        &.is-bonus {
+          color: #ffb35c;
+          text-shadow: 0 0 10px rgba(255, 159, 60, 0.9);
+        }
+
+        &.is-penalty {
+          color: #c9c9c9;
+          text-shadow: 0 0 8px rgba(120, 120, 120, 0.8);
+        }
+
+        &.is-time {
+          color: #7fe3ff;
+          text-shadow: 0 0 10px rgba(80, 200, 255, 0.9);
+        }
       }
 
       &:hover:not(:disabled) .wam-hole-front {
@@ -816,6 +902,20 @@ onBeforeUnmount(() => {
 
   100% {
     transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes wam-mole-flash-red {
+
+  0%,
+  100% {
+    background: radial-gradient(circle at 50% 32%, #b9713f 0 55%, #8a4f28 100%);
+    box-shadow: inset 0 -6px 8px rgba(0, 0, 0, 0.28), 0 3px 6px rgba(0, 0, 0, 0.35);
+  }
+
+  50% {
+    background: radial-gradient(circle at 50% 32%, #ff5b4d 0 55%, #b21f12 100%);
+    box-shadow: inset 0 -6px 8px rgba(0, 0, 0, 0.28), 0 0 16px rgba(255, 80, 60, 0.7);
   }
 }
 
