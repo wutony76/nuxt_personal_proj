@@ -11,6 +11,16 @@ const CELL_SIZE = 46
 /** 過關「LEVEL CLEAR」過場停留時間（比照 MINESWEEPER 的短暫過場，不需要 READY 倒數） */
 const LEVEL_CLEAR_MS = 1200
 const ACCENT = '#adb5bd'
+/** 測試用：跳關按鈕開關（比照 minesweeper.vue／arkanoid.vue 慣例，預設關閉，非正式玩法，僅供除錯） */
+const TEST_TOOLS_ENABLED = false
+/** 測試用：跳關按鈕清單，涵蓋 8 個固定關卡＋幾個延伸關卡（用來驗證 levelMeta 的 MAX_SIZE 封頂邏輯） */
+const DEBUG_LEVEL_OPTIONS = [
+  ...LEVELS.map((_, idx) => idx + 1),
+  LEVELS.length + 1,
+  LEVELS.length + 3,
+  LEVELS.length + 6,
+  LEVELS.length + 12
+]
 
 const router = useRouter()
 const engine = new LightsOutEngine()
@@ -23,7 +33,6 @@ const state = reactive({
   size: LEVELS[0]!.size,
   level: 1,
   moves: 0,
-  moveLimit: LEVELS[0]!.moveLimit,
   score: 0,
   /** 鍵盤游標高亮格（限制在棋盤範圍內） */
   cursorRow: 0,
@@ -43,16 +52,16 @@ const state = reactive({
 const LIGHTS_OUT_RULE = {
   description:
     '經典關燈益智：棋盤上每格只有「亮（ON）／暗（OFF）」兩種狀態，點擊任一格會同時切換「自己與上下左右四個鄰格」的亮暗' +
-    '（超出棋盤的方向自動忽略，對角格不受影響）。目標是在該關步數上限內，把整個棋盤的燈全部熄滅（全部變 OFF）即過關。',
+    '（超出棋盤的方向自動忽略，對角格不受影響）。目標是把整個棋盤的燈全部熄滅（全部變 OFF）即過關，不限步數，但步數越少分數越高。',
   scoreRule:
     '每過一關得分 ＝ 固定過關獎勵（50 + 關卡 × 10）＋ 效率分（棋盤格數² × 40 ÷ 本關步數，步數越少分越高）；' +
-    'SCORE ＝ 各關得分跨關累加，撐到步數用完仍未熄燈則遊戲結束並結算累計分數。',
+    'SCORE ＝ 各關得分跨關累加，玩家可隨時按 END 結束並結算累計分數。',
   levelsTitle: '關卡數值',
   levels: LEVELS.map((lv, idx) => ({
     level: idx + 1,
-    condition: `${lv.size}×${lv.size} 棋盤／步數上限 ${lv.moveLimit}`
+    condition: `${lv.size}×${lv.size} 棋盤`
   })),
-  note: '棋盤大小隨關卡遞增（3×3 起、封頂 7×7），步數上限在同尺寸內遞減；打完固定關卡後會依延伸公式持續生成關卡。本遊戲不提供 Undo。'
+  note: '棋盤大小隨關卡遞增（3×3 起、封頂 7×7），打完固定關卡後會依延伸公式持續生成關卡。本遊戲不設步數上限、也不提供 Undo。'
 }
 
 let levelClearTimer: ReturnType<typeof setTimeout> | null = null
@@ -101,7 +110,6 @@ const _handlers = {
     state.size = snap.grid.length
     state.level = snap.level
     state.moves = snap.moves
-    state.moveLimit = snap.moveLimit
     state.score = snap.score
     return snap
   },
@@ -170,15 +178,6 @@ const _actions = {
     state.status = 'playing'
     state.message = '點擊格子切換自己與上下左右，把全部燈熄滅。'
   },
-  finishGame: () => {
-    _handlers.stopLevelClearTimer()
-    state.reachedLevel = state.level
-    state.status = 'gameover'
-    state.levelClearOverlayVisible = false
-    state.resultOverlayVisible = true
-    state.message = `步數用完仍未全部熄燈，止步於第 ${state.reachedLevel} 關。`
-    _actions.recordHistory()
-  },
   /** 過關：短暫顯示 LEVEL CLEAR，延遲後進入下一關（棋盤重建、moves 歸零，見 spec Next Level 規格） */
   handleLevelClear: () => {
     state.status = 'levelClear'
@@ -192,7 +191,7 @@ const _actions = {
       _handlers.clampCursor()
       state.levelClearOverlayVisible = false
       state.status = 'playing'
-      state.message = `進入第 ${state.level} 關（${state.size}×${state.size}／上限 ${state.moveLimit} 步）。`
+      state.message = `進入第 ${state.level} 關（${state.size}×${state.size}），步數越少分數越高。`
     }, LEVEL_CLEAR_MS)
   },
   /** 三種輸入來源（滑鼠點擊／觸控 tap／鍵盤 Space·Enter）共用的切換入口 */
@@ -209,11 +208,7 @@ const _actions = {
       _actions.handleLevelClear()
       return
     }
-    if (result.gameOver) {
-      _actions.finishGame()
-      return
-    }
-    state.message = `已用 ${state.moves} / ${state.moveLimit} 步，剩 ${litCount.value} 盞燈。`
+    state.message = `已用 ${state.moves} 步，剩 ${litCount.value} 盞燈，步數越少分數越高。`
   },
   pauseGame: () => {
     if (state.status !== 'playing') return
@@ -239,6 +234,23 @@ const _actions = {
     state.resultOverlayVisible = true
     state.message = '本局已結束。'
     _actions.recordHistory()
+  },
+  /**
+   * 測試用：直接跳到指定關卡（見 lightsOutEngine.ts jumpToLevel），重置分數與步數，
+   * 避免測試分數混進正式紀錄（比照 minesweeper.vue／arkanoid.vue 的 testJumpToLevel 慣例，僅供除錯）。
+   */
+  testJumpToLevel: (level: number) => {
+    _handlers.stopLevelClearTimer()
+    engine.jumpToLevel(level)
+    _handlers.syncFromEngine()
+    _handlers.clampCursor()
+    state.reachedLevel = state.level
+    state.lastLevelGained = 0
+    state.waitingOverlayVisible = false
+    state.levelClearOverlayVisible = false
+    state.resultOverlayVisible = false
+    state.status = 'playing'
+    state.message = `【測試】已跳到第 ${state.level} 關（${state.size}×${state.size}）。`
   },
   /** 鍵盤游標移動（限制在棋盤範圍內，見 tasks 6.9） */
   moveCursor: (dr: number, dc: number) => {
@@ -284,6 +296,7 @@ const click = {
   end: () => _actions.endGameNow(),
   again: () => _actions.playAgain(),
   exit: () => router.replace('/game-hall'),
+  testLevel: (level: number) => _actions.testJumpToLevel(level),
   openRateDialog: () => {
     state.rateDialogOpen = true
   },
@@ -318,7 +331,7 @@ onBeforeUnmount(() => {
     <div v-if="state.waitingOverlayVisible" class="game-mask waiting-mask">
       <div class="mask-title">WELCOME</div>
       <p class="waiting-subtitle">LIGHTS OUT</p>
-      <p class="waiting-hint">點一格連動翻轉上下左右 · 限定步數內全部關燈過關</p>
+      <p class="waiting-hint">點一格連動翻轉上下左右 · 全部關燈過關，步數越少分數越高</p>
       <button class="lo-btn waiting-btn waiting-start" type="button" @click="click.start">START</button>
       <button class="lo-btn link waiting-btn" type="button" @click="click.openRateDialog">CONVERT</button>
       <button class="lo-btn link waiting-btn" type="button" @click="click.openRuleDialog">RULE</button>
@@ -327,7 +340,7 @@ onBeforeUnmount(() => {
     <div v-if="state.levelClearOverlayVisible" class="game-mask levelclear-mask">
       <div class="mask-title win">LEVEL CLEAR</div>
       <div class="result-list">
-        <div class="result-item"><span>第 {{ state.level }} 關步數</span><b>{{ state.moves }} / {{ state.moveLimit }}</b></div>
+        <div class="result-item"><span>第 {{ state.level }} 關步數</span><b>{{ state.moves }}</b></div>
         <div class="result-item"><span>本關得分</span><b>+{{ state.lastLevelGained }}</b></div>
         <div class="result-item"><span>累計分數</span><b>{{ state.score }}</b></div>
       </div>
@@ -339,7 +352,7 @@ onBeforeUnmount(() => {
       <div class="result-list">
         <div class="result-item"><span>SCORE</span><b>{{ state.score }}</b></div>
         <div class="result-item"><span>止步關卡</span><b>第 {{ state.reachedLevel }} 關</b></div>
-        <div class="result-item"><span>本關步數</span><b>{{ state.moves }} / {{ state.moveLimit }}</b></div>
+        <div class="result-item"><span>本關步數</span><b>{{ state.moves }}</b></div>
       </div>
       <p v-if="state.rewardMessage" class="result-reward">{{ state.rewardMessage }}</p>
       <div class="result-actions">
@@ -350,8 +363,8 @@ onBeforeUnmount(() => {
 
     <GameRateDialog :visible="state.rateDialogOpen" game-key="lightsOut" game-name="LIGHTS OUT" :accent-color="ACCENT"
       @close="click.closeRateDialog" />
-    <GameRuleDialog :visible="state.ruleDialogOpen" game-name="LIGHTS OUT" :accent-color="ACCENT" v-bind="LIGHTS_OUT_RULE"
-      @close="click.closeRuleDialog" />
+    <GameRuleDialog :visible="state.ruleDialogOpen" game-name="LIGHTS OUT" :accent-color="ACCENT"
+      v-bind="LIGHTS_OUT_RULE" @close="click.closeRuleDialog" />
 
     <section class="lo-shell">
       <aside class="lo-side left">
@@ -380,10 +393,18 @@ onBeforeUnmount(() => {
           </div>
           <div class="lo-panel">
             <span>LEVEL: {{ state.level }}</span>
-            <span>MOVES: {{ state.moves }} / {{ state.moveLimit }}</span>
+            <span>MOVES: {{ state.moves }}</span>
             <span>LIT: {{ litCount }}</span>
             <span>SCORE: {{ state.score }}</span>
           </div>
+        </div>
+
+        <div v-if="TEST_TOOLS_ENABLED" class="lo-debug-levels">
+          <span class="lo-debug-levels-label">🧪 測試：跳至關卡</span>
+          <button v-for="lv in DEBUG_LEVEL_OPTIONS" :key="lv" type="button" class="lo-level-jump"
+            :class="{ active: state.status === 'playing' && state.level === lv }" @click="click.testLevel(lv)">
+            {{ lv }}
+          </button>
         </div>
 
         <p class="lo-message">{{ state.message }}</p>
@@ -394,7 +415,7 @@ onBeforeUnmount(() => {
           <p class="lo-help-title">HOW TO PLAY</p>
           <p class="lo-help-text">
             點擊（或觸控）任一格會切換自己與上下左右 4 個鄰格的亮暗，超出棋盤的方向忽略、對角格不受影響。
-            在步數上限內把全部燈熄滅即過關進下一關；方向鍵移動游標、Space／Enter 切換，ESC／P 可暫停。
+            把全部燈熄滅即過關進下一關，不限步數但步數越少分數越高；方向鍵移動游標、Space／Enter 切換，ESC／P 可暫停。
           </p>
         </div>
       </aside>
@@ -654,6 +675,7 @@ onBeforeUnmount(() => {
       position: relative;
       box-sizing: content-box;
       width: fit-content;
+      margin: 0 auto;
       padding: 10px;
       background: #0a0d11;
       border: 2px solid #1c2026;
@@ -737,6 +759,48 @@ onBeforeUnmount(() => {
       font-weight: 800;
       text-shadow: 0 0 6px rgba(173, 181, 189, 0.45);
       font-variant-numeric: tabular-nums;
+    }
+
+    /* 測試用按鈕改用橘色系，跟正式操作明顯區隔（比照 minesweeper.vue／arkanoid.vue 的 is-debug 慣例） */
+    .lo-debug-levels {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .lo-debug-levels-label {
+      color: #ffb454;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      opacity: 0.85;
+    }
+
+    .lo-level-jump {
+      width: 28px;
+      height: 28px;
+      border: 1px solid rgba(255, 180, 84, 0.4);
+      border-radius: 6px;
+      background: rgba(26, 20, 5, 0.8);
+      color: #ffb454;
+      font-weight: 800;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+      &:hover {
+        border-color: #ffb454;
+      }
+
+      &.active {
+        background: rgba(255, 180, 84, 0.22);
+        border-color: #ffb454;
+        color: #fff0d9;
+        box-shadow: 0 0 12px rgba(255, 180, 84, 0.4);
+      }
     }
 
     .lo-message {
