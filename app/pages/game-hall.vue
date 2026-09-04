@@ -83,8 +83,8 @@ const pad2 = (value: number) => String(value).padStart(2, '0')
 /** 分頁對應的清單面板文案（彩票／彩運來分頁沒有卡片清單，改顯示導頁面板） */
 const PANEL_META: Record<HallTab, { title: string; meta: string }> = {
   lobby: { title: 'GAME.CARD', meta: '// 遊戲機台' },
-  lottery: { title: 'LOTTERY.SYS', meta: '// BG彩票玩法' },
-  taiwan: { title: 'TAIWAN.SYS', meta: '// 彩運來資訊入口' },
+  lottery: { title: 'BG.LOTTERY', meta: '// BG彩票玩法' },
+  taiwan: { title: 'TW.LOTTERY', meta: '// 彩運來入口' },
 }
 const panel = computed(() => PANEL_META[activeTab.value])
 

@@ -54,7 +54,7 @@ const handleLogout = () => {
         <NuxtLink to="/lottery-hall">返回</NuxtLink>
       </div>
       <div class="right menu">
-        <NuxtLink to="/">首頁</NuxtLink>
+        <!-- <NuxtLink to="/">首頁</NuxtLink> -->
         <NuxtLink to="/lottery-hall">大廳</NuxtLink>
         <button type="button" class="ghost-btn" @click="emit('open-user-dialog')">會員</button>
         <button type="button" class="ghost-btn" @click="emit('open-opencode-dialog')">開獎</button>
