@@ -47,6 +47,7 @@ const state = reactive({
   pendingUpgradeOptions: null as TowerDefenseSnapshot['pendingUpgradeOptions'],
   upgradeMultipliers: { damage: 1, atkSpeed: 1, gold: 1, range: 1, slow: 1 },
   maxWaveReached: 1,
+  towerPriceMultiplier: 1,
   selectedTowerKind: null as TowerKind | null,
   hoverTowerId: null as number | null,
   hoverTowerKind: null as TowerKind | null,
@@ -115,12 +116,16 @@ const enemySizeFor = (kind: EnemyKind): number => {
   if (kind === 'tank') return TD_TANK_SIZE
   return TD_ENEMY_SIZE
 }
+/** 建塔／塔升級的物價會隨建塔數量與塔到 Lv3 通膨，顯示用的價格都要乘上這個倍率再四捨五入 */
+const towerBuildCost = (kind: TowerKind): number => Math.round(TOWER_CONFIG[kind].buildCost * state.towerPriceMultiplier)
+const towerUpgradeCost = (kind: TowerKind, currentLevel: number): number =>
+  Math.round(TOWER_CONFIG[kind].levels[currentLevel]!.upgradeCost * state.towerPriceMultiplier)
 /** hover 一座已建好的塔時顯示其資訊，滑鼠離開即關閉 */
 const hoveredTower = computed(() => state.towers.find((t) => t.id === state.hoverTowerId) ?? null)
 const hoveredTowerNextCost = computed(() => {
   const t = hoveredTower.value
   if (!t || t.level >= TOWER_MAX_LEVEL) return null
-  return TOWER_CONFIG[t.kind].levels[t.level]!.upgradeCost
+  return towerUpgradeCost(t.kind, t.level)
 })
 /** hover 建塔選單按鈕時預覽該塔種 Lv1 數值，滑鼠離開即關閉 */
 const hoveredBuildPreview = computed(() => {
@@ -162,6 +167,7 @@ const _handlers = {
     state.pendingUpgradeOptions = snap.pendingUpgradeOptions
     state.upgradeMultipliers = snap.upgradeMultipliers
     state.maxWaveReached = snap.maxWaveReached
+    state.towerPriceMultiplier = snap.towerPriceMultiplier
   },
   stopTickTimer: () => {
     if (tickTimer) {
@@ -585,7 +591,7 @@ onBeforeUnmount(() => {
             >
               <span class="icon">{{ _handlers.towerIcon(kind) }}</span>
               <span class="name">{{ _handlers.towerName(kind) }}</span>
-              <span class="cost">{{ TOWER_CONFIG[kind].buildCost }}g</span>
+              <span class="cost">{{ towerBuildCost(kind) }}g</span>
             </button>
           </div>
 
@@ -603,7 +609,7 @@ onBeforeUnmount(() => {
 
           <div v-else-if="hoveredBuildPreview" class="td-tower-info" :style="floatPanelStyle" @mouseenter="click.hoverPanelEnter" @mouseleave="click.hoverPanelLeave">
             <p class="td-tower-info-title">{{ _handlers.towerName(hoveredBuildPreview.kind) }} · 建造中</p>
-            <p>COST: {{ TOWER_CONFIG[hoveredBuildPreview.kind].buildCost }}g</p>
+            <p>COST: {{ towerBuildCost(hoveredBuildPreview.kind) }}g</p>
             <p>DAMAGE: {{ hoveredBuildPreview.damage.toFixed(1) }}</p>
             <p>ATK SPEED: {{ hoveredBuildPreview.atkSpeed.toFixed(2) }}/s</p>
             <p>RANGE: {{ hoveredBuildPreview.range.toFixed(1) }}</p>
