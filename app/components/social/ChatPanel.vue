@@ -61,7 +61,7 @@ const click = {
       <span v-if="!connected" class="disconnected">連線中斷，重新連線中...</span>
     </div>
 
-    <div ref="listRef" class="chat-list" @scroll="click.onListScroll">
+    <div ref="listRef" class="chat-list lottery-scrollbar" @scroll="click.onListScroll">
       <p v-if="messages.length === 0" class="chat-empty">尚無訊息，開啟話題吧！</p>
       <div v-for="msg in messages" :key="msg.id" class="chat-row" :class="{ 'is-admin': msg.asAdmin }">
         <span class="user">{{ msg.userName }}</span>
