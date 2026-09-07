@@ -9,13 +9,13 @@ import {
   C4_AI_DELAY_MIN_MS,
   C4_AI_DELAY_MAX_MS,
   WIN_BASE,
-  MAX_SCORE,
+  C4_MAX_SCORE,
   DRAW_SCORE,
-  CHAIN_WIN_MULTIPLIER,
-  CHAIN_LOSE_MULTIPLIER,
-  MAX_CHAIN_WINS,
-  applyChainWin,
-  applyChainLose,
+  C4_CHAIN_WIN_MULTIPLIER,
+  C4_CHAIN_LOSE_MULTIPLIER,
+  C4_MAX_CHAIN_WINS,
+  applyC4ChainWin,
+  applyC4ChainLose,
   getNextOpenRow,
   type Connect4Board,
   type Connect4Result,
@@ -64,10 +64,10 @@ const CONNECT4_RULE = {
     '經典四子棋（Player vs AI）：玩家（紅）先手，與 AI（黃）輪流選擇欄位落子，棋子受重力落到該欄最底的空位。' +
     '搶先讓自己的棋子在水平、垂直或任一對角線方向連成 4 子即獲勝；棋盤 42 格全部落滿仍無人連線則為平手。',
   scoreRule:
-    `獲勝分數 = 固定基礎分 ${WIN_BASE} + 落子效率加成（最速 4 手完成連線得滿分 ${MAX_SCORE}，之後每多用 1 手 -3 分，最低不低於 ${WIN_BASE} 分）；` +
+    `獲勝分數 = 固定基礎分 ${WIN_BASE} + 落子效率加成（最速 4 手完成連線得滿分 ${C4_MAX_SCORE}，之後每多用 1 手 -3 分，最低不低於 ${WIN_BASE} 分）；` +
     `平手固定 ${DRAW_SCORE} 分；落敗 0 分。用越少步數獲勝分數越高。`,
   levels: [
-    { level: '最速獲勝', condition: `4 手連成 4 子 → ${MAX_SCORE} 分（滿分）` },
+    { level: '最速獲勝', condition: `4 手連成 4 子 → ${C4_MAX_SCORE} 分（滿分）` },
     { level: '獲勝', condition: `每多用 1 手 -3 分，最低 ${WIN_BASE} 分` },
     { level: '平手', condition: `棋盤填滿且無連線 → ${DRAW_SCORE} 分` },
     { level: '落敗', condition: 'AI 先連成 4 子 → 0 分' }
@@ -75,8 +75,8 @@ const CONNECT4_RULE = {
   levelsTitle: '計分級距',
   note:
     'AI 決策順序為「優先獲勝 → 優先阻擋你 → 隨機合法欄」；已落滿 6 顆的欄位不能再選、也不消耗回合。AI 回合會有短暫思考延遲。' +
-    `贏了之後可選擇「結算」或「連勝加碼」：再戰贏了本局分數 x${CHAIN_WIN_MULTIPLIER} 累加進連勝分數，` +
-    `再戰輸了連勝分數打 ${CHAIN_LOSE_MULTIPLIER * 10} 折並強制結算，平手則分數不變並強制結算；最多可連續贏 ${MAX_CHAIN_WINS} 場，滿場自動結算。`
+    `贏了之後可選擇「結算」或「連勝加碼」：再戰贏了本局分數 x${C4_CHAIN_WIN_MULTIPLIER} 累加進連勝分數，` +
+    `再戰輸了連勝分數打 ${C4_CHAIN_LOSE_MULTIPLIER * 10} 折並強制結算，平手則分數不變並強制結算；最多可連續贏 ${C4_MAX_CHAIN_WINS} 場，滿場自動結算。`
 }
 
 const router = useRouter()
@@ -332,8 +332,8 @@ const _actions = {
 
     if (state.result === 'WIN') {
       state.chainWins += 1
-      state.chainScore = state.chainWins === 1 ? state.score : applyChainWin(state.chainScore, state.score)
-      if (state.chainWins >= MAX_CHAIN_WINS) {
+      state.chainScore = state.chainWins === 1 ? state.score : applyC4ChainWin(state.chainScore, state.score)
+      if (state.chainWins >= C4_MAX_CHAIN_WINS) {
         state.message = '連勝封頂，自動結算！'
         _actions.settleChain()
       } else {
@@ -343,7 +343,7 @@ const _actions = {
     }
 
     if (state.result === 'LOSE' && state.chainWins > 0) {
-      state.chainScore = applyChainLose(state.chainScore)
+      state.chainScore = applyC4ChainLose(state.chainScore)
     } else {
       state.chainScore = state.score
     }
@@ -471,11 +471,11 @@ onBeforeUnmount(() => {
       <div class="mask-title win">YOU WIN</div>
       <div class="result-list">
         <div class="result-item"><span>本局得分</span><b>{{ state.score }}</b></div>
-        <div class="result-item"><span>連勝次數</span><b>{{ state.chainWins }} / {{ MAX_CHAIN_WINS }}</b></div>
+        <div class="result-item"><span>連勝次數</span><b>{{ state.chainWins }} / {{ C4_MAX_CHAIN_WINS }}</b></div>
         <div class="result-item"><span>累積分數</span><b>{{ state.chainScore }}</b></div>
       </div>
       <p class="chain-hint">
-        再戰贏了本局分數 x{{ CHAIN_WIN_MULTIPLIER }} 累加；再戰輸了累積分數打 {{ CHAIN_LOSE_MULTIPLIER * 10 }} 折並強制結算。
+        再戰贏了本局分數 x{{ C4_CHAIN_WIN_MULTIPLIER }} 累加；再戰輸了累積分數打 {{ C4_CHAIN_LOSE_MULTIPLIER * 10 }} 折並強制結算。
       </p>
       <div class="result-actions">
         <button class="c4-btn" type="button" @click="click.cashOut">CASH OUT（{{ state.chainScore }} 分）</button>
@@ -535,7 +535,7 @@ onBeforeUnmount(() => {
           <span>YOU: {{ state.playerMoves }}</span>
           <span>AI: {{ state.aiMoves }}</span>
           <span>SCORE: {{ state.score }}</span>
-          <span v-if="state.chainWins > 0">STREAK: {{ state.chainWins }}/{{ MAX_CHAIN_WINS }} · BANK: {{ state.chainScore }}</span>
+          <span v-if="state.chainWins > 0">STREAK: {{ state.chainWins }}/{{ C4_MAX_CHAIN_WINS }} · BANK: {{ state.chainScore }}</span>
         </div>
 
         <div class="c4-frame">

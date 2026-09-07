@@ -65,25 +65,27 @@ export const MAX_EFFICIENCY_BONUS = 40
 export const MIN_WINNING_MOVES = 4
 export const EFFICIENCY_STEP = 3
 export const DRAW_SCORE = 20
-/** 公式理論上限（= WIN_BASE + MAX_EFFICIENCY_BONUS），對齊 server 端 maxReasonableScore() */
-export const MAX_SCORE = WIN_BASE + MAX_EFFICIENCY_BONUS
+/** 公式理論上限（= WIN_BASE + MAX_EFFICIENCY_BONUS），對齊 server 端 maxReasonableScore()
+ *  命名加上 C4_ 前綴，避免與 battleshipEngine.ts 的同名常數在 Nuxt utils auto-import 撞名 */
+export const C4_MAX_SCORE = WIN_BASE + MAX_EFFICIENCY_BONUS
 
 // ── 連勝加碼（Double or Nothing，見 game/connect4.vue 的「贏後選擇結算或再戰」流程）──
 // 贏了：本局分數 x2 累加進連勝分數；輸了：連勝分數打 8 折並強制結算；平手：分數不變並強制結算；
-// 最多連續贏 MAX_CHAIN_WINS 次後自動結算。屬於跨多次 engine.reset() 的頁面層級狀態，
+// 最多連續贏 C4_MAX_CHAIN_WINS 次後自動結算。屬於跨多次 engine.reset() 的頁面層級狀態，
 // 因此以獨立純函式提供，不放進 Connect4Engine class（class 只管單局回合）。
-export const CHAIN_WIN_MULTIPLIER = 2
-export const CHAIN_LOSE_MULTIPLIER = 0.8
-export const MAX_CHAIN_WINS = 5
-/** 理論上限：第 1 場贏最高 MAX_SCORE，之後每贏一場最高再疊加 MAX_SCORE * CHAIN_WIN_MULTIPLIER，對齊 server 端 maxReasonableScore() */
-export const MAX_CHAIN_SCORE = MAX_SCORE + (MAX_CHAIN_WINS - 1) * MAX_SCORE * CHAIN_WIN_MULTIPLIER
+// 命名加上 C4_ 前綴，避免與 battleshipEngine.ts 的同名常數／函式在 Nuxt utils auto-import 撞名。
+export const C4_CHAIN_WIN_MULTIPLIER = 2
+export const C4_CHAIN_LOSE_MULTIPLIER = 0.8
+export const C4_MAX_CHAIN_WINS = 5
+/** 理論上限：第 1 場贏最高 C4_MAX_SCORE，之後每贏一場最高再疊加 C4_MAX_SCORE * C4_CHAIN_WIN_MULTIPLIER，對齊 server 端 maxReasonableScore() */
+export const C4_MAX_CHAIN_SCORE = C4_MAX_SCORE + (C4_MAX_CHAIN_WINS - 1) * C4_MAX_SCORE * C4_CHAIN_WIN_MULTIPLIER
 
 /** 連勝加碼中再贏一場：本局分數 x2 累加進目前的連勝分數（第 1 場贏不call這支，直接以 roundScore 起算） */
-export const applyChainWin = (chainScore: number, roundScore: number): number =>
-  chainScore + roundScore * CHAIN_WIN_MULTIPLIER
+export const applyC4ChainWin = (chainScore: number, roundScore: number): number =>
+  chainScore + roundScore * C4_CHAIN_WIN_MULTIPLIER
 
 /** 連勝加碼中輸了：目前累積的連勝分數打 8 折，作為最終結算分數 */
-export const applyChainLose = (chainScore: number): number => Math.round(chainScore * CHAIN_LOSE_MULTIPLIER)
+export const applyC4ChainLose = (chainScore: number): number => Math.round(chainScore * C4_CHAIN_LOSE_MULTIPLIER)
 
 // ── AI 回合延遲範圍（由頁面用 setTimeout 實作，engine 本身不處理非同步，見 design.md Decision 7）──
 export const C4_AI_DELAY_MIN_MS = 400
@@ -222,7 +224,7 @@ export const chooseAiColumn = (board: Connect4Board, random: () => number = Math
 export const calculateScore = (result: Connect4Result, playerMovesUsed: number): number => {
   if (result === 'WIN') {
     const bonus = Math.max(0, MAX_EFFICIENCY_BONUS - (playerMovesUsed - MIN_WINNING_MOVES) * EFFICIENCY_STEP)
-    return Math.min(MAX_SCORE, WIN_BASE + bonus)
+    return Math.min(C4_MAX_SCORE, WIN_BASE + bonus)
   }
   if (result === 'DRAW') return DRAW_SCORE
   return 0
