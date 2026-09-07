@@ -272,12 +272,16 @@ export const movePlayer = (player: PlayerState, direction: MoveDirection): boole
  *            漂移後欄位超出邊界 → FALL_IN_WATER，否則 ON_RAFT；腳下無浮木 → FALL_IN_WATER。
  *   - GOAL：命中未佔用蓮花座 → GOAL_FILLED；非蓮花座欄位或已佔用蓮花座 → FALL_IN_WATER。
  * 就地更新 RIVER 的 raftCol/col（漂移是安全的連續位移）；致命與計分後果由呼叫端（引擎）處理。
+ * `invincible` 為 true 時 ROAD／RIVER 直接視同 MEDIAN（回傳 null）：車輛與浮木/水面完全穿過，
+ * 玩家不隨浮木漂移、`col`/`raftCol` 維持 `movePlayer()` 設定的離散格；GOAL 判定不受影響，
+ * 測試模式下仍可正常送達蓮花座計分（見 spec「測試模式可直接穿過河流／車道」）。
  */
-export const resolveHazard = (state: FroggerCoreState): HazardResult | null => {
+export const resolveHazard = (state: FroggerCoreState, invincible = false): HazardResult | null => {
   const { player } = state
   const type = rowType(player.row)
 
   if (type === 'HOME' || type === 'MEDIAN') return null
+  if (invincible && (type === 'ROAD' || type === 'RIVER')) return null
 
   if (type === 'ROAD') {
     const lane = findLane(state, player.row)
@@ -328,6 +332,8 @@ export type FroggerSnapshot = {
   roundsCleared: number
   /** 本局累計跳進蓮花座的總次數，供紀錄 meta 使用 */
   goalsFilled: number
+  /** 測試模式是否啟用（見 setInvincible） */
+  invincible: boolean
 }
 
 /** 依 level 重建全部 10 條車道實體（開局與每完成一輪各呼叫一次，見 Decision 6） */
@@ -354,9 +360,16 @@ export default class FroggerEngine {
   private furthestRow = HOME_ROW
   private roundsCleared = 0
   private goalsFilled = 0
+  /** 測試模式：撞車／落水一律不扣命，只重生（見 setInvincible）；刻意不受 reset() 影響，切換後跨局保留 */
+  private invincible = false
 
   constructor() {
     this.reset()
+  }
+
+  /** 開關測試模式（不死）。開啟後 loseLife() 只重生不扣命，關閉即恢復正常扣命規則 */
+  setInvincible(value: boolean): void {
+    this.invincible = value
   }
 
   /**
@@ -399,7 +412,7 @@ export default class FroggerEngine {
     }
     this.state.tickDtMs = 0
     const before = this.roundsCleared
-    const hazard = resolveHazard(this.state)
+    const hazard = resolveHazard(this.state, this.invincible)
     this.applyHazard(hazard)
     return { hazard, roundCleared: this.roundsCleared > before, gameOver: this.gameIsOver() }
   }
@@ -415,7 +428,7 @@ export default class FroggerEngine {
     }
     this.state.tickDtMs = dtMs
     const before = this.roundsCleared
-    const hazard = resolveHazard(this.state)
+    const hazard = resolveHazard(this.state, this.invincible)
     this.applyHazard(hazard)
     return { hazard, roundCleared: this.roundsCleared > before, gameOver: this.gameIsOver() }
   }
@@ -447,6 +460,10 @@ export default class FroggerEngine {
 
   /** 撞車/落水扣 1 命；歸零 → Game Over（不再移動或判定），否則重生回起點（不影響 level/score/蓮花座） */
   private loseLife(): void {
+    if (this.invincible) {
+      this.respawnPlayer()
+      return
+    }
     this.lives -= 1
     if (this.lives <= 0) {
       this.lives = 0
@@ -483,7 +500,8 @@ export default class FroggerEngine {
       level: this.state.level,
       status: this.status,
       roundsCleared: this.roundsCleared,
-      goalsFilled: this.goalsFilled
+      goalsFilled: this.goalsFilled,
+      invincible: this.invincible
     }
   }
 }

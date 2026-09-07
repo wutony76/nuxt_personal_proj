@@ -27,6 +27,8 @@ type EntityRender = {
 
 const CELL = 40
 const ACCENT = '#52b788'
+/** 測試模式開關：改這個常數即可切換，開發用，無 UI／快捷鍵入口（撞車／落水不扣命，見 spec） */
+const TEST_MODE_ENABLED = false
 
 /** 每條 ROAD 車道的車輛主色（依 row 對照，讓 5 條車道視覺可區分；RIVER 一律用浮木棕色） */
 const CAR_COLORS: Record<number, string> = {
@@ -45,6 +47,7 @@ const TERRAIN_ROWS: Array<{ row: number; type: LaneType }> = Array.from({ length
 
 const router = useRouter()
 const engine = new FroggerEngine()
+engine.setInvincible(TEST_MODE_ENABLED)
 const gameHistory = useGameHistory()
 
 const state = reactive({
@@ -60,6 +63,8 @@ const state = reactive({
   level: 1,
   roundsCleared: 0,
   goalsFilled: 0,
+  /** 測試模式：撞車／落水不扣命，方便試探車道／河道規律；開啟時不寫入歷史紀錄，避免污染排行榜 */
+  testMode: TEST_MODE_ENABLED,
   message: '按 START 開始，用方向鍵／WASD 或下方按鈕讓青蛙一次跳一格。',
   rewardMessage: '',
   toast: '',
@@ -114,6 +119,8 @@ const canResumeFromPause = computed(
 )
 /** HIGH SCORE 直接重用 useGameHistory 的 statsByGame，並與本局分數取大值即時反映 */
 const bestScore = computed(() => Math.max(gameHistory.statsByGame.value['frogger']?.best ?? 0, state.score))
+/** 測試模式下命數恆定顯示無限符號，強調撞車／落水不會扣命 */
+const livesDisplay = computed(() => (state.testMode ? '∞' : String(state.lives)))
 const stageStyle = computed(() => `width: ${GRID_COLS * CELL}px; height: ${GRID_ROWS * CELL}px;`)
 
 /** 玩家渲染欄位：站在浮木上（RIVER 列）時用浮點 raftCol 反映漂移，其餘用整數 col（見 design.md Decision 4） */
@@ -194,6 +201,8 @@ const _handlers = {
 const _actions = {
   recordHistory: async () => {
     state.rewardMessage = ''
+    // 測試模式局不記錄分數／獎勵，避免不死狀態刷分污染排行榜
+    if (state.testMode) return
     try {
       const result = await gameHistory.actions.record('frogger', 'FROGGER', {
         score: state.score,
@@ -432,9 +441,10 @@ onBeforeUnmount(() => {
 
           <div class="fg-panel">
             <span>SCORE: {{ state.score }}</span>
-            <span>LIVES: {{ state.lives }}</span>
+            <span>LIVES: {{ livesDisplay }}</span>
             <span>LEVEL: {{ state.level }}</span>
           </div>
+          <p v-if="state.testMode" class="fg-testmode-badge">TEST MODE：撞車／落水不扣命，分數不計入排行榜</p>
           <!-- 蓮花座佔用狀態 HUD -->
           <div class="fg-lotus-hud">
             <span class="fg-lotus-label">HOME</span>
@@ -913,6 +923,14 @@ onBeforeUnmount(() => {
     font-weight: 800;
     text-shadow: 0 0 6px rgba(82, 183, 136, 0.45);
     font-variant-numeric: tabular-nums;
+  }
+
+  .fg-testmode-badge {
+    margin: 6px 0 0;
+    text-align: center;
+    color: #ffcc33;
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
   }
 
   .fg-lotus-hud {
