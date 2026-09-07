@@ -8,6 +8,11 @@ import {
   AI_DELAY_MIN_MS,
   AI_DELAY_MAX_MS,
   SHIP_CONFIG,
+  CHAIN_WIN_MULTIPLIER,
+  CHAIN_LOSE_MULTIPLIER,
+  MAX_CHAIN_WINS,
+  applyChainWin,
+  applyChainLose,
   coordToLabel,
   type BoardBs,
   type CellBs,
@@ -20,6 +25,21 @@ import {
 
 const CELL_SIZE = 30
 const ACCENT = '#3a86ff'
+
+/**
+ * 「連勝加碼」每次過關（DOUBLE OR NOTHING 繼續下一場）重新佈署艦隊時，隨機換一組戰艦外觀配色，
+ * 純視覺彩蛋、不影響任何判定；索引 0 為預設配色（新遊戲一律從這組開始）。
+ * `hitBg`／`hitBorder`／`missBg`／`missBorder` 是 AI 在 YOUR WATERS 攻擊命中／落空時的格子顏色，
+ * 跟著同一組配色一起換，讓「AI 選中的格子」視覺上也屬於當前這套戰艦造型（ENEMY WATERS 的命中／
+ * 落空格不套用這組變數，維持原本紅色／藍灰色）。命中維持暖色系、落空維持冷色系，只是色相隨配色調整。
+ */
+const SHIP_SKINS = [
+  { base: '#3a5a86', edge: '#24405f', border: '#5580b0', hitBg: '#6e1414', hitBorder: '#ff5e5e', missBg: '#0a1c33', missBorder: '#2f5580' }, // 預設：海軍藍
+  { base: '#4a5a3a', edge: '#2f3d24', border: '#7a9a5a', hitBg: '#6e4a14', hitBorder: '#ffb84d', missBg: '#0a2f1c', missBorder: '#2f8055' }, // 迷彩綠
+  { base: '#6b5a3a', edge: '#4a3d24', border: '#b09a5a', hitBg: '#6e3414', hitBorder: '#ff8a4d', missBg: '#1c2a33', missBorder: '#4a7a99' }, // 沙漠棕
+  { base: '#5a3a5a', edge: '#3d243d', border: '#9a5a9a', hitBg: '#6e1450', hitBorder: '#ff5ec2', missBg: '#1c1c33', missBorder: '#4a4a80' }, // 深紫
+  { base: '#5a5a5a', edge: '#3d3d3d', border: '#9a9a9a', hitBg: '#6e2020', hitBorder: '#ff7a7a', missBg: '#0a2033', missBorder: '#2f6080' } // 鋼鐵灰
+]
 
 const SHIP_LABEL: Record<string, string> = {
   CARRIER: 'CARRIER',
@@ -38,7 +58,11 @@ const BATTLESHIP_RULE = {
     '落敗局分數為當下已累積的 HIT/SUNK 加總。射擊數／命中率等統計不影響分數，只作為表現參考。',
   levels: SHIP_CONFIG.map((s) => ({ level: SHIP_LABEL[s.name] ?? s.name, condition: `長度 ${s.length} 格` })),
   levelsTitle: '戰艦清單',
-  note: '允許戰艦彼此相鄰；已攻擊過的格子不能再次攻擊，也不會消耗回合。AI 回合會有短暫思考延遲。'
+  note:
+    '允許戰艦彼此相鄰；已攻擊過的格子不能再次攻擊，也不會消耗回合。AI 回合會有短暫思考延遲。' +
+    `贏了之後可選擇「結算」或「連勝加碼」：再戰贏了本局分數 x${CHAIN_WIN_MULTIPLIER} 累加進連勝分數，` +
+    `再戰輸了連勝分數打 ${CHAIN_LOSE_MULTIPLIER * 10} 折並強制結算；最多可連續贏 ${MAX_CHAIN_WINS} 場，滿場自動結算。` +
+    '每次「連勝加碼」重新佈署艦隊時，戰艦的外觀配色會隨機更換。'
 }
 
 type PlacementUI = {
@@ -77,13 +101,34 @@ const state = reactive({
   waitingOverlayVisible: true,
   resultOverlayVisible: false,
   rateDialogOpen: false,
-  ruleDialogOpen: false
+  ruleDialogOpen: false,
+  // ── 連勝加碼（Double or Nothing，比照 connect4.vue 的同名機制）──
+  chainWins: 0,
+  chainScore: 0,
+  chainChoiceVisible: false,
+  finalScore: 0,
+  finalChainWins: 0,
+  /** 目前戰艦外觀配色索引（見 SHIP_SKINS），只有「連勝加碼」過關重新佈署時才會隨機更換 */
+  shipSkinIndex: 0
 })
 
 let aiTimer: ReturnType<typeof setTimeout> | null = null
 
 const stageStyle = computed(() => `--cell: ${CELL_SIZE}px;`)
 const boardStyle = computed(() => `grid-template-columns: repeat(${BOARD_SIZE_BS}, var(--cell));`)
+/**
+ * 只有 YOUR WATERS 需要戰艦配色變數：ENEMY WATERS 從不顯示 is-ship（見 getPlayerViewOfEnemyBoard），
+ * 命中／落空格也一樣只在這裡帶入 --hit-*／--miss-*，讓 AI 攻擊的格子跟著換色。
+ */
+const shipSkinStyle = computed(() => {
+  const skin = SHIP_SKINS[state.shipSkinIndex] ?? SHIP_SKINS[0]!
+  return (
+    `--ship-base: ${skin.base}; --ship-edge: ${skin.edge}; --ship-border: ${skin.border}; ` +
+    `--hit-bg: ${skin.hitBg}; --hit-border: ${skin.hitBorder}; ` +
+    `--miss-bg: ${skin.missBg}; --miss-border: ${skin.missBorder};`
+  )
+})
+const playerStageStyle = computed(() => `${stageStyle.value} ${shipSkinStyle.value}`)
 const flatPlayerCells = computed(() => state.playerBoard.flat())
 const flatEnemyCells = computed(() => state.enemyBoardView.flat())
 const previewSet = computed(() => new Set(state.placement.previewCells.map((c) => `${c.x},${c.y}`)))
@@ -159,18 +204,20 @@ const _handlers = {
 }
 
 const _actions = {
-  recordHistory: async () => {
+  /** 送出「這次連勝加碼結算」的最終分數（state.finalScore），而非單局分數；送出後歸零連勝狀態 */
+  recordFinalScore: async () => {
     state.rewardMessage = ''
     try {
       const result = await gameHistory.actions.record('battleship', 'BATTLESHIP', {
-        score: state.score,
+        score: state.finalScore,
         meta: {
           shots: state.stats.shots,
           hits: state.stats.hits,
           misses: state.stats.misses,
           accuracy: accuracy.value,
           rounds: state.round,
-          winner: state.winner
+          winner: state.winner,
+          chainWins: state.finalChainWins
         }
       })
       if (result.coinReward > 0) {
@@ -178,7 +225,17 @@ const _actions = {
       }
     } catch {
       // 紀錄寫入失敗不影響遊戲本身，靜默略過
+    } finally {
+      state.chainWins = 0
+      state.chainScore = 0
     }
+  },
+  /** 隨機挑一組跟目前不同的戰艦配色（見 SHIP_SKINS），只在「連勝加碼」過關重新佈署時呼叫 */
+  randomizeShipSkin: () => {
+    if (SHIP_SKINS.length <= 1) return
+    let next = Math.floor(Math.random() * SHIP_SKINS.length)
+    if (next === state.shipSkinIndex) next = (next + 1) % SHIP_SKINS.length
+    state.shipSkinIndex = next
   },
   resetGame: () => {
     _handlers.clearAiTimer()
@@ -196,6 +253,11 @@ const _actions = {
     state.rewardMessage = ''
     state.waitingOverlayVisible = true
     state.message = '按「開始」佈署你的艦隊。'
+    // 手動 RESTART／EXIT 前置視為放棄連勝，不結算、不送分；新局一律從預設配色開始
+    state.chainWins = 0
+    state.chainScore = 0
+    state.chainChoiceVisible = false
+    state.shipSkinIndex = 0
   },
   startPlacement: () => {
     state.waitingOverlayVisible = false
@@ -291,10 +353,53 @@ const _actions = {
       state.message = 'YOUR TURN：點擊敵方海域發動攻擊。'
     }, delay)
   },
+  /** 贏了之後把最終結算分數快照進 state.finalScore，開啟結果 overlay 並送出紀錄 */
+  settleChain: () => {
+    state.finalScore = state.chainScore
+    state.finalChainWins = state.chainWins
+    state.resultOverlayVisible = true
+    _actions.recordFinalScore()
+  },
   finishGame: () => {
     _handlers.clearAiTimer()
-    state.resultOverlayVisible = true
-    _actions.recordHistory()
+
+    if (state.winner === 'PLAYER') {
+      state.chainWins += 1
+      state.chainScore = state.chainWins === 1 ? state.score : applyChainWin(state.chainScore, state.score)
+      if (state.chainWins >= MAX_CHAIN_WINS) {
+        state.message = '連勝封頂，自動結算！'
+        _actions.settleChain()
+      } else {
+        state.chainChoiceVisible = true
+      }
+      return
+    }
+
+    // 落敗：若曾經連勝過，累積分數打 8 折強制結算；否則就是這局分數直接結算（Battleship 沒有平手）
+    state.chainScore = state.chainWins > 0 ? applyChainLose(state.chainScore) : state.score
+    _actions.settleChain()
+  },
+  cashOut: () => {
+    state.chainChoiceVisible = false
+    _actions.settleChain()
+  },
+  /** 連勝加碼：重置棋盤與艦隊但保留 chainWins/chainScore，隨機換一組戰艦配色，重新進入佈署階段 */
+  continueChain: () => {
+    _handlers.clearAiTimer()
+    state.chainChoiceVisible = false
+    _actions.randomizeShipSkin()
+    engine.reset()
+    _handlers.syncSnapshot()
+    const next = engine.getNextUnplacedShip()
+    state.placement.activeShipId = next?.id ?? null
+    state.placement.orientation = 'HORIZONTAL'
+    state.placement.previewAnchor = null
+    state.placement.previewCells = []
+    state.placement.previewValid = false
+    state.aiThinking = false
+    state.paused = false
+    state.rewardMessage = ''
+    state.message = `連勝加碼第 ${state.chainWins + 1} 戰，選擇戰艦、切換方向、點擊棋盤格放置。`
   },
   playAgain: () => {
     _actions.resetGame()
@@ -326,6 +431,8 @@ const click = {
   resume: () => _actions.resume(),
   restart: () => _actions.playAgain(),
   again: () => _actions.playAgain(),
+  cashOut: () => _actions.cashOut(),
+  continueChain: () => _actions.continueChain(),
   exit: () => router.replace('/game-hall'),
   openRateDialog: () => {
     state.rateDialogOpen = true
@@ -380,15 +487,32 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <div v-if="state.chainChoiceVisible" class="game-mask result-mask chain-mask">
+      <div class="mask-title win">YOU WIN</div>
+      <div class="result-list">
+        <div class="result-item"><span>本局得分</span><b>{{ state.score }}</b></div>
+        <div class="result-item"><span>連勝次數</span><b>{{ state.chainWins }} / {{ MAX_CHAIN_WINS }}</b></div>
+        <div class="result-item"><span>累積分數</span><b>{{ state.chainScore }}</b></div>
+      </div>
+      <p class="chain-hint">
+        再戰贏了本局分數 x{{ CHAIN_WIN_MULTIPLIER }} 累加；再戰輸了累積分數打 {{ CHAIN_LOSE_MULTIPLIER * 10 }} 折並強制結算。
+      </p>
+      <div class="result-actions">
+        <button class="bs-btn" type="button" @click="click.cashOut">CASH OUT（{{ state.chainScore }} 分）</button>
+        <button class="bs-btn danger" type="button" @click="click.continueChain">DOUBLE OR NOTHING</button>
+      </div>
+    </div>
+
     <div v-if="state.resultOverlayVisible" class="game-mask result-mask">
       <div class="mask-title" :class="{ win: state.winner === 'PLAYER' }">
         {{ state.winner === 'PLAYER' ? 'YOU WIN' : 'YOU LOSE' }}
       </div>
       <div class="result-list">
-        <div class="result-item"><span>SCORE</span><b>{{ state.score }}</b></div>
+        <div class="result-item"><span>SCORE</span><b>{{ state.finalScore }}</b></div>
         <div class="result-item"><span>SHOTS / HITS</span><b>{{ state.stats.shots }} / {{ state.stats.hits }}</b></div>
         <div class="result-item"><span>ACCURACY</span><b>{{ accuracy }}%</b></div>
         <div class="result-item"><span>ROUND</span><b>{{ state.round }}</b></div>
+        <div v-if="state.finalChainWins > 0" class="result-item"><span>連勝加碼</span><b>{{ state.finalChainWins }} 場</b></div>
       </div>
       <p v-if="state.rewardMessage" class="result-reward">{{ state.rewardMessage }}</p>
       <div class="result-actions">
@@ -413,7 +537,7 @@ onBeforeUnmount(() => {
       <section class="bs-center">
         <header class="bs-title-wrap">
           <h1 class="bs-title">BATTLESHIP</h1>
-          <p class="bs-status">{{ turnLabel }}</p>
+          <p class="bs-status" :class="{ 'is-ai-thinking': state.aiThinking }">{{ turnLabel }}</p>
         </header>
 
         <div class="bs-panel">
@@ -421,6 +545,7 @@ onBeforeUnmount(() => {
           <span>SCORE: {{ state.score }}</span>
           <span>YOUR SHIPS: {{ playerShipsAlive }} / {{ state.playerShips.length }}</span>
           <span>ENEMY SHIPS: {{ enemyShipsAlive }} / {{ state.enemyShips.length }}</span>
+          <span v-if="state.chainWins > 0">STREAK: {{ state.chainWins }}/{{ MAX_CHAIN_WINS }} · BANK: {{ state.chainScore }}</span>
         </div>
 
         <div class="bs-boards">
@@ -440,7 +565,7 @@ onBeforeUnmount(() => {
           <div class="bs-board-block">
             <h2 class="bs-board-title">YOUR WATERS</h2>
             <div class="bs-frame">
-              <div class="bs-stage" :style="stageStyle">
+              <div class="bs-stage" :style="playerStageStyle">
                 <div class="bs-board" :style="boardStyle">
                   <button v-for="cell in flatPlayerCells" :key="`p-${cell.x}-${cell.y}`" type="button" class="bs-cell"
                     :class="_handlers.playerCellClass(cell)" :disabled="state.phase !== 'PLACEMENT'"
@@ -603,6 +728,15 @@ onBeforeUnmount(() => {
       letter-spacing: 0.05em;
     }
 
+    .chain-hint {
+      margin: 8px 0 0;
+      width: 260px;
+      color: #ffb3bb;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      text-align: center;
+    }
+
     .result-actions {
       margin-top: 8px;
       display: flex;
@@ -613,7 +747,8 @@ onBeforeUnmount(() => {
   .bs-shell {
     position: relative;
     z-index: 1;
-    width: min(1100px, 100%);
+    /* 比其他遊戲頁寬（1100px）：ENEMY WATERS／YOUR WATERS 兩個 10x10 棋盤橫向並排需要更多中央欄寬度 */
+    width: min(1300px, 100%);
     padding: 24px;
     display: grid;
     grid-template-columns: 180px 1fr 180px;
@@ -704,6 +839,12 @@ onBeforeUnmount(() => {
       color: #9fc8ff;
       font-size: 0.9rem;
       letter-spacing: 0.2rem;
+
+      /* AI 猜測（思考延遲）期間換成警示色，跟平常藍色的回合狀態明顯區分 */
+      &.is-ai-thinking {
+        color: #ff9f1c;
+        text-shadow: 0 0 10px rgba(255, 159, 28, 0.5);
+      }
     }
 
     .bs-panel {
@@ -722,9 +863,11 @@ onBeforeUnmount(() => {
     .bs-boards {
       margin-top: 14px;
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 18px;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 18px 28px;
     }
 
     .bs-board-block {
@@ -796,19 +939,22 @@ onBeforeUnmount(() => {
       }
 
       &.is-ship {
-        background: linear-gradient(145deg, #3a5a86, #24405f);
-        border-color: #5580b0;
+        /* 隨連勝加碼過關隨機更換的戰艦配色（見 SHIP_SKINS／playerStageStyle），未設定變數時退回原本海軍藍 */
+        background: linear-gradient(145deg, var(--ship-base, #3a5a86), var(--ship-edge, #24405f));
+        border-color: var(--ship-border, #5580b0);
       }
 
       &.is-hit {
-        background: #6e1414;
-        border-color: #ff5e5e;
+        /* 隨連勝加碼過關隨機更換的命中色（見 SHIP_SKINS／playerStageStyle），未設定變數時退回原本紅色 */
+        background: var(--hit-bg, #6e1414);
+        border-color: var(--hit-border, #ff5e5e);
         color: #ffd6d6;
       }
 
       &.is-miss {
-        background: #0a1c33;
-        border-color: #2f5580;
+        /* 隨連勝加碼過關隨機更換的落空色（見 SHIP_SKINS／playerStageStyle），未設定變數時退回原本藍灰色 */
+        background: var(--miss-bg, #0a1c33);
+        border-color: var(--miss-border, #2f5580);
         color: #7fb0e8;
       }
 

@@ -63,9 +63,33 @@ export const HIT_SCORE = 33
 export const SUNK_SCORE = 167
 export const WIN_SCORE = 333
 
+/**
+ * 單局勝利的理論上限分數：命中格數固定為全部戰艦格數（17 格）、5 艘船必定全部擊沉才算勝利，
+ * 因此任何一場勝利的最終分數恆為固定值（見 game/battleship.vue 的 scoreRule 說明／server 端 maxReasonableScore）。
+ */
+const TOTAL_SHIP_CELLS = SHIP_CONFIG.reduce((sum, s) => sum + s.length, 0)
+export const MAX_SCORE = TOTAL_SHIP_CELLS * HIT_SCORE + SHIP_CONFIG.length * SUNK_SCORE + WIN_SCORE
+
 /** AI 回合延遲範圍（需求第 30 點），由呼叫端（頁面）用 setTimeout 實作，engine 本身不處理非同步 */
 export const AI_DELAY_MIN_MS = 500
 export const AI_DELAY_MAX_MS = 1000
+
+// ── 連勝加碼（Double or Nothing，比照 connect4Engine.ts 的同名機制）──
+// 贏了：本局分數 x2 累加進連勝分數；輸了：連勝分數打 8 折並強制結算；Battleship 沒有平手，
+// 所以只有這兩種結果。最多連續贏 MAX_CHAIN_WINS 次後自動結算。屬於跨多次 engine.reset() 的
+// 頁面層級狀態，因此以獨立純函式提供，不放進 BattleshipEngine class（class 只管單場戰鬥）。
+export const CHAIN_WIN_MULTIPLIER = 2
+export const CHAIN_LOSE_MULTIPLIER = 0.8
+export const MAX_CHAIN_WINS = 5
+/** 理論上限：第 1 場贏最高 MAX_SCORE，之後每贏一場最高再疊加 MAX_SCORE * CHAIN_WIN_MULTIPLIER，對齊 server 端 maxReasonableScore() */
+export const MAX_CHAIN_SCORE = MAX_SCORE + (MAX_CHAIN_WINS - 1) * MAX_SCORE * CHAIN_WIN_MULTIPLIER
+
+/** 連勝加碼中再贏一場：本局分數 x2 累加進目前的連勝分數（第 1 場贏不呼叫這支，直接以單局分數起算） */
+export const applyChainWin = (chainScore: number, roundScore: number): number =>
+  chainScore + roundScore * CHAIN_WIN_MULTIPLIER
+
+/** 連勝加碼中輸了：目前累積的連勝分數打 8 折，作為最終結算分數 */
+export const applyChainLose = (chainScore: number): number => Math.round(chainScore * CHAIN_LOSE_MULTIPLIER)
 
 const COLS = 'ABCDEFGHIJ'
 
