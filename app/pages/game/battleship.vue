@@ -755,7 +755,7 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding-top: 60px;
+    padding-top: 190px;
   }
 
   .bs-btn {
