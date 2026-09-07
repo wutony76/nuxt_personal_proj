@@ -250,6 +250,50 @@ game-hall id 依序登記 17~25，gameKey：`2048`／`flappy`／`frogger`／`con
 **下一步**：若要處理 RUNNER 的 Double Jump／Day-Night／Challenge Mode 擴充（見上方 Dino Run 決議），需使用者明確指示才建立新提案。這批 9 款遊戲的規劃與實作至此全部結束。
 EOF
 
+# ── 10. 驗證改動用既有 dev server ────────────────────────────
+cat > "$MEMORY_DIR/feedback_temp_dev_server_testing.md" << 'EOF'
+---
+name: feedback-temp-dev-server-testing
+description: 驗證 UI 改動時，優先用使用者既有的 dev server（通常 6100），不要另外起 npm run dev -- --port N
+metadata:
+  type: feedback
+---
+
+用 Playwright 驗證頁面改動時，不要用 `npm run dev -- --port N` 另外起臨時 dev server。
+
+**Why:** `package.json` 的 `dev` script 已經寫死 `nuxt dev --port 6100`，追加 `-- --port N` 會變成命令列有兩個 `--port`，Nuxt/citty 解析不穩定——有時吃到後面那個成功綁定到 N，有時仍嘗試 6100、觸發 get-port fallback 悄悄跳到別的隨機 port（觀察到會落在 3000-3004 這種連號範圍）。因為進程實際監聽的 port 跟我以為的 N 對不上，事後用 `lsof -ti:N | xargs kill` 清理時完全找不到該 PID，導致清不掉、留下殭屍 node 進程（一次工作階段內就這樣意外留下 7 個沒清乾淨的 nuxt dev process，其中還有子進程 fork 出的 @nuxt/cli worker 沒被一併殺掉）。
+
+**How to apply:** 動手改 `.vue` 檔前後，先用 `curl -s -o /dev/null -w "%{http_code}" http://localhost:6100/` 確認使用者原本的 dev server 是否還活著——通常一直是活的（HMR 會自動套用檔案變更）。直接對 6100 開 Playwright 驗證即可，不需要另開實例。真的必須隔離測試（例如要試會讓伺服器掛掉的操作）才考慮開臨時 server，且此時要用 `ps -eo pid,command | grep nuxt` realtime 核對「實際監聽的 port」而不是假設命令列參數會生效，收工時用 `lsof -ti:實際port` 而非假設的 port 做 kill，且優先 `kill -9`（SIGTERM 對 nuxt dev 有時只會關掉 listener、留下 hung 的 parent process）。
+EOF
+
+# ── 11. 「先幫我規劃」只寫 spec ──────────────────────────────
+cat > "$MEMORY_DIR/feedback_plan_first_spec_only.md" << 'EOF'
+---
+name: feedback-plan-first-spec-only
+description: 使用者說「先幫我規劃」時，只建立 OpenSpec 文件（proposal/design/tasks/specs），不寫任何程式碼
+metadata:
+  type: feedback
+---
+
+當使用者說「先幫我規劃」（或類似措辭，如「先規劃就好」），代表這次只要產出 OpenSpec 規劃文件
+（`openspec/changes/<change-id>/` 底下的 `proposal.md`、`design.md`、`tasks.md`、`specs/*/spec.md`），
+**不要動任何程式碼**（不用 Edit/Write 修改 `app/`、`server/` 下的實作檔案，也不要跑 dev server 驗證）。
+
+**Why:** 使用者明確要求「都先幫我建立 spec 文件，都不寫 code」，是針對「先規劃」這個工作流程的
+固定期待，而不是單次任務的例外要求。
+
+**How to apply:**
+
+- 看到「先幫我規劃」時，不要用 EnterPlanMode 直接進入實作規劃流程；規劃的產出物就是 OpenSpec
+  文件本身，而不是等待 ExitPlanMode 核准後接著寫程式碼。
+- 流程比照 feedback-project-spec 提到的 OpenSpec 慣例（proposal → design → tasks），可參考既有
+  change（如 `openspec/changes/admin-role-assignment/`、`openspec/changes/add-dynamic-roles/`）的檔案
+  結構與格式。
+- 文件寫完後停下來，等使用者明確要求實作（例如「開始寫」「照這個做」）才動手改程式碼。
+- 若使用者沒有加「先」這個字、直接描述需求要做，才照一般流程走（可能需要 EnterPlanMode 規劃後
+  直接實作）；「先規劃」是明確訊號，代表這次只要文件。
+EOF
+
 # ── MEMORY.md 索引 ────────────────────────────────────────────
 cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 # Memory Index
@@ -263,6 +307,8 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [暫不處理：限額 P2](project_quota_p2_pending.md) — 6hc-cd 限額只到分頁層級，跨分頁單期總上限與玩家層級限額使用者決定不做
 - [遊戲紀錄 coin 每日上限](project_game_history_coin_reward.md) — 三款遊戲皆訂 100000；之後需要後台管理介面調整這些常數
 - [GAME 17-25 openspec 提案](project_pixel_games_17-25_proposals.md) — 8 款遊戲已全數實作、測試、commit 完成（Dino Run 不新增）
+- [驗證改動用既有 dev server](feedback_temp_dev_server_testing.md) — 不要另開 npm run dev -- --port N，直接用 6100，避免殭屍進程
+- [「先幫我規劃」只寫 spec](feedback_plan_first_spec_only.md) — 只建立 OpenSpec 文件，不寫程式碼，等使用者明確要求才實作
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
@@ -379,7 +425,7 @@ tools: Read, Grep, Glob, Bash, Edit, Write
 AGENTEOF
 
 echo ""
-echo "✓ 設定完成，共 8 條記憶 + 2 個 Agents："
+echo "✓ 設定完成，共 11 條記憶 + 2 個 Agents："
 echo "  記憶："
 echo "  - 語言偏好：繁體中文"
 echo "  - git commit 訊息格式（「給我最新的 git commit」觸發）"
@@ -389,6 +435,9 @@ echo "  - 專案規範強制遵循（openspec/project.md）"
 echo "  - 同步 setup script（新增記憶或 agent 時立刻更新兩個 script）"
 echo "  - 暫不處理：限額 P2"
 echo "  - 遊戲紀錄 coin 每日上限（100000，待後台管理介面）"
+echo "  - GAME 17-25 openspec 提案（8 款已完成）"
+echo "  - 驗證改動用既有 dev server（直接用 6100）"
+echo "  - 「先幫我規劃」只寫 spec（不寫程式碼）"
 echo "  Agents："
 echo "  - my-reviewer（程式碼審查 + 補測試）"
 echo "  - my-create（新功能／組件建立）"
