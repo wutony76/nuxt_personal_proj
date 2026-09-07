@@ -4,8 +4,12 @@ import { encodePasswordBcjs } from 'serv/utils/encrypt'
 import UsersClass from 'serv/services/users'
 import type { AuthRecord } from 'serv/types/storage'
 import { walletBalanceService } from 'serv/services/walletBalance'
+import { roleDefsService } from './roleDefs'
 
-export type UserRole = 'admin' | 'user'
+/** 角色 id，如 'admin'／'user'／'npc' 或自訂角色 id（見 roleDefs.ts）。 */
+export type UserRole = string
+
+const DEFAULT_ROLE: UserRole = 'user'
 
 export type AdminAccessUser = {
   id: string
@@ -18,6 +22,9 @@ export type AdminAccessUser = {
 
 /** 執行期白名單；啟動時自程式碼常數複製，重啟回復。 */
 const adminIds = new Set<string>(ADMIN_USER_IDS)
+
+/** 非 admin 會員目前的角色 id（'user'／'npc'／自訂角色）；未記錄視為預設 DEFAULT_ROLE。 */
+const memberRoleId = new Map<string, string>()
 
 const MAX_NAME_LENGTH = 40
 const MIN_PASSWORD_LENGTH = 6
@@ -84,7 +91,7 @@ function _toAdminUser(row: AuthRecord): AdminAccessUser {
     id: row.id,
     name: row.name,
     email: row.email,
-    role: (adminIds.has(row.id) ? 'admin' : 'user') as UserRole,
+    role: adminIds.has(row.id) ? 'admin' : (memberRoleId.get(row.id) ?? DEFAULT_ROLE),
     coin: _userCoin(row.id)
   }
 }
@@ -117,7 +124,7 @@ export const adminAccessService = {
   /**
    * 設定帳號角色
    * @param userId 目標帳號
-   * @param role admin／user
+   * @param role 角色 id（見 roleDefs.ts）
    * @param actorId 操作者（不可自我降權）
    * @returns 更新後的帳號列
    */
@@ -125,20 +132,26 @@ export const adminAccessService = {
     const accounts = Storage.get.account()
     const row = accounts[userId]
     if (!row) throw createError({ statusCode: 404, message: '找不到該帳號。' })
+    if (!roleDefsService.exists(role)) {
+      throw createError({ statusCode: 400, message: '角色不存在。' })
+    }
 
-    const next: UserRole = role === 'admin' ? 'admin' : 'user'
+    const next: UserRole = role
     const currentlyAdmin = adminIds.has(userId)
+    const leavingAdmin = next !== 'admin'
 
-    if (next === 'admin') {
+    if (!leavingAdmin) {
       adminIds.add(userId)
+      memberRoleId.delete(userId)
     } else {
       if (userId === actorId) {
-        throw createError({ statusCode: 400, message: '不可將自己降為 User，以免失去後台權限。' })
+        throw createError({ statusCode: 400, message: '不可將自己降級，以免失去後台權限。' })
       }
       if (currentlyAdmin && adminIds.size <= 1) {
         throw createError({ statusCode: 400, message: '至少需保留一位 Admin。' })
       }
       adminIds.delete(userId)
+      memberRoleId.set(userId, next)
     }
 
     return _toAdminUser(row)
@@ -239,7 +252,8 @@ export const adminAccessService = {
     const name = String(input.name ?? '').trim()
     const email = _normalizeEmail(input.email)
     const password = String(input.password ?? '')
-    const role: UserRole = input.role === 'admin' ? 'admin' : 'user'
+    const roleInput = String(input.role ?? DEFAULT_ROLE)
+    const role: UserRole = roleDefsService.exists(roleInput) ? roleInput : DEFAULT_ROLE
 
     if (!name) throw createError({ statusCode: 400, message: '請輸入名稱。' })
     if (name.length > MAX_NAME_LENGTH) {
@@ -269,7 +283,11 @@ export const adminAccessService = {
     // 初始化遊戲／餘額等使用者狀態
     new UsersClass(id)
 
-    if (role === 'admin') adminIds.add(id)
+    if (role === 'admin') {
+      adminIds.add(id)
+    } else if (role !== DEFAULT_ROLE) {
+      memberRoleId.set(id, role)
+    }
 
     return _toAdminUser(accounts[id]!)
   }

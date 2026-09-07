@@ -3,6 +3,7 @@ import { chatScheduleService } from 'serv/services/social/chatSchedule'
 import { loginHistoryService } from 'serv/services/loginHistory'
 import { adminAccessService } from './modules/adminAccess'
 import { memberBalanceHistoryService } from './modules/memberBalanceHistory'
+import { roleDefsService } from './modules/roleDefs'
 
 /**
  * 後台會員／權限／聊天室管理入口：不分遊戲類別的後台功能掛在這裡。
@@ -14,6 +15,7 @@ import { memberBalanceHistoryService } from './modules/memberBalanceHistory'
  */
 export default class HFYYManage {
   readonly access = adminAccessService
+  readonly roleDefs = roleDefsService
   readonly balanceHistory = memberBalanceHistoryService
   readonly loginHistory = loginHistoryService
   readonly chatSchedule = chatScheduleService

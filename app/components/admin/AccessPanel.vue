@@ -6,6 +6,7 @@
 import { computed, onMounted, reactive, watch } from 'vue'
 import { api, type AdminAccessUser, type UserRole } from '~/services/api'
 import { useAdminAuth } from '~/composables/useAdminAuth'
+import { useRoleDefs } from '~/composables/useRoleDefs'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
@@ -15,6 +16,7 @@ const props = defineProps<{
 }>()
 
 const { user: me } = useAdminAuth()
+const { roles: roleDefs, fetch: fetchRoleDefs } = useRoleDefs()
 
 const state = reactive({
   status: 'idle' as AsyncStatus,
@@ -29,11 +31,11 @@ const selected = computed(() => state.users.find((u) => u.id === state.selectedI
 const adminCount = computed(() => state.users.filter((u) => u.role === 'admin').length)
 
 const _handlers = {
-  roleLabel: (role: UserRole) => (role === 'admin' ? 'Admin' : 'User'),
+  roleLabel: (role: UserRole) => roleDefs.value.find((r) => r.id === role)?.name ?? role,
   canSetRole: (row: AdminAccessUser, next: UserRole) => {
     if (row.role === next) return false
-    if (next === 'user' && row.id === me.value?.id) return false
-    if (next === 'user' && row.role === 'admin' && adminCount.value <= 1) return false
+    if (next !== 'admin' && row.id === me.value?.id) return false
+    if (next !== 'admin' && row.role === 'admin' && adminCount.value <= 1) return false
     return true
   }
 }
@@ -44,7 +46,7 @@ const _actions = {
     state.status = 'loading'
     state.error = ''
     try {
-      const res = await api.admin.roles()
+      const [res] = await Promise.all([api.admin.roles(), fetchRoleDefs()])
       state.users = res.users
       if (!state.selectedId || !state.users.some((u) => u.id === state.selectedId)) {
         state.selectedId = state.users[0]?.id ?? ''
@@ -59,9 +61,9 @@ const _actions = {
     const row = selected.value
     if (!row || state.saveStatus === 'loading') return
     if (!_handlers.canSetRole(row, role)) {
-      if (role === 'user' && row.id === me.value?.id) {
-        state.saveError = '不可將自己降為 User，以免失去後台權限。'
-      } else if (role === 'user' && adminCount.value <= 1) {
+      if (role !== 'admin' && row.id === me.value?.id) {
+        state.saveError = '不可將自己降級，以免失去後台權限。'
+      } else if (role !== 'admin' && adminCount.value <= 1) {
         state.saveError = '至少需保留一位 Admin。'
       } else {
         state.saveError = ''
@@ -89,8 +91,7 @@ const click = {
     state.saveError = ''
     state.saveStatus = 'idle'
   },
-  setAdmin: () => _actions.setRole('admin'),
-  setUser: () => _actions.setRole('user')
+  setRole: (role: UserRole) => _actions.setRole(role)
 }
 
 onMounted(() => {
@@ -123,7 +124,7 @@ watch(
               <span class="aap-item-name">{{ row.name }}</span>
               <span class="aap-item-meta">
                 <span class="admin-num aap-item-id">{{ row.id }}</span>
-                <span class="admin-tag" :class="{ 'is-user': row.role === 'user' }">
+                <span class="admin-tag" :class="{ 'is-user': row.role !== 'admin' }">
                   {{ _handlers.roleLabel(row.role) }}
                 </span>
               </span>
@@ -147,34 +148,27 @@ watch(
             </div>
             <div class="aap-detail-row">
               <span class="aap-detail-k">目前</span>
-              <span class="admin-tag" :class="{ 'is-user': selected.role === 'user' }">
+              <span class="admin-tag" :class="{ 'is-user': selected.role !== 'admin' }">
                 {{ _handlers.roleLabel(selected.role) }}
               </span>
             </div>
 
             <div class="aap-actions">
-              <button
-                type="button"
-                class="admin-btn aap-btn-admin"
-                :class="{ 'is-current': selected.role === 'admin' }"
-                :disabled="state.saveStatus === 'loading' || selected.role === 'admin'"
-                @click="click.setAdmin"
+              <select
+                class="admin-input aap-role-select"
+                :value="selected.role"
+                :disabled="state.saveStatus === 'loading'"
+                @change="click.setRole(($event.target as HTMLSelectElement).value)"
               >
-                設為 Admin
-              </button>
-              <button
-                type="button"
-                class="admin-btn aap-btn-user"
-                :class="{ 'is-current': selected.role === 'user' }"
-                :disabled="
-                  state.saveStatus === 'loading'
-                    || selected.role === 'user'
-                    || !_handlers.canSetRole(selected, 'user')
-                "
-                @click="click.setUser"
-              >
-                設為 User
-              </button>
+                <option
+                  v-for="r in roleDefs"
+                  :key="r.id"
+                  :value="r.id"
+                  :disabled="r.id !== selected.role && !_handlers.canSetRole(selected, r.id)"
+                >
+                  {{ r.name }}
+                </option>
+              </select>
             </div>
             <p v-if="state.saveError" class="aap-error">{{ state.saveError }}</p>
             <p v-else-if="state.saveStatus === 'success'" class="aap-ok">已更新</p>
@@ -327,24 +321,8 @@ watch(
   margin-top: 8px;
 }
 
-.aap-btn-admin {
-  &.is-current,
-  &:disabled.is-current {
-    background: #16a34a;
-    border-color: #16a34a;
-    color: #fff;
-    opacity: 1;
-  }
-}
-
-.aap-btn-user {
-  &.is-current,
-  &:disabled.is-current {
-    background: #b91c1c;
-    border-color: #b91c1c;
-    color: #fff;
-    opacity: 1;
-  }
+.aap-role-select {
+  max-width: 200px;
 }
 
 .aap-error {

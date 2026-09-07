@@ -878,7 +878,8 @@ export type ChatSchedule = {
   lastFiredAt?: number
 }
 
-export type UserRole = 'admin' | 'user'
+/** 角色 id，如 'admin'／'user'／'npc' 或自訂角色 id */
+export type UserRole = string
 
 export type AdminAccessUser = {
   id: string
@@ -886,6 +887,13 @@ export type AdminAccessUser = {
   email: string
   role: UserRole
   coin: number
+}
+
+/** 角色定義（見 server/services/admin/modules/roleDefs.ts） */
+export type RoleDef = {
+  id: string
+  name: string
+  builtin: boolean
 }
 
 /** 後台會員登入紀錄 */
@@ -938,6 +946,12 @@ export const api = {
       $fetch<{ user: AdminAccessUser }>(`/api/admin/roles/${id}`, {
         method: 'PATCH',
         body: { role }
+      }),
+    roleDefs: () => $fetch<{ roles: RoleDef[] }>('/api/admin/role-defs'),
+    createRoleDef: (name: string) =>
+      $fetch<{ role: RoleDef }>('/api/admin/role-defs', {
+        method: 'POST',
+        body: { name }
       }),
     createMember: (payload: { name: string; email: string; password: string; role?: UserRole }) =>
       $fetch<{ user: AdminAccessUser }>('/api/admin/members', {

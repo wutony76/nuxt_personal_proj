@@ -6,12 +6,15 @@ import { computed, onMounted, reactive, watch } from 'vue'
 import { api, type AdminAccessUser, type AdminMemberBalanceChange, type AdminMemberLoginRecord, type UserRole } from '~/services/api'
 import { balanceChangeTypeLabel } from '~/utils/balanceChangeLabel'
 import { formatUserAgentShort } from '~/utils/userAgentLabel'
+import { useRoleDefs } from '~/composables/useRoleDefs'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 type DetailTab = 'info' | 'create'
 type LedgerTab = 'balance' | 'login'
 
 const DEFAULT_MEMBER_PASSWORD = '222222'
+
+const { roles: roleDefs, fetch: fetchRoleDefs } = useRoleDefs()
 
 const props = defineProps<{
   /** 父層在新增會員後遞增，觸發重新載入列表 */
@@ -59,7 +62,7 @@ const state = reactive({
 const selected = computed(() => state.users.find((u) => u.id === state.selectedId) ?? null)
 
 const _handlers = {
-  roleLabel: (role: UserRole) => (role === 'admin' ? 'Admin' : 'User'),
+  roleLabel: (role: UserRole) => roleDefs.value.find((r) => r.id === role)?.name ?? role,
   formatCoin: (value: number) =>
     Number(value ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
   formatMoney: (value: number) =>
@@ -78,7 +81,7 @@ const _actions = {
     state.listStatus = 'loading'
     state.listError = ''
     try {
-      const res = await api.admin.roles()
+      const [res] = await Promise.all([api.admin.roles(), fetchRoleDefs()])
       state.users = res.users
       if (state.successId && state.users.some((u) => u.id === state.successId)) {
         state.selectedId = state.successId
@@ -364,7 +367,7 @@ watch(
               <span class="acm-item-name">{{ row.name }}</span>
               <span class="acm-item-meta">
                 <span class="admin-num acm-item-id">{{ row.id }}</span>
-                <span class="admin-tag" :class="{ 'is-user': row.role === 'user' }">
+                <span class="admin-tag" :class="{ 'is-user': row.role !== 'admin' }">
                   {{ _handlers.roleLabel(row.role) }}
                 </span>
               </span>
@@ -448,7 +451,7 @@ watch(
               </div>
               <div class="acm-info-row">
                 <span class="acm-info-k">角色</span>
-                <span class="admin-tag" :class="{ 'is-user': selected.role === 'user' }">
+                <span class="admin-tag" :class="{ 'is-user': selected.role !== 'admin' }">
                   {{ _handlers.roleLabel(selected.role) }}
                 </span>
               </div>
@@ -583,8 +586,7 @@ watch(
             <div class="admin-field">
               <label>角色</label>
               <select v-model="state.role" class="admin-input">
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
+                <option v-for="r in roleDefs" :key="r.id" :value="r.id">{{ r.name }}</option>
               </select>
             </div>
           </div>

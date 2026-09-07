@@ -1,27 +1,14 @@
 <script setup lang="ts">
-import { onMounted, reactive } from 'vue'
-import { api } from '~/services/api'
+/**
+ * 「管理員」區塊：單一表格顯示全部會員對應的角色（比照原「管理員白名單」表格樣式），
+ * 角色欄改成可切換的下拉，不用像 AdminAccessPanel 那樣先選會員才看到詳情。
+ */
+import { computed, onMounted, reactive } from 'vue'
+import { api, type AdminAccessUser, type UserRole } from '~/services/api'
+import { useAdminAuth } from '~/composables/useAdminAuth'
+import { useRoleDefs } from '~/composables/useRoleDefs'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
-
-const state = reactive({
-  status: 'idle' as AsyncStatus,
-  admins: [] as Array<{ id: string; name: string; email: string }>
-})
-
-const _actions = {
-  load: async () => {
-    if (state.status === 'loading') return
-    state.status = 'loading'
-    try {
-      const result = await api.admin.roles()
-      state.admins = result.admins
-      state.status = 'success'
-    } catch {
-      state.status = 'error'
-    }
-  }
-}
 
 const AUTH_STEPS = [
   { no: '01', title: 'sessionController.require', desc: '先驗證有沒有登入，未登入拋 40001。' },
@@ -30,75 +17,157 @@ const AUTH_STEPS = [
   { no: '04', title: 'GET /api/admin/me', desc: '各子頁自行二次確認，不倚賴前端路由守衛。' }
 ]
 
+const { user: me } = useAdminAuth()
+const { roles: roleDefs, fetch: fetchRoleDefs } = useRoleDefs()
+
+const state = reactive({
+  status: 'idle' as AsyncStatus,
+  error: '',
+  users: [] as AdminAccessUser[],
+  savingId: '' as string,
+  saveError: '',
+  filterRole: 'admin' as 'all' | UserRole
+})
+
+const adminCount = computed(() => state.users.filter((u) => u.role === 'admin').length)
+
+const filteredUsers = computed(() => {
+  if (state.filterRole === 'all') return state.users
+  return state.users.filter((u) => u.role === state.filterRole)
+})
+
+const _handlers = {
+  canSetRole: (row: AdminAccessUser, next: UserRole) => {
+    if (row.role === next) return false
+    if (next !== 'admin' && row.id === me.value?.id) return false
+    if (next !== 'admin' && row.role === 'admin' && adminCount.value <= 1) return false
+    return true
+  }
+}
+
+const _actions = {
+  fetch: async () => {
+    if (state.status === 'loading') return
+    state.status = 'loading'
+    state.error = ''
+    try {
+      const [res] = await Promise.all([api.admin.roles(), fetchRoleDefs()])
+      state.users = res.users
+      state.status = 'success'
+    } catch (e: unknown) {
+      state.error = (e as { message?: string })?.message ?? '載入失敗'
+      state.status = 'error'
+    }
+  },
+  setRole: async (row: AdminAccessUser, role: UserRole) => {
+    if (state.savingId) return
+    if (!_handlers.canSetRole(row, role)) {
+      if (role !== 'admin' && row.id === me.value?.id) {
+        state.saveError = '不可將自己降級，以免失去後台權限。'
+      } else if (role !== 'admin' && adminCount.value <= 1) {
+        state.saveError = '至少需保留一位 Admin。'
+      } else {
+        state.saveError = ''
+      }
+      return
+    }
+    state.savingId = row.id
+    state.saveError = ''
+    try {
+      const res = await api.admin.setRole(row.id, role)
+      const idx = state.users.findIndex((u) => u.id === res.user.id)
+      if (idx >= 0) state.users[idx] = res.user
+    } catch (e: unknown) {
+      state.saveError = (e as { message?: string })?.message ?? '更新失敗'
+    } finally {
+      state.savingId = ''
+    }
+  }
+}
+
+const click = {
+  setRole: (row: AdminAccessUser, event: Event) => {
+    _actions.setRole(row, (event.target as HTMLSelectElement).value)
+  },
+  filterRole: (event: Event) => {
+    state.filterRole = (event.target as HTMLSelectElement).value as 'all' | UserRole
+  }
+}
+
 onMounted(() => {
-  _actions.load()
+  _actions.fetch()
 })
 </script>
 
 <template>
   <AdminShell active="roles" kicker="Roles" title="角色權限"
-    desc="目前只有「是不是 admin」的二元判斷。白名單寫在程式碼常數裡，每個後台頁面各自呼叫 GET /api/admin/me 做二次確認。">
+    desc="會員角色可在 Admin／User／NPC 間切換，角色本身亦可自訂新增。白名單與角色清單皆存於伺服器記憶體，重啟後回復預設。">
+    <template #page-aside>
+      <AdminRolesPageNav />
+    </template>
+
     <div class="ar-sections">
-      <section>
+      <section id="ar-members">
         <div class="admin-sechead">
-          <div class="admin-sechead-left"><span class="admin-en">Whitelist</span><h2>管理員白名單</h2></div>
-          <span class="admin-meta">adminAccessService — runtime</span>
+          <div class="admin-sechead-left"><span class="admin-en">List</span>
+            <h2> 使用者列表</h2>
+          </div>
+          <div class="ar-members-actions">
+            <span class="admin-meta">查詢 / 設定 會員對應的角色</span>
+            <select class="admin-input ar-filter-select" :value="state.filterRole" @change="click.filterRole">
+              <option value="all">全部</option>
+              <option v-for="r in roleDefs" :key="r.id" :value="r.id">{{ r.name }}</option>
+            </select>
+          </div>
         </div>
         <div v-if="state.status === 'loading'" class="admin-empty">載入中...</div>
-        <div v-else-if="state.status === 'error'" class="admin-empty">載入失敗，請重新整理再試一次</div>
-        <table v-else class="admin-table">
-          <thead>
-            <tr>
-              <th style="width:20%">User ID</th>
-              <th style="width:16%">名稱</th>
-              <th>Email</th>
-              <th style="text-align:right">狀態</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="a in state.admins" :key="a.id">
-              <td class="admin-num">{{ a.id }}</td>
-              <td>{{ a.name }}</td>
-              <td style="color:color-mix(in srgb, #1c1c22 72%, #ffffff)">{{ a.email }}</td>
-              <td style="text-align:right"><span class="admin-tag">Admin</span></td>
-            </tr>
-          </tbody>
-        </table>
-        <p class="ar-note">角色可在總覽「權限設定」調整；重啟後回復程式碼種子預設。詳細操作請至 /admin。</p>
+        <div v-else-if="state.status === 'error'" class="admin-empty">{{ state.error }}</div>
+        <template v-else>
+          <div class="ar-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th style="width:20%">User ID</th>
+                  <th style="width:16%">名稱</th>
+                  <th>Email</th>
+                  <th style="width:160px; text-align:right">角色</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="!filteredUsers.length">
+                  <td colspan="4" class="admin-empty">此角色目前沒有會員</td>
+                </tr>
+                <tr v-for="row in filteredUsers" :key="row.id">
+                  <td class="admin-num">{{ row.id }}</td>
+                  <td>{{ row.name }}</td>
+                  <td style="color:color-mix(in srgb, #1c1c22 72%, #ffffff)">{{ row.email }}</td>
+                  <td style="text-align:right">
+                    <select class="admin-input ar-role-select" :value="row.role" :disabled="state.savingId === row.id"
+                      @change="click.setRole(row, $event)">
+                      <option v-for="r in roleDefs" :key="r.id" :value="r.id"
+                        :disabled="r.id !== row.role && !_handlers.canSetRole(row, r.id)">
+                        {{ r.name }}
+                      </option>
+                    </select>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p v-if="state.saveError" class="ar-error">{{ state.saveError }}</p>
+        </template>
       </section>
 
-      <section>
+      <section id="ar-roles">
         <div class="admin-sechead">
-          <div class="admin-sechead-left"><span class="admin-en">Guard flow</span><h2>權限判斷流程</h2></div>
-          <span class="admin-meta">requireAdmin(event)</span>
-        </div>
-        <div class="admin-grid1 ar-steps">
-          <div v-for="s in AUTH_STEPS" :key="s.no" class="admin-panel ar-step">
-            <div class="admin-num ar-step-no">{{ s.no }}</div>
-            <div class="admin-num ar-step-title">{{ s.title }}</div>
-            <div class="ar-step-desc">{{ s.desc }}</div>
+          <div class="admin-sechead-left"><span class="admin-en">Role types</span>
+            <h2>角色列表</h2>
           </div>
+          <span class="admin-meta">HFYY角色設定</span>
         </div>
+        <AdminRoleList />
       </section>
 
-      <section>
-        <div class="admin-sechead">
-          <div class="admin-sechead-left"><span class="admin-en">Login redirect</span><h2>登入導向修正</h2></div>
-          <span class="admin-meta">app/pages/login.vue</span>
-        </div>
-        <div class="admin-grid1 ar-redirect">
-          <div class="admin-panel ar-redirect-cell">
-            <div class="admin-en">Before</div>
-            <div class="admin-num ar-redirect-code">router.replace('/admin')</div>
-            <div class="ar-redirect-desc">任何登入成功的帳號都導向後台，一般玩家會被立刻踢出，體驗上卡一下。</div>
-          </div>
-          <div class="ar-redirect-cell is-after">
-            <div class="admin-en" style="color:var(--ink)">After</div>
-            <div class="admin-num ar-redirect-code">router.replace('/')</div>
-            <div class="ar-redirect-desc" style="color:#1c1c22">登入一律回首頁；管理員再從 AppTopbar 的「後台」連結進來，把關仍由各頁的 GET /api/admin/me 負責。</div>
-          </div>
-        </div>
-      </section>
     </div>
   </AdminShell>
 </template>
@@ -110,10 +179,54 @@ onMounted(() => {
   gap: 46px;
 }
 
-.ar-note {
+.ar-members-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .admin-btn {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: none;
+    }
+  }
+}
+
+.ar-table-wrap {
+  height: 360px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+
+  .admin-table {
+    thead th {
+      position: sticky;
+      top: 0;
+      background: var(--paper);
+    }
+  }
+}
+
+.ar-role-select {
+  height: 28px;
+  width: 140px;
   font-size: 12px;
-  color: color-mix(in srgb, #1c1c22 72%, #ffffff);
-  margin-top: 13px;
+}
+
+.ar-filter-select {
+  height: 28px;
+  width: 120px;
+  font-size: 12px;
+}
+
+.ar-error {
+  margin: 10px 0 0;
+  color: #b91c1c;
+  font-size: 11px;
 }
 
 .ar-steps {

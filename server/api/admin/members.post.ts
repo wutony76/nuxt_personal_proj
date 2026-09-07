@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
   sessionController.requireAdmin(event)
   const body = await readBody<Body>(event)
   const roleRaw = String(body?.role ?? 'user')
-  const role: UserRole = roleRaw === 'admin' ? 'admin' : 'user'
+  const role: UserRole = Storage.manager.admin.roleDefs.exists(roleRaw) ? roleRaw : 'user'
 
   const user = Storage.manager.admin.access.createMember({
     name: typeof body?.name === 'string' ? body.name : '',

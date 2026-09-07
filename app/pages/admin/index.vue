@@ -88,8 +88,8 @@ const click = {
           <h2>權限設定</h2>
         </div>
         <div class="ao-perms-actions">
-          <span class="admin-meta">Admin / User — in-memory</span>
-          <NuxtLink to="/admin/roles" class="admin-btn admin-btn-secondary">設定權限</NuxtLink>
+          <span class="admin-meta">Admin / User / NPC — in-memory</span>
+          <NuxtLink to="/admin/roles" class="admin-btn admin-btn-secondary">設定角色</NuxtLink>
         </div>
       </div>
       <AdminAccessPanel :reload-token="memberReloadToken" />
