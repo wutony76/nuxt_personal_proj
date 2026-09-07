@@ -82,7 +82,22 @@ const stageStyle = computed(() => `--cell: ${CELL_SIZE}px; --gap: ${CELL_GAP}px;
 const boardStyle = computed(
   () => `grid-template-columns: repeat(${BOARD_SIZE_2048}, var(--cell)); grid-template-rows: repeat(${BOARD_SIZE_2048}, var(--cell));`
 )
-const slotCount = computed(() => BOARD_SIZE_2048 * BOARD_SIZE_2048)
+/**
+ * 背景格（16 格）逐一算出固定 (r, c)，供 template 明確指定 grid-row/column-start。
+ * 若改回單純 `v-for="n in slotCount"` 不給座標，CSS Grid 會把它們丟進「自動排版」，
+ * 一旦某格已被下面 `.g2048-tile`（明確指定座標）佔用，自動排版就會把對應的背景格擠到
+ * 隱式新增的第 5 列，棋盤最下面因此多一排「看起來像格子、但不在邏輯棋盤內」的殘影格，
+ * 造成「按下 down 方塊到不了最下面」的錯覺（實際上方塊已經到 row 4，只是視覺上第 5 列
+ * 的殘影格更低，容易誤以為那才是最後一列）。明確指定座標讓背景格與 Tile 共用同一組座標
+ * 系統，不再需要自動排版，就不會有殘影格。
+ */
+const slotCells = computed(() =>
+  Array.from({ length: BOARD_SIZE_2048 * BOARD_SIZE_2048 }, (_, i) => ({
+    key: i,
+    r: Math.floor(i / BOARD_SIZE_2048),
+    c: i % BOARD_SIZE_2048
+  }))
+)
 /** 攤平棋盤成一維 Tile 清單（只含非空格），供 v-for 以 tile.id 為 key 渲染（見 design.md Decision 1） */
 const flatCells = computed<FlatTile[]>(() => {
   const out: FlatTile[] = []
@@ -111,10 +126,12 @@ const _handlers = {
     const size = digits >= 4 ? 'is-d4' : digits === 3 ? 'is-d3' : 'is-d2'
     return `${tone} ${size}`
   },
-  tileStyle: (tile: FlatTile): Record<string, string> => ({
-    gridColumnStart: String(tile.c + 1),
-    gridRowStart: String(tile.r + 1)
-  })
+  /** 背景格與 Tile 共用同一份座標換算，兩者永遠對齊、不落入 CSS Grid 自動排版 */
+  cellStyle: (r: number, c: number): Record<string, string> => ({
+    gridColumnStart: String(c + 1),
+    gridRowStart: String(r + 1)
+  }),
+  tileStyle: (tile: FlatTile): Record<string, string> => _handlers.cellStyle(tile.r, tile.c)
 }
 
 const _actions = {
@@ -353,7 +370,8 @@ onBeforeUnmount(() => {
           <div class="g2048-stage" :style="stageStyle">
             <div ref="boardRef" class="g2048-board" :style="boardStyle" @pointerdown="click.pointerDown"
               @pointerup="click.pointerUp" @pointercancel="click.pointerUp">
-              <div v-for="n in slotCount" :key="`slot-${n}`" class="g2048-slot" />
+              <div v-for="slot in slotCells" :key="`slot-${slot.key}`" class="g2048-slot"
+                :style="_handlers.cellStyle(slot.r, slot.c)" />
               <div v-for="tile in flatCells" :key="tile.id" class="g2048-tile" :class="_handlers.tileClass(tile.value)"
                 :style="_handlers.tileStyle(tile)">
                 {{ tile.value }}
