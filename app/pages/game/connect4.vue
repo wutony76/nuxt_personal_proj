@@ -108,8 +108,15 @@ const state = reactive({
   chainScore: 0,
   chainChoiceVisible: false,
   finalScore: 0,
-  finalChainWins: 0
+  finalChainWins: 0,
+  // ── 測試模式（僅開發環境）：可直接強制本局勝／負／平手，驗證連勝加碼結算流程 ──
+  testModeEnabled: false
 })
+
+/** 測試模式按鈕僅在 dev 環境顯示（import.meta.dev 由 Nuxt/Vite 於建置時決定，正式環境不會出現） */
+const isDevBuild = import.meta.dev
+/** 測試模式入口目前關閉（不顯示按鈕），但底層功能（engine.debugForceResult／forceResult 等）保留，之後要開回來只需把這個改回 true */
+const TEST_PANEL_ENABLED = false
 
 /** 單一循序計時器：整個回合流程嚴格線性，任何時刻只會有一個待執行步驟 */
 let seqTimer: ReturnType<typeof setTimeout> | null = null
@@ -133,6 +140,8 @@ const canDrop = computed(
 const canPause = computed(
   () => !state.waitingOverlayVisible && !state.resultOverlayVisible && !state.paused && state.phase !== 'GAME_OVER'
 )
+/** 測試模式的強制結果按鈕沿用 canPause 的可用時機：對局進行中、無 overlay、未暫停 */
+const canForceResult = computed(() => canPause.value)
 /** 玩家 hover 中的欄位，其落點格顯示半透明預覽子（僅玩家可落子時） */
 const previewCell = computed<Coord2 | null>(() => {
   if (!canDrop.value || state.hoverCol === null) return null
@@ -341,6 +350,19 @@ const _actions = {
     state.chainChoiceVisible = false
     _actions.settleChain()
   },
+  /** 測試模式：略過實際落子，直接強制本局以指定結果結束，驗證結算/連勝加碼流程 */
+  forceResult: (result: Connect4Result) => {
+    if (!state.testModeEnabled || !canForceResult.value) return
+    const snap = engine.debugForceResult(result)
+    if (!snap) return
+    _handlers.clearSeqTimer()
+    pendingStep = null
+    _handlers.syncSnapshot()
+    _actions.finishGame()
+  },
+  toggleTestMode: () => {
+    state.testModeEnabled = !state.testModeEnabled
+  },
   /** 連勝加碼：重置棋盤但保留 chainWins/chainScore，直接進入下一局（不顯示 WELCOME/START） */
   continueChain: () => {
     _handlers.clearSeqTimer()
@@ -391,6 +413,10 @@ const click = {
   again: () => _actions.playAgain(),
   cashOut: () => _actions.cashOut(),
   continueChain: () => _actions.continueChain(),
+  toggleTestMode: () => _actions.toggleTestMode(),
+  forceWin: () => _actions.forceResult('WIN'),
+  forceLose: () => _actions.forceResult('LOSE'),
+  forceDraw: () => _actions.forceResult('DRAW'),
   exit: () => router.replace('/game-hall'),
   openRateDialog: () => {
     state.rateDialogOpen = true
@@ -491,6 +517,17 @@ onBeforeUnmount(() => {
         <button class="c4-btn" type="button" @click="click.restart">RESTART</button>
         <button class="c4-btn" type="button" @click="click.openRateDialog">CONVERT</button>
         <button class="c4-btn" type="button" @click="click.openRuleDialog">RULE</button>
+
+        <template v-if="isDevBuild && TEST_PANEL_ENABLED">
+          <button class="c4-btn" type="button" :class="{ danger: state.testModeEnabled }" @click="click.toggleTestMode">
+            TEST MODE: {{ state.testModeEnabled ? 'ON' : 'OFF' }}
+          </button>
+          <template v-if="state.testModeEnabled">
+            <button class="c4-btn" type="button" :disabled="!canForceResult" @click="click.forceWin">FORCE WIN</button>
+            <button class="c4-btn" type="button" :disabled="!canForceResult" @click="click.forceLose">FORCE LOSE</button>
+            <button class="c4-btn" type="button" :disabled="!canForceResult" @click="click.forceDraw">FORCE DRAW</button>
+          </template>
+        </template>
       </aside>
 
       <section class="c4-center">

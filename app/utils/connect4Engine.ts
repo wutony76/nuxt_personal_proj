@@ -314,6 +314,31 @@ export class Connect4Engine {
     return { ...landed, player, win: false, draw: false }
   }
 
+  /**
+   * 測試／QA 專用：略過實際落子，直接讓目前對局以指定結果結束並計分，供頁面驗證「連勝加碼」
+   * 等結算流程用（見 game/connect4.vue 的測試模式）。不代表真實棋局，不可在正式玩法路徑呼叫。
+   * 對局已結束（over）時不做任何事，回傳 null。
+   */
+  debugForceResult(result: Connect4Result): Connect4Snapshot | null {
+    if (this.over) return null
+    if (result === 'WIN') {
+      this.winner = 'PLAYER'
+      this.result = 'WIN'
+      this.playerMoves = Math.max(this.playerMoves, MIN_WINNING_MOVES)
+      this.score = calculateScore('WIN', this.playerMoves)
+    } else if (result === 'LOSE') {
+      this.winner = 'AI'
+      this.result = 'LOSE'
+      this.score = calculateScore('LOSE', this.playerMoves)
+    } else {
+      this.winner = null
+      this.result = 'DRAW'
+      this.score = calculateScore('DRAW', this.playerMoves)
+    }
+    this.over = true
+    return this.getSnapshot()
+  }
+
   getSnapshot(): Connect4Snapshot {
     return {
       board: cloneBoard(this.board),
