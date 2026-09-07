@@ -30,6 +30,24 @@ const STEP_SIZE = 6
 const ROW_SCORES = [40, 40, 30, 20, 10]
 const ROW_COLORS = ['#ff3b3b', '#ff3b3b', '#ff8a5e', '#ffd45e', '#8fd9ff']
 
+/**
+ * 外星人造型比照 game-hall 的 GameHallInvasionLane.vue：11x8 像素網格，用 SVG rect 畫出來取代
+ * 純色方塊，顏色靠 `currentColor` 隨列別變化（見 template 的 `:style="{ color: ... }"`）。
+ */
+const ALIEN_PIXEL_ROWS = [
+  '..X.....X..',
+  '...X...X...',
+  '..XXXXXXX..',
+  '.XX.XXX.XX.',
+  'XXXXXXXXXXX',
+  'X.XXXXXXX.X',
+  'X.X.....X.X',
+  '...XX.XX...'
+]
+const ALIEN_PIXEL_CELLS = ALIEN_PIXEL_ROWS.flatMap((rowStr, y) =>
+  [...rowStr].flatMap((ch, x) => (ch === 'X' ? [{ x, y }] : []))
+)
+
 const PLAYER_WIDTH = 30
 const PLAYER_HEIGHT = 22
 const PLAYER_Y = STAGE_HEIGHT - 46
@@ -731,8 +749,12 @@ onBeforeUnmount(() => {
 
             <div v-if="state.ufo" class="si-ufo" :style="`left:${state.ufo.x}px; top:${state.ufo.y}px;`" />
 
-            <div v-for="e in state.enemies" :key="e.id" class="si-enemy"
-              :style="`left:${e.x}px; top:${e.y}px; background:${_handlers.rowColor(e.row)}; box-shadow:0 0 6px ${_handlers.rowColor(e.row)}99;`" />
+            <span v-for="e in state.enemies" :key="e.id" class="si-enemy"
+              :style="`left:${e.x}px; top:${e.y}px; color:${_handlers.rowColor(e.row)};`">
+              <svg viewBox="0 0 11 8" class="si-enemy-svg">
+                <rect v-for="(c, i) in ALIEN_PIXEL_CELLS" :key="i" :x="c.x" :y="c.y" width="1" height="1" />
+              </svg>
+            </span>
 
             <div v-for="b in state.enemyBullets" :key="b.id" class="si-bullet enemy"
               :style="`left:${b.x}px; top:${b.y}px;`" />
@@ -1024,9 +1046,20 @@ onBeforeUnmount(() => {
 
       .si-enemy {
         position: absolute;
+        display: block;
         width: 22px;
         height: 16px;
-        border-radius: 4px;
+        filter: drop-shadow(0 0 4px currentColor);
+      }
+
+      .si-enemy-svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+
+        rect {
+          fill: currentColor;
+        }
       }
 
       .si-bunker-cell {
