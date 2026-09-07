@@ -34,6 +34,8 @@ export type Game2048Snapshot = {
   won: boolean
   /** 上一次 applyMove() 是否造成棋盤變化（供頁面判斷是否為有效移動） */
   moved: boolean
+  /** 目前生效的計分倍率（見 scoreMultiplierForMaxTile），供頁面 HUD 顯示 */
+  scoreMultiplier: number
 }
 
 export type LineResult = {
@@ -195,6 +197,18 @@ export const maxTileValue = (board: Board2048): number => {
 }
 
 /**
+ * 依目前棋盤最大 Tile 換算「每次移動」的計分倍率：未達 2048（`WIN_VALUE`）為 1（不加成）；
+ * 達到 2048 為 1.5，之後每再往上翻一倍（4096、8192、...）倍率再 +0.5，沒有上限、只增不減
+ * （見 spec「達成 2048 後計分加成，往上合成再加，以此類推直到結束」）。
+ * `maxTile` 一律是 2 的次方，`maxTile / WIN_VALUE` 也必為 2 的次方，`log2` 恆為整數 tier 數。
+ */
+export const scoreMultiplierForMaxTile = (maxTile: number): number => {
+  if (maxTile < WIN_VALUE) return 1
+  const tier = Math.log2(maxTile / WIN_VALUE) + 1
+  return 1 + tier * 0.5
+}
+
+/**
  * 2048 引擎：整合 Board2048／合併／新 Tile／Game Over／2048 判定（見 tasks 5.8）。
  * 內部維護遞增 id 計數器與棋盤狀態；頁面以 `getSnapshot()` 取得純資料鏡像。
  */
@@ -243,8 +257,10 @@ export default class Game2048Engine {
       this.lastMoved = false
       return false
     }
+    // 倍率取「這次移動前」的棋盤最大 Tile：剛合出 2048 的那一動仍算原倍率，下一動才吃到新倍率
+    const multiplier = scoreMultiplierForMaxTile(maxTileValue(this.board))
     this.board = result.board
-    this.score += result.scoreGained
+    this.score += Math.round(result.scoreGained * multiplier)
     spawnRandomTile(this.board, this.nextId)
     if (hasReachedTarget(this.board)) this.won = true
     if (!canMove(this.board)) this.over = true
@@ -259,7 +275,8 @@ export default class Game2048Engine {
       score: this.score,
       status: this.over ? 'gameover' : 'playing',
       won: this.won,
-      moved: this.lastMoved
+      moved: this.lastMoved,
+      scoreMultiplier: scoreMultiplierForMaxTile(maxTileValue(this.board))
     }
   }
 }

@@ -31,6 +31,8 @@ const state = reactive({
   score: 0,
   moves: 0,
   maxTile: 0,
+  /** 目前生效的計分倍率：未達 2048 為 1；達到 2048 為 1.5，之後每再翻倍一次再 +0.5（見 scoreMultiplierForMaxTile） */
+  scoreMultiplier: 1,
   won: false,
   /** 首次達成 2048 的一次性勝利提示（見 design.md Decision 7），顯示期間停用輸入 */
   winBannerVisible: false,
@@ -49,7 +51,9 @@ const G2048_RULE = {
     '每次有效移動後，棋盤會在隨機空格出現一個新的 2 或 4。合成出 2048 方塊即獲勝，但你可以選擇繼續挑戰更高分。',
   scoreRule:
     '每次合併會把「合併後的新數值」加進分數（例如兩個 4 合成 8，就 +8 分）；' +
-    'SCORE ＝ 本局所有合併數值的總和，能合成越大的方塊、分數越高。',
+    'SCORE ＝ 本局所有合併數值的總和，能合成越大的方塊、分數越高。' +
+    '棋盤最大方塊達到 2048 後，之後每次移動的得分 ×1.5；來到 4096 再 ×2、8192 再 ×2.5，' +
+    '每再翻倍一次倍率就再 +0.5，只增不減，直到遊戲結束。',
   levels: [
     { level: '合併', condition: '相同數字相撞 → 合併加倍，一次移動每格只合併一次（[2,2,2,2] → [4,4]）' },
     { level: '新方塊', condition: '有效移動後隨機空格出現：90% 為 2、10% 為 4' },
@@ -78,6 +82,8 @@ const statusClass = computed(() => {
 const canPause = computed(() => state.status === 'playing' && !state.winBannerVisible)
 /** Best Score 直接重用 useGameHistory 的 statsByGame（見 design.md Decision 5），並與本局分數取大值即時反映 */
 const bestScore = computed(() => Math.max(gameHistory.statsByGame.value['2048']?.best ?? 0, state.score))
+/** 倍率整數時省略小數點（x2 而非 x2.0），非整數維持一位小數（x1.5） */
+const multiplierText = computed(() => `x${Number.isInteger(state.scoreMultiplier) ? state.scoreMultiplier : state.scoreMultiplier.toFixed(1)}`)
 const stageStyle = computed(() => `--cell: ${CELL_SIZE}px; --gap: ${CELL_GAP}px;`)
 const boardStyle = computed(
   () => `grid-template-columns: repeat(${BOARD_SIZE_2048}, var(--cell)); grid-template-rows: repeat(${BOARD_SIZE_2048}, var(--cell));`
@@ -117,6 +123,7 @@ const _handlers = {
     state.score = snap.score
     state.won = snap.won
     state.maxTile = maxTileValue(snap.board)
+    state.scoreMultiplier = snap.scoreMultiplier
     return snap
   },
   /** 依數值套用底色 class（2/4 淺色、8~1024 漸深、2048 主題色、超過再更亮）＋依位數縮放字級 */
@@ -385,6 +392,7 @@ onBeforeUnmount(() => {
             <span>MAX: {{ state.maxTile }}</span>
             <span>MOVES: {{ state.moves }}</span>
           </div>
+          <p v-if="state.scoreMultiplier > 1" class="g2048-multiplier-badge">BONUS {{ multiplierText }} SCORE</p>
         </div>
 
         <p class="g2048-message">{{ state.message }}</p>
@@ -794,6 +802,16 @@ onBeforeUnmount(() => {
       text-shadow: 0 0 6px rgba(244, 162, 97, 0.45);
       /* 數字等寬，避免變動時外層 fit-content 寬度跳動 */
       font-variant-numeric: tabular-nums;
+    }
+
+    .g2048-multiplier-badge {
+      margin: 6px 0 0;
+      text-align: center;
+      color: #ffd166;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 8px rgba(255, 209, 102, 0.5);
     }
 
     .g2048-message {
