@@ -371,15 +371,6 @@ onBeforeUnmount(() => {
       <button class="fg-btn link waiting-btn" type="button" @click="click.openRuleDialog">RULE</button>
     </div>
 
-    <div v-if="state.status === 'pause'" class="game-mask pause-mask">
-      <div class="mask-title">PAUSED</div>
-      <div class="result-actions">
-        <button class="fg-btn" type="button" @click="click.resume">RESUME</button>
-        <button class="fg-btn" type="button" @click="click.replay">RESTART</button>
-        <button class="fg-btn danger" type="button" @click="click.exit">EXIT</button>
-      </div>
-    </div>
-
     <div v-if="state.resultOverlayVisible" class="game-mask result-mask">
       <div class="mask-title">GAME OVER</div>
       <div class="result-list">

@@ -142,9 +142,12 @@ const canAttack = computed(
 const canPause = computed(
   () => (state.phase === 'PLAYER_TURN' || state.phase === 'AI_TURN') && !state.paused && !state.resultOverlayVisible
 )
+/** 比照 whack-a-mole.vue：PAUSE 不用遮罩，靠側欄 START／PAUSE 兩顆按鈕互斥 disabled 切換 */
+const canResumeFromPause = computed(() => state.paused && !state.resultOverlayVisible)
 const turnLabel = computed(() => {
   if (state.phase === 'PLACEMENT') return 'PLACEMENT'
   if (state.phase === 'GAME_OVER') return state.winner === 'PLAYER' ? 'YOU WIN' : 'YOU LOSE'
+  if (state.paused) return 'PAUSED'
   if (state.aiThinking) return 'AI THINKING...'
   return state.phase === 'AI_TURN' ? 'AI TURN' : 'YOUR TURN'
 })
@@ -478,15 +481,6 @@ onBeforeUnmount(() => {
       <button class="bs-btn link waiting-btn" type="button" @click="click.openRuleDialog">RULE</button>
     </div>
 
-    <div v-if="state.paused && !state.resultOverlayVisible" class="game-mask pause-mask">
-      <div class="mask-title">PAUSED</div>
-      <div class="result-actions">
-        <button class="bs-btn" type="button" @click="click.resume">RESUME</button>
-        <button class="bs-btn" type="button" @click="click.restart">RESTART</button>
-        <button class="bs-btn danger" type="button" @click="click.exit">EXIT</button>
-      </div>
-    </div>
-
     <div v-if="state.chainChoiceVisible" class="game-mask result-mask chain-mask">
       <div class="mask-title win">YOU WIN</div>
       <div class="result-list">
@@ -528,6 +522,7 @@ onBeforeUnmount(() => {
 
     <section class="bs-shell">
       <aside class="bs-side left">
+        <button class="bs-btn" type="button" :disabled="!canResumeFromPause" @click="click.resume">START</button>
         <button class="bs-btn" type="button" :disabled="!canPause" @click="click.pause">PAUSE</button>
         <button class="bs-btn" type="button" @click="click.restart">RESTART</button>
         <button class="bs-btn" type="button" @click="click.openRateDialog">CONVERT</button>

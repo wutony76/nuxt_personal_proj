@@ -140,6 +140,8 @@ const canDrop = computed(
 const canPause = computed(
   () => !state.waitingOverlayVisible && !state.resultOverlayVisible && !state.paused && state.phase !== 'GAME_OVER'
 )
+/** 比照 whack-a-mole.vue：PAUSE 不用遮罩，靠側欄 START／PAUSE 兩顆按鈕互斥 disabled 切換 */
+const canResumeFromPause = computed(() => state.paused && !state.resultOverlayVisible)
 /** 測試模式的強制結果按鈕沿用 canPause 的可用時機：對局進行中、無 overlay、未暫停 */
 const canForceResult = computed(() => canPause.value)
 /** 玩家 hover 中的欄位，其落點格顯示半透明預覽子（僅玩家可落子時） */
@@ -152,6 +154,7 @@ const turnLabel = computed(() => {
   if (state.phase === 'GAME_OVER') {
     return state.result === 'WIN' ? 'YOU WIN' : state.result === 'LOSE' ? 'YOU LOSE' : 'DRAW'
   }
+  if (state.paused) return 'PAUSED'
   if (state.phase === 'AI_TURN') return 'AI THINKING...'
   if (state.phase === 'AI_DROP' || state.phase === 'AI_RESULT') return 'AI MOVE'
   if (state.phase === 'PLAYER_DROP' || state.phase === 'PLAYER_RESULT') return 'YOUR MOVE'
@@ -464,15 +467,6 @@ onBeforeUnmount(() => {
       <button class="c4-btn link waiting-btn" type="button" @click="click.openRuleDialog">RULE</button>
     </div>
 
-    <div v-if="state.paused && !state.resultOverlayVisible" class="game-mask pause-mask">
-      <div class="mask-title">PAUSED</div>
-      <div class="result-actions">
-        <button class="c4-btn" type="button" @click="click.resume">RESUME</button>
-        <button class="c4-btn" type="button" @click="click.restart">RESTART</button>
-        <button class="c4-btn danger" type="button" @click="click.exit">EXIT</button>
-      </div>
-    </div>
-
     <div v-if="state.chainChoiceVisible" class="game-mask result-mask chain-mask">
       <div class="mask-title win">YOU WIN</div>
       <div class="result-list">
@@ -513,6 +507,7 @@ onBeforeUnmount(() => {
 
     <section class="c4-shell">
       <aside class="c4-side left">
+        <button class="c4-btn" type="button" :disabled="!canResumeFromPause" @click="click.resume">START</button>
         <button class="c4-btn" type="button" :disabled="!canPause" @click="click.pause">PAUSE</button>
         <button class="c4-btn" type="button" @click="click.restart">RESTART</button>
         <button class="c4-btn" type="button" @click="click.openRateDialog">CONVERT</button>

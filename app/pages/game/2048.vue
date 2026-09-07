@@ -80,6 +80,8 @@ const statusClass = computed(() => {
   return 'is-ready'
 })
 const canPause = computed(() => state.status === 'playing' && !state.winBannerVisible)
+/** 比照 whack-a-mole.vue：PAUSE 不用遮罩，靠側欄 START／PAUSE 兩顆按鈕互斥 disabled 切換 */
+const canResumeFromPause = computed(() => state.status === 'pause' && !state.resultOverlayVisible)
 /** Best Score 直接重用 useGameHistory 的 statsByGame（見 design.md Decision 5），並與本局分數取大值即時反映 */
 const bestScore = computed(() => Math.max(gameHistory.statsByGame.value['2048']?.best ?? 0, state.score))
 /** 倍率整數時省略小數點（x2 而非 x2.0），非整數維持一位小數（x1.5） */
@@ -330,15 +332,6 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div v-if="state.status === 'pause'" class="game-mask pause-mask">
-      <div class="mask-title">PAUSED</div>
-      <div class="result-actions">
-        <button class="g2048-btn" type="button" @click="click.resume">RESUME</button>
-        <button class="g2048-btn" type="button" @click="click.restart">RESTART</button>
-        <button class="g2048-btn danger" type="button" @click="click.exit">EXIT</button>
-      </div>
-    </div>
-
     <div v-if="state.resultOverlayVisible" class="game-mask result-mask">
       <div class="mask-title" :class="{ win: state.won }">{{ state.won ? 'GAME OVER · 2048!' : 'GAME OVER' }}</div>
       <div class="result-list">
@@ -361,6 +354,7 @@ onBeforeUnmount(() => {
 
     <section class="g2048-shell">
       <aside class="g2048-side left">
+        <button class="g2048-btn" type="button" :disabled="!canResumeFromPause" @click="click.resume">START</button>
         <button class="g2048-btn" type="button" :disabled="!canPause" @click="click.pause">PAUSE</button>
         <button class="g2048-btn" type="button" @click="click.restart">RESTART</button>
         <button class="g2048-btn" type="button" @click="click.openRateDialog">CONVERT</button>
@@ -384,7 +378,6 @@ onBeforeUnmount(() => {
                 {{ tile.value }}
               </div>
             </div>
-            <div v-if="state.status === 'pause'" class="g2048-board-veil">PAUSED</div>
           </div>
           <div class="g2048-panel">
             <span>SCORE: {{ state.score }}</span>
@@ -776,19 +769,6 @@ onBeforeUnmount(() => {
         color: #2a1804;
         box-shadow: 0 0 30px rgba(255, 209, 102, 0.9);
       }
-    }
-
-    .g2048-board-veil {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      background: rgba(16, 10, 4, 0.72);
-      color: #ffd8a8;
-      font-weight: 900;
-      letter-spacing: 0.3rem;
-      border-radius: 10px;
-      z-index: 2;
     }
 
     .g2048-panel {
