@@ -48,6 +48,8 @@ export type TickResult = {
   matchedCount: number
   droppedCount: number
   scoreGained: number
+  /** 這次 snap 是否觸發了「每 SHOTS_PER_NEW_ROW 次插入新列」的施壓機制（見 maybePushNewRow） */
+  rowPushed: boolean
   gameOver: boolean
 }
 
@@ -271,11 +273,12 @@ export default class BubbleShooterEngine {
     return out
   }
 
-  /** 每 SHOTS_PER_NEW_ROW 次發射，整排下移、頂端插入新的一列 */
-  private maybePushNewRow(): void {
-    if (this.shotsFired % SHOTS_PER_NEW_ROW !== 0) return
+  /** 每 SHOTS_PER_NEW_ROW 次發射，整排下移、頂端插入新的一列；回傳這次是否真的觸發了插入 */
+  private maybePushNewRow(): boolean {
+    if (this.shotsFired % SHOTS_PER_NEW_ROW !== 0) return false
     for (let r = ROWS - 1; r > 0; r -= 1) this.grid[r] = this.grid[r - 1]!
     this.fillRow(0)
+    return true
   }
 
   private checkGameOver(): boolean {
@@ -318,17 +321,17 @@ export default class BubbleShooterEngine {
     }
 
     this.score += scoreGained
-    this.maybePushNewRow()
+    const rowPushed = this.maybePushNewRow()
     const gameOver = this.checkGameOver()
     if (gameOver) this.status = 'gameover'
 
-    return { snapped: true, matchedCount, droppedCount, scoreGained, gameOver }
+    return { snapped: true, matchedCount, droppedCount, scoreGained, rowPushed, gameOver }
   }
 
   /** 推進飛行中的泡泡一個 tick：移動 → 牆壁反彈 → 碰到頂列或既有泡泡即 snap 並結算 */
   tick(dtMs: number): TickResult {
     if (this.status !== 'playing' || !this.flying) {
-      return { snapped: false, matchedCount: 0, droppedCount: 0, scoreGained: 0, gameOver: false }
+      return { snapped: false, matchedCount: 0, droppedCount: 0, scoreGained: 0, rowPushed: false, gameOver: false }
     }
     const dt = dtMs / 1000
     const f = this.flying
@@ -369,7 +372,7 @@ export default class BubbleShooterEngine {
       }
     }
 
-    return { snapped: false, matchedCount: 0, droppedCount: 0, scoreGained: 0, gameOver: false }
+    return { snapped: false, matchedCount: 0, droppedCount: 0, scoreGained: 0, rowPushed: false, gameOver: false }
   }
 
   /** 對外回傳純資料快照（頁面用 reactive() 鏡像） */

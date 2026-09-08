@@ -7,6 +7,7 @@ import BubbleShooterEngine, {
   COLS,
   ROW_HEIGHT_RATIO,
   BUBBLE_DIAMETER,
+  BUBBLE_RADIUS,
   MATCH_MIN,
   MATCH3_SCORE,
   MATCH4_SCORE,
@@ -34,6 +35,14 @@ import BubbleShooterEngine, {
 const CELL = 30
 const ACCENT = '#f43f5e'
 const TICK_MS = 16
+/**
+ * 交錯偏移網格的幾何修正（純渲染用，不影響 engine 的碰撞/黏附座標系）：
+ *   - X：奇數列整排右移半格，最右邊那顆泡泡的右緣會落在 (COLS+0.5) 格，比 stage 寬度多 0.5 格，
+ *     不加寬會被 .bub-stage 的 overflow:hidden 從右邊切掉。
+ *   - Y：第 0 列泡泡中心 y＝ROW_HEIGHT_RATIO/2，半徑 BUBBLE_RADIUS＝0.5，因為 ROW_HEIGHT_RATIO<1，
+ *     頂緣會落在 y<0，不整體往下位移會被從上面切掉。
+ */
+const Y_OFFSET_PX = Math.max(0, BUBBLE_RADIUS - ROW_HEIGHT_RATIO / 2) * CELL
 
 const COLOR_HEX: Record<BubbleColor, string> = {
   RED: '#ff4d4d',
@@ -73,7 +82,8 @@ const BUBBLE_RULE = {
   description:
     `經典泡泡龍：移動滑鼠／觸控拖曳瞄準，點擊／放開發射泡泡。發射後碰到既有泡泡群或最頂列就會黏附，` +
     `跟至少 ${MATCH_MIN} 顆同色泡泡連成一片即消除。消除後，任何跟最頂列失去連接的泡泡群會整群掉落，` +
-    `一發打出大量掉落是最爽的得分方式。每發射 ${SHOTS_PER_NEW_ROW} 次，頂端會插入新的一列增加壓力，` +
+    `一發打出大量掉落是最爽的得分方式。每發射 ${SHOTS_PER_NEW_ROW} 次（HUD 的 NEXT ROW 會倒數），` +
+    '頂端會插入新的一列增加壓力——這是正常機制，不是 bug，就算快把畫面清空了也可能剛好被插入一整列。' +
     '泡泡堆到底線即 GAME OVER。',
   scoreRule:
     `消除 3 顆 +${MATCH3_SCORE}、4 顆 +${MATCH4_SCORE}、5 顆 +${MATCH5_SCORE}，超過每多 1 顆再加分；` +
@@ -89,10 +99,10 @@ const BUBBLE_RULE = {
 let tickTimer: ReturnType<typeof setInterval> | null = null
 let popupTimer: ReturnType<typeof setTimeout> | null = null
 
-const stageWidth = computed(() => COLS * CELL)
-const stageHeight = computed(() => Math.ceil(ROWS * ROW_HEIGHT_RATIO * CELL + CELL * 1.6))
+const stageWidth = computed(() => (COLS + 0.5) * CELL)
+const stageHeight = computed(() => Math.ceil(ROWS * ROW_HEIGHT_RATIO * CELL + CELL * 1.6 + Y_OFFSET_PX))
 const launcherX = computed(() => (COLS / 2) * CELL)
-const launcherY = computed(() => ROWS * ROW_HEIGHT_RATIO * CELL)
+const launcherY = computed(() => ROWS * ROW_HEIGHT_RATIO * CELL + Y_OFFSET_PX)
 const bubbleSize = computed(() => BUBBLE_DIAMETER * CELL)
 
 const flatBubbles = computed(() => {
@@ -103,7 +113,7 @@ const flatBubbles = computed(() => {
       out.push({
         key: `${r}-${c}`,
         left: cellCenterX(r, c) * CELL - bubbleSize.value / 2,
-        top: cellCenterY(r) * CELL - bubbleSize.value / 2,
+        top: cellCenterY(r) * CELL - bubbleSize.value / 2 + Y_OFFSET_PX,
         color: cell.color
       })
     })
@@ -113,7 +123,7 @@ const flatBubbles = computed(() => {
 const flyingStyle = computed(() => {
   if (!state.flying) return ''
   const left = state.flying.x * CELL - bubbleSize.value / 2
-  const top = state.flying.y * CELL - bubbleSize.value / 2
+  const top = state.flying.y * CELL - bubbleSize.value / 2 + Y_OFFSET_PX
   return `left:${left}px; top:${top}px; width:${bubbleSize.value}px; height:${bubbleSize.value}px; background:${COLOR_HEX[state.flying.color]};`
 })
 /**
@@ -138,6 +148,8 @@ const canPauseWhilePlaying = computed(() => state.status === 'playing')
 const canResumeFromPause = computed(
   () => state.status === 'paused' && !state.waitingOverlayVisible && !state.resultOverlayVisible
 )
+/** 距離下一次「頂端插入新列」施壓機制還剩幾次發射（見 bubbleShooterEngine 的 maybePushNewRow） */
+const shotsUntilNextRow = computed(() => SHOTS_PER_NEW_ROW - (state.shotsFired % SHOTS_PER_NEW_ROW))
 
 /** 私有工具方法：快照同步、計時器管理、彈出提示 */
 const _handlers = {
@@ -223,12 +235,21 @@ const _actions = {
     state.message = '瞄準後點擊發射！'
     _handlers.startTickTimer()
   },
-  handleSnapResult: (result: { matchedCount: number; droppedCount: number; scoreGained: number; gameOver: boolean }) => {
+  handleSnapResult: (result: { matchedCount: number; droppedCount: number; scoreGained: number; rowPushed: boolean; gameOver: boolean }) => {
+    const parts: string[] = []
     if (result.matchedCount > 0) {
-      const parts = [`MATCH x${result.matchedCount}`]
+      parts.push(`MATCH x${result.matchedCount}`)
       if (result.droppedCount > 0) parts.push(`DROP x${result.droppedCount}`)
-      _handlers.showPopup(parts.join(' + '))
+    }
+    // 每 SHOTS_PER_NEW_ROW 次發射會自動從頂端插入一整列（既有的施壓機制，不是 bug），
+    // 沒有這個提示的話，剛好在快清空棋盤時碰上會讓玩家以為畫面突然無緣無故被填滿
+    if (result.rowPushed) parts.push('⚠ NEW ROW!')
+    if (parts.length > 0) _handlers.showPopup(parts.join(' + '))
+
+    if (result.matchedCount > 0) {
       state.message = `+${result.scoreGained} 分！`
+    } else if (result.rowPushed) {
+      state.message = '頂端插入新的一列，小心別堆到底線！'
     } else {
       state.message = '沒有消除，繼續瞄準！'
     }
@@ -385,6 +406,7 @@ onBeforeUnmount(() => {
           <span>SCORE: {{ state.score }}</span>
           <span>COMBO x{{ state.combo }}</span>
           <span>SHOTS: {{ state.shotsFired }}</span>
+          <span>NEXT ROW: {{ shotsUntilNextRow }}</span>
         </div>
 
         <div class="bub-frame">
