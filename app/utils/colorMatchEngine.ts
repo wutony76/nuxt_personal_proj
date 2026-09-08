@@ -65,10 +65,13 @@ export const MAX_GRID_DIM = 6
 export const SCORE_PER_SEQUENCE_STEP = 20
 
 /**
- * 點錯的扣分公式：這次目標序列的長度 × 全場累計完成配對次數（totalMatches）× 即將歸零的 combo × 3。
- * combo 與 totalMatches 都是 0 就代表玩家還沒累積任何東西，公式自然算出 0（沒有東西可扣）。
+ * 點錯的扣分：扣掉「目前分數 × 扣分比例」，比例隨全場累計完成配對次數（totalMatches）線性增加，
+ * 封頂 WRONG_SCORE_PENALTY_MAX_RATIO——玩越久／配對次數越多，點錯扣得越重，但單次絕不會把分數
+ * 扣到 0（最多扣封頂比例），跟純相乘的公式比起來不會一次歸零。
  */
-export const WRONG_SCORE_PENALTY_MULTIPLIER = 3
+export const WRONG_SCORE_PENALTY_RATIO_PER_MATCH = 0.01
+/** 扣分比例封頂：totalMatches 夠多之後比例不再繼續往上加，單次點錯最多扣這個比例的分數 */
+export const WRONG_SCORE_PENALTY_MAX_RATIO = 0.5
 /** 目前分數低於這個門檻時，點錯完全不觸發扣分（只扣秒數＋combo 歸零），避免開局就被扣到負分 */
 export const SCORE_PENALTY_THRESHOLD = 2000
 
@@ -234,7 +237,8 @@ export default class ColorMatchEngine {
    * 點對但序列未完成：只推進游標，不計分不加時，網格／序列保持不變。
    * 點錯：扣 WRONG_TIME_PENALTY_SEC 秒、combo 歸零，游標退回序列開頭，沿用同一組網格／序列
    *（不重新出題）；扣到 0 秒視同時間到，直接結束遊戲。目前分數 ≥ SCORE_PENALTY_THRESHOLD 時，
-   * 另外扣分＝這次序列長度 × totalMatches × 即將歸零的 combo × WRONG_SCORE_PENALTY_MULTIPLIER。
+   * 另外扣掉「目前分數 × 扣分比例」，比例隨 totalMatches 線性增加並封頂於 WRONG_SCORE_PENALTY_MAX_RATIO
+   *（玩越久點錯扣得越重，但單次絕不會把分數扣到 0）。
    */
   answer(hex: string): AnswerResult {
     if (this.status !== 'playing') {
@@ -243,10 +247,11 @@ export default class ColorMatchEngine {
 
     const expected = this.targetSequence[this.sequenceProgress]!
     if (hex !== expected.hex) {
-      const penalty =
-        this.score >= SCORE_PENALTY_THRESHOLD
-          ? this.targetSequence.length * this.totalMatches * this.combo * WRONG_SCORE_PENALTY_MULTIPLIER
-          : 0
+      let penalty = 0
+      if (this.score >= SCORE_PENALTY_THRESHOLD) {
+        const ratio = Math.min(WRONG_SCORE_PENALTY_MAX_RATIO, this.totalMatches * WRONG_SCORE_PENALTY_RATIO_PER_MATCH)
+        penalty = Math.floor(this.score * ratio)
+      }
       this.score = Math.max(0, this.score - penalty)
       this.combo = 0
       this.sequenceProgress = 0

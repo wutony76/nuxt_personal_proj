@@ -8,7 +8,8 @@ import ColorMatchEngine, {
   TIME_BONUS_MILESTONE_SEC,
   MILESTONE_COMBO_STEP,
   WRONG_TIME_PENALTY_SEC,
-  WRONG_SCORE_PENALTY_MULTIPLIER,
+  WRONG_SCORE_PENALTY_RATIO_PER_MATCH,
+  WRONG_SCORE_PENALTY_MAX_RATIO,
   SCORE_PENALTY_THRESHOLD,
   SEQUENCE_TIER_SIZE,
   GRID_TIER_SIZE,
@@ -75,8 +76,9 @@ const COLOR_MATCH_RULE = {
     `每完成 1 次配對得 ${SCORE_PER_SEQUENCE_STEP} 分 × 序列長度，時間 +${TIME_BONUS_NORMAL_SEC} 秒；` +
     `若完成當下 COMBO 剛好是 ${MILESTONE_COMBO_STEP} 的倍數，該次分數 double、時間改加 ${TIME_BONUS_MILESTONE_SEC} 秒。` +
     `這是生存模式：點錯扣 ${WRONG_TIME_PENALTY_SEC} 秒並讓 COMBO 歸零，時間歸零才結束遊戲。` +
-    `分數達 ${SCORE_PENALTY_THRESHOLD} 分後，點錯還會額外扣分＝序列長度 × 累計配對次數 × 即將歸零的 COMBO × ${WRONG_SCORE_PENALTY_MULTIPLIER}，` +
-    `COMBO／配對次數越高，一次失誤扣得越重，請衡量風險再衝高 COMBO。初始時間 ${INITIAL_TIME_SEC} 秒。`,
+    `分數達 ${SCORE_PENALTY_THRESHOLD} 分後，點錯還會額外扣掉「目前分數的一個比例」，比例隨累計配對次數線性提高` +
+    `（每次配對 +${WRONG_SCORE_PENALTY_RATIO_PER_MATCH * 100}%），封頂 ${WRONG_SCORE_PENALTY_MAX_RATIO * 100}%——` +
+    `玩越久、配對次數越多，一次失誤扣得越重，但單次絕不會把分數扣到 0。初始時間 ${INITIAL_TIME_SEC} 秒。`,
   levelsTitle: '難度成長',
   levels: [
     { level: `每 ${SEQUENCE_TIER_SIZE} 次配對`, condition: `目標序列長度 +1（上限 ${MAX_SEQUENCE_LENGTH} 色）` },
@@ -406,7 +408,7 @@ onBeforeUnmount(() => {
           <p class="cm-help-title">HOW TO PLAY</p>
           <p class="cm-help-text">
             依序點擊跟上方「目標顏色序列」相同的格子（網格內同色格子點任一個都算數）。點錯會扣 {{ WRONG_TIME_PENALTY_SEC }} 秒、
-            COMBO 歸零、從序列開頭重新點；分數達 {{ SCORE_PENALTY_THRESHOLD }} 分後點錯還會額外扣分，COMBO 越高扣得越重。
+            COMBO 歸零、從序列開頭重新點；分數達 {{ SCORE_PENALTY_THRESHOLD }} 分後點錯還會額外扣掉一定比例的分數，玩越久比例越高（封頂 {{ WRONG_SCORE_PENALTY_MAX_RATIO * 100 }}%）。
             順利點完一整組序列即完成 1 次配對，時間會累加。每 {{ SEQUENCE_TIER_SIZE }} 次配對序列變長、
             每 {{ GRID_TIER_SIZE }} 次配對網格變大。ESC / P 可暫停。
           </p>
