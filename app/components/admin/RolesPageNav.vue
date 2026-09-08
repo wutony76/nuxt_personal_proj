@@ -10,7 +10,8 @@ type NavItem = {
 
 const ITEMS: NavItem[] = [
   { id: 'ar-members', en: 'List', label: '列表' },
-  { id: 'ar-roles', en: 'Roles', label: '角色' }
+  { id: 'ar-roles', en: 'Roles', label: '角色' },
+  { id: 'ar-games', en: 'Games', label: '遊戲' }
 ]
 
 const click = {

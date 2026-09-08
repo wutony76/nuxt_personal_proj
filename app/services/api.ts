@@ -983,7 +983,14 @@ export const api = {
         method: 'PATCH',
         body: patch
       }),
-    gameCatalog: () => $fetch<{ games: Array<{ category: GameCategory; key: string; name: string }> }>('/api/admin/games'),
+    /** 遊戲管理總閘：兩分類全部項目的全域開關狀態（見 /admin/roles「遊戲列表」） */
+    gameCatalog: () => $fetch<{ games: RoleGamePerm[] }>('/api/admin/games'),
+    /** 切換遊戲管理總閘：關閉後不分角色全站都看不到 */
+    setGameEnabled: (category: GameCategory, key: string, enabled: boolean) =>
+      $fetch<{ games: RoleGamePerm[] }>('/api/admin/games', {
+        method: 'PATCH',
+        body: { category, key, enabled }
+      }),
     roleGames: (roleId: string) =>
       $fetch<{ games: RoleGamePerm[] }>(`/api/admin/role-defs/${roleId}/games`),
     setRoleGame: (roleId: string, category: GameCategory, key: string, enabled: boolean) =>

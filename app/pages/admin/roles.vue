@@ -168,6 +168,19 @@ onMounted(() => {
         <AdminRoleList />
       </section>
 
+      <section id="ar-games">
+        <div class="admin-sechead">
+          <div class="admin-sechead-left"><span class="admin-en">Game catalog</span>
+            <h2>遊戲權限</h2>
+          </div>
+          <div class="ar-games-actions">
+            <span class="admin-meta">遊戲總閘</span>
+            <NuxtLink to="/admin/bg-lottery" class="admin-btn admin-btn-secondary">遊戲設定</NuxtLink>
+          </div>
+        </div>
+        <AdminGameCatalogPanel />
+      </section>
+
     </div>
   </AdminShell>
 </template>
@@ -179,7 +192,8 @@ onMounted(() => {
   gap: 46px;
 }
 
-.ar-members-actions {
+.ar-members-actions,
+.ar-games-actions {
   display: flex;
   align-items: center;
   gap: 12px;
