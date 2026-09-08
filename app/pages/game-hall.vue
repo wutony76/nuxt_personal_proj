@@ -73,7 +73,11 @@ const gameSlots = ref<GameSlot[]>([
   { id: 24, name: 'ARKANOID', description: 'BREAKOUT 進階版打磚塊，多次命中磚塊、移動磚塊與道具讓玩法更有變化', status: 'open', path: '/game/arkanoid' },
   { id: 25, name: 'TOWER DEFENSE', description: '塔防，防禦抵禦敵人，挑戰能撐到第幾波', status: 'open', path: '/game/tower-defense' },
   { id: 26, name: 'PINBALL', description: '彈珠台，操作 Flipper，不讓彈珠落下', status: 'open', path: '/game/pinball' },
-  { id: 27, name: 'COMING SOON', description: '新機台開發中，敬請期待。', status: 'coming' },
+  { id: 27, name: 'COLOR MATCH', description: '限時辨色反應遊戲，選出跟 TARGET 相同的顏色，考驗手速與眼力', status: 'open', path: '/game/color-match' },
+  { id: 28, name: 'MAZE', description: '隨機迷宮尋路，從 START 找到 EXIT，過關即挑戰更大的下一關', status: 'open', path: '/game/maze' },
+  { id: 29, name: 'BUBBLE SHOOTER', description: '瞄準發射泡泡，同色連成一片即消除，觸發懸空掉落連鎖', status: 'open', path: '/game/bubble-shooter' },
+  { id: 30, name: 'CUT THE ROPE', description: '割繩子解謎，讓糖果擺盪重力送進終點，沿路收集星星', status: 'open', path: '/game/cut-the-rope' },
+  { id: 31, name: 'COMING SOON', description: '新機台開發中，敬請期待。', status: 'coming' },
 ])
 
 const openCount = computed(() => gameSlots.value.filter((slot) => slot.status === 'open').length)

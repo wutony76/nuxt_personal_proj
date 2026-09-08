@@ -766,7 +766,7 @@ export type LotteryOpenCodeHistoryResponse = {
 }
 
 // ── 遊戲中心 · 遊戲紀錄（game-hall 小遊戲，非彩票）──
-export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman' | 'spaceInvaders' | 'solitaire' | 'typing' | 'breakout' | 'orbMatch' | 'battleship' | '2048' | 'flappy' | 'frogger' | 'connect4' | 'whackAMole' | 'lightsOut' | 'towerStack' | 'arkanoid' | 'towerDefense' | 'pinball'
+export type RetroGameKey = 'snake' | 'racing' | 'tetriminos' | 'match3rush' | 'match3classic' | 'pong' | 'runner' | 'spaceShooter' | 'minesweeper' | 'pacman' | 'spaceInvaders' | 'solitaire' | 'typing' | 'breakout' | 'orbMatch' | 'battleship' | '2048' | 'flappy' | 'frogger' | 'connect4' | 'whackAMole' | 'lightsOut' | 'towerStack' | 'arkanoid' | 'towerDefense' | 'pinball' | 'colorMatch' | 'maze' | 'bubbleShooter' | 'cutTheRope'
 
 export type GameHistoryRecord = {
   id: string
@@ -1374,6 +1374,26 @@ export const api = {
       recordPinball: (payload: GameHistoryRecordPayload) =>
         $fetch<GameHistorySettleResponse>('/api/games/retro/pinball/history', { method: 'POST', body: payload }),
       clearPinball: () => $fetch<{ ok: boolean }>('/api/games/retro/pinball/history', { method: 'DELETE' }),
+
+      historyColorMatch: () => $fetch<GameHistoryListResponse>('/api/games/retro/color-match/history'),
+      recordColorMatch: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/color-match/history', { method: 'POST', body: payload }),
+      clearColorMatch: () => $fetch<{ ok: boolean }>('/api/games/retro/color-match/history', { method: 'DELETE' }),
+
+      historyMaze: () => $fetch<GameHistoryListResponse>('/api/games/retro/maze/history'),
+      recordMaze: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/maze/history', { method: 'POST', body: payload }),
+      clearMaze: () => $fetch<{ ok: boolean }>('/api/games/retro/maze/history', { method: 'DELETE' }),
+
+      historyBubbleShooter: () => $fetch<GameHistoryListResponse>('/api/games/retro/bubble-shooter/history'),
+      recordBubbleShooter: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/bubble-shooter/history', { method: 'POST', body: payload }),
+      clearBubbleShooter: () => $fetch<{ ok: boolean }>('/api/games/retro/bubble-shooter/history', { method: 'DELETE' }),
+
+      historyCutTheRope: () => $fetch<GameHistoryListResponse>('/api/games/retro/cut-the-rope/history'),
+      recordCutTheRope: (payload: GameHistoryRecordPayload) =>
+        $fetch<GameHistorySettleResponse>('/api/games/retro/cut-the-rope/history', { method: 'POST', body: payload }),
+      clearCutTheRope: () => $fetch<{ ok: boolean }>('/api/games/retro/cut-the-rope/history', { method: 'DELETE' }),
 
       /** 各遊戲全站最高分一筆；混排依該遊戲最近遊玩時間取 5（需登入） */
       leaderboard: () => $fetch<RetroLeaderboardResponse>('/api/games/retro/leaderboard'),

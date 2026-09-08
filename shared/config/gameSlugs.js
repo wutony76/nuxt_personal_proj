@@ -41,7 +41,8 @@ export const RETRO_GAMES = [
   { key: 'pinball', pageSlug: 'pinball', apiSlug: 'pinball' },
   { key: 'colorMatch', pageSlug: 'color-match', apiSlug: 'color-match' },
   { key: 'maze', pageSlug: 'maze', apiSlug: 'maze' },
-  { key: 'bubbleShooter', pageSlug: 'bubble-shooter', apiSlug: 'bubble-shooter' }
+  { key: 'bubbleShooter', pageSlug: 'bubble-shooter', apiSlug: 'bubble-shooter' },
+  { key: 'cutTheRope', pageSlug: 'cut-the-rope', apiSlug: 'cut-the-rope' }
 ]
 
 /**

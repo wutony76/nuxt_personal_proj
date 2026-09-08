@@ -124,11 +124,23 @@ const _handlers = {
     if (gameKey === 'pinball') {
       return { history: api.games.retro.historyPinball, record: api.games.retro.recordPinball, clear: api.games.retro.clearPinball }
     }
+    if (gameKey === 'colorMatch') {
+      return { history: api.games.retro.historyColorMatch, record: api.games.retro.recordColorMatch, clear: api.games.retro.clearColorMatch }
+    }
+    if (gameKey === 'maze') {
+      return { history: api.games.retro.historyMaze, record: api.games.retro.recordMaze, clear: api.games.retro.clearMaze }
+    }
+    if (gameKey === 'bubbleShooter') {
+      return { history: api.games.retro.historyBubbleShooter, record: api.games.retro.recordBubbleShooter, clear: api.games.retro.clearBubbleShooter }
+    }
+    if (gameKey === 'cutTheRope') {
+      return { history: api.games.retro.historyCutTheRope, record: api.games.retro.recordCutTheRope, clear: api.games.retro.clearCutTheRope }
+    }
     return { history: api.games.retro.historyBattleship, record: api.games.retro.recordBattleship, clear: api.games.retro.clearBattleship }
   }
 }
 
-const GAME_KEYS: RetroGameKey[] = ['snake', 'racing', 'tetriminos', 'match3rush', 'match3classic', 'pong', 'runner', 'spaceShooter', 'minesweeper', 'pacman', 'spaceInvaders', 'solitaire', 'typing', 'breakout', 'orbMatch', 'battleship', '2048', 'flappy', 'frogger', 'connect4', 'whackAMole', 'lightsOut', 'towerStack', 'arkanoid', 'towerDefense', 'pinball']
+const GAME_KEYS: RetroGameKey[] = ['snake', 'racing', 'tetriminos', 'match3rush', 'match3classic', 'pong', 'runner', 'spaceShooter', 'minesweeper', 'pacman', 'spaceInvaders', 'solitaire', 'typing', 'breakout', 'orbMatch', 'battleship', '2048', 'flappy', 'frogger', 'connect4', 'whackAMole', 'lightsOut', 'towerStack', 'arkanoid', 'towerDefense', 'pinball', 'colorMatch', 'maze', 'bubbleShooter', 'cutTheRope']
 
 export const useGameHistory = () => {
   const { isLoggedIn, init: initAuth, user } = useAuth()

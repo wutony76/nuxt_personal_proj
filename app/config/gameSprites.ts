@@ -40,7 +40,11 @@ export const GAME_SPRITES: GameSpriteDef[] = [
   { key: 'towerStack', match: (n) => n.includes('TOWER STACK'), icon: '🗼', anim: 'fall', glow: '#118ab2' },
   { key: 'arkanoid', match: (n) => n.includes('ARKANOID'), icon: '⚡', anim: 'bounce', glow: '#ef476f' },
   { key: 'towerDefense', match: (n) => n.includes('TOWER DEFENSE'), icon: '🏰', anim: 'blink', glow: '#6a994e' },
-  { key: 'pinball', match: (n) => n.includes('PINBALL'), icon: '🎱', anim: 'bounce', glow: '#00f5d4' }
+  { key: 'pinball', match: (n) => n.includes('PINBALL'), icon: '🎱', anim: 'bounce', glow: '#00f5d4' },
+  { key: 'colorMatch', match: (n) => n.includes('COLOR MATCH'), icon: '🎨', anim: 'sparkle', glow: '#8b5cf6' },
+  { key: 'maze', match: (n) => n.includes('MAZE'), icon: '🧭', anim: 'drift', glow: '#2dd4bf' },
+  { key: 'bubbleShooter', match: (n) => n.includes('BUBBLE SHOOTER'), icon: '🫧', anim: 'bounce', glow: '#f43f5e' },
+  { key: 'cutTheRope', match: (n) => n.includes('CUT THE ROPE'), icon: '🍭', anim: 'fall', glow: '#fbbf24' }
 ]
 
 const DEFAULT_SPRITE: GameSpriteDef = { key: 'default', match: () => true, icon: '🎮', anim: 'drift', glow: '#00e5ff' }

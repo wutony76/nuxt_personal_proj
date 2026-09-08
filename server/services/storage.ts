@@ -54,6 +54,10 @@ import RetroTowerStackClass from './game/retro/tower-stack'
 import RetroArkanoidClass from './game/retro/arkanoid'
 import RetroTowerDefenseClass from './game/retro/towerDefense'
 import RetroPinballClass from './game/retro/pinball'
+import RetroColorMatchClass from './game/retro/colorMatch'
+import RetroMazeClass from './game/retro/maze'
+import RetroBubbleShooterClass from './game/retro/bubbleShooter'
+import RetroCutTheRopeClass from './game/retro/cutTheRope'
 import { LOTTERY } from '~/config/constants'
 
 export const verifyPasswordHash = (password: string, storedHash: string): boolean => {
@@ -163,6 +167,10 @@ export class Storage {
       new RetroArkanoidClass()
       new RetroTowerDefenseClass()
       new RetroPinballClass()
+      new RetroColorMatchClass()
+      new RetroMazeClass()
+      new RetroBubbleShooterClass()
+      new RetroCutTheRopeClass()
       console.log('SUCCESS ---BASE>retroGames.init')
     }
   }
