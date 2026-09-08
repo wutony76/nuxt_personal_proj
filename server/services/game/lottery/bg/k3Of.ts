@@ -628,6 +628,8 @@ export default class K3_OF extends LOTTERY_BASE {
     this.handle.prdOpenCode()
     Storage.games[this.key] = this
     LOTTERY_BASE.getOrders(this.id, this.key)
+    // 開機就把池底生好，不依賴「剛好有人先呼叫 poolState()」這個隱含順序
+    k3EnsurePoolBase()
   }
 
   override circle() {
