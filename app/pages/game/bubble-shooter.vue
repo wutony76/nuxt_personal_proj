@@ -105,13 +105,18 @@ const launcherX = computed(() => (COLS / 2) * CELL)
 const launcherY = computed(() => ROWS * ROW_HEIGHT_RATIO * CELL + Y_OFFSET_PX)
 const bubbleSize = computed(() => BUBBLE_DIAMETER * CELL)
 
+/**
+ * key 用 cell.id（穩定身分，見 engine 的 GridCell 型別註解），不是格子座標，這樣插入新列整排
+ * 陣列往下搬移時，Vue 才能認出「同一顆球換了位置」進而觸發 <TransitionGroup> 的 move 動畫，
+ * 而不是「這個座標的顏色被換掉了」的瞬間換色錯覺。
+ */
 const flatBubbles = computed(() => {
-  const out: Array<{ key: string; left: number; top: number; color: BubbleColor }> = []
+  const out: Array<{ key: number; left: number; top: number; color: BubbleColor }> = []
   state.grid.forEach((row, r) => {
     row.forEach((cell, c) => {
       if (!cell) return
       out.push({
-        key: `${r}-${c}`,
+        key: cell.id,
         left: cellCenterX(r, c) * CELL - bubbleSize.value / 2,
         top: cellCenterY(r) * CELL - bubbleSize.value / 2 + Y_OFFSET_PX,
         color: cell.color
@@ -412,8 +417,10 @@ onBeforeUnmount(() => {
         <div class="bub-frame">
           <div ref="stageRef" class="bub-stage" :style="`width:${stageWidth}px; height:${stageHeight}px;`"
             @pointermove="click.stagePointerMove" @click="click.stageClick">
-            <div v-for="b in flatBubbles" :key="b.key" class="bub-bubble"
-              :style="`left:${b.left}px; top:${b.top}px; width:${bubbleSize}px; height:${bubbleSize}px; background:${COLOR_HEX[b.color]};`" />
+            <TransitionGroup name="bubble" tag="div">
+              <div v-for="b in flatBubbles" :key="b.key" class="bub-bubble"
+                :style="`left:${b.left}px; top:${b.top}px; width:${bubbleSize}px; height:${bubbleSize}px; background:${COLOR_HEX[b.color]};`" />
+            </TransitionGroup>
 
             <div v-if="state.status === 'playing'" class="bub-aimline" :style="aimLineStyle" />
 
@@ -705,6 +712,36 @@ onBeforeUnmount(() => {
       &.is-flying {
         z-index: 5;
       }
+    }
+
+    /**
+     * 網格泡泡的移動／新增／消失動畫（TransitionGroup + 穩定 id key，見 bubbleShooterEngine.ts
+     * 的 GridCell 型別註解）：
+     *   - move：插入新列讓既有泡泡整排往下搬移時，Vue 認出同一顆球換了位置，用 transform 平滑
+     *     滑到新位置，取代原本「原地瞬間換色」的錯覺。
+     *   - enter：新列剛冒出來的泡泡（含新插入的整排、以及剛發射黏附上去的那顆）由小長大＋淡入。
+     *   - leave：消除／掉落的泡泡放大＋淡出，做成一個小小的「啵」爆開感。
+     */
+    .bubble-move {
+      transition: transform 0.18s ease;
+    }
+
+    .bubble-enter-active {
+      transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+    }
+
+    .bubble-enter-from {
+      opacity: 0;
+      transform: scale(0.3);
+    }
+
+    .bubble-leave-active {
+      transition: opacity 0.18s ease-in, transform 0.18s ease-in;
+    }
+
+    .bubble-leave-to {
+      opacity: 0;
+      transform: scale(1.4);
     }
 
     .bub-aimline {

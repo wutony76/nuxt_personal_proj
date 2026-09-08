@@ -21,7 +21,12 @@
 // ── 型別 ──
 export type BubbleColor = 'RED' | 'BLUE' | 'GREEN' | 'YELLOW'
 export type BubbleShooterStatus = 'idle' | 'playing' | 'paused' | 'gameover'
-export type GridCell = { color: BubbleColor } | null
+/**
+ * id 是穩定身分（跟格子座標脫鉤），專門給頁面端的 Vue `:key` 用：插入新列時整排陣列往下搬移
+ * （`this.grid[r] = this.grid[r-1]`），同一顆球的 row 座標會變但 id 不變，頁面才能用
+ * `<TransitionGroup>` 認出「這是同一顆球移動了」而不是「這個座標的顏色瞬間換掉了」。
+ */
+export type GridCell = { id: number; color: BubbleColor } | null
 
 export type FlyingBubble = { x: number; y: number; vx: number; vy: number; color: BubbleColor }
 
@@ -177,6 +182,7 @@ export default class BubbleShooterEngine {
   private combo = 0
   private maxCombo = 0
   private shotsFired = 0
+  private nextBubbleId = 1
   private random: () => number
 
   constructor(options: BubbleShooterEngineOptions = {}) {
@@ -189,13 +195,14 @@ export default class BubbleShooterEngine {
 
   private fillRow(row: number): void {
     for (let c = 0; c < COLS; c += 1) {
-      this.grid[row]![c] = { color: this.randomColor() }
+      this.grid[row]![c] = { id: this.nextBubbleId++, color: this.randomColor() }
     }
   }
 
   /** 完整重置；status 回到 idle，不殘留上一局資料 */
   reset(): void {
     this.status = 'idle'
+    this.nextBubbleId = 1
     this.grid = createEmptyGrid()
     for (let r = 0; r < INITIAL_FILLED_ROWS; r += 1) this.fillRow(r)
     this.flying = null
@@ -290,7 +297,7 @@ export default class BubbleShooterEngine {
 
   /** snap 進格子後的統一結算：同色 flood-fill 消除 → 懸空群消除 → 計分 → combo → 施壓 → Game Over 判定 */
   private resolveSnap(row: number, col: number, color: BubbleColor): TickResult {
-    this.grid[row]![col] = { color }
+    this.grid[row]![col] = { id: this.nextBubbleId++, color }
     this.flying = null
     this.shotsFired += 1
 
