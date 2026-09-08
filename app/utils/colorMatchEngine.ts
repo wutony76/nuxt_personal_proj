@@ -64,6 +64,14 @@ export const MAX_GRID_DIM = 6
 /** 每次完成序列的基礎得分＝這個值 × 剛完成的序列長度（序列越長，一次 match 分數越高） */
 export const SCORE_PER_SEQUENCE_STEP = 20
 
+/**
+ * 點錯的扣分公式：這次目標序列的長度 × 全場累計完成配對次數（totalMatches）× 即將歸零的 combo × 3。
+ * combo 與 totalMatches 都是 0 就代表玩家還沒累積任何東西，公式自然算出 0（沒有東西可扣）。
+ */
+export const WRONG_SCORE_PENALTY_MULTIPLIER = 3
+/** 目前分數低於這個門檻時，點錯完全不觸發扣分（只扣秒數＋combo 歸零），避免開局就被扣到負分 */
+export const SCORE_PENALTY_THRESHOLD = 2000
+
 /** 調色盤：10 種可辨識度高的顏色，網格夠大（>10 格）時才會出現同色重複的格子 */
 export const COLOR_PALETTE: ColorOption[] = [
   { id: 'red', hex: '#ff4d4d', label: 'RED' },
@@ -225,7 +233,8 @@ export default class ColorMatchEngine {
    * 點對且完成整組序列：combo+1、依序列長度＋是否為 milestone 計分與加時、換下一輪網格／序列。
    * 點對但序列未完成：只推進游標，不計分不加時，網格／序列保持不變。
    * 點錯：扣 WRONG_TIME_PENALTY_SEC 秒、combo 歸零，游標退回序列開頭，沿用同一組網格／序列
-   *（不重新出題）；扣到 0 秒視同時間到，直接結束遊戲。
+   *（不重新出題）；扣到 0 秒視同時間到，直接結束遊戲。目前分數 ≥ SCORE_PENALTY_THRESHOLD 時，
+   * 另外扣分＝這次序列長度 × totalMatches × 即將歸零的 combo × WRONG_SCORE_PENALTY_MULTIPLIER。
    */
   answer(hex: string): AnswerResult {
     if (this.status !== 'playing') {
@@ -234,13 +243,18 @@ export default class ColorMatchEngine {
 
     const expected = this.targetSequence[this.sequenceProgress]!
     if (hex !== expected.hex) {
+      const penalty =
+        this.score >= SCORE_PENALTY_THRESHOLD
+          ? this.targetSequence.length * this.totalMatches * this.combo * WRONG_SCORE_PENALTY_MULTIPLIER
+          : 0
+      this.score = Math.max(0, this.score - penalty)
       this.combo = 0
       this.sequenceProgress = 0
       this.lastResult = 'wrong'
       this.remainingSec = Math.max(0, this.remainingSec - WRONG_TIME_PENALTY_SEC)
       const gameOver = this.remainingSec <= 0
       if (gameOver) this.status = 'gameover'
-      return { correct: false, sequenceComplete: false, scoreDelta: 0, secondsGained: 0, comboAfter: 0, isMilestone: false, gameOver }
+      return { correct: false, sequenceComplete: false, scoreDelta: -penalty, secondsGained: 0, comboAfter: 0, isMilestone: false, gameOver }
     }
 
     this.sequenceProgress += 1
