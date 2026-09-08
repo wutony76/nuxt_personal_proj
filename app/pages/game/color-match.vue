@@ -3,47 +3,56 @@ import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameHistory } from '~/composables/useGameHistory'
 import ColorMatchEngine, {
-  ROUND_DURATION_SEC,
-  BASE_SCORE,
-  COMBO_SCORE_STEP,
-  MAX_COMBO_FOR_SCORE,
-  WRONG_TIME_PENALTY_SEC,
-  PHASE2_AT_SEC,
-  PHASE3_AT_SEC,
+  INITIAL_TIME_SEC,
+  TIME_BONUS_NORMAL_SEC,
+  TIME_BONUS_MILESTONE_SEC,
+  MILESTONE_COMBO_STEP,
+  SEQUENCE_TIER_SIZE,
+  GRID_TIER_SIZE,
+  SCORE_PER_SEQUENCE_STEP,
+  MAX_SEQUENCE_LENGTH,
+  MAX_GRID_DIM,
   type ColorMatchStatus,
-  type Question
+  type ColorOption
 } from '~/utils/colorMatchEngine'
 
 /**
  * COLOR MATCH — 全專案第 27 款遊戲。
  *
- * 核心邏輯抽到 colorMatchEngine.ts（純 TS），頁面只以 reactive() 鏡像 engine 的 getSnapshot()，
- * Logic / Rendering 分離（比照 WHACK-A-MOLE／FROGGER 的既有寫法）。
- * 只有一種計時器：Game Timer（30 秒倒數），由本頁 setInterval 每秒呼叫 engine.tickTimer() 驅動，
- * 沒有 whack-a-mole 那種內部非同步 Spawn／Lifetime 計時器，engine 本身完全同步、不需要 onChange 回呼。
+ * 玩法（依序點色生存模式）：畫面上方顯示一組目標顏色序列，玩家依序點擊下方調色盤網格中對應顏色
+ * 的格子（同色格子點任一個都算數）。序列點完＝完成 1 次 match：每 10 次序列變長、每 20 次網格
+ * 變大，點錯只扣 combo（游標退回序列開頭，網格與序列不變），時間只會因為連續答對累積而增加，
+ * 歸零才結束（生存模式）。核心邏輯抽到 colorMatchEngine.ts（純 TS），頁面只以 reactive() 鏡像
+ * engine 的 getSnapshot()，Logic / Rendering 分離（比照 WHACK-A-MOLE／FROGGER 的既有寫法）。
  */
 
 const ACCENT = '#8b5cf6'
-/** 答對/答錯的短暫視覺回饋停留時間 */
+/** 點擊格子後的短暫視覺回饋停留時間 */
 const FEEDBACK_MS = 420
-/** 剩餘秒數進入警示色的門檻 */
-const LOW_TIME_SEC = 8
+/** 完成整組序列（含 milestone）的訊息 Banner 停留時間 */
+const COMPLETE_BANNER_MS = 900
 
 const router = useRouter()
 const engine = new ColorMatchEngine()
 const gameHistory = useGameHistory()
+
+const initialSnap = engine.getSnapshot()
 
 const state = reactive({
   status: 'idle' as ColorMatchStatus,
   score: 0,
   combo: 0,
   maxCombo: 0,
-  remainingSec: ROUND_DURATION_SEC,
-  question: engine.getSnapshot().question as Question,
-  correctCount: 0,
-  wrongCount: 0,
-  /** 答對/答錯的短暫回饋：correct 時記錄選中的 index 做縮放動畫，wrong 時整排選項 shake + WRONG 提示 */
-  feedback: null as { kind: 'correct' | 'wrong'; index: number } | null,
+  remainingSec: INITIAL_TIME_SEC,
+  totalMatches: 0,
+  gridDim: initialSnap.gridDim,
+  gridCells: initialSnap.gridCells as ColorOption[],
+  targetSequence: initialSnap.targetSequence as ColorOption[],
+  sequenceProgress: 0,
+  /** 點擊格子的短暫回饋：記錄被點的格子 index 與結果種類，驅動動畫 */
+  feedback: null as { kind: 'step' | 'complete' | 'wrong'; index: number } | null,
+  /** 完成序列時的浮動訊息（一般 +分數／milestone 雙倍+加時） */
+  completeBanner: null as { text: string; milestone: boolean } | null,
   message: '按「START」開始遊戲。',
   rewardMessage: '',
   waitingOverlayVisible: true,
@@ -54,26 +63,29 @@ const state = reactive({
 
 const COLOR_MATCH_RULE = {
   description:
-    `限時 ${ROUND_DURATION_SEC} 秒的辨色反應遊戲：畫面上方顯示一個 TARGET 顏色，下方 4 個選項中選出跟 TARGET 相同的顏色即可得分。` +
-    `隨時間推進題目會變難：0~${PHASE2_AT_SEC} 秒只有 4 種基本色；${PHASE2_AT_SEC}~${PHASE3_AT_SEC} 秒色盤擴充到 6 色；` +
-    `${PHASE3_AT_SEC} 秒後有機率換成「相近色」題目（4 個選項同色系不同深淺，考驗仔細辨色），` +
-    '同時開始有機率出現 Stroop 題——畫面顯示一個顏色名稱的文字，但文字本身的顯示顏色跟文字內容不同，這時答案要選「文字顯示的顏色」而不是文字內容本身。',
+    '依序點色生存模式：畫面上方會顯示一組「目標顏色序列」，依序點擊下方調色盤網格中對應顏色的格子' +
+    '（同一種顏色若網格裡有好幾格，點任何一格都算數）。序列全部依序點完即完成 1 次配對。' +
+    `每完成 ${SEQUENCE_TIER_SIZE} 次配對，下一組序列長度 +1（上限 ${MAX_SEQUENCE_LENGTH} 個顏色）；` +
+    `每完成 ${GRID_TIER_SIZE} 次配對，調色盤網格邊長 +1（2x2 → 3x3 → 4x4…，上限 ${MAX_GRID_DIM}x${MAX_GRID_DIM}）。` +
+    '序列點到一半點錯顏色：COMBO 歸零、游標退回序列開頭重新點，但網格與序列內容不會改變。',
   scoreRule:
-    `答對得 ${BASE_SCORE} 分起，連續答對（Combo）每多 1 次再 +${COMBO_SCORE_STEP} 分，Combo 達 ${MAX_COMBO_FOR_SCORE} 後不再繼續往上加；` +
-    `答錯不會直接結束遊戲，但會扣 ${WRONG_TIME_PENALTY_SEC} 秒剩餘時間並讓 Combo 歸零。時間歸零立即結束並結算分數。`,
-  levelsTitle: '難度階段',
+    `每完成 1 次配對得 ${SCORE_PER_SEQUENCE_STEP} 分 × 序列長度，時間 +${TIME_BONUS_NORMAL_SEC} 秒；` +
+    `若完成當下 COMBO 剛好是 ${MILESTONE_COMBO_STEP} 的倍數，該次分數 double、時間改加 ${TIME_BONUS_MILESTONE_SEC} 秒。` +
+    `這是生存模式：點錯不扣秒數，只扣 COMBO，時間歸零才結束遊戲。初始時間 ${INITIAL_TIME_SEC} 秒。`,
+  levelsTitle: '難度成長',
   levels: [
-    { level: `0~${PHASE2_AT_SEC}s`, condition: '4 種基本色，一般辨色題' },
-    { level: `${PHASE2_AT_SEC}~${PHASE3_AT_SEC}s`, condition: '色盤擴充到 6 色' },
-    { level: `${PHASE3_AT_SEC}~${ROUND_DURATION_SEC}s`, condition: '加入相近色題目，並逐漸提高 Stroop 題出現機率' }
+    { level: `每 ${SEQUENCE_TIER_SIZE} 次配對`, condition: `目標序列長度 +1（上限 ${MAX_SEQUENCE_LENGTH} 色）` },
+    { level: `每 ${GRID_TIER_SIZE} 次配對`, condition: `調色盤網格邊長 +1（上限 ${MAX_GRID_DIM}x${MAX_GRID_DIM}）` }
   ],
   note: 'ESC / P 可暫停，暫停期間不消耗時間、也不會出新題目。'
 }
 
-/** Game Timer（30 秒倒數）：本頁持有的 setInterval，每秒推進 engine.tickTimer() */
+/** Game Timer（生存模式：只會因為配對成功累加，歸零才結束）：本頁持有的 setInterval，每秒推進 engine.tickTimer() */
 let gameTimerId: ReturnType<typeof setInterval> | null = null
-/** 答對/答錯回饋動畫的清除計時器 */
+/** 點擊格子回饋動畫的清除計時器 */
 let feedbackTimer: ReturnType<typeof setTimeout> | null = null
+/** 完成序列浮動訊息的清除計時器 */
+let completeBannerTimer: ReturnType<typeof setTimeout> | null = null
 
 const statusText = computed(() => {
   if (state.status === 'playing') return 'PLAYING'
@@ -85,9 +97,9 @@ const canPauseWhilePlaying = computed(() => state.status === 'playing')
 const canResumeFromPause = computed(
   () => state.status === 'paused' && !state.waitingOverlayVisible && !state.resultOverlayVisible
 )
-const lowTime = computed(() => state.status === 'playing' && state.remainingSec <= LOW_TIME_SEC)
+const gridStyle = computed(() => `grid-template-columns: repeat(${state.gridDim}, 1fr); grid-template-rows: repeat(${state.gridDim}, 1fr);`)
 
-/** 私有工具方法：快照同步、計時器管理、選項外觀 */
+/** 私有工具方法：快照同步、計時器管理、回饋動畫 */
 const _handlers = {
   syncSnapshot: () => {
     const snap = engine.getSnapshot()
@@ -96,9 +108,11 @@ const _handlers = {
     state.combo = snap.combo
     state.maxCombo = snap.maxCombo
     state.remainingSec = snap.remainingSec
-    state.question = snap.question
-    state.correctCount = snap.correctCount
-    state.wrongCount = snap.wrongCount
+    state.totalMatches = snap.totalMatches
+    state.gridDim = snap.gridDim
+    state.gridCells = snap.gridCells
+    state.targetSequence = snap.targetSequence
+    state.sequenceProgress = snap.sequenceProgress
   },
   stopGameTimer: () => {
     if (gameTimerId) {
@@ -121,13 +135,27 @@ const _handlers = {
       feedbackTimer = null
     }
   },
-  showFeedback: (kind: 'correct' | 'wrong', index: number) => {
+  showFeedback: (kind: 'step' | 'complete' | 'wrong', index: number) => {
     _handlers.stopFeedbackTimer()
     state.feedback = { kind, index }
     feedbackTimer = setTimeout(() => {
       state.feedback = null
       feedbackTimer = null
     }, FEEDBACK_MS)
+  },
+  stopCompleteBannerTimer: () => {
+    if (completeBannerTimer) {
+      clearTimeout(completeBannerTimer)
+      completeBannerTimer = null
+    }
+  },
+  showCompleteBanner: (text: string, milestone: boolean) => {
+    _handlers.stopCompleteBannerTimer()
+    state.completeBanner = { text, milestone }
+    completeBannerTimer = setTimeout(() => {
+      state.completeBanner = null
+      completeBannerTimer = null
+    }, COMPLETE_BANNER_MS)
   }
 }
 
@@ -139,8 +167,7 @@ const _actions = {
         score: state.score,
         meta: {
           maxCombo: state.maxCombo,
-          correctCount: state.correctCount,
-          wrongCount: state.wrongCount
+          totalMatches: state.totalMatches
         }
       })
       if (result.coinReward > 0) {
@@ -153,9 +180,11 @@ const _actions = {
   resetGame: () => {
     _handlers.stopGameTimer()
     _handlers.stopFeedbackTimer()
+    _handlers.stopCompleteBannerTimer()
     engine.reset()
     _handlers.syncSnapshot()
     state.feedback = null
+    state.completeBanner = null
     state.rewardMessage = ''
     state.waitingOverlayVisible = true
     state.resultOverlayVisible = false
@@ -163,26 +192,38 @@ const _actions = {
   },
   startPlay: () => {
     _handlers.stopFeedbackTimer()
+    _handlers.stopCompleteBannerTimer()
     state.feedback = null
+    state.completeBanner = null
     engine.start()
     _handlers.syncSnapshot()
     state.waitingOverlayVisible = false
     state.resultOverlayVisible = false
-    state.message = '選出跟 TARGET 相同的顏色！'
+    state.message = '依序點擊跟上方目標顏色序列相同的格子！'
     _handlers.startGameTimer()
   },
-  answer: (index: number) => {
+  clickCell: (index: number) => {
     if (state.status !== 'playing') return
-    const result = engine.answer(index)
+    const cell = state.gridCells[index]
+    if (!cell) return
+    const result = engine.answer(cell.hex)
     _handlers.syncSnapshot()
-    if (result.correct) {
-      _handlers.showFeedback('correct', index)
-      state.message = `答對！+${result.scoreDelta} 分`
-    } else {
+    if (!result.correct) {
       _handlers.showFeedback('wrong', index)
-      state.message = `答錯了，扣 ${WRONG_TIME_PENALTY_SEC} 秒`
+      state.message = '點錯了！COMBO 歸零，從序列開頭重新點。'
+      return
     }
-    if (result.gameOver) _actions.finishGame()
+    if (result.sequenceComplete) {
+      _handlers.showFeedback('complete', index)
+      const text = result.isMilestone
+        ? `MILESTONE! +${result.scoreDelta} 分（DOUBLE） +${result.secondsGained} 秒`
+        : `完成！+${result.scoreDelta} 分 +${result.secondsGained} 秒`
+      _handlers.showCompleteBanner(text, result.isMilestone)
+      state.message = text
+      return
+    }
+    _handlers.showFeedback('step', index)
+    state.message = '繼續！點下一個顏色。'
   },
   pause: () => {
     if (state.status !== 'playing') return
@@ -196,12 +237,14 @@ const _actions = {
     engine.resume()
     _handlers.startGameTimer()
     _handlers.syncSnapshot()
-    state.message = '選出跟 TARGET 相同的顏色！'
+    state.message = '依序點擊跟上方目標顏色序列相同的格子！'
   },
   finishGame: () => {
     _handlers.stopGameTimer()
     _handlers.stopFeedbackTimer()
+    _handlers.stopCompleteBannerTimer()
     state.feedback = null
+    state.completeBanner = null
     _handlers.syncSnapshot()
     state.resultOverlayVisible = true
     state.message = '時間到，遊戲結束。'
@@ -214,7 +257,9 @@ const _actions = {
   endGameNow: () => {
     _handlers.stopGameTimer()
     _handlers.stopFeedbackTimer()
+    _handlers.stopCompleteBannerTimer()
     state.feedback = null
+    state.completeBanner = null
     state.waitingOverlayVisible = false
     state.status = 'gameover'
     state.message = '本局已結束。'
@@ -225,7 +270,7 @@ const _actions = {
 
 const click = {
   start: () => _actions.startPlay(),
-  answer: (index: number) => _actions.answer(index),
+  cell: (index: number) => _actions.clickCell(index),
   pause: () => _actions.pause(),
   resume: () => _actions.resume(),
   restart: () => _actions.playAgain(),
@@ -261,6 +306,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   _handlers.stopGameTimer()
   _handlers.stopFeedbackTimer()
+  _handlers.stopCompleteBannerTimer()
   window.removeEventListener('keydown', onKeydown)
 })
 </script>
@@ -272,7 +318,7 @@ onBeforeUnmount(() => {
     <div v-if="state.waitingOverlayVisible" class="game-mask waiting-mask">
       <div class="mask-title">WELCOME</div>
       <p class="waiting-subtitle">COLOR MATCH</p>
-      <p class="waiting-hint">{{ ROUND_DURATION_SEC }} SECOND RUSH · 選出跟 TARGET 相同的顏色</p>
+      <p class="waiting-hint">依序點色生存模式 · 序列越長、網格越大，時間靠連續答對累積</p>
       <button class="cm-btn waiting-btn waiting-start" type="button" @click="click.start">START</button>
       <button class="cm-btn link waiting-btn" type="button" @click="click.openRateDialog">CONVERT</button>
       <button class="cm-btn link waiting-btn" type="button" @click="click.openRuleDialog">RULE</button>
@@ -283,7 +329,7 @@ onBeforeUnmount(() => {
       <div class="result-list">
         <div class="result-item"><span>SCORE</span><b>{{ state.score }}</b></div>
         <div class="result-item"><span>MAX COMBO</span><b>{{ state.maxCombo }}</b></div>
-        <div class="result-item"><span>CORRECT / WRONG</span><b>{{ state.correctCount }} / {{ state.wrongCount }}</b></div>
+        <div class="result-item"><span>MATCHES</span><b>{{ state.totalMatches }}</b></div>
       </div>
       <p v-if="state.rewardMessage" class="result-reward">{{ state.rewardMessage }}</p>
       <div class="result-actions">
@@ -316,23 +362,33 @@ onBeforeUnmount(() => {
         <div class="cm-panel">
           <span>SCORE: {{ state.score }}</span>
           <span>COMBO x{{ state.combo }}</span>
-          <span class="cm-time" :class="{ low: lowTime }">TIME: {{ state.remainingSec }}s</span>
+          <span>MATCHES: {{ state.totalMatches }}</span>
+          <span class="cm-time">TIME: {{ state.remainingSec }}s</span>
         </div>
 
         <div class="cm-frame">
-          <p class="cm-target-label">TARGET</p>
-          <div class="cm-target-wrap">
-            <div v-if="!state.question.isStroop" class="cm-target-swatch" :style="`background:${state.question.targetHex}`" />
-            <div v-else class="cm-stroop-word" :style="`color:${state.question.targetHex}`">{{ state.question.stroopWordLabel }}</div>
+          <p class="cm-target-label">TARGET SEQUENCE</p>
+          <div class="cm-sequence">
+            <div v-for="(color, idx) in state.targetSequence" :key="`${color.id}-${idx}`" class="cm-seq-swatch"
+              :class="{ done: idx < state.sequenceProgress, current: idx === state.sequenceProgress }"
+              :style="`background:${color.hex}`">
+              <span v-if="idx < state.sequenceProgress" class="cm-seq-check">✓</span>
+            </div>
           </div>
 
-          <div class="cm-options" :class="{ shake: state.feedback?.kind === 'wrong' }">
-            <button v-for="(opt, idx) in state.question.options" :key="opt.id" type="button" class="cm-option"
-              :class="{ 'is-correct': state.feedback?.kind === 'correct' && state.feedback.index === idx }"
-              :style="`background:${opt.hex}`" :disabled="state.status !== 'playing'" @click="click.answer(idx)" />
+          <div class="cm-grid" :class="{ shake: state.feedback?.kind === 'wrong' }" :style="gridStyle">
+            <button v-for="(cell, idx) in state.gridCells" :key="idx" type="button" class="cm-cell"
+              :class="{
+                'is-step': state.feedback?.kind === 'step' && state.feedback.index === idx,
+                'is-complete': state.feedback?.kind === 'complete' && state.feedback.index === idx,
+                'is-wrong': state.feedback?.kind === 'wrong' && state.feedback.index === idx
+              }"
+              :style="`background:${cell.hex}`" :disabled="state.status !== 'playing'" @click="click.cell(idx)" />
           </div>
 
-          <p v-if="state.feedback?.kind === 'wrong'" class="cm-wrong-banner">WRONG</p>
+          <p v-if="state.completeBanner" class="cm-complete-banner" :class="{ milestone: state.completeBanner.milestone }">
+            {{ state.completeBanner.text }}
+          </p>
         </div>
 
         <p class="cm-message">{{ state.message }}</p>
@@ -342,8 +398,9 @@ onBeforeUnmount(() => {
         <div class="cm-help-panel">
           <p class="cm-help-title">HOW TO PLAY</p>
           <p class="cm-help-text">
-            看清楚上方 TARGET 顏色（或 Stroop 題的文字顯示顏色），點擊／觸控下方對應的色塊即可得分。
-            連續答對會累積 Combo 提高單題分數，答錯扣一點時間並讓 Combo 歸零。{{ ROUND_DURATION_SEC }} 秒倒數結束立即結算。ESC / P 可暫停。
+            依序點擊跟上方「目標顏色序列」相同的格子（網格內同色格子點任一個都算數）。點錯會讓 COMBO 歸零、
+            從序列開頭重新點；順利點完一整組序列即完成 1 次配對，時間會累加。每 {{ SEQUENCE_TIER_SIZE }} 次配對序列變長、
+            每 {{ GRID_TIER_SIZE }} 次配對網格變大。ESC / P 可暫停。
           </p>
         </div>
       </aside>
@@ -570,18 +627,12 @@ onBeforeUnmount(() => {
       font-size: 0.85rem;
       text-shadow: 0 0 6px rgba(139, 92, 246, 0.45);
       font-variant-numeric: tabular-nums;
-
-      .cm-time.low {
-        color: #ff6b5b;
-        text-shadow: 0 0 8px rgba(255, 107, 91, 0.6);
-        animation: cm-time-flash 0.9s ease-in-out infinite;
-      }
     }
 
     .cm-frame {
       width: fit-content;
       margin: 16px auto 0;
-      padding: 24px 32px;
+      padding: 20px 24px;
       background: #140a20;
       border: 8px solid #2c1a4a;
       border-radius: 16px;
@@ -599,53 +650,67 @@ onBeforeUnmount(() => {
       font-weight: 800;
     }
 
-    .cm-target-wrap {
+    .cm-sequence {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      max-width: 320px;
+    }
+
+    .cm-seq-swatch {
+      position: relative;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 0 0 10px currentColor;
       display: grid;
       place-items: center;
-      min-height: 88px;
+      opacity: 0.5;
+
+      &.done {
+        opacity: 0.85;
+      }
+
+      &.current {
+        opacity: 1;
+        border-color: #fff;
+        animation: cm-seq-pulse 1s ease-in-out infinite;
+      }
+
+      .cm-seq-check {
+        color: #fff;
+        font-weight: 900;
+        text-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+        font-size: 0.9rem;
+      }
     }
 
-    .cm-target-swatch {
-      width: 88px;
-      height: 88px;
-      border-radius: 10px;
-      border: 3px solid rgba(255, 255, 255, 0.25);
-      box-shadow: 0 0 22px currentColor;
-    }
-
-    .cm-stroop-word {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 2rem;
-      font-weight: 900;
-      letter-spacing: 0.1rem;
-      text-shadow: 0 0 16px currentColor;
-    }
-
-    .cm-options {
+    .cm-grid {
       display: grid;
-      grid-template-columns: repeat(2, 96px);
-      gap: 14px;
+      gap: 8px;
+      width: min(340px, 78vw);
+      height: min(340px, 78vw);
 
       &.shake {
         animation: cm-shake 0.32s ease-in-out;
       }
     }
 
-    .cm-option {
-      width: 96px;
-      height: 96px;
-      border-radius: 12px;
-      border: 3px solid rgba(255, 255, 255, 0.2);
+    .cm-cell {
+      border-radius: 8px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
       cursor: pointer;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
       transition: transform 0.12s ease, box-shadow 0.12s ease;
 
       &:hover:not(:disabled) {
-        transform: translateY(-2px) scale(1.03);
+        transform: scale(1.04);
       }
 
       &:active:not(:disabled) {
-        transform: scale(0.95);
+        transform: scale(0.94);
       }
 
       &:disabled {
@@ -653,20 +718,35 @@ onBeforeUnmount(() => {
         opacity: 0.9;
       }
 
-      &.is-correct {
-        animation: cm-correct-pop 0.42s ease-out;
-        box-shadow: 0 0 24px 4px rgba(255, 255, 255, 0.55);
+      &.is-step {
+        animation: cm-step-pop 0.32s ease-out;
+        box-shadow: 0 0 16px 2px rgba(255, 255, 255, 0.5);
+      }
+
+      &.is-complete {
+        animation: cm-complete-pop 0.42s ease-out;
+        box-shadow: 0 0 24px 4px rgba(255, 255, 255, 0.7);
+      }
+
+      &.is-wrong {
+        box-shadow: 0 0 16px 2px rgba(255, 90, 90, 0.8);
       }
     }
 
-    .cm-wrong-banner {
+    .cm-complete-banner {
       margin: 0;
-      color: #ff6b5b;
+      color: #cbb6ff;
       font-weight: 900;
-      font-size: 1.1rem;
-      letter-spacing: 0.2rem;
-      text-shadow: 0 0 10px rgba(255, 107, 91, 0.7);
-      animation: cm-wrong-pop 0.42s ease-out both;
+      font-size: 1rem;
+      letter-spacing: 0.1rem;
+      text-shadow: 0 0 10px rgba(139, 92, 246, 0.7);
+      animation: cm-wrong-pop 0.3s ease-out both;
+
+      &.milestone {
+        color: #ffd24d;
+        text-shadow: 0 0 12px rgba(255, 210, 77, 0.8);
+        font-size: 1.15rem;
+      }
     }
   }
 
@@ -732,19 +812,33 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes cm-time-flash {
+@keyframes cm-seq-pulse {
 
   0%,
   100% {
-    opacity: 1;
+    transform: scale(1);
   }
 
   50% {
-    opacity: 0.5;
+    transform: scale(1.12);
   }
 }
 
-@keyframes cm-correct-pop {
+@keyframes cm-step-pop {
+  0% {
+    transform: scale(1);
+  }
+
+  40% {
+    transform: scale(0.88);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes cm-complete-pop {
   0% {
     transform: scale(1);
   }
