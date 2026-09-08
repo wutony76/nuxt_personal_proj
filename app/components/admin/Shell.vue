@@ -41,8 +41,8 @@ const status = computed<Status>(() => {
 
 const NAV = [
   { key: 'overview' as const, label: '總覽', en: 'Overview', path: '/admin' },
-  { key: 'roles' as const, label: '角色權限', en: 'Roles', path: '/admin/roles' },
-  { key: 'gamemgmt' as const, label: '遊戲管理', en: 'Game Management', path: '/admin/bg-lottery' },
+  { key: 'roles' as const, label: '角色 / 權限', en: 'Roles', path: '/admin/roles' },
+  { key: 'gamemgmt' as const, label: '遊戲設定', en: 'Games', path: '/admin/bg-lottery' },
   { key: 'reports' as const, label: '報表分析', en: 'Reports', path: '/admin/reports' }
 ]
 

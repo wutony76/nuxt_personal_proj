@@ -11,15 +11,15 @@ const CARDS = [
     no: '02',
     to: '/admin/roles',
     en: 'Roles',
-    label: '角色權限',
-    desc: '管理員白名單與權限判斷流程，含登入導向修正。',
+    label: '角色/權限',
+    desc: '設定角色與相關權限, 只有 ADMIN 才可以使用',
     tag: 'Live'
   },
   {
     no: '03',
     to: '/admin/bg-lottery',
-    en: 'Game Management',
-    label: '遊戲管理',
+    en: 'Games ',
+    label: '遊戲設定',
     desc: 'BG彩票、彩運來、經典遊戲、遊戲試算四個子頁。',
     tag: '4 sub-pages'
   },
@@ -84,11 +84,11 @@ const click = {
     <section id="ao-perms" class="ao-perms">
       <div class="admin-sechead">
         <div class="admin-sechead-left">
-          <span class="admin-en">Access</span>
-          <h2>權限設定</h2>
+          <span class="admin-en">Roles</span>
+          <h2>角色設定</h2>
         </div>
         <div class="ao-perms-actions">
-          <span class="admin-meta">Admin / User / NPC — in-memory</span>
+          <span class="admin-meta">為使用者賦予對應的角色，只有Admin才可以使用</span>
           <NuxtLink to="/admin/roles" class="admin-btn admin-btn-secondary">設定角色</NuxtLink>
         </div>
       </div>

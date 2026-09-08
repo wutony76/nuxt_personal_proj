@@ -56,10 +56,23 @@ const state = reactive({
   ledgerTab: 'balance' as LedgerTab,
   loginStatus: 'idle' as AsyncStatus,
   loginError: '',
-  loginRows: [] as AdminMemberLoginRecord[]
+  loginRows: [] as AdminMemberLoginRecord[],
+  searchQuery: '',
+  filterRole: 'all' as 'all' | UserRole
 })
 
 const selected = computed(() => state.users.find((u) => u.id === state.selectedId) ?? null)
+
+const filteredUsers = computed(() => {
+  const query = state.searchQuery.trim().toLowerCase()
+  return state.users.filter((u) => {
+    if (state.filterRole !== 'all' && u.role !== state.filterRole) return false
+    if (!query) return true
+    return u.name.toLowerCase().includes(query)
+      || u.email.toLowerCase().includes(query)
+      || u.id.toLowerCase().includes(query)
+  })
+})
 
 const _handlers = {
   roleLabel: (role: UserRole) => roleDefs.value.find((r) => r.id === role)?.name ?? role,
@@ -360,8 +373,16 @@ watch(
     <div v-else class="acm-grid">
       <div class="acm-list-wrap">
         <div class="acm-col-label admin-en">Members</div>
-        <ul v-if="state.users.length > 0" class="acm-list">
-          <li v-for="row in state.users" :key="row.id" class="acm-item"
+        <div v-if="state.users.length > 0" class="acm-filters">
+          <input v-model="state.searchQuery" type="text" class="admin-input acm-search" placeholder="搜尋姓名／Email／ID"
+            autocomplete="off">
+          <select v-model="state.filterRole" class="admin-input acm-role-filter">
+            <option value="all">全部</option>
+            <option v-for="r in roleDefs" :key="r.id" :value="r.id">{{ r.name }}</option>
+          </select>
+        </div>
+        <ul v-if="filteredUsers.length > 0" class="acm-list">
+          <li v-for="row in filteredUsers" :key="row.id" class="acm-item"
             :class="{ 'is-active': row.id === state.selectedId }">
             <button type="button" class="acm-item-btn" @click="click.select(row.id)">
               <span class="acm-item-name">{{ row.name }}</span>
@@ -374,6 +395,7 @@ watch(
             </button>
           </li>
         </ul>
+        <div v-else-if="state.users.length > 0" class="admin-empty acm-list-empty">查無符合條件的會員</div>
         <div v-else class="admin-empty acm-list-empty">尚無會員</div>
       </div>
 
@@ -654,6 +676,30 @@ watch(
   }
 }
 
+.acm-filters {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  padding: 8px 8px 0;
+  flex-shrink: 0;
+}
+
+.acm-search,
+.acm-role-filter {
+  height: 28px;
+  font-size: 12px;
+}
+
+.acm-search {
+  flex: 1;
+  min-width: 0;
+}
+
+.acm-role-filter {
+  flex-shrink: 0;
+  width: 92px;
+}
+
 .acm-list {
   list-style: none;
   margin: 0;
@@ -905,24 +951,20 @@ watch(
 
 .acm-ledger-tabs {
   display: flex;
-  gap: 2px;
+  gap: 6px;
 }
 
 .acm-ledger-tab {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1px;
-  min-width: 64px;
-  height: 38px;
-  padding: 0 10px;
-  border: 0;
-  border-bottom: 2px solid transparent;
+  align-items: baseline;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
   background: transparent;
   color: var(--muted);
   font-family: inherit;
   cursor: pointer;
-  text-align: left;
 
   &:hover {
     color: var(--ink);
@@ -930,14 +972,14 @@ watch(
 
   &.is-active {
     color: var(--ink);
-    border-bottom-color: var(--ink);
+    background: var(--wash);
+    border-color: var(--ink);
   }
 }
 
 .acm-ledger-tab-label {
   font-size: 12px;
   font-weight: 700;
-  line-height: 1.1;
 }
 
 .acm-ledger-tab-en {

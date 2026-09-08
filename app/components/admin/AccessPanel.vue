@@ -24,11 +24,24 @@ const state = reactive({
   users: [] as AdminAccessUser[],
   selectedId: '' as string,
   saveStatus: 'idle' as AsyncStatus,
-  saveError: ''
+  saveError: '',
+  searchQuery: '',
+  filterRole: 'all' as 'all' | UserRole
 })
 
 const selected = computed(() => state.users.find((u) => u.id === state.selectedId) ?? null)
 const adminCount = computed(() => state.users.filter((u) => u.role === 'admin').length)
+
+const filteredUsers = computed(() => {
+  const query = state.searchQuery.trim().toLowerCase()
+  return state.users.filter((u) => {
+    if (state.filterRole !== 'all' && u.role !== state.filterRole) return false
+    if (!query) return true
+    return u.name.toLowerCase().includes(query)
+      || u.email.toLowerCase().includes(query)
+      || u.id.toLowerCase().includes(query)
+  })
+})
 
 const _handlers = {
   roleLabel: (role: UserRole) => roleDefs.value.find((r) => r.id === role)?.name ?? role,
@@ -113,9 +126,17 @@ watch(
     <div v-else class="aap-grid">
       <div class="aap-list-wrap">
         <div class="aap-col-label admin-en">Accounts</div>
-        <ul class="aap-list">
+        <div class="aap-filters">
+          <input v-model="state.searchQuery" type="text" class="admin-input aap-search" placeholder="搜尋姓名／Email／ID"
+            autocomplete="off">
+          <select v-model="state.filterRole" class="admin-input aap-role-filter">
+            <option value="all">全部</option>
+            <option v-for="r in roleDefs" :key="r.id" :value="r.id">{{ r.name }}</option>
+          </select>
+        </div>
+        <ul v-if="filteredUsers.length" class="aap-list">
           <li
-            v-for="row in state.users"
+            v-for="row in filteredUsers"
             :key="row.id"
             class="aap-item"
             :class="{ 'is-active': row.id === state.selectedId }"
@@ -131,6 +152,7 @@ watch(
             </button>
           </li>
         </ul>
+        <div v-else class="admin-empty aap-list-empty">查無符合條件的會員</div>
       </div>
 
       <div class="aap-detail">
@@ -225,6 +247,30 @@ watch(
   }
 }
 
+.aap-filters {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  padding: 8px 8px 0;
+  flex-shrink: 0;
+}
+
+.aap-search,
+.aap-role-filter {
+  height: 28px;
+  font-size: 12px;
+}
+
+.aap-search {
+  flex: 1;
+  min-width: 0;
+}
+
+.aap-role-filter {
+  flex-shrink: 0;
+  width: 92px;
+}
+
 .aap-list {
   list-style: none;
   margin: 0;
@@ -233,6 +279,10 @@ watch(
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
+}
+
+.aap-list-empty {
+  padding: 24px 12px;
 }
 
 .aap-item-btn {
