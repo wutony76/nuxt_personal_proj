@@ -6,6 +6,7 @@ import BubbleShooterEngine, {
   ROWS,
   COLS,
   ROW_HEIGHT_RATIO,
+  BUBBLE_DIAMETER,
   MATCH_MIN,
   MATCH3_SCORE,
   MATCH4_SCORE,
@@ -28,10 +29,9 @@ import BubbleShooterEngine, {
  * breakout 既有慣例：setInterval 固定 tick + reactive 陣列/物件 + `left/top` px 逐格更新，不用 Canvas。
  */
 
-const CELL = 40
-/** 泡泡實際畫出來的直徑（純視覺），比 CELL 小一點讓格子間留出空隙；碰撞/黏附判定完全在 engine
- * 內的抽象「格數」座標系裡運作，不受這個純渲染用的常數影響 */
-const BUBBLE_VISUAL_SIZE = 30
+/** 格子間距（同時也是泡泡直徑，兩者維持 1:1 貼齊）；碰撞/黏附判定在 engine 內的抽象「格數」
+ * 座標系裡運作，不受這個純渲染用的常數影響，改這個值只會讓整個棋盤跟著等比縮放 */
+const CELL = 30
 const ACCENT = '#f43f5e'
 const TICK_MS = 16
 
@@ -93,7 +93,7 @@ const stageWidth = computed(() => COLS * CELL)
 const stageHeight = computed(() => Math.ceil(ROWS * ROW_HEIGHT_RATIO * CELL + CELL * 1.6))
 const launcherX = computed(() => (COLS / 2) * CELL)
 const launcherY = computed(() => ROWS * ROW_HEIGHT_RATIO * CELL)
-const bubbleSize = computed(() => BUBBLE_VISUAL_SIZE)
+const bubbleSize = computed(() => BUBBLE_DIAMETER * CELL)
 
 const flatBubbles = computed(() => {
   const out: Array<{ key: string; left: number; top: number; color: BubbleColor }> = []
