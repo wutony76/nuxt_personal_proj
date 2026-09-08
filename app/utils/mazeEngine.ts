@@ -9,9 +9,11 @@
  * (2*cols+1) x (2*rows+1)——比照經典迷宮視覺（見 design：`████` 為牆、空格為路徑）。
  *
  * 兩種模式共用同一顆 engine：
- *   CLASSIC：沒有時間限制，一路過關會越來越大關，連續玩到 MAX_CLASSIC_LEVEL 封頂自動結算
- *            （避免無上限刷分，見 maxReasonableScore）。
- *   TIME_ATTACK：共用 TIME_ATTACK_DURATION_SEC 秒倒數，歸零立即結束，過關一樣持續累積分數。
+ *   CLASSIC：沒有時間限制，完全不追蹤時間（elapsedSec 恆為 0），一路過關會越來越大關，連續玩到
+ *            MAX_CLASSIC_LEVEL 封頂自動結算（避免無上限刷分，見 maxReasonableScore）；計分也不計入
+ *            時間懲罰，只看步數效率。
+ *   TIME_ATTACK：共用 TIME_ATTACK_DURATION_SEC 秒倒數，歸零立即結束，過關一樣持續累積分數，
+ *            elapsedSec 由 tickTimer() 每秒推進，計分會計入花費秒數的效率懲罰。
  * Game Timer（僅 TIME_ATTACK 用得到）比照 whackAMoleEngine 慣例，由頁面每秒呼叫一次 tickTimer()。
  */
 
@@ -64,7 +66,11 @@ export const mazeRoomsForLevel = (level: number): number => {
   return Math.min(MAX_ROOMS, Math.max(MIN_ROOMS, rooms))
 }
 
-/** 單關得分：基礎分＋關卡加成（封頂）－多走的步數與花費秒數的效率懲罰，下限 MAZE_MIN_LEVEL_SCORE */
+/**
+ * 單關得分：基礎分＋關卡加成（封頂）－多走的步數與花費秒數的效率懲罰，下限 MAZE_MIN_LEVEL_SCORE。
+ * CLASSIC 模式呼叫時 elapsedSec 恆為 0（engine 完全不追蹤時間），時間懲罰項自然歸零，
+ * 只有 TIME_ATTACK 才會真的扣到時間效率分。
+ */
 export const scoreForLevelClear = (level: number, steps: number, parSteps: number, elapsedSec: number): number => {
   const cappedLevel = Math.min(level, MAZE_LEVEL_BONUS_CAP_LEVEL)
   const base = MAZE_BASE_SCORE + cappedLevel * MAZE_LEVEL_BONUS_PER_LEVEL
@@ -260,7 +266,6 @@ export default class MazeEngine {
     this.playerCol = col
     this.steps += 1
     this.totalStepsAllLevels += 1
-    if (this.mode === 'CLASSIC') this.elapsedSec += 1
 
     if (row === this.exitRow && col === this.exitCol) {
       const rooms = mazeRoomsForLevel(this.level)

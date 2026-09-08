@@ -63,8 +63,8 @@ const MAZE_RULE = {
     `${TIME_ATTACK_DURATION_SEC} 秒，時間歸零立即結束。`,
   scoreRule:
     `每關得分 ＝ 基礎分 ${MAZE_BASE_SCORE} ＋ 關卡加成（每關 +${MAZE_LEVEL_BONUS_PER_LEVEL} 分，封頂）－效率懲罰` +
-    `（多走的步數每步 -${MAZE_STEP_PENALTY_PER_EXTRA_STEP} 分、花費秒數每秒 -${MAZE_TIME_PENALTY_PER_SEC} 分），分數跨關累計。` +
-    '走越少步、花越少時間，單關分數越高。',
+    `（多走的步數每步 -${MAZE_STEP_PENALTY_PER_EXTRA_STEP} 分），分數跨關累計。CLASSIC 模式沒有時間限制，也不計入時間懲罰；` +
+    `TIME ATTACK 模式另外依花費秒數扣分（每秒 -${MAZE_TIME_PENALTY_PER_SEC} 分）。走越少步（TIME ATTACK 再加上花越少時間）單關分數越高。`,
   levelsTitle: '模式',
   levels: [
     { level: 'CLASSIC', condition: `沒有時間限制，最多可連續挑戰到第 ${MAX_CLASSIC_LEVEL} 關自動結算` },
@@ -102,7 +102,7 @@ const canResumeFromPause = computed(
   () => state.status === 'paused' && !state.waitingOverlayVisible && !state.resultOverlayVisible
 )
 const lowTime = computed(() => state.mode === 'TIME_ATTACK' && state.status === 'playing' && state.remainingSec <= 15)
-const timeLabel = computed(() => (state.mode === 'TIME_ATTACK' ? `${state.remainingSec}s` : `${state.elapsedSec}s`))
+const isTimeAttack = computed(() => state.mode === 'TIME_ATTACK')
 
 /** 私有工具方法：快照同步、計時器管理 */
 const _handlers = {
@@ -340,7 +340,7 @@ onBeforeUnmount(() => {
           <span>SCORE: {{ state.score }}</span>
           <span>LEVEL: {{ state.level }}</span>
           <span>STEPS: {{ state.steps }}</span>
-          <span class="mz-time" :class="{ low: lowTime }">TIME: {{ timeLabel }}</span>
+          <span v-if="isTimeAttack" class="mz-time" :class="{ low: lowTime }">TIME: {{ state.remainingSec }}s</span>
         </div>
 
         <div class="mz-frame">
