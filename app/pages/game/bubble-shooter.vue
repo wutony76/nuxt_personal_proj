@@ -114,11 +114,16 @@ const flyingStyle = computed(() => {
   const top = state.flying.y * CELL - bubbleSize.value / 2
   return `left:${left}px; top:${top}px; width:${bubbleSize.value}px; height:${bubbleSize.value}px; background:${COLOR_HEX[state.flying.color]};`
 })
-/** 瞄準線：從發射器往瞄準方向畫一條固定長度的細線（純 CSS transform，不是 Canvas） */
+/**
+ * 瞄準線：從發射器往瞄準方向畫一條固定長度的細線（純 CSS transform，不是 Canvas）。
+ * 線段的「底部」固定錨在發射器座標（top 往上位移 length，搭配 CSS transform-origin: bottom center），
+ * 這樣 aimAngle=0（正上方，見 engine 的 shoot() 速度公式）時線段預設就是往上畫，旋轉軸心也不會位移；
+ * 先前用 top:launcherY + transform-origin:top center 會讓線段預設往「下」畫，方向整個反過來。
+ */
 const aimLineStyle = computed(() => {
   const length = CELL * 3.4
   const deg = (state.aimAngle * 180) / Math.PI
-  return `left:${launcherX.value}px; top:${launcherY.value}px; height:${length}px; transform: translateX(-50%) rotate(${deg}deg);`
+  return `left:${launcherX.value}px; top:${launcherY.value - length}px; height:${length}px; transform: translateX(-50%) rotate(${deg}deg);`
 })
 
 const statusText = computed(() => {
@@ -682,7 +687,7 @@ onBeforeUnmount(() => {
       position: absolute;
       width: 2px;
       background: repeating-linear-gradient(180deg, rgba(255, 200, 210, 0.7) 0 4px, transparent 4px 9px);
-      transform-origin: top center;
+      transform-origin: bottom center;
       pointer-events: none;
       z-index: 2;
     }
