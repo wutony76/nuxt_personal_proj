@@ -6,10 +6,11 @@
  *   - 每答對完成 10 次 match，下一次要求的序列長度 +1（1 → 2 → 3 …，上限 MAX_SEQUENCE_LENGTH）。
  *   - 每答對完成 20 次 match，調色盤網格邊長 +1（2x2 → 3x3 → 4x4 …，上限 MAX_GRID_DIM），
  *     顏色種類優先從色盤擴充新顏色填滿網格，色盤顏色種類用完後才允許同色重複出現在多個格子。
- *   - 序列中間點錯：COMBO 歸零，但沿用同一組目標序列，游標退回序列開頭重新點（網格與序列內容不變）。
+ *   - 序列中間點錯：扣 1 秒剩餘時間＋COMBO 歸零，但沿用同一組目標序列，游標退回序列開頭重新點
+ *     （網格與序列內容不變）。
  *   - 每成功完成 1 次 match：時間 +3 秒；若完成當下 combo 剛好是 5 的倍數，則該次得分 double、
  *     時間改加 5 秒（不是 3+5）。
- * 這是一個「生存模式」：時間只會因為連續答對累積而增加，答錯不扣秒數，時間歸零才結束遊戲。
+ * 這是一個「生存模式」：時間會因為連續答對累積增加、因為點錯扣一點，時間歸零才結束遊戲。
  * Game Timer 比照 whackAMoleEngine 的既有慣例，由呼叫端（頁面）每秒呼叫一次 `tickTimer()` 推進，
  * 引擎本身不持有 setInterval。
  */
@@ -50,6 +51,8 @@ export const TIME_BONUS_NORMAL_SEC = 3
 export const TIME_BONUS_MILESTONE_SEC = 5
 /** combo 每達這個倍數，當次得分 double、加時改用 TIME_BONUS_MILESTONE_SEC */
 export const MILESTONE_COMBO_STEP = 5
+/** 序列中點錯顏色：扣這麼多秒剩餘時間（同時 combo 歸零、游標退回序列開頭） */
+export const WRONG_TIME_PENALTY_SEC = 1
 
 export const SEQUENCE_TIER_SIZE = 10
 export const GRID_TIER_SIZE = 20
@@ -59,7 +62,7 @@ export const MIN_GRID_DIM = 2
 export const MAX_GRID_DIM = 6
 
 /** 每次完成序列的基礎得分＝這個值 × 剛完成的序列長度（序列越長，一次 match 分數越高） */
-export const SCORE_PER_SEQUENCE_STEP = 100
+export const SCORE_PER_SEQUENCE_STEP = 20
 
 /** 調色盤：10 種可辨識度高的顏色，網格夠大（>10 格）時才會出現同色重複的格子 */
 export const COLOR_PALETTE: ColorOption[] = [
@@ -221,7 +224,8 @@ export default class ColorMatchEngine {
    * 玩家點擊網格中 hex 顏色的格子（同色格子點任一個都算數）。
    * 點對且完成整組序列：combo+1、依序列長度＋是否為 milestone 計分與加時、換下一輪網格／序列。
    * 點對但序列未完成：只推進游標，不計分不加時，網格／序列保持不變。
-   * 點錯：combo 歸零，游標退回序列開頭，沿用同一組網格／序列（不重新出題，不扣秒數）。
+   * 點錯：扣 WRONG_TIME_PENALTY_SEC 秒、combo 歸零，游標退回序列開頭，沿用同一組網格／序列
+   *（不重新出題）；扣到 0 秒視同時間到，直接結束遊戲。
    */
   answer(hex: string): AnswerResult {
     if (this.status !== 'playing') {
@@ -233,7 +237,10 @@ export default class ColorMatchEngine {
       this.combo = 0
       this.sequenceProgress = 0
       this.lastResult = 'wrong'
-      return { correct: false, sequenceComplete: false, scoreDelta: 0, secondsGained: 0, comboAfter: 0, isMilestone: false, gameOver: false }
+      this.remainingSec = Math.max(0, this.remainingSec - WRONG_TIME_PENALTY_SEC)
+      const gameOver = this.remainingSec <= 0
+      if (gameOver) this.status = 'gameover'
+      return { correct: false, sequenceComplete: false, scoreDelta: 0, secondsGained: 0, comboAfter: 0, isMilestone: false, gameOver }
     }
 
     this.sequenceProgress += 1

@@ -7,6 +7,7 @@ import ColorMatchEngine, {
   TIME_BONUS_NORMAL_SEC,
   TIME_BONUS_MILESTONE_SEC,
   MILESTONE_COMBO_STEP,
+  WRONG_TIME_PENALTY_SEC,
   SEQUENCE_TIER_SIZE,
   GRID_TIER_SIZE,
   SCORE_PER_SEQUENCE_STEP,
@@ -71,7 +72,7 @@ const COLOR_MATCH_RULE = {
   scoreRule:
     `每完成 1 次配對得 ${SCORE_PER_SEQUENCE_STEP} 分 × 序列長度，時間 +${TIME_BONUS_NORMAL_SEC} 秒；` +
     `若完成當下 COMBO 剛好是 ${MILESTONE_COMBO_STEP} 的倍數，該次分數 double、時間改加 ${TIME_BONUS_MILESTONE_SEC} 秒。` +
-    `這是生存模式：點錯不扣秒數，只扣 COMBO，時間歸零才結束遊戲。初始時間 ${INITIAL_TIME_SEC} 秒。`,
+    `這是生存模式：點錯扣 ${WRONG_TIME_PENALTY_SEC} 秒並讓 COMBO 歸零，時間歸零才結束遊戲。初始時間 ${INITIAL_TIME_SEC} 秒。`,
   levelsTitle: '難度成長',
   levels: [
     { level: `每 ${SEQUENCE_TIER_SIZE} 次配對`, condition: `目標序列長度 +1（上限 ${MAX_SEQUENCE_LENGTH} 色）` },
@@ -210,7 +211,8 @@ const _actions = {
     _handlers.syncSnapshot()
     if (!result.correct) {
       _handlers.showFeedback('wrong', index)
-      state.message = '點錯了！COMBO 歸零，從序列開頭重新點。'
+      state.message = `點錯了！扣 ${WRONG_TIME_PENALTY_SEC} 秒，COMBO 歸零，從序列開頭重新點。`
+      if (result.gameOver) _actions.finishGame()
       return
     }
     if (result.sequenceComplete) {
@@ -398,8 +400,8 @@ onBeforeUnmount(() => {
         <div class="cm-help-panel">
           <p class="cm-help-title">HOW TO PLAY</p>
           <p class="cm-help-text">
-            依序點擊跟上方「目標顏色序列」相同的格子（網格內同色格子點任一個都算數）。點錯會讓 COMBO 歸零、
-            從序列開頭重新點；順利點完一整組序列即完成 1 次配對，時間會累加。每 {{ SEQUENCE_TIER_SIZE }} 次配對序列變長、
+            依序點擊跟上方「目標顏色序列」相同的格子（網格內同色格子點任一個都算數）。點錯會扣 {{ WRONG_TIME_PENALTY_SEC }} 秒、
+            COMBO 歸零、從序列開頭重新點；順利點完一整組序列即完成 1 次配對，時間會累加。每 {{ SEQUENCE_TIER_SIZE }} 次配對序列變長、
             每 {{ GRID_TIER_SIZE }} 次配對網格變大。ESC / P 可暫停。
           </p>
         </div>
