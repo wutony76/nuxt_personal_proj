@@ -91,7 +91,7 @@ function _toAdminUser(row: AuthRecord): AdminAccessUser {
     id: row.id,
     name: row.name,
     email: row.email,
-    role: adminIds.has(row.id) ? 'admin' : (memberRoleId.get(row.id) ?? DEFAULT_ROLE),
+    role: adminAccessService.roleOf(row.id),
     coin: _userCoin(row.id)
   }
 }
@@ -106,6 +106,23 @@ export const adminAccessService = {
    * @returns 是否為管理員
    */
   isAdmin: (userId: string): boolean => adminIds.has(userId),
+
+  /**
+   * @param userId 帳號 id
+   * @returns 目前角色 id（'admin' 或 memberRoleId 記錄的角色，未記錄則為預設 DEFAULT_ROLE）
+   */
+  roleOf: (userId: string): UserRole =>
+    adminIds.has(userId) ? 'admin' : (memberRoleId.get(userId) ?? DEFAULT_ROLE),
+
+  /**
+   * 刪除角色時呼叫：目前指派該角色的會員一律退回預設角色（'user'）。
+   * @param roleId 被刪除的角色 id
+   */
+  clearRoleAssignments: (roleId: UserRole): void => {
+    for (const [userId, role] of memberRoleId.entries()) {
+      if (role === roleId) memberRoleId.delete(userId)
+    }
+  },
 
   /**
    * 列出全部帳號與角色（名稱排序）

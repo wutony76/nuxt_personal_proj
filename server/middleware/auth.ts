@@ -1,6 +1,11 @@
 import { sessionController } from '../services/auth'
+import { Storage } from '../services/storage'
+import { findRetroByApiSlug } from '#shared/config/gameSlugs'
 
 const PROTECTED_PREFIXES = ['/api/lottery', '/api/taiwan-lottery', '/api/games']
+
+/** `/api/games/retro/<slug>/...` 的 `<slug>` 段，用來查角色遊戲權限（見 add-role-game-perms）。 */
+const RETRO_API_KEY_PATTERN = /^\/api\/games\/retro\/([^/]+)\//
 
 /**
  * 彩池／爆池狀態是全站公開資訊（不含任何使用者資料，見各 `{jackpot,pool}.get.ts`
@@ -42,5 +47,16 @@ export default defineEventHandler((event) => {
     return
   }
 
-  sessionController.require(event)
+  const login = sessionController.require(event)
+
+  const retroApiSlug = pathname.match(RETRO_API_KEY_PATTERN)?.[1]
+  if (retroApiSlug) {
+    const retroGame = findRetroByApiSlug(retroApiSlug)
+    if (retroGame) {
+      const roleId = Storage.manager.admin.access.roleOf(login.id)
+      if (!Storage.manager.admin.roleGamePerms.isEnabled(roleId, 'retro', retroGame.key)) {
+        throw createError({ statusCode: 403, message: '目前角色未開放此遊戲。' })
+      }
+    }
+  }
 })

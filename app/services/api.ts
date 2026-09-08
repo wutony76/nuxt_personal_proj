@@ -894,6 +894,23 @@ export type RoleDef = {
   id: string
   name: string
   builtin: boolean
+  testMode: boolean
+  npcMode: boolean
+  dailyCoinReward: {
+    enabled: boolean
+    amount: number
+  }
+}
+
+/** 角色遊戲權限分類：'bg'（BG 彩票）／'retro'（遊戲中心） */
+export type GameCategory = 'bg' | 'retro'
+
+/** 角色遊戲權限項目（見 server/services/admin/modules/roleGamePerms.ts） */
+export type RoleGamePerm = {
+  category: GameCategory
+  key: string
+  name: string
+  enabled: boolean
 }
 
 /** 後台會員登入紀錄 */
@@ -952,6 +969,27 @@ export const api = {
       $fetch<{ role: RoleDef }>('/api/admin/role-defs', {
         method: 'POST',
         body: { name }
+      }),
+    deleteRoleDef: (id: string) =>
+      $fetch<{ ok: boolean }>(`/api/admin/role-defs/${id}`, {
+        method: 'DELETE'
+      }),
+    setRoleSettings: (id: string, patch: {
+      testMode?: boolean
+      npcMode?: boolean
+      dailyCoinReward?: { enabled?: boolean; amount?: number }
+    }) =>
+      $fetch<{ role: RoleDef }>(`/api/admin/role-defs/${id}/settings`, {
+        method: 'PATCH',
+        body: patch
+      }),
+    gameCatalog: () => $fetch<{ games: Array<{ category: GameCategory; key: string; name: string }> }>('/api/admin/games'),
+    roleGames: (roleId: string) =>
+      $fetch<{ games: RoleGamePerm[] }>(`/api/admin/role-defs/${roleId}/games`),
+    setRoleGame: (roleId: string, category: GameCategory, key: string, enabled: boolean) =>
+      $fetch<{ games: RoleGamePerm[] }>(`/api/admin/role-defs/${roleId}/games`, {
+        method: 'PATCH',
+        body: { category, key, enabled }
       }),
     createMember: (payload: { name: string; email: string; password: string; role?: UserRole }) =>
       $fetch<{ user: AdminAccessUser }>('/api/admin/members', {
@@ -1197,6 +1235,8 @@ export const api = {
       $fetch<TaiwanLotteryPrizeResponse>('/api/taiwan-lottery/prize', { query: { gameCode, period } })
   },
   games: {
+    /** 目前登入者的角色被關閉的遊戲／盤口（見 add-role-game-perms） */
+    access: () => $fetch<{ disabled: Array<{ category: GameCategory; key: string }> }>('/api/games/access'),
     retro: {
       historySnake: () => $fetch<GameHistoryListResponse>('/api/games/retro/snake/history'),
       recordSnake: (payload: GameHistoryRecordPayload) =>

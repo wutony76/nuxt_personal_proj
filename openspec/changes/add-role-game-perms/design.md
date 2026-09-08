@@ -95,6 +95,15 @@ BG 彩票權限**分盤口（CD／OF 各自獨立開關）**，不是玩法層�
   `definePageMeta({ middleware: 'game-access' })`：新增遊戲或玩法頁面時不會忘記加、也不會漏改
 - `useGameAccess()` 呼叫 `GET /api/games/access`（需登入；middleware 對未登入訪客直接放行，
   訪客與內建角色現況不變，一律可玩）；結果比照 `useRoleDefs()` 用單例 reactive 快取
+- **middleware 只在 client 端執行**（`if (import.meta.server) return`）：全站既有的登入檢查慣例
+  （各 `lottery/bg/*.vue` 頁面「先 `await useAuth().init()` 確認登入狀態」）都刻意只寫在
+  `onMounted`，因為 SSR 這裡用的是裸 `$fetch`，不會自動帶上瀏覽器目前的 session cookie——
+  在 middleware 裡實測發現：SSR 端呼叫 `GET /api/games/access` 一律被判定成訪客（拿到空的
+  disabled 清單），導致 SSR 完全攔不住，只有 client 重新執行一次才抓得到真正的 session。
+  拆成「SSR 放行、client 攔截」後，關閉項目的頁面在**第一次整頁載入**時會有短暫的 hydration
+  mismatch（SSR 吐出原頁面 markup，client 決定改導向大廳），純屬 console 警告、不影響功能，
+  真正的安全邊界仍在 Decision 5 的後端關卡；SPA 內部導覽（點連結切頁）則不受影響，
+  因為那些導覽本來就是純 client-side 路由，不會經過 SSR
 
 ### 5. API 層防線：兩個攔截點，形狀不同
 

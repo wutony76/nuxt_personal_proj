@@ -2,6 +2,7 @@ import { computed } from 'vue'
 import { type AuthUser } from '~/services/api'
 import { AuthService } from '~/services/authService'
 import { useSocket } from './useSocket'
+import { useGameAccess } from './useGameAccess'
 
 const state = reactive({
   user: null as AuthUser | null,
@@ -49,6 +50,7 @@ export const useAuth = () => {
     state.user = null
     state.init = true
     initPromise = null
+    useGameAccess().refresh()
   }
 
   const login = async (email: string, password: string) => {
@@ -58,6 +60,8 @@ export const useAuth = () => {
       state.user = result.user
       // WebSocket 身分是握手當下的 cookie 決定的，登入前就連上的連線不會自動變成已登入，見 useSocket.ts reconnect() 註解
       useSocket().actions.reconnect()
+      // 角色可能剛好被切換過，登入後重查一次遊戲權限，避免沿用前一個訪客/角色的快取（見 useGameAccess.ts）
+      useGameAccess().refresh()
       return { ok: true, message: '' }
     } catch (error: unknown) {
       const fallbackMessage = '登入失敗，請稍後再試。'
@@ -77,6 +81,7 @@ export const useAuth = () => {
       state.user = null
       state.init = false
       initPromise = null
+      useGameAccess().refresh()
     }
   }
 

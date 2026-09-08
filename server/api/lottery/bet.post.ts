@@ -36,6 +36,11 @@ export default defineEventHandler(async (event) => {
   if (!getLottery?.key) throw createError({ statusCode: 400, message: '彩種參數錯誤' })
   const gameClass = (Storage.games as Record<string, { playBets: (payload: BetPayload, user: LoginUser) => BetResult }>)[getLottery.key]
   if (!gameClass?.playBets) throw createError({ statusCode: 400, message: '彩種不存在' })
+
+  const roleId = Storage.manager.admin.access.roleOf(_login.id)
+  if (!Storage.manager.admin.roleGamePerms.isEnabled(roleId, 'bg', getLottery.key)) {
+    throw createError({ statusCode: 403, message: '目前角色未開放此盤口。' })
+  }
   const betResult = gameClass.playBets(payload, _user)
   return {
     message: '下注成功',
