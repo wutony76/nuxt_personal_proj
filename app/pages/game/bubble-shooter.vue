@@ -82,6 +82,8 @@ const state = reactive({
   maxCombo: 0,
   shotsFired: 0,
   warning: false,
+  /** 累計插入新列次數，跟 grid 綁在一起原子性更新（見 engine 的 cellCenterX 說明） */
+  pushCount: 0,
   /** 消除／掉落分段動畫播放中：鎖住發射，直到「消失→下落」兩段動畫都播完才解鎖 */
   locked: false,
   /** 最近一次消除/掉落的短暫提示（DROP xN） */
@@ -134,7 +136,7 @@ const flatBubbles = computed(() => {
       if (!cell) return
       out.push({
         key: cell.id,
-        left: cellCenterX(r, c) * CELL - bubbleSize.value / 2,
+        left: cellCenterX(r, c, state.pushCount) * CELL - bubbleSize.value / 2,
         top: cellCenterY(r) * CELL - bubbleSize.value / 2 + Y_OFFSET_PX,
         color: cell.color,
         pushed: cell.pushed,
@@ -182,6 +184,7 @@ const _handlers = {
     const snap = engine.getSnapshot()
     state.status = snap.status
     state.grid = snap.grid
+    state.pushCount = snap.pushCount
     state.flying = snap.flying
     state.current = snap.current
     state.next = snap.next
@@ -200,6 +203,9 @@ const _handlers = {
    * 座標對不上，導致疊到別顆還在的球身上，畫面看起來像「佈局跳掉、球沒有照原本位置往下移動」。
    * 保留 grid 停在「這次發射落地前」的畫面，等分段動畫全部播完（finishStagedSequence）才
    * 一次呼叫真正的 syncSnapshot() 跳到最終狀態，讓 TransitionGroup 一次處理完整個位移。
+   * state.pushCount 也要跟著 grid 一起延後：兩者是綁在一起的「同一個座標系統版本」
+   * （見 engine cellCenterX 的說明），只更新其中一個會讓 (row+pushCount) 的奇偶判定
+   * 對不上停在原地的 grid 座標，重新引發同一種位置錯亂。
    */
   syncSnapshotExceptGrid: () => {
     const snap = engine.getSnapshot()

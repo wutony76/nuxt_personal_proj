@@ -47,6 +47,8 @@ export type BubbleShooterSnapshot = {
   maxCombo: number
   shotsFired: number
   warning: boolean
+  /** 累計插入新列次數，頁面渲染 flatBubbles 時要跟 grid 一起、原子性地套用（見 cellCenterX 說明） */
+  pushCount: number
 }
 
 export type ShootResult = {
@@ -112,14 +114,28 @@ export const matchScore = (count: number): number => {
   return MATCH5_SCORE + (count - 5) * MATCH_EXTRA_PER_BUBBLE
 }
 
-/** 該列第 col 格的格中心 X（格單位），奇數列整排右移半格 */
-export const cellCenterX = (row: number, col: number): number => col + 0.5 + (row % 2 === 1 ? 0.5 : 0)
-/** 第 row 列的格中心 Y（格單位） */
+/**
+ * 該列第 col 格的格中心 X（格單位），奇數列整排右移半格。
+ *
+ * pushCount＝目前為止總共插入過幾次新列（見 engine 的 maybePushNewRow）。插入新列會讓每一列
+ * 的「絕對 row 索引」整體 +1，若只用 row%2 判斷奇偶，同一顆球（邏輯欄位沒變）會因為索引奇偶
+ * 翻轉，畫面上左右跳動半格（實測：row=9,col=2 時 X=3；插入一次新列變成 row=10,col=2 時
+ * X=2.5，同一顆球卻橫移了 0.5 格，就是玩家回報的「球浮空／跑到旁邊格子」的真正成因）。
+ * 改成 (row+pushCount)%2 之後，插入新列造成的 row+1 會被 pushCount+1 完全抵銷，同一顆球
+ * 的奇偶判定（進而畫面 X 座標）永遠穩定，不會因為插入新列而跳動。
+ */
+export const cellCenterX = (row: number, col: number, pushCount: number): number =>
+  col + 0.5 + ((row + pushCount) % 2 === 1 ? 0.5 : 0)
+/** 第 row 列的格中心 Y（格單位）；Y 座標不受奇偶交錯影響，不需要 pushCount */
 export const cellCenterY = (row: number): number => row * ROW_HEIGHT_RATIO + ROW_HEIGHT_RATIO / 2
 
-/** offset-coordinate 標準六方向鄰居公式（奇數列與偶數列的鄰居列偏移方向不同） */
-export const neighborsOf = (row: number, col: number): Array<{ row: number; col: number }> => {
-  const isOdd = row % 2 === 1
+/**
+ * offset-coordinate 標準六方向鄰居公式（奇數列與偶數列的鄰居列偏移方向不同）。
+ * pushCount 必須跟 cellCenterX 用同一套 (row+pushCount)%2 奇偶判定，兩者才會一致——
+ * 否則「畫面上看起來相鄰」跟「判定為相鄰（match/連通）」會對不起來。
+ */
+export const neighborsOf = (row: number, col: number, pushCount: number): Array<{ row: number; col: number }> => {
+  const isOdd = (row + pushCount) % 2 === 1
   const list: Array<{ row: number; col: number }> = [
     { row, col: col - 1 },
     { row, col: col + 1 }
@@ -137,7 +153,13 @@ export const neighborsOf = (row: number, col: number): Array<{ row: number; col:
 const inGrid = (row: number, col: number): boolean => row >= 0 && row < ROWS && col >= 0 && col < COLS
 
 /** 從 (startRow, startCol) 出發，DFS 找出所有同色連通格（含自己） */
-const floodFillSameColor = (grid: GridCell[][], startRow: number, startCol: number, color: BubbleColor): Array<{ row: number; col: number }> => {
+const floodFillSameColor = (
+  grid: GridCell[][],
+  startRow: number,
+  startCol: number,
+  color: BubbleColor,
+  pushCount: number
+): Array<{ row: number; col: number }> => {
   const visited = new Set<string>()
   const stack: Array<{ row: number; col: number }> = [{ row: startRow, col: startCol }]
   const result: Array<{ row: number; col: number }> = []
@@ -149,7 +171,7 @@ const floodFillSameColor = (grid: GridCell[][], startRow: number, startCol: numb
     const cell = grid[cur.row]?.[cur.col]
     if (!cell || cell.color !== color) continue
     result.push(cur)
-    for (const n of neighborsOf(cur.row, cur.col)) {
+    for (const n of neighborsOf(cur.row, cur.col, pushCount)) {
       if (inGrid(n.row, n.col) && !visited.has(`${n.row},${n.col}`)) stack.push(n)
     }
   }
@@ -157,7 +179,7 @@ const floodFillSameColor = (grid: GridCell[][], startRow: number, startCol: numb
 }
 
 /** 從第 0 列所有已佔用格出發，DFS 找出所有「跟頂列連通」的格子（不分顏色） */
-const findAnchoredCells = (grid: GridCell[][]): Set<string> => {
+const findAnchoredCells = (grid: GridCell[][], pushCount: number): Set<string> => {
   const visited = new Set<string>()
   const stack: Array<{ row: number; col: number }> = []
   for (let c = 0; c < COLS; c += 1) {
@@ -169,7 +191,7 @@ const findAnchoredCells = (grid: GridCell[][]): Set<string> => {
     if (visited.has(key)) continue
     if (!grid[cur.row]?.[cur.col]) continue
     visited.add(key)
-    for (const n of neighborsOf(cur.row, cur.col)) {
+    for (const n of neighborsOf(cur.row, cur.col, pushCount)) {
       if (inGrid(n.row, n.col) && !visited.has(`${n.row},${n.col}`)) stack.push(n)
     }
   }
@@ -201,6 +223,8 @@ export default class BubbleShooterEngine {
   private maxCombo = 0
   private shotsFired = 0
   private nextBubbleId = 1
+  /** 累計插入新列的次數，跟 cellCenterX／neighborsOf 的奇偶判定綁在一起，見那兩個函式的說明 */
+  private pushCount = 0
   private random: () => number
 
   constructor(options: BubbleShooterEngineOptions = {}) {
@@ -221,6 +245,7 @@ export default class BubbleShooterEngine {
   reset(): void {
     this.status = 'idle'
     this.nextBubbleId = 1
+    this.pushCount = 0
     this.grid = createEmptyGrid()
     for (let r = 0; r < INITIAL_FILLED_ROWS; r += 1) this.fillRow(r, false)
     this.flying = null
@@ -272,12 +297,12 @@ export default class BubbleShooterEngine {
 
   /** 找出離 (x,y) 最近的空格（優先在 fromRow/fromCol 的鄰居中找，找不到則退回全盤掃描） */
   private nearestEmptyCell(x: number, y: number, fromRow: number, fromCol: number): { row: number; col: number } {
-    const candidates = neighborsOf(fromRow, fromCol).filter((n) => inGrid(n.row, n.col) && !this.grid[n.row]?.[n.col])
+    const candidates = neighborsOf(fromRow, fromCol, this.pushCount).filter((n) => inGrid(n.row, n.col) && !this.grid[n.row]?.[n.col])
     const pool = candidates.length > 0 ? candidates : this.allEmptyCells()
     let best = pool[0] ?? { row: 0, col: Math.round(x - 0.5) }
     let bestDist = Infinity
     for (const cand of pool) {
-      const dx = cellCenterX(cand.row, cand.col) - x
+      const dx = cellCenterX(cand.row, cand.col, this.pushCount) - x
       const dy = cellCenterY(cand.row) - y
       const dist = dx * dx + dy * dy
       if (dist < bestDist) {
@@ -310,6 +335,9 @@ export default class BubbleShooterEngine {
     this.grid.pop()
     this.grid.unshift(Array<GridCell>(COLS).fill(null))
     this.fillRow(0, true)
+    // 每列的絕對 row 索引整體 +1 了，pushCount 也要 +1 才能抵銷掉 cellCenterX／neighborsOf
+    // 的奇偶判定被連帶翻轉的問題（見那兩個函式開頭的說明）
+    this.pushCount += 1
     return true
   }
 
@@ -328,7 +356,7 @@ export default class BubbleShooterEngine {
     this.flying = null
     this.shotsFired += 1
 
-    const group = floodFillSameColor(this.grid, row, col, color)
+    const group = floodFillSameColor(this.grid, row, col, color, this.pushCount)
     let scoreGained = 0
     let matched: RemovedBubble[] = []
     let dropped: RemovedBubble[] = []
@@ -343,7 +371,7 @@ export default class BubbleShooterEngine {
       this.maxCombo = Math.max(this.maxCombo, this.combo)
       scoreGained += matchScore(matched.length) + this.combo * COMBO_BONUS_PER_COMBO
 
-      const anchored = findAnchoredCells(this.grid)
+      const anchored = findAnchoredCells(this.grid, this.pushCount)
       const floating: Array<{ row: number; col: number }> = []
       for (let r = 0; r < ROWS; r += 1) {
         for (let c = 0; c < COLS; c += 1) {
@@ -403,7 +431,7 @@ export default class BubbleShooterEngine {
       for (let c = 0; c < COLS; c += 1) {
         const cell = this.grid[r]?.[c]
         if (!cell) continue
-        const dx = cellCenterX(r, c) - f.x
+        const dx = cellCenterX(r, c, this.pushCount) - f.x
         const dy = cellCenterY(r) - f.y
         if (dx * dx + dy * dy < (BUBBLE_DIAMETER * 0.92) ** 2) {
           const target = this.nearestEmptyCell(aheadX, aheadY, r, c)
@@ -432,7 +460,8 @@ export default class BubbleShooterEngine {
       combo: this.combo,
       maxCombo: this.maxCombo,
       shotsFired: this.shotsFired,
-      warning
+      warning,
+      pushCount: this.pushCount
     }
   }
 }
