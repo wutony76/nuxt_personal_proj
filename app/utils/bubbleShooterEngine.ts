@@ -25,8 +25,13 @@ export type BubbleShooterStatus = 'idle' | 'playing' | 'paused' | 'gameover'
  * id 是穩定身分（跟格子座標脫鉤），專門給頁面端的 Vue `:key` 用：插入新列時整排陣列往下搬移
  * （`this.grid[r] = this.grid[r-1]`），同一顆球的 row 座標會變但 id 不變，頁面才能用
  * `<TransitionGroup>` 認出「這是同一顆球移動了」而不是「這個座標的顏色瞬間換掉了」。
+ *
+ * pushed＝這顆球是不是「每 SHOTS_PER_NEW_ROW 次插入新列」那個機制生出來的（見 maybePushNewRow）。
+ * 頁面靠這個欄位讓插入新列的球用「從上方滑入、全尺寸」的進場動畫，跟一般新球「由小長大」的
+ * 動畫做區隔——由小長大的動畫在球還很小/半透明時，如果玩家剛好在那個瞬間射過去，視覺上會像
+ * 「球直接穿透過去」（球確實有正確判定碰撞，只是撞到的目標當下看起來還沒完全長出來）。
  */
-export type GridCell = { id: number; color: BubbleColor } | null
+export type GridCell = { id: number; color: BubbleColor; pushed: boolean } | null
 
 export type FlyingBubble = { x: number; y: number; vx: number; vy: number; color: BubbleColor }
 
@@ -193,9 +198,9 @@ export default class BubbleShooterEngine {
     return COLORS[Math.floor(this.random() * COLORS.length)]!
   }
 
-  private fillRow(row: number): void {
+  private fillRow(row: number, pushed: boolean): void {
     for (let c = 0; c < COLS; c += 1) {
-      this.grid[row]![c] = { id: this.nextBubbleId++, color: this.randomColor() }
+      this.grid[row]![c] = { id: this.nextBubbleId++, color: this.randomColor(), pushed }
     }
   }
 
@@ -204,7 +209,7 @@ export default class BubbleShooterEngine {
     this.status = 'idle'
     this.nextBubbleId = 1
     this.grid = createEmptyGrid()
-    for (let r = 0; r < INITIAL_FILLED_ROWS; r += 1) this.fillRow(r)
+    for (let r = 0; r < INITIAL_FILLED_ROWS; r += 1) this.fillRow(r, false)
     this.flying = null
     this.current = this.randomColor()
     this.next = this.randomColor()
@@ -284,7 +289,7 @@ export default class BubbleShooterEngine {
   private maybePushNewRow(): boolean {
     if (this.shotsFired % SHOTS_PER_NEW_ROW !== 0) return false
     for (let r = ROWS - 1; r > 0; r -= 1) this.grid[r] = this.grid[r - 1]!
-    this.fillRow(0)
+    this.fillRow(0, true)
     return true
   }
 
@@ -297,7 +302,7 @@ export default class BubbleShooterEngine {
 
   /** snap 進格子後的統一結算：同色 flood-fill 消除 → 懸空群消除 → 計分 → combo → 施壓 → Game Over 判定 */
   private resolveSnap(row: number, col: number, color: BubbleColor): TickResult {
-    this.grid[row]![col] = { id: this.nextBubbleId++, color }
+    this.grid[row]![col] = { id: this.nextBubbleId++, color, pushed: false }
     this.flying = null
     this.shotsFired += 1
 

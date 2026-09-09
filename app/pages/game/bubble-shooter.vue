@@ -111,7 +111,7 @@ const bubbleSize = computed(() => BUBBLE_DIAMETER * CELL)
  * 而不是「這個座標的顏色被換掉了」的瞬間換色錯覺。
  */
 const flatBubbles = computed(() => {
-  const out: Array<{ key: number; left: number; top: number; color: BubbleColor }> = []
+  const out: Array<{ key: number; left: number; top: number; color: BubbleColor; pushed: boolean }> = []
   state.grid.forEach((row, r) => {
     row.forEach((cell, c) => {
       if (!cell) return
@@ -119,7 +119,8 @@ const flatBubbles = computed(() => {
         key: cell.id,
         left: cellCenterX(r, c) * CELL - bubbleSize.value / 2,
         top: cellCenterY(r) * CELL - bubbleSize.value / 2 + Y_OFFSET_PX,
-        color: cell.color
+        color: cell.color,
+        pushed: cell.pushed
       })
     })
   })
@@ -418,7 +419,7 @@ onBeforeUnmount(() => {
           <div ref="stageRef" class="bub-stage" :style="`width:${stageWidth}px; height:${stageHeight}px;`"
             @pointermove="click.stagePointerMove" @click="click.stageClick">
             <TransitionGroup name="bubble" tag="div">
-              <div v-for="b in flatBubbles" :key="b.key" class="bub-bubble"
+              <div v-for="b in flatBubbles" :key="b.key" class="bub-bubble" :class="{ 'is-pushed-in': b.pushed }"
                 :style="`left:${b.left}px; top:${b.top}px; width:${bubbleSize}px; height:${bubbleSize}px; background:${COLOR_HEX[b.color]};`" />
             </TransitionGroup>
 
@@ -742,6 +743,21 @@ onBeforeUnmount(() => {
     .bubble-leave-to {
       opacity: 0;
       transform: scale(1.4);
+    }
+
+    /**
+     * 插入新列產生的泡泡（.is-pushed-in）改用「從上方滑入、全尺寸」取代預設的「由小長大」，
+     * 避免泡泡在剛出現、還很小很淡的那一瞬間被球打到時，視覺上看起來像「球直接穿透過去」
+     * （碰撞判定其實跟畫面縮放無關，一定有正確判定，但泡泡看起來還沒長出來就很容易讓人誤會）。
+     * 選擇器比 `.bubble-enter-from`／`.bubble-enter-active` 多一個 class，特異度更高，會蓋掉預設值。
+     */
+    .bubble-enter-from.is-pushed-in {
+      opacity: 0.5;
+      transform: translateY(-16px);
+    }
+
+    .bubble-enter-active.is-pushed-in {
+      transition: opacity 0.16s ease-out, transform 0.16s ease-out;
     }
 
     .bub-aimline {
