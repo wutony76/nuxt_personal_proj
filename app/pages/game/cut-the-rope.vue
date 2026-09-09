@@ -5,7 +5,7 @@ import { useGameHistory } from '~/composables/useGameHistory'
 import CutTheRopeEngine, {
   CTR_STAGE_WIDTH,
   CTR_STAGE_HEIGHT,
-  TOTAL_LEVELS,
+  CURATED_LEVEL_COUNT,
   CANDY_RADIUS,
   STAR_RADIUS,
   GOAL_RADIUS,
@@ -61,14 +61,17 @@ const state = reactive({
 
 const CUT_THE_ROPE_RULE = {
   description:
-    `割繩子解謎：點擊／觸控繩子即可剪斷，糖果會受重力與繩子擺盪影響移動，送進終點即過關，共 ${TOTAL_LEVELS} 關。` +
+    `割繩子解謎：點擊／觸控繩子即可剪斷，糖果會受重力與繩子擺盪影響移動，送進終點即過關，關卡無限、玩不完。` +
     '沿路收集星星額外加分，部分關卡有多條繩子（剪的順序會影響結果）或尖刺（碰到即失敗，重來目前這一關，' +
     '不影響已經過關的分數）。有些關卡需要先讓糖果擺盪借力，抓對時機再剪，直線下墜不一定能到終點。',
   scoreRule:
     `每過一關得 ${LEVEL_CLEAR_BASE_SCORE} 分，收集到的每顆星星再 +${SCORE_PER_STAR} 分，分數跨關累計。` +
     '失敗只會重來當前這關，不會扣分、也不會遺失已經過關拿到的分數。',
   levelsTitle: '關卡進度',
-  levels: [{ level: `LEVEL 1 ~ ${TOTAL_LEVELS}`, condition: '難度依序漸增：單繩直剪 → 加星星 → 需要擺盪借力 → 多繩決定剪的順序 → 加入尖刺' }],
+  levels: [
+    { level: `LEVEL 1 ~ ${CURATED_LEVEL_COUNT}`, condition: '手工設計，難度依序漸增：單繩直剪 → 加星星 → 需要擺盪借力 → 多繩決定剪的順序 → 加入尖刺' },
+    { level: `LEVEL ${CURATED_LEVEL_COUNT + 1} 起`, condition: '永久隨機產生新關卡，數量無限，難度持續緩慢提升，想結束按 END 即可結算' }
+  ],
   note: 'ESC / P 可暫停，暫停期間不會計算物理。'
 }
 
@@ -86,7 +89,7 @@ const goalStyle = computed(
 const statusText = computed(() => {
   if (state.status === 'playing') return 'PLAYING'
   if (state.status === 'paused') return 'PAUSED'
-  if (state.status === 'gameover') return 'ALL CLEAR!'
+  if (state.status === 'gameover') return 'GAME OVER'
   return 'READY'
 })
 const canPauseWhilePlaying = computed(() => state.status === 'playing' && !state.freezeMessage)
@@ -123,10 +126,10 @@ const _handlers = {
       _handlers.syncSnapshot()
       if (result.levelCleared) {
         state.message = `過關！+${result.levelScoreGained} 分`
-        _actions.freezeThen('CLEARED', result.allCleared)
+        _actions.freezeThen('CLEARED')
       } else if (result.failed) {
         state.message = '失敗了，重新挑戰這一關！'
-        _actions.freezeThen('FAILED', false)
+        _actions.freezeThen('FAILED')
       }
     }, TICK_MS)
   },
@@ -180,12 +183,11 @@ const _actions = {
     engine.cutRope(ropeId)
     _handlers.syncSnapshot()
   },
-  /** 過關／失敗後短暫凍結畫面（停止 tick，只顯示提示），時間到自動繼續（比照 frogger 的 _pauseThen） */
-  freezeThen: (kind: 'CLEARED' | 'FAILED', allCleared: boolean) => {
-    if (allCleared) {
-      _actions.finishGame()
-      return
-    }
+  /**
+   * 過關／失敗後短暫凍結畫面（停止 tick，只顯示提示），時間到自動繼續（比照 frogger 的 _pauseThen）。
+   * 關卡無限，過關永遠只是「凍結一下、進下一關」，沒有「全部過關」這個分支，想結束要按 END。
+   */
+  freezeThen: (kind: 'CLEARED' | 'FAILED') => {
     _handlers.stopFreezeTimer()
     state.freezeMessage = kind
     freezeTimer = setTimeout(() => {
@@ -207,14 +209,6 @@ const _actions = {
     _handlers.startTickTimer()
     _handlers.syncSnapshot()
     state.message = '點擊繩子剪斷，讓糖果送進終點！'
-  },
-  finishGame: () => {
-    _handlers.stopTickTimer()
-    _handlers.stopFreezeTimer()
-    _handlers.syncSnapshot()
-    state.resultOverlayVisible = true
-    state.message = `全部 ${TOTAL_LEVELS} 關通過！`
-    _actions.recordHistory()
   },
   playAgain: () => {
     _actions.resetGame()
@@ -280,17 +274,17 @@ onBeforeUnmount(() => {
     <div v-if="state.waitingOverlayVisible" class="game-mask waiting-mask">
       <div class="mask-title">WELCOME</div>
       <p class="waiting-subtitle">CUT THE ROPE</p>
-      <p class="waiting-hint">點擊繩子剪斷，把糖果送進終點，共 {{ TOTAL_LEVELS }} 關</p>
+      <p class="waiting-hint">點擊繩子剪斷，把糖果送進終點，關卡無限、玩不完</p>
       <button class="ctr-btn waiting-btn waiting-start" type="button" @click="click.start">START</button>
       <button class="ctr-btn link waiting-btn" type="button" @click="click.openRateDialog">CONVERT</button>
       <button class="ctr-btn link waiting-btn" type="button" @click="click.openRuleDialog">RULE</button>
     </div>
 
     <div v-if="state.resultOverlayVisible" class="game-mask result-mask">
-      <div class="mask-title">{{ state.levelIndex >= TOTAL_LEVELS && state.status === 'gameover' ? 'ALL CLEAR!' : 'GAME OVER' }}</div>
+      <div class="mask-title">GAME OVER</div>
       <div class="result-list">
         <div class="result-item"><span>SCORE</span><b>{{ state.totalScore }}</b></div>
-        <div class="result-item"><span>LEVEL REACHED</span><b>{{ state.levelIndex }} / {{ TOTAL_LEVELS }}</b></div>
+        <div class="result-item"><span>LEVEL REACHED</span><b>{{ state.levelIndex }}</b></div>
         <div class="result-item"><span>TOTAL STARS</span><b>{{ state.totalStars }}</b></div>
       </div>
       <p v-if="state.rewardMessage" class="result-reward">{{ state.rewardMessage }}</p>
@@ -323,7 +317,7 @@ onBeforeUnmount(() => {
 
         <div class="ctr-panel">
           <span>SCORE: {{ state.totalScore }}</span>
-          <span>LEVEL: {{ state.levelIndex }} / {{ TOTAL_LEVELS }}</span>
+          <span>LEVEL: {{ state.levelIndex }}</span>
           <span>STARS: {{ state.totalStars }}</span>
         </div>
 

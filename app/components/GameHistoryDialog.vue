@@ -40,9 +40,13 @@ const FILTERS: Array<{ key: FilterKey; label: string }> = [
   { key: 'towerStack', label: 'TOWER STACK' },
   { key: 'arkanoid', label: 'ARKANOID' },
   { key: 'towerDefense', label: 'TOWER DEFENSE' },
-  { key: 'pinball', label: 'PINBALL' }
+  { key: 'pinball', label: 'PINBALL' },
+  { key: 'colorMatch', label: 'COLOR MATCH' },
+  { key: 'maze', label: 'MAZE' },
+  { key: 'bubbleShooter', label: 'BUBBLE SHOOTER' },
+  { key: 'cutTheRope', label: 'CUT THE ROPE' }
 ]
-const GAME_KEYS: RetroGameKey[] = ['snake', 'racing', 'tetriminos', 'match3rush', 'match3classic', 'pong', 'runner', 'spaceShooter', 'minesweeper', 'pacman', 'spaceInvaders', 'solitaire', 'typing', 'breakout', 'orbMatch', 'battleship', '2048', 'flappy', 'frogger', 'connect4', 'whackAMole', 'lightsOut', 'towerStack', 'arkanoid', 'towerDefense', 'pinball']
+const GAME_KEYS: RetroGameKey[] = ['snake', 'racing', 'tetriminos', 'match3rush', 'match3classic', 'pong', 'runner', 'spaceShooter', 'minesweeper', 'pacman', 'spaceInvaders', 'solitaire', 'typing', 'breakout', 'orbMatch', 'battleship', '2048', 'flappy', 'frogger', 'connect4', 'whackAMole', 'lightsOut', 'towerStack', 'arkanoid', 'towerDefense', 'pinball', 'colorMatch', 'maze', 'bubbleShooter', 'cutTheRope']
 const GAME_NAME: Record<RetroGameKey, string> = {
   snake: 'SNAKE',
   racing: 'RACING',
@@ -69,7 +73,11 @@ const GAME_NAME: Record<RetroGameKey, string> = {
   towerStack: 'TOWER STACK',
   arkanoid: 'ARKANOID',
   towerDefense: 'TOWER DEFENSE',
-  pinball: 'PINBALL'
+  pinball: 'PINBALL',
+  colorMatch: 'COLOR MATCH',
+  maze: 'MAZE',
+  bubbleShooter: 'BUBBLE SHOOTER',
+  cutTheRope: 'CUT THE ROPE'
 }
 
 const ui = reactive({

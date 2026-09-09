@@ -10,7 +10,19 @@
  *     物理精度」）。
  *   - 邊界／尖刺：簡單距離判斷 + 速度反射（比照 pinballEngine 的 restitution 常數手法）。
  *
- * 10 關關卡資料是手工設計的固定常數（CUT_THE_ROPE_LEVELS），不是程序生成。
+ * 關卡是無限的：LEVEL 1~CURATED_LEVEL_COUNT 是手工設計的固定常數（CUT_THE_ROPE_LEVELS），
+ * 之後（LEVEL CURATED_LEVEL_COUNT+1 起）由 generateProceduralLevel() 永久隨機產生新關卡。
+ *
+ * 程序生成關卡「保證可過關」的做法是建構式（constructive），不是隨機生成後再驗證：
+ *   1. 隨機決定單一繩子的錨點／繩長／起始角度，起始距離＝繩長（一開始就是拉直的，避免直墜的
+ *      退化情況，跟手工關卡修正 level4/7 時的技巧一樣）。
+ *   2. 用「跟 tick() 完全一樣的物理公式」往前模擬一段附著擺盪的軌跡。
+ *   3. 在模擬軌跡的中段挑一個「剪繩時機」，從那個時間點的位置/速度繼續模擬剪斷後的自由落體＋
+ *      反彈軌跡。
+ *   4. 終點／星星都直接放在「模擬出來真的會經過」的座標上——因為整條軌跡是用真實物理公式算出來
+ *      的，這組關卡資料在建構的當下就已經證明「在正確時機剪繩」是一個可行解，不需要事後再驗證。
+ *   5. 找不到合適軌跡（極少見，例如選到的起始角度剛好很快飛出畫面）時重試幾次，仍失敗則退回
+ *      直接沿用某一個手工關卡當保底，確保這個函式永遠會回傳一個保證可過關的關卡。
  */
 
 // ── 型別 ──
@@ -39,21 +51,21 @@ export type CutTheRopeSnapshot = {
   starsThisAttempt: number
   totalScore: number
   totalStars: number
-  message: 'none' | 'star' | 'cleared' | 'failed' | 'allCleared'
+  message: 'none' | 'star' | 'cleared' | 'failed'
 }
 
 export type CutTheRopeTickResult = {
   starCollected: boolean
   levelCleared: boolean
   failed: boolean
-  allCleared: boolean
   levelScoreGained: number
 }
 
 // ── 對局常數 ──
 export const CTR_STAGE_WIDTH = 360
 export const CTR_STAGE_HEIGHT = 520
-export const TOTAL_LEVELS = 10
+/** 手工設計關卡的數量（LEVEL 1~此值）；超過之後由 generateProceduralLevel() 永久隨機產生新關卡 */
+export const CURATED_LEVEL_COUNT = 10
 
 export const CANDY_RADIUS = 14
 export const STAR_RADIUS = 18
@@ -67,8 +79,6 @@ export const ROPE_HIT_RADIUS = 22
 
 export const SCORE_PER_STAR = 100
 export const LEVEL_CLEAR_BASE_SCORE = 200
-/** 理論上限＝10 關 x（基礎分 200 + 3 顆星 x100）＝5000，對齊 server 端 maxReasonableScore() */
-export const CTR_MAX_SCORE = TOTAL_LEVELS * (LEVEL_CLEAR_BASE_SCORE + 3 * SCORE_PER_STAR)
 
 /**
  * 10 關手工關卡（見檔頭說明），難度曲線：
@@ -179,8 +189,156 @@ export const CUT_THE_ROPE_LEVELS: CutTheRopeLevelDef[] = [
 
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y)
 
+/** 物理模擬一步，公式跟 tick() 完全一樣（重力→(可選)繩子約束→邊界反彈），dt 固定為 1（對應 16ms）；
+ *  只給 generateProceduralLevel() 在「建構關卡」時用來描出一條保證可行的軌跡，不影響正式 tick() */
+const simulateStep = (s: CandyState, rope: { anchor: Vec2; length: number } | null): CandyState => {
+  let { x, y, vx, vy } = s
+  vy += CTR_GRAVITY
+  x += vx
+  y += vy
+
+  if (rope) {
+    const dx = x - rope.anchor.x
+    const dy = y - rope.anchor.y
+    const d = Math.hypot(dx, dy) || 0.0001
+    if (d > rope.length) {
+      const nx = dx / d
+      const ny = dy / d
+      x = rope.anchor.x + nx * rope.length
+      y = rope.anchor.y + ny * rope.length
+      const radialSpeed = vx * nx + vy * ny
+      vx -= radialSpeed * nx
+      vy -= radialSpeed * ny
+    }
+  }
+
+  if (x < CANDY_RADIUS) {
+    x = CANDY_RADIUS
+    vx = Math.abs(vx) * WALL_RESTITUTION
+  } else if (x > CTR_STAGE_WIDTH - CANDY_RADIUS) {
+    x = CTR_STAGE_WIDTH - CANDY_RADIUS
+    vx = -Math.abs(vx) * WALL_RESTITUTION
+  }
+  if (y < CANDY_RADIUS) {
+    y = CANDY_RADIUS
+    vy = Math.abs(vy) * WALL_RESTITUTION
+  }
+
+  return { x, y, vx, vy }
+}
+
+const PROCEDURAL_PRE_CUT_TICKS = 220
+const PROCEDURAL_POST_CUT_TICKS = 180
+const PROCEDURAL_MIN_POST_CUT_VALID = 40
+const PROCEDURAL_MAX_ATTEMPTS = 20
+
+/**
+ * 建構式隨機產生一關（見檔頭說明）：先模擬一條「附著擺盪 → 中途剪繩 → 自由落體」的真實軌跡，
+ * 終點／星星直接放在這條軌跡實際經過的座標上，等於在產生關卡的當下就已經證明「在正確時機剪繩」
+ * 是一個可行解。多次嘗試都湊不出合適軌跡（極少見）時，保底直接沿用一個手工關卡。
+ */
+export const generateProceduralLevel = (levelIndex: number, random: () => number = Math.random): CutTheRopeLevelDef => {
+  for (let attempt = 0; attempt < PROCEDURAL_MAX_ATTEMPTS; attempt += 1) {
+    const anchor: Vec2 = {
+      x: 70 + random() * (CTR_STAGE_WIDTH - 140),
+      y: 50 + random() * 40
+    }
+    const length = 110 + random() * 80
+    // 起始角度：相對正下方左右各最多 60 度，起始距離＝繩長（一開始就是拉直的，釋放後自然擺盪，
+    // 避免退化成直墜——手工關卡修正 level4/7 時用的是同一招）
+    const angle = (random() * 2 - 1) * (Math.PI / 3)
+    const candyStart: Vec2 = {
+      x: anchor.x + length * Math.sin(angle),
+      y: anchor.y + length * Math.cos(angle)
+    }
+    if (
+      candyStart.x < CANDY_RADIUS + 10 ||
+      candyStart.x > CTR_STAGE_WIDTH - CANDY_RADIUS - 10 ||
+      candyStart.y < CANDY_RADIUS + 10 ||
+      candyStart.y > CTR_STAGE_HEIGHT - CANDY_RADIUS - 10
+    ) {
+      continue // 起手位置超出畫面，換一組參數重試
+    }
+
+    const rope = { anchor, length }
+    const preCutPath: CandyState[] = []
+    let s: CandyState = { ...candyStart, vx: 0, vy: 0 }
+    for (let i = 0; i < PROCEDURAL_PRE_CUT_TICKS; i += 1) {
+      s = simulateStep(s, rope)
+      preCutPath.push(s)
+    }
+
+    // 剪繩時機挑在模擬軌跡的中段，確保已經有足夠擺盪動能才放手
+    const cutTick = Math.floor(40 + random() * 120)
+    if (cutTick >= preCutPath.length) continue
+    const atCut = preCutPath[cutTick]!
+
+    // 從剪繩當下的位置/速度繼續模擬剪斷後的自由落體＋反彈軌跡，掉出畫面就停止
+    const postCutPath: CandyState[] = []
+    let free: CandyState = { ...atCut }
+    for (let i = 0; i < PROCEDURAL_POST_CUT_TICKS; i += 1) {
+      free = simulateStep(free, null)
+      if (free.y > CTR_STAGE_HEIGHT + CANDY_RADIUS * 4) break
+      postCutPath.push(free)
+    }
+    if (postCutPath.length < PROCEDURAL_MIN_POST_CUT_VALID) continue // 太快掉出畫面，這組參數不適合
+
+    // 終點放在剪繩後軌跡的後段（確保真的會經過），跟起點保持距離避免太簡單
+    const goalIdx = Math.floor(postCutPath.length * (0.6 + random() * 0.3))
+    const goal: Vec2 = { x: postCutPath[goalIdx]!.x, y: postCutPath[goalIdx]!.y }
+    if (dist(goal, candyStart) < 80) continue
+
+    // 星星數量隨關卡數緩慢增加，從整條軌跡（剪繩前+剪繩後）取樣，避開終點與彼此
+    const fullPath: Vec2[] = [...preCutPath.slice(0, cutTick), ...postCutPath]
+    const starCount = levelIndex < 15 ? 1 : 2
+    const stars: Vec2[] = []
+    let starAttempts = 0
+    while (stars.length < starCount && starAttempts < 40) {
+      starAttempts += 1
+      const idx = Math.floor(random() * fullPath.length)
+      const candidate = fullPath[idx]!
+      const tooCloseToGoal = dist(candidate, goal) < 50
+      const tooCloseToOtherStar = stars.some((st) => dist(st, candidate) < 50)
+      if (!tooCloseToGoal && !tooCloseToOtherStar) stars.push({ x: candidate.x, y: candidate.y })
+    }
+
+    // 高關卡數才加尖刺，位置要明顯避開整條軌跡（每 3 個取樣點檢查一次，足夠抓出太近的情況）
+    let spikes: Vec2[] | undefined
+    if (levelIndex >= 14) {
+      const sampledPath = fullPath.filter((_, i) => i % 3 === 0)
+      for (let i = 0; i < 15; i += 1) {
+        const candidate: Vec2 = {
+          x: SPIKE_RADIUS + 20 + random() * (CTR_STAGE_WIDTH - 2 * (SPIKE_RADIUS + 20)),
+          y: 150 + random() * (CTR_STAGE_HEIGHT - 250)
+        }
+        const clearOfPath = sampledPath.every((p) => dist(p, candidate) > CANDY_RADIUS + SPIKE_RADIUS + 18)
+        if (clearOfPath) {
+          spikes = [candidate]
+          break
+        }
+      }
+    }
+
+    return { candyStart, ropes: [{ anchor, length }], stars, goal, spikes }
+  }
+
+  // 極少數情況下多次嘗試都湊不出合適軌跡，保底直接沿用一個手工關卡（保證可過關），
+  // 用 levelIndex 錯開變化，至少不會每次都掉到同一關
+  const fallback = CUT_THE_ROPE_LEVELS[levelIndex % CUT_THE_ROPE_LEVELS.length]!
+  return {
+    candyStart: { ...fallback.candyStart },
+    ropes: fallback.ropes.map((r) => ({ anchor: { ...r.anchor }, length: r.length })),
+    stars: fallback.stars.map((st) => ({ ...st })),
+    goal: { ...fallback.goal },
+    spikes: fallback.spikes?.map((sp) => ({ ...sp }))
+  }
+}
+
 /** 建構時的固定初始關卡（不吃亂數，關卡本身就是固定資料，天生沒有 hydration mismatch 疑慮） */
-export type CutTheRopeEngineOptions = Record<string, never>
+export type CutTheRopeEngineOptions = {
+  /** 隨機源（測試可注入決定性亂數，方便驗證程序生成關卡），預設 Math.random */
+  random?: () => number
+}
 
 /**
  * CUT THE ROPE 引擎：整合關卡載入／重力／繩子約束／剪繩／收集星星／終點／尖刺判定／計分。
@@ -198,10 +356,21 @@ export default class CutTheRopeEngine {
   private totalScore = 0
   private totalStars = 0
   private message: CutTheRopeSnapshot['message'] = 'none'
+  private random: () => number
 
-  /** 依 CUT_THE_ROPE_LEVELS[levelIndex-1] 重建當前關卡的糖果／繩子／星星／終點／尖刺 */
+  constructor(options: CutTheRopeEngineOptions = {}) {
+    this.random = options.random ?? Math.random
+  }
+
+  /**
+   * LEVEL 1~CURATED_LEVEL_COUNT 用手工關卡（CUT_THE_ROPE_LEVELS），之後永久用
+   * generateProceduralLevel() 隨機產生，重建當前關卡的糖果／繩子／星星／終點／尖刺
+   */
   private loadLevel(): void {
-    const def = CUT_THE_ROPE_LEVELS[this.levelIndex - 1]!
+    const def =
+      this.levelIndex <= CURATED_LEVEL_COUNT
+        ? CUT_THE_ROPE_LEVELS[this.levelIndex - 1]!
+        : generateProceduralLevel(this.levelIndex, this.random)
     this.candy = { x: def.candyStart.x, y: def.candyStart.y, vx: 0, vy: 0 }
     this.ropes = def.ropes.map((r, i) => ({ id: `rope-${i}`, anchor: { ...r.anchor }, length: r.length, attached: true }))
     this.stars = def.stars.map((s, i) => ({ id: `star-${i}`, pos: { ...s }, collected: false }))
@@ -250,7 +419,7 @@ export default class CutTheRopeEngine {
 
   /** 推進物理一個 tick：重力 → 每條附著繩子的距離約束 → 邊界反彈 → 星星／終點／尖刺／掉出畫面判定 */
   tick(dtMs: number): CutTheRopeTickResult {
-    const result: CutTheRopeTickResult = { starCollected: false, levelCleared: false, failed: false, allCleared: false, levelScoreGained: 0 }
+    const result: CutTheRopeTickResult = { starCollected: false, levelCleared: false, failed: false, levelScoreGained: 0 }
     if (this.status !== 'playing') return result
 
     const dt = dtMs / 16
@@ -314,12 +483,8 @@ export default class CutTheRopeEngine {
       result.levelScoreGained = levelScore
       this.message = 'cleared'
 
-      if (this.levelIndex >= TOTAL_LEVELS) {
-        this.status = 'gameover'
-        result.allCleared = true
-        return result
-      }
-
+      // 關卡無限：過關永遠進到下一關（LEVEL 1~CURATED_LEVEL_COUNT 手工設計，之後永久隨機產生），
+      // 沒有「全部過關」這個結束條件，玩家想結束要自己按 END
       this.levelIndex += 1
       this.loadLevel()
       return result
