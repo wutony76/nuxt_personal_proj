@@ -44,6 +44,8 @@ const TICK_MS = 16
  *     頂緣會落在 y<0，不整體往下位移會被從上面切掉。
  */
 const Y_OFFSET_PX = Math.max(0, BUBBLE_RADIUS - ROW_HEIGHT_RATIO / 2) * CELL
+/** 球落地、判定完有沒有消除之後，先停頓這麼久（畫面什麼都還不會變）才開始播消除/掉落動畫 */
+const PRE_POP_PAUSE_MS = 500
 /** 消除動畫（球放大＋淡出）播放時間；播完才會真的把格子清空、開始播下一段掉落動畫 */
 const MATCH_POP_MS = 200
 /** 掉落動畫（球往下滑出＋淡出）播放時間；播完才真正解鎖發射，做出「消除→掉落→才能射」的分段節奏 */
@@ -271,11 +273,13 @@ const _actions = {
   /**
    * 消除／掉落改成分段播放，不是瞬間套用最終結果：
    *   1. 有 match 才需要分段；沒有 match（可能仍有 rowPushed）直接照舊處理，不鎖發射。
-   *   2. 鎖住發射（state.locked），手動把 matched／dropped 的格子標成 popping／falling 疊回
-   *      state.grid（engine 內部其實已經把它們清掉了，這裡只是頁面畫面上還留著播動畫）。
-   *   3. 等 MATCH_POP_MS 過後，才真的把 matched 格子清空（觸發 TransitionGroup 的 leave），
+   *   2. 立刻鎖住發射（state.locked），但畫面維持原狀停頓 PRE_POP_PAUSE_MS——
+   *      先判定完有沒有消除，停頓一下，才開始播接下來的消除／掉落動畫。
+   *   3. 停頓結束後，手動把 matched／dropped 的格子標成 popping／falling 疊回 state.grid
+   *      （engine 內部其實已經把它們清掉了，這裡只是頁面畫面上還留著播動畫）。
+   *   4. 等 MATCH_POP_MS 過後，才真的把 matched 格子清空（觸發 TransitionGroup 的 leave），
    *      這時才讓 dropped 的格子開始播下落動畫；如果沒有 dropped，直接收尾。
-   *   4. 再等 DROP_FALL_MS，呼叫 finishStagedSequence 拉回 engine 的真實狀態並解鎖發射。
+   *   5. 再等 DROP_FALL_MS，呼叫 finishStagedSequence 拉回 engine 的真實狀態並解鎖發射。
    */
   handleSnapResult: (result: TickResult) => {
     if (result.matched.length === 0) {
@@ -291,28 +295,32 @@ const _actions = {
       return
     }
 
+    // 落地判定完有消除，先鎖住發射，但畫面維持原狀停頓 PRE_POP_PAUSE_MS，
+    // 停頓結束才開始播消除動畫，接著才是掉落動畫（見下方兩層 setTimeout）
     state.locked = true
-    const stage1 = state.grid.map((row) => [...row])
-    for (const b of result.matched) stage1[b.row]![b.col] = { id: b.id, color: b.color, pushed: false, popping: true }
-    for (const b of result.dropped) stage1[b.row]![b.col] = { id: b.id, color: b.color, pushed: false, falling: true }
-    state.grid = stage1
-
-    _handlers.showPopup(`MATCH x${result.matched.length}`)
     state.message = `+${result.scoreGained} 分！`
 
     _handlers.stopStageTimer()
     stageTimer = setTimeout(() => {
-      const stage2 = state.grid.map((row) => [...row])
-      for (const b of result.matched) stage2[b.row]![b.col] = null
-      state.grid = stage2
+      const stage1 = state.grid.map((row) => [...row])
+      for (const b of result.matched) stage1[b.row]![b.col] = { id: b.id, color: b.color, pushed: false, popping: true }
+      for (const b of result.dropped) stage1[b.row]![b.col] = { id: b.id, color: b.color, pushed: false, falling: true }
+      state.grid = stage1
+      _handlers.showPopup(`MATCH x${result.matched.length}`)
 
-      if (result.dropped.length > 0) {
-        _handlers.showPopup(`DROP x${result.dropped.length}`)
-        stageTimer = setTimeout(() => _actions.finishStagedSequence(result), DROP_FALL_MS)
-      } else {
-        _actions.finishStagedSequence(result)
-      }
-    }, MATCH_POP_MS)
+      stageTimer = setTimeout(() => {
+        const stage2 = state.grid.map((row) => [...row])
+        for (const b of result.matched) stage2[b.row]![b.col] = null
+        state.grid = stage2
+
+        if (result.dropped.length > 0) {
+          _handlers.showPopup(`DROP x${result.dropped.length}`)
+          stageTimer = setTimeout(() => _actions.finishStagedSequence(result), DROP_FALL_MS)
+        } else {
+          _actions.finishStagedSequence(result)
+        }
+      }, MATCH_POP_MS)
+    }, PRE_POP_PAUSE_MS)
   },
   /** 分段動畫全部播完：拉回 engine 的真實狀態（順便讓插入新列的球在這時才正式出現）並解鎖發射 */
   finishStagedSequence: (result: TickResult) => {
