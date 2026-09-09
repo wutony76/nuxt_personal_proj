@@ -59,14 +59,20 @@
 ## Development Workflow
 
 - 非 trivial 需求需走 OpenSpec 流程
-- 順序：proposal -> design -> tasks -> implementation
+- 順序：Proposal -> Design -> Tasks -> Implementation -> Validation -> Engineering Evidence
+  - Proposal：確認為什麼要做、範圍與風險
+  - Design：確認怎麼做（state/flow/API/token mapping）
+  - Tasks：拆解可追蹤的實作項目
+  - Implementation：依 tasks 完成程式碼變更
+  - Validation：實際執行驗證並記錄結果（功能／視覺／回歸），對應 `openspec/templates/validation.md`
+  - Engineering Evidence：整理交付佐證（變更摘要、驗證佐證、風險與後續追蹤），對應 `openspec/templates/engineering-evidence.md`，作為封存前最後檢查
 - 變更保持小而可審查
-- 調整功能行為時需補齊驗證（最少手動測試；可行時加自動化測試）
+- 調整功能行為時需補齊驗證（最少手動測試；可行時加自動化測試），驗證結果落在 Validation 階段文件中
 
 ## Development Conventions (開發規範)
 
 - **語言規範**：
-  - OpenSpec 文件（proposal / design / tasks / project）使用繁體中文
+  - OpenSpec 文件（proposal / design / tasks / validation / engineering-evidence / project）使用繁體中文
   - 代碼命名、註解、commit message 使用英文
 - **程式語言標準**：
   - 標準為 TypeScript（`server/`、`shared/config/*.ts`、composables、services、Vue 元件皆為 `lang="ts"`）
@@ -152,7 +158,7 @@
 
 - Current status: 初始化階段，尚未登記新的活躍 change id
 - Next step:
-  - 若要新增功能，先建立 proposal / design / tasks
+  - 若要新增功能，先建立 proposal / design / tasks，實作完成後補上 validation / engineering-evidence
   - 若要修正小問題，可評估是否屬於 trivial change
 
 ## Open Questions (Fill as needed)

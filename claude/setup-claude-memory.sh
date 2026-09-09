@@ -294,6 +294,58 @@ metadata:
   直接實作）；「先規劃」是明確訊號，代表這次只要文件。
 EOF
 
+# ── 12. OpenSpec 流程擴充為 6 階段 ──────────────────────────────
+cat > "$MEMORY_DIR/project_openspec_workflow_6stages.md" << 'EOF'
+---
+name: project-openspec-workflow-6stages
+description: OpenSpec 文件流程已從 4 階段擴充為 6 階段（新增 Validation、Engineering Evidence）
+metadata:
+  type: project
+---
+
+自 2026-09-09 起，OpenSpec 文件流程由 Proposal → Design → Tasks → Implementation 擴充為六階段：
+
+Proposal → Design → Tasks → Implementation → Validation → Engineering Evidence
+
+- 新增 `openspec/templates/validation.md`：記錄實際驗證結果（功能／視覺／回歸、問題與修正、結論）
+- 新增 `openspec/templates/engineering-evidence.md`：整理交付佐證（變更摘要、驗證佐證、風險與後續追蹤、封存前檢查）
+- `openspec/project.md` 的 Development Workflow、語言規範、OpenSpec Progress 段落已同步更新
+
+**Why:** 使用者要求之後所有 OpenSpec 流程都採用這個六階段架構，作為交付前更完整的驗證與稽核紀錄。
+
+**How to apply:** 之後只要涉及 openspec 流程（新增 proposal/design/tasks、規劃新功能）時，除了既有三份文件，實作完成後應提醒／協助補上 validation.md 與 engineering-evidence.md 兩份文件。
+
+**範圍澄清：** 這次只改文件規範層級（project.md + templates），**沒有**動到實際 OpenSpec CLI 的 `spec-driven` schema（該 schema 仍是 proposal → specs → design → tasks → apply，不會自動要求 validation / engineering-evidence 產物）。若之後使用者要連 CLI 一起改，需另外執行 `openspec schema fork spec-driven <name>` 並編輯 schema.yaml。
+EOF
+
+# ── 13. 六階段流程為強制要求 ──────────────────────────────
+cat > "$MEMORY_DIR/feedback_openspec_6stage_required.md" << 'EOF'
+---
+name: feedback-openspec-6stage-required
+description: 之後所有程式碼修改都必須走 OpenSpec 六階段流程，且要落地產出 docs/Architecture 與 docs/Engineering Evidence 文件
+metadata:
+  type: feedback
+---
+
+之後任何非 trivial 的程式碼修改，都必須走 [[project_openspec_workflow_6stages]] 定義的六階段：
+
+Proposal → Design → Tasks → Implementation → Validation → Engineering Evidence
+
+且這不只是流程描述，兩份對應文件要實際落地：
+
+- **Architecture**：`docs/Architecture/README.md` — 專案架構的單一事實來源，若變更牽動到目錄結構 / 技術棧 / 開發規範重點，需同步更新這份文件
+- **Engineering Evidence**：`docs/Engineering Evidence/<主題>.md` — 每個變更（或一批相關變更）完成 Validation 後，都要依 `openspec/templates/engineering-evidence.md` 的結構（變更摘要、驗證佐證、風險與後續追蹤、封存前檢查）產出一份文件，範例見 `docs/Engineering Evidence/game-17-25-pixel-games.md`
+
+**Why:** 使用者在建立 GAME 17-25 的 Engineering Evidence 文件後明確要求「之後修改都需要這些流程」，代表這是往後所有變更的固定期待，不是這批遊戲的一次性要求。
+
+**How to apply:**
+
+1. 開始寫程式碼前，先確認是否需要 proposal/design/tasks（比照 feedback-project-spec 既有 OpenSpec 慣例）
+2. 實作完成、驗證通過後，**不要只停在 commit**：在 `docs/Engineering Evidence/` 下新增或更新對應文件，記錄變更摘要、驗證佐證、風險與後續追蹤、封存前檢查
+3. 若這次變更影響到專案架構（新增目錄、調整技術棧、改變開發規範），一併更新 `docs/Architecture/README.md`
+4. 若使用者只說「先幫我規劃」，比照 feedback-plan-first-spec-only，只到 proposal/design/tasks 為止，Validation／Engineering Evidence 等實際動手實作後才補
+EOF
+
 # ── MEMORY.md 索引 ────────────────────────────────────────────
 cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 # Memory Index
@@ -309,6 +361,8 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [GAME 17-25 openspec 提案](project_pixel_games_17-25_proposals.md) — 8 款遊戲已全數實作、測試、commit 完成（Dino Run 不新增）
 - [驗證改動用既有 dev server](feedback_temp_dev_server_testing.md) — 不要另開 npm run dev -- --port N，直接用 6100，避免殭屍進程
 - [「先幫我規劃」只寫 spec](feedback_plan_first_spec_only.md) — 只建立 OpenSpec 文件，不寫程式碼，等使用者明確要求才實作
+- [OpenSpec 流程擴充為 6 階段](project_openspec_workflow_6stages.md) — 新增 Validation、Engineering Evidence 兩份文件與範本（僅文件層級，未動 CLI schema）
+- [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
@@ -425,7 +479,7 @@ tools: Read, Grep, Glob, Bash, Edit, Write
 AGENTEOF
 
 echo ""
-echo "✓ 設定完成，共 11 條記憶 + 2 個 Agents："
+echo "✓ 設定完成，共 13 條記憶 + 2 個 Agents："
 echo "  記憶："
 echo "  - 語言偏好：繁體中文"
 echo "  - git commit 訊息格式（「給我最新的 git commit」觸發）"
@@ -438,6 +492,8 @@ echo "  - 遊戲紀錄 coin 每日上限（100000，待後台管理介面）"
 echo "  - GAME 17-25 openspec 提案（8 款已完成）"
 echo "  - 驗證改動用既有 dev server（直接用 6100）"
 echo "  - 「先幫我規劃」只寫 spec（不寫程式碼）"
+echo "  - OpenSpec 流程擴充為 6 階段（新增 Validation、Engineering Evidence）"
+echo "  - 六階段流程為強制要求（每次修改都要落地產出 docs/Architecture、docs/Engineering Evidence）"
 echo "  Agents："
 echo "  - my-reviewer（程式碼審查 + 補測試）"
 echo "  - my-create（新功能／組件建立）"
