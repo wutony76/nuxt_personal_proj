@@ -192,6 +192,28 @@ const _handlers = {
     state.shotsFired = snap.shotsFired
     state.warning = snap.warning
   },
+  /**
+   * 跟 syncSnapshot 一樣，但故意不動 state.grid：一次 tick 如果同時有 match 又剛好觸發
+   * 「每 SHOTS_PER_NEW_ROW 次插入新列」，engine 內部這時已經把 matched/dropped 清空、
+   * 整排也搬移好了，若在這裡就整包同步，頁面手動疊上去的 popping/falling 分段動畫會拿
+   * 「已經套用完 push 位移」的格子座標去插，跟 result.matched/dropped 記錄的（push 之前）
+   * 座標對不上，導致疊到別顆還在的球身上，畫面看起來像「佈局跳掉、球沒有照原本位置往下移動」。
+   * 保留 grid 停在「這次發射落地前」的畫面，等分段動畫全部播完（finishStagedSequence）才
+   * 一次呼叫真正的 syncSnapshot() 跳到最終狀態，讓 TransitionGroup 一次處理完整個位移。
+   */
+  syncSnapshotExceptGrid: () => {
+    const snap = engine.getSnapshot()
+    state.status = snap.status
+    state.flying = snap.flying
+    state.current = snap.current
+    state.next = snap.next
+    state.aimAngle = snap.aimAngle
+    state.score = snap.score
+    state.combo = snap.combo
+    state.maxCombo = snap.maxCombo
+    state.shotsFired = snap.shotsFired
+    state.warning = snap.warning
+  },
   stopTickTimer: () => {
     if (tickTimer) {
       clearInterval(tickTimer)
@@ -205,8 +227,15 @@ const _handlers = {
       // 也刻意不去 syncSnapshot() 蓋掉頁面手動疊加的 popping/falling 顯示狀態
       if (state.status !== 'playing' || state.locked) return
       const result = engine.tick(TICK_MS)
-      _handlers.syncSnapshot()
-      if (result.snapped) _actions.handleSnapResult(result)
+      if (result.snapped && result.matched.length > 0) {
+        // 有 match 要分段播放：state.grid 先保持「這次落地前」的畫面不動（見 syncSnapshotExceptGrid
+        // 的說明），交給 handleSnapResult 自己控制何時、用什麼座標更新畫面
+        _handlers.syncSnapshotExceptGrid()
+        _actions.handleSnapResult(result)
+      } else {
+        _handlers.syncSnapshot()
+        if (result.snapped) _actions.handleSnapResult(result)
+      }
     }, TICK_MS)
   },
   stopPopupTimer: () => {
