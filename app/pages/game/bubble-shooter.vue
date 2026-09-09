@@ -18,8 +18,9 @@ import BubbleShooterEngine, {
   cellCenterY,
   type BubbleShooterStatus,
   type BubbleColor,
-  type GridCell,
-  type FlyingBubble
+  type FlyingBubble,
+  type RemovedBubble,
+  type TickResult
 } from '~/utils/bubbleShooterEngine'
 
 /**
@@ -43,6 +44,17 @@ const TICK_MS = 16
  *     頂緣會落在 y<0，不整體往下位移會被從上面切掉。
  */
 const Y_OFFSET_PX = Math.max(0, BUBBLE_RADIUS - ROW_HEIGHT_RATIO / 2) * CELL
+/** 消除動畫（球放大＋淡出）播放時間；播完才會真的把格子清空、開始播下一段掉落動畫 */
+const MATCH_POP_MS = 200
+/** 掉落動畫（球往下滑出＋淡出）播放時間；播完才真正解鎖發射，做出「消除→掉落→才能射」的分段節奏 */
+const DROP_FALL_MS = 450
+
+/**
+ * 頁面自己疊加的顯示用格子型別：比 engine 的 GridCell 多兩個「純畫面用」的暫時旗標，
+ * 讓 handleSnapResult 能在 engine 資料已經把格子清空之後，還能手動把這兩種球留在畫面上
+ * 播完各自的分段動畫，才真的從 state.grid 移除（見 handleSnapResult 的分段邏輯）。
+ */
+type DisplayCell = { id: number; color: BubbleColor; pushed: boolean; popping?: boolean; falling?: boolean } | null
 
 const COLOR_HEX: Record<BubbleColor, string> = {
   RED: '#ff4d4d',
@@ -58,7 +70,7 @@ const stageRef = ref<HTMLElement | null>(null)
 
 const state = reactive({
   status: 'idle' as BubbleShooterStatus,
-  grid: engine.getSnapshot().grid as GridCell[][],
+  grid: engine.getSnapshot().grid as DisplayCell[][],
   flying: null as FlyingBubble | null,
   current: 'RED' as BubbleColor,
   next: 'BLUE' as BubbleColor,
@@ -68,6 +80,8 @@ const state = reactive({
   maxCombo: 0,
   shotsFired: 0,
   warning: false,
+  /** 消除／掉落分段動畫播放中：鎖住發射，直到「消失→下落」兩段動畫都播完才解鎖 */
+  locked: false,
   /** 最近一次消除/掉落的短暫提示（DROP xN） */
   popup: null as { text: string; ttl: number } | null,
   message: '瞄準後點擊發射！',
@@ -98,6 +112,7 @@ const BUBBLE_RULE = {
 
 let tickTimer: ReturnType<typeof setInterval> | null = null
 let popupTimer: ReturnType<typeof setTimeout> | null = null
+let stageTimer: ReturnType<typeof setTimeout> | null = null
 
 const stageWidth = computed(() => (COLS + 0.5) * CELL)
 const stageHeight = computed(() => Math.ceil(ROWS * ROW_HEIGHT_RATIO * CELL + CELL * 1.6 + Y_OFFSET_PX))
@@ -111,7 +126,7 @@ const bubbleSize = computed(() => BUBBLE_DIAMETER * CELL)
  * 而不是「這個座標的顏色被換掉了」的瞬間換色錯覺。
  */
 const flatBubbles = computed(() => {
-  const out: Array<{ key: number; left: number; top: number; color: BubbleColor; pushed: boolean }> = []
+  const out: Array<{ key: number; left: number; top: number; color: BubbleColor; pushed: boolean; popping: boolean; falling: boolean }> = []
   state.grid.forEach((row, r) => {
     row.forEach((cell, c) => {
       if (!cell) return
@@ -120,7 +135,9 @@ const flatBubbles = computed(() => {
         left: cellCenterX(r, c) * CELL - bubbleSize.value / 2,
         top: cellCenterY(r) * CELL - bubbleSize.value / 2 + Y_OFFSET_PX,
         color: cell.color,
-        pushed: cell.pushed
+        pushed: cell.pushed,
+        popping: !!cell.popping,
+        falling: !!cell.falling
       })
     })
   })
@@ -182,7 +199,9 @@ const _handlers = {
   startTickTimer: () => {
     _handlers.stopTickTimer()
     tickTimer = setInterval(() => {
-      if (state.status !== 'playing') return
+      // 分段動畫播放中（state.locked）暫停整個 tick 迴圈：沒有飛行中的泡泡需要推進，
+      // 也刻意不去 syncSnapshot() 蓋掉頁面手動疊加的 popping/falling 顯示狀態
+      if (state.status !== 'playing' || state.locked) return
       const result = engine.tick(TICK_MS)
       _handlers.syncSnapshot()
       if (result.snapped) _actions.handleSnapResult(result)
@@ -201,6 +220,12 @@ const _handlers = {
       state.popup = null
       popupTimer = null
     }, 700)
+  },
+  stopStageTimer: () => {
+    if (stageTimer) {
+      clearTimeout(stageTimer)
+      stageTimer = null
+    }
   }
 }
 
@@ -225,6 +250,8 @@ const _actions = {
   resetGame: () => {
     _handlers.stopTickTimer()
     _handlers.stopPopupTimer()
+    _handlers.stopStageTimer()
+    state.locked = false
     engine.reset()
     _handlers.syncSnapshot()
     state.popup = null
@@ -241,23 +268,60 @@ const _actions = {
     state.message = '瞄準後點擊發射！'
     _handlers.startTickTimer()
   },
-  handleSnapResult: (result: { matchedCount: number; droppedCount: number; scoreGained: number; rowPushed: boolean; gameOver: boolean }) => {
-    const parts: string[] = []
-    if (result.matchedCount > 0) {
-      parts.push(`MATCH x${result.matchedCount}`)
-      if (result.droppedCount > 0) parts.push(`DROP x${result.droppedCount}`)
+  /**
+   * 消除／掉落改成分段播放，不是瞬間套用最終結果：
+   *   1. 有 match 才需要分段；沒有 match（可能仍有 rowPushed）直接照舊處理，不鎖發射。
+   *   2. 鎖住發射（state.locked），手動把 matched／dropped 的格子標成 popping／falling 疊回
+   *      state.grid（engine 內部其實已經把它們清掉了，這裡只是頁面畫面上還留著播動畫）。
+   *   3. 等 MATCH_POP_MS 過後，才真的把 matched 格子清空（觸發 TransitionGroup 的 leave），
+   *      這時才讓 dropped 的格子開始播下落動畫；如果沒有 dropped，直接收尾。
+   *   4. 再等 DROP_FALL_MS，呼叫 finishStagedSequence 拉回 engine 的真實狀態並解鎖發射。
+   */
+  handleSnapResult: (result: TickResult) => {
+    if (result.matched.length === 0) {
+      // 每 SHOTS_PER_NEW_ROW 次發射會自動從頂端插入一整列（既有的施壓機制，不是 bug），
+      // 沒有這個提示的話，剛好在快清空棋盤時碰上會讓玩家以為畫面突然無緣無故被填滿
+      if (result.rowPushed) {
+        _handlers.showPopup('⚠ NEW ROW!')
+        state.message = '頂端插入新的一列，小心別堆到底線！'
+      } else {
+        state.message = '沒有消除，繼續瞄準！'
+      }
+      if (result.gameOver) _actions.finishGame()
+      return
     }
-    // 每 SHOTS_PER_NEW_ROW 次發射會自動從頂端插入一整列（既有的施壓機制，不是 bug），
-    // 沒有這個提示的話，剛好在快清空棋盤時碰上會讓玩家以為畫面突然無緣無故被填滿
-    if (result.rowPushed) parts.push('⚠ NEW ROW!')
-    if (parts.length > 0) _handlers.showPopup(parts.join(' + '))
 
-    if (result.matchedCount > 0) {
-      state.message = `+${result.scoreGained} 分！`
-    } else if (result.rowPushed) {
+    state.locked = true
+    const stage1 = state.grid.map((row) => [...row])
+    for (const b of result.matched) stage1[b.row]![b.col] = { id: b.id, color: b.color, pushed: false, popping: true }
+    for (const b of result.dropped) stage1[b.row]![b.col] = { id: b.id, color: b.color, pushed: false, falling: true }
+    state.grid = stage1
+
+    _handlers.showPopup(`MATCH x${result.matched.length}`)
+    state.message = `+${result.scoreGained} 分！`
+
+    _handlers.stopStageTimer()
+    stageTimer = setTimeout(() => {
+      const stage2 = state.grid.map((row) => [...row])
+      for (const b of result.matched) stage2[b.row]![b.col] = null
+      state.grid = stage2
+
+      if (result.dropped.length > 0) {
+        _handlers.showPopup(`DROP x${result.dropped.length}`)
+        stageTimer = setTimeout(() => _actions.finishStagedSequence(result), DROP_FALL_MS)
+      } else {
+        _actions.finishStagedSequence(result)
+      }
+    }, MATCH_POP_MS)
+  },
+  /** 分段動畫全部播完：拉回 engine 的真實狀態（順便讓插入新列的球在這時才正式出現）並解鎖發射 */
+  finishStagedSequence: (result: TickResult) => {
+    stageTimer = null
+    _handlers.syncSnapshot()
+    state.locked = false
+    if (result.rowPushed) {
+      _handlers.showPopup('⚠ NEW ROW!')
       state.message = '頂端插入新的一列，小心別堆到底線！'
-    } else {
-      state.message = '沒有消除，繼續瞄準！'
     }
     if (result.gameOver) _actions.finishGame()
   },
@@ -268,10 +332,14 @@ const _actions = {
     const y = clientY - rect.top
     const angle = Math.atan2(x - launcherX.value, launcherY.value - y)
     engine.aim(angle)
-    _handlers.syncSnapshot()
+    // 只同步 aimAngle 這一個欄位，不能整包 syncSnapshot()：滑鼠移動在 state.locked
+    // （消除/掉落分段動畫播放中）期間也會觸發，整包同步會把頁面手動疊上去的
+    // popping/falling 顯示狀態直接蓋回 engine 當下的真實 grid，animation 還沒播完就被清空
+    state.aimAngle = engine.getSnapshot().aimAngle
   },
   shoot: () => {
-    if (state.status !== 'playing') return
+    // state.locked 期間（消除/掉落分段動畫播放中）不能發射，等動畫完全播完才解鎖
+    if (state.status !== 'playing' || state.locked) return
     engine.shoot()
     _handlers.syncSnapshot()
   },
@@ -279,6 +347,10 @@ const _actions = {
     if (state.status !== 'playing') return
     engine.pause()
     _handlers.stopTickTimer()
+    // 暫停時如果剛好卡在消除/掉落分段動畫中間，直接跳到動畫播完後的最終狀態並解鎖，
+    // 不做「可暫停動畫」這種複雜度（setTimeout 本來就無法真的暫停/恢復剩餘時間）
+    _handlers.stopStageTimer()
+    state.locked = false
     _handlers.syncSnapshot()
     state.message = '已暫停'
   },
@@ -292,6 +364,8 @@ const _actions = {
   finishGame: () => {
     _handlers.stopTickTimer()
     _handlers.stopPopupTimer()
+    _handlers.stopStageTimer()
+    state.locked = false
     _handlers.syncSnapshot()
     state.resultOverlayVisible = true
     state.message = '泡泡堆到底線，遊戲結束。'
@@ -304,6 +378,8 @@ const _actions = {
   endGameNow: () => {
     _handlers.stopTickTimer()
     _handlers.stopPopupTimer()
+    _handlers.stopStageTimer()
+    state.locked = false
     state.status = 'gameover'
     state.waitingOverlayVisible = false
     state.message = '本局已結束。'
@@ -354,6 +430,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   _handlers.stopTickTimer()
   _handlers.stopPopupTimer()
+  _handlers.stopStageTimer()
   window.removeEventListener('keydown', onKeydown)
 })
 </script>
@@ -419,7 +496,8 @@ onBeforeUnmount(() => {
           <div ref="stageRef" class="bub-stage" :style="`width:${stageWidth}px; height:${stageHeight}px;`"
             @pointermove="click.stagePointerMove" @click="click.stageClick">
             <TransitionGroup name="bubble" tag="div">
-              <div v-for="b in flatBubbles" :key="b.key" class="bub-bubble" :class="{ 'is-pushed-in': b.pushed }"
+              <div v-for="b in flatBubbles" :key="b.key" class="bub-bubble"
+                :class="{ 'is-pushed-in': b.pushed, 'is-popping': b.popping, 'is-falling': b.falling }"
                 :style="`left:${b.left}px; top:${b.top}px; width:${bubbleSize}px; height:${bubbleSize}px; background:${COLOR_HEX[b.color]};`" />
             </TransitionGroup>
 
@@ -449,6 +527,7 @@ onBeforeUnmount(() => {
           <p class="bub-help-text">
             移動滑鼠／觸控拖曳瞄準，點擊／放開發射泡泡。碰到既有泡泡群或最頂列會黏附，
             {{ MATCH_MIN }} 顆以上同色連成一片即消除，跟頂列失去連接的泡泡群會整群掉落額外加分。
+            消除／掉落動畫播放時無法發射，動畫播完才能打下一發。
             每 {{ SHOTS_PER_NEW_ROW }} 次發射會插入新的一列，泡泡堆到底線即 GAME OVER。ESC / P 可暫停。
           </p>
         </div>
@@ -758,6 +837,31 @@ onBeforeUnmount(() => {
 
     .bubble-enter-active.is-pushed-in {
       transition: opacity 0.16s ease-out, transform 0.16s ease-out;
+    }
+
+    /**
+     * 消除／掉落分段播放用的兩個手動旗標（MATCH_POP_MS／DROP_FALL_MS，見 handleSnapResult）：
+     *   - is-popping：同色消除的球，放大＋淡出，播完才真的從 state.grid 移除。
+     *   - is-falling：因為跟頂列失去連接而掉落的球，往下滑出＋淡出，比 popping 晚開始、播更久。
+     * 這兩個是頁面手動加的 class（不是 TransitionGroup 自動注入的），本身就要自帶 transition，
+     * 讓 class 一出現就能從目前樣式平滑過渡到目標樣式。
+     */
+    .bub-bubble.is-popping {
+      transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+      opacity: 0;
+      transform: scale(1.4);
+    }
+
+    .bub-bubble.is-falling {
+      transition: opacity 0.45s ease-in, transform 0.45s ease-in;
+      opacity: 0.1;
+      transform: translateY(60px);
+    }
+
+    /** is-falling 的球最終被移出畫面時，讓預設的 leave 動畫延續「往下掉」而不是跳成 pop 的放大效果 */
+    .bubble-leave-to.is-falling {
+      opacity: 0;
+      transform: translateY(90px);
     }
 
     .bub-aimline {

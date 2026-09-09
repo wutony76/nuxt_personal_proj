@@ -53,10 +53,15 @@ export type ShootResult = {
   fired: boolean
 }
 
+/** 一顆被移除的泡泡的完整資訊，讓頁面端能在 grid 資料已經移除它之後，還能畫出「消除／掉落」動畫 */
+export type RemovedBubble = { id: number; row: number; col: number; color: BubbleColor }
+
 export type TickResult = {
   snapped: boolean
-  matchedCount: number
-  droppedCount: number
+  /** 這次 snap 同色連成一片被消除的泡泡（≥MATCH_MIN 才會非空） */
+  matched: RemovedBubble[]
+  /** 這次 snap 因為跟頂列失去連接而掉落的泡泡（只有在有 match 時才可能非空） */
+  dropped: RemovedBubble[]
   scoreGained: number
   /** 這次 snap 是否觸發了「每 SHOTS_PER_NEW_ROW 次插入新列」的施壓機制（見 maybePushNewRow） */
   rowPushed: boolean
@@ -308,15 +313,18 @@ export default class BubbleShooterEngine {
 
     const group = floodFillSameColor(this.grid, row, col, color)
     let scoreGained = 0
-    let matchedCount = 0
-    let droppedCount = 0
+    let matched: RemovedBubble[] = []
+    let dropped: RemovedBubble[] = []
 
     if (group.length >= MATCH_MIN) {
+      matched = group.map((cell) => {
+        const bubble = this.grid[cell.row]![cell.col]!
+        return { id: bubble.id, row: cell.row, col: cell.col, color: bubble.color }
+      })
       for (const cell of group) this.grid[cell.row]![cell.col] = null
-      matchedCount = group.length
       this.combo += 1
       this.maxCombo = Math.max(this.maxCombo, this.combo)
-      scoreGained += matchScore(matchedCount) + this.combo * COMBO_BONUS_PER_COMBO
+      scoreGained += matchScore(matched.length) + this.combo * COMBO_BONUS_PER_COMBO
 
       const anchored = findAnchoredCells(this.grid)
       const floating: Array<{ row: number; col: number }> = []
@@ -325,9 +333,12 @@ export default class BubbleShooterEngine {
           if (this.grid[r]?.[c] && !anchored.has(`${r},${c}`)) floating.push({ row: r, col: c })
         }
       }
+      dropped = floating.map((cell) => {
+        const bubble = this.grid[cell.row]![cell.col]!
+        return { id: bubble.id, row: cell.row, col: cell.col, color: bubble.color }
+      })
       for (const cell of floating) this.grid[cell.row]![cell.col] = null
-      droppedCount = floating.length
-      scoreGained += droppedCount * DROP_SCORE_PER_BUBBLE
+      scoreGained += dropped.length * DROP_SCORE_PER_BUBBLE
     } else {
       this.combo = 0
     }
@@ -337,13 +348,13 @@ export default class BubbleShooterEngine {
     const gameOver = this.checkGameOver()
     if (gameOver) this.status = 'gameover'
 
-    return { snapped: true, matchedCount, droppedCount, scoreGained, rowPushed, gameOver }
+    return { snapped: true, matched, dropped, scoreGained, rowPushed, gameOver }
   }
 
   /** 推進飛行中的泡泡一個 tick：移動 → 牆壁反彈 → 碰到頂列或既有泡泡即 snap 並結算 */
   tick(dtMs: number): TickResult {
     if (this.status !== 'playing' || !this.flying) {
-      return { snapped: false, matchedCount: 0, droppedCount: 0, scoreGained: 0, rowPushed: false, gameOver: false }
+      return { snapped: false, matched: [], dropped: [], scoreGained: 0, rowPushed: false, gameOver: false }
     }
     const dt = dtMs / 1000
     const f = this.flying
@@ -384,7 +395,7 @@ export default class BubbleShooterEngine {
       }
     }
 
-    return { snapped: false, matchedCount: 0, droppedCount: 0, scoreGained: 0, rowPushed: false, gameOver: false }
+    return { snapped: false, matched: [], dropped: [], scoreGained: 0, rowPushed: false, gameOver: false }
   }
 
   /** 對外回傳純資料快照（頁面用 reactive() 鏡像） */
