@@ -18,9 +18,15 @@
 
 ### 為什麼選用 Nuxt
 
-- **背景**：專案需求是開發一個新版的 BG 彩票前端，技術指定為 Nuxt。
+- **背景**：專案需求是開發一個新版的 BG 彩票前端，技術指定為 Nuxt，此為公司技術決策。
 - **實際發展**：開發過程中，團隊決定沿用既有的 Vue 寫法來架構專案，導致最終呈現「包了一層 Nuxt 外殼的 Vue」，並未真正落地 Nuxt 的核心優勢（例如 SSR、file-based routing、Nitro server API 等）。
-- **待釐清疑慮**：這種架構方式可能偏離 Nuxt 應有的用法，效能上也可能因此打折扣（例如喪失 SSR 帶來的效益）。此為現階段的個人觀察與推測，尚未實測驗證，之後若有具體效能數據或案例可再補充修正。
+- **已驗證的效能問題**：這種架構方式偏離了 Nuxt 應有的用法，效能確實受到影響（例如喪失 SSR 帶來的效益）。實際觀察到：資料量大時需要長時間等待，畫面會出現白屏（blank screen），且伴隨長時間 loading。
+- **根因分析（舊公司專案，非本 repo）**：
+  - **SSR 被 routeRules 全面關閉**：全域設 SSR，但把幾乎所有實際頁面覆蓋成 CSR —「有資料、有邏輯」的頁面全部關掉 SSR，只剩框架的殼。
+  - **沒有用 Nuxt 官方的資料獲取方式**：全專案完全沒用到 Nuxt 提供的 `useAsyncData`/`useFetch`，還是照舊 Vue 的寫法：等頁面元件掛載完成後，才在 `onMounted` 裡手動打 API 拿資料，loading 狀態也是自己土法煉鋼控制，不是交給 Nuxt 內建機制處理。這種寫法在整個專案裡到處都是（多達 44 個檔案），例如 `trend.vue` 這種報表頁，就是進頁面之後才發 API 去要資料。
+  - **CSR waterfall 是白屏／長 loading 的根因**：頁面先送出空殼 HTML（因為 `ssr:false`），瀏覽器要等 JS 下載、執行、掛載，`onMounted` 才觸發 fetch，資料回來才 render——典型 CSR waterfall（HTML → JS → 掛載 → fetch → render），而非 SSR 直接吐出含資料的 HTML。報表類頁面（trend、bet_search、coin_ledger）資料量大時這個 waterfall 被放大，體驗上就是「白屏 + 轉圈圈」。
+  - **代價**：連帶讓 Nuxt 其他核心優勢（SEO、首屏 TTFB、資料去重快取）全部作廢，等於用 Nuxt 的建置複雜度，換來 Vue SPA 的效能天花板，且更差（多一層框架開銷）。
+  - 註：以上檔案／行號引用的是舊公司專案，**非本 repo**；本 repo（`nuxt_personal_proj`）的 `nuxt.config.ts` 目前沒有 `routeRules`，純粹作為練習與展示用途，記錄於此作為之後開發的借鏡。
 - **參考 URL**：http://104.199.176.35/credit/#/?domain=fntuser-dev.tlsanheng.com&searchCode=96225&nuxt
   - 測試帳密: newt02b0022/newt02b0022
 
