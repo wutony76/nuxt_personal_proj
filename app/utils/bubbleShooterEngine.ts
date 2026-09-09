@@ -301,7 +301,14 @@ export default class BubbleShooterEngine {
   /** 每 SHOTS_PER_NEW_ROW 次發射，整排下移、頂端插入新的一列；回傳這次是否真的觸發了插入 */
   private maybePushNewRow(): boolean {
     if (this.shotsFired % SHOTS_PER_NEW_ROW !== 0) return false
-    for (let r = ROWS - 1; r > 0; r -= 1) this.grid[r] = this.grid[r - 1]!
+    // 注意：row 是陣列（參考型別），`this.grid[r] = this.grid[r - 1]` 只是複製參考，不是複製
+    // 內容——這樣做完整個迴圈後 grid[0] 跟 grid[1] 會變成指向同一個陣列物件（別名），後續
+    // fillRow(0) 或任何對 grid[1] 的格子賦值都會互相污染到對方，導致明明沒連在一起的格子
+    // 卻讀到一樣的顏色（match 判定錯亂），或該清空的格子被之後的寫入蓋回來（殘留浮空的球）。
+    // 改用 pop/unshift 操作最外層陣列本身：把最底列整個丟掉、在最前面塞一個全新的陣列物件，
+    // 中間所有列都還是原本各自獨立的陣列物件，完全不會有共用參考的問題。
+    this.grid.pop()
+    this.grid.unshift(Array<GridCell>(COLS).fill(null))
     this.fillRow(0, true)
     return true
   }
