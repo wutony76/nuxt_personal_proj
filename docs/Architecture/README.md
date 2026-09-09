@@ -1,6 +1,6 @@
 # 專案架構：my-portfolio（nuxt_personal_proj）
 
-定位：個人 Nuxt 練習與展示專案，核心為彩票大廳、盤口玩法頁、小遊戲頁。
+定位：Frontend / Full Stack Engineering Project。
 
 ## 技術棧
 
@@ -13,6 +13,16 @@
 - UI/內容模組：`@nuxt/ui`、`@nuxt/image`、`@nuxt/content`
 - 工具庫：`lodash-es`、`dayjs`、`number-precision`、`crypto-js`、`bcryptjs`、`dexie`
 - Runtime：Node.js 22.x（Volta）、npm
+
+## 技術選型決策
+
+### 為什麼選用 Nuxt
+
+- **背景**：專案需求是開發一個新版的 BG 彩票前端，技術指定為 Nuxt。
+- **實際發展**：開發過程中，團隊決定沿用既有的 Vue 寫法來架構專案，導致最終呈現「包了一層 Nuxt 外殼的 Vue」，並未真正落地 Nuxt 的核心優勢（例如 SSR、file-based routing、Nitro server API 等）。
+- **待釐清疑慮**：這種架構方式可能偏離 Nuxt 應有的用法，效能上也可能因此打折扣（例如喪失 SSR 帶來的效益）。此為現階段的個人觀察與推測，尚未實測驗證，之後若有具體效能數據或案例可再補充修正。
+- **參考 URL**：http://104.199.176.35/credit/#/?domain=fntuser-dev.tlsanheng.com&searchCode=96225&nuxt
+  - 測試帳密: newt02b0022/newt02b0022
 
 ## 頂層目錄
 
@@ -99,4 +109,5 @@ server/
 - 新遊戲一律走 OpenSpec 六階段流程：Proposal → Design → Tasks → Implementation → Validation → Engineering Evidence
 
 ---
+
 最後更新：2026-09-09
