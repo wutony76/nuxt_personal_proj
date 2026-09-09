@@ -20,7 +20,8 @@ export default class RetroBubbleShooterClass extends RETRO_GAME_BASE {
   }
 
   // 理論極限值估算：單次發射最極端情況下可能一次清空整個 12x8=96 格盤面（消除+懸空全掉落），
-  // 抓一個寬鬆但非無限的上限，加上長時間遊玩的連鎖累積空間，超過視為異常回報，
+  // 現在遊戲改成 80 秒倒數（見 bubbleShooterEngine.ts 的 BUB_INITIAL_TIME_SEC），連續消除
+  // 加時上限也有限，理論總遊玩時間不再無限，但仍抓一個寬鬆的上限，超過視為異常回報，
   // 寫入紀錄與換算 coin 前先夾住。
   override maxReasonableScore(): number {
     return 50000

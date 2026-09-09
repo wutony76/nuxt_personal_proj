@@ -16,6 +16,11 @@
  *   2. 消除後對「目前還跟最頂列連通」的格子做第二次 flood-fill（從 row 0 出發），
  *      沒被標記到的格子視為懸空，整群移除並計分（DROP）。
  * 兩次 flood-fill 都是標準 DFS/stack 實作，沒有用到任何圖形函式庫。
+ *
+ * Game Timer（BUB_INITIAL_TIME_SEC 秒倒數，時間到自動結算）比照 whackAMoleEngine 等既有慣例，
+ * 由頁面每秒呼叫一次 `tickTimer()` 推進，跟 `tick(dtMs)`（飛行泡泡的 16ms 物理迴圈）是
+ * 兩個完全獨立的方法，不要混淆。連續成功消除（combo）每達 COMBO_TIME_BONUS_STEP 的倍數，
+ * 額外加 TIME_BONUS_SEC 秒，在 resolveSnap() 判定 match 成功時直接處理。
  */
 
 // ── 型別 ──
@@ -49,6 +54,7 @@ export type BubbleShooterSnapshot = {
   warning: boolean
   /** 累計插入新列次數，頁面渲染 flatBubbles 時要跟 grid 一起、原子性地套用（見 cellCenterX 說明） */
   pushCount: number
+  remainingSec: number
 }
 
 export type ShootResult = {
@@ -73,6 +79,8 @@ export type TickResult = {
   /** 這次 snap 因為跟頂列失去連接而掉落的泡泡（只有在有 match 時才可能非空） */
   dropped: RemovedBubble[]
   scoreGained: number
+  /** 這次 match 是否觸發了「連續消除每 COMBO_TIME_BONUS_STEP 次」的加時獎勵，非 0 時是加了幾秒 */
+  timeBonusSec: number
   /** 這次 snap 是否觸發了「每 SHOTS_PER_NEW_ROW 次插入新列」的施壓機制（見 maybePushNewRow） */
   rowPushed: boolean
   gameOver: boolean
@@ -106,6 +114,12 @@ export const MATCH5_SCORE = 250
 export const MATCH_EXTRA_PER_BUBBLE = 50
 export const DROP_SCORE_PER_BUBBLE = 100
 export const COMBO_BONUS_PER_COMBO = 10
+
+/** Game Timer：80 秒倒數，時間到自動結算（見 tickTimer） */
+export const BUB_INITIAL_TIME_SEC = 80
+/** 連續成功消除（combo）每達這個倍數，加時 TIME_BONUS_SEC 秒（在 resolveSnap 判定） */
+export const COMBO_TIME_BONUS_STEP = 3
+export const TIME_BONUS_SEC = 1
 
 /** 依消除顆數換算分數：3 顆 100、4 顆 150、5 顆 250，超過 5 顆每多 1 顆再 +50 */
 export const matchScore = (count: number): number => {
@@ -225,6 +239,7 @@ export default class BubbleShooterEngine {
   private nextBubbleId = 1
   /** 累計插入新列的次數，跟 cellCenterX／neighborsOf 的奇偶判定綁在一起，見那兩個函式的說明 */
   private pushCount = 0
+  private remainingSec = BUB_INITIAL_TIME_SEC
   private random: () => number
 
   constructor(options: BubbleShooterEngineOptions = {}) {
@@ -256,6 +271,7 @@ export default class BubbleShooterEngine {
     this.combo = 0
     this.maxCombo = 0
     this.shotsFired = 0
+    this.remainingSec = BUB_INITIAL_TIME_SEC
   }
 
   /** 開始新的一局：完整重置後進入 playing */
@@ -268,6 +284,18 @@ export default class BubbleShooterEngine {
   pause(): void {
     if (this.status !== 'playing') return
     this.status = 'paused'
+  }
+
+  /** Game Timer：每秒呼叫一次遞減剩餘秒數，歸零時結束遊戲；回傳本次是否結束（跟 tick(dtMs) 是兩個獨立方法） */
+  tickTimer(): boolean {
+    if (this.status !== 'playing') return false
+    this.remainingSec -= 1
+    if (this.remainingSec <= 0) {
+      this.remainingSec = 0
+      this.status = 'gameover'
+      return true
+    }
+    return false
   }
 
   resume(): void {
@@ -360,6 +388,7 @@ export default class BubbleShooterEngine {
     let scoreGained = 0
     let matched: RemovedBubble[] = []
     let dropped: RemovedBubble[] = []
+    let timeBonusSec = 0
 
     if (group.length >= MATCH_MIN) {
       matched = group.map((cell) => {
@@ -370,6 +399,11 @@ export default class BubbleShooterEngine {
       this.combo += 1
       this.maxCombo = Math.max(this.maxCombo, this.combo)
       scoreGained += matchScore(matched.length) + this.combo * COMBO_BONUS_PER_COMBO
+
+      if (this.combo % COMBO_TIME_BONUS_STEP === 0) {
+        this.remainingSec += TIME_BONUS_SEC
+        timeBonusSec = TIME_BONUS_SEC
+      }
 
       const anchored = findAnchoredCells(this.grid, this.pushCount)
       const floating: Array<{ row: number; col: number }> = []
@@ -393,13 +427,13 @@ export default class BubbleShooterEngine {
     const gameOver = this.checkGameOver()
     if (gameOver) this.status = 'gameover'
 
-    return { snapped: true, landed, matched, dropped, scoreGained, rowPushed, gameOver }
+    return { snapped: true, landed, matched, dropped, scoreGained, timeBonusSec, rowPushed, gameOver }
   }
 
   /** 推進飛行中的泡泡一個 tick：移動 → 牆壁反彈 → 碰到頂列或既有泡泡即 snap 並結算 */
   tick(dtMs: number): TickResult {
     if (this.status !== 'playing' || !this.flying) {
-      return { snapped: false, landed: null, matched: [], dropped: [], scoreGained: 0, rowPushed: false, gameOver: false }
+      return { snapped: false, landed: null, matched: [], dropped: [], scoreGained: 0, timeBonusSec: 0, rowPushed: false, gameOver: false }
     }
     const dt = dtMs / 1000
     const f = this.flying
@@ -440,7 +474,7 @@ export default class BubbleShooterEngine {
       }
     }
 
-    return { snapped: false, landed: null, matched: [], dropped: [], scoreGained: 0, rowPushed: false, gameOver: false }
+    return { snapped: false, landed: null, matched: [], dropped: [], scoreGained: 0, timeBonusSec: 0, rowPushed: false, gameOver: false }
   }
 
   /** 對外回傳純資料快照（頁面用 reactive() 鏡像） */
@@ -461,7 +495,8 @@ export default class BubbleShooterEngine {
       maxCombo: this.maxCombo,
       shotsFired: this.shotsFired,
       warning,
-      pushCount: this.pushCount
+      pushCount: this.pushCount,
+      remainingSec: this.remainingSec
     }
   }
 }

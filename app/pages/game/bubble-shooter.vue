@@ -14,6 +14,9 @@ import BubbleShooterEngine, {
   MATCH5_SCORE,
   DROP_SCORE_PER_BUBBLE,
   SHOTS_PER_NEW_ROW,
+  BUB_INITIAL_TIME_SEC,
+  COMBO_TIME_BONUS_STEP,
+  TIME_BONUS_SEC,
   cellCenterX,
   cellCenterY,
   type BubbleShooterStatus,
@@ -82,6 +85,7 @@ const state = reactive({
   maxCombo: 0,
   shotsFired: 0,
   warning: false,
+  remainingSec: BUB_INITIAL_TIME_SEC,
   /** 累計插入新列次數，跟 grid 綁在一起原子性更新（見 engine 的 cellCenterX 說明） */
   pushCount: 0,
   /** 消除／掉落分段動畫播放中：鎖住發射，直到「消失→下落」兩段動畫都播完才解鎖 */
@@ -102,19 +106,22 @@ const BUBBLE_RULE = {
     `跟至少 ${MATCH_MIN} 顆同色泡泡連成一片即消除。消除後，任何跟最頂列失去連接的泡泡群會整群掉落，` +
     `一發打出大量掉落是最爽的得分方式。每發射 ${SHOTS_PER_NEW_ROW} 次（HUD 的 NEXT ROW 會倒數），` +
     '頂端會插入新的一列增加壓力——這是正常機制，不是 bug，就算快把畫面清空了也可能剛好被插入一整列。' +
-    '泡泡堆到底線即 GAME OVER。',
+    `限時 ${BUB_INITIAL_TIME_SEC} 秒，時間到自動結算；泡泡堆到底線也會 GAME OVER，兩種情況先發生算數。`,
   scoreRule:
     `消除 3 顆 +${MATCH3_SCORE}、4 顆 +${MATCH4_SCORE}、5 顆 +${MATCH5_SCORE}，超過每多 1 顆再加分；` +
     `掉落每顆額外 +${DROP_SCORE_PER_BUBBLE}；連續兩次以上發射都造成消除會累積 Combo 額外加分。` +
-    '不消耗到 3 顆以上的普通黏附不加分、也會讓 Combo 歸零。',
+    `連續成功消除每達 ${COMBO_TIME_BONUS_STEP} 次，額外加時 ${TIME_BONUS_SEC} 秒。` +
+    '不消耗到 3 顆以上的普通黏附不加分、也會讓 Combo 歸零（連續消除加時也會跟著中斷）。',
   levelsTitle: '顏色',
   levels: [
     { level: 'RED / BLUE / GREEN / YELLOW', condition: '第一版固定 4 種顏色，不含特殊泡泡／道具' }
   ],
-  note: 'ESC / P 可暫停，暫停期間不會發射也不會插入新列。'
+  note: 'ESC / P 可暫停，暫停期間不會發射也不會插入新列、時間也不會倒數。'
 }
 
 let tickTimer: ReturnType<typeof setInterval> | null = null
+/** Game Timer（80 秒倒數，每秒推進一次 engine.tickTimer()）；跟上面的 16ms 物理 tickTimer 是兩回事 */
+let gameTimer: ReturnType<typeof setInterval> | null = null
 let popupTimer: ReturnType<typeof setTimeout> | null = null
 let stageTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -177,6 +184,7 @@ const canResumeFromPause = computed(
 )
 /** 距離下一次「頂端插入新列」施壓機制還剩幾次發射（見 bubbleShooterEngine 的 maybePushNewRow） */
 const shotsUntilNextRow = computed(() => SHOTS_PER_NEW_ROW - (state.shotsFired % SHOTS_PER_NEW_ROW))
+const lowTime = computed(() => state.status === 'playing' && state.remainingSec <= 10)
 
 /** 私有工具方法：快照同步、計時器管理、彈出提示 */
 const _handlers = {
@@ -194,6 +202,7 @@ const _handlers = {
     state.maxCombo = snap.maxCombo
     state.shotsFired = snap.shotsFired
     state.warning = snap.warning
+    state.remainingSec = snap.remainingSec
   },
   /**
    * 跟 syncSnapshot 一樣，但故意不動 state.grid：一次 tick 如果同時有 match 又剛好觸發
@@ -219,6 +228,7 @@ const _handlers = {
     state.maxCombo = snap.maxCombo
     state.shotsFired = snap.shotsFired
     state.warning = snap.warning
+    state.remainingSec = snap.remainingSec
   },
   stopTickTimer: () => {
     if (tickTimer) {
@@ -243,6 +253,21 @@ const _handlers = {
         if (result.snapped) _actions.handleSnapResult(result)
       }
     }, TICK_MS)
+  },
+  stopGameTimer: () => {
+    if (gameTimer) {
+      clearInterval(gameTimer)
+      gameTimer = null
+    }
+  },
+  startGameTimer: () => {
+    _handlers.stopGameTimer()
+    gameTimer = setInterval(() => {
+      if (state.status !== 'playing') return
+      const over = engine.tickTimer()
+      state.remainingSec = engine.getSnapshot().remainingSec
+      if (over) _actions.finishGame('time-up')
+    }, 1000)
   },
   stopPopupTimer: () => {
     if (popupTimer) {
@@ -286,6 +311,7 @@ const _actions = {
   },
   resetGame: () => {
     _handlers.stopTickTimer()
+    _handlers.stopGameTimer()
     _handlers.stopPopupTimer()
     _handlers.stopStageTimer()
     state.locked = false
@@ -304,6 +330,7 @@ const _actions = {
     state.resultOverlayVisible = false
     state.message = '瞄準後點擊發射！'
     _handlers.startTickTimer()
+    _handlers.startGameTimer()
   },
   /**
    * 消除／掉落改成分段播放，不是瞬間套用最終結果：
@@ -335,7 +362,11 @@ const _actions = {
     }
 
     state.locked = true
-    state.message = `+${result.scoreGained} 分！`
+    state.message =
+      result.timeBonusSec > 0
+        ? `+${result.scoreGained} 分！連續消除 x${COMBO_TIME_BONUS_STEP} 加時 +${result.timeBonusSec} 秒！`
+        : `+${result.scoreGained} 分！`
+    if (result.timeBonusSec > 0) _handlers.showPopup(`+${result.timeBonusSec}s TIME!`)
 
     // 先把剛落地的球加回目前畫面，正常顯示（不是 popping 幽靈），球確實停在那裡一下
     if (result.landed) {
@@ -399,6 +430,7 @@ const _actions = {
     if (state.status !== 'playing') return
     engine.pause()
     _handlers.stopTickTimer()
+    _handlers.stopGameTimer()
     // 暫停時如果剛好卡在消除/掉落分段動畫中間，直接跳到動畫播完後的最終狀態並解鎖，
     // 不做「可暫停動畫」這種複雜度（setTimeout 本來就無法真的暫停/恢復剩餘時間）
     _handlers.stopStageTimer()
@@ -410,17 +442,19 @@ const _actions = {
     if (state.status !== 'paused') return
     engine.resume()
     _handlers.startTickTimer()
+    _handlers.startGameTimer()
     _handlers.syncSnapshot()
     state.message = '瞄準後點擊發射！'
   },
-  finishGame: () => {
+  finishGame: (reason: 'topped-out' | 'time-up' = 'topped-out') => {
     _handlers.stopTickTimer()
+    _handlers.stopGameTimer()
     _handlers.stopPopupTimer()
     _handlers.stopStageTimer()
     state.locked = false
     _handlers.syncSnapshot()
     state.resultOverlayVisible = true
-    state.message = '泡泡堆到底線，遊戲結束。'
+    state.message = reason === 'time-up' ? '時間到，遊戲結束。' : '泡泡堆到底線，遊戲結束。'
     _actions.recordHistory()
   },
   playAgain: () => {
@@ -429,6 +463,7 @@ const _actions = {
   },
   endGameNow: () => {
     _handlers.stopTickTimer()
+    _handlers.stopGameTimer()
     _handlers.stopPopupTimer()
     _handlers.stopStageTimer()
     state.locked = false
@@ -481,6 +516,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   _handlers.stopTickTimer()
+  _handlers.stopGameTimer()
   _handlers.stopPopupTimer()
   _handlers.stopStageTimer()
   window.removeEventListener('keydown', onKeydown)
@@ -542,6 +578,7 @@ onBeforeUnmount(() => {
           <span>COMBO x{{ state.combo }}</span>
           <span>SHOTS: {{ state.shotsFired }}</span>
           <span>NEXT ROW: {{ shotsUntilNextRow }}</span>
+          <span class="bub-time" :class="{ low: lowTime }">TIME: {{ state.remainingSec }}s</span>
         </div>
 
         <div class="bub-frame">
@@ -580,7 +617,8 @@ onBeforeUnmount(() => {
             移動滑鼠／觸控拖曳瞄準，點擊／放開發射泡泡。碰到既有泡泡群或最頂列會黏附，
             {{ MATCH_MIN }} 顆以上同色連成一片即消除，跟頂列失去連接的泡泡群會整群掉落額外加分。
             消除／掉落動畫播放時無法發射，動畫播完才能打下一發。
-            每 {{ SHOTS_PER_NEW_ROW }} 次發射會插入新的一列，泡泡堆到底線即 GAME OVER。ESC / P 可暫停。
+            每 {{ SHOTS_PER_NEW_ROW }} 次發射會插入新的一列，泡泡堆到底線或 {{ BUB_INITIAL_TIME_SEC }} 秒時間到
+            即 GAME OVER；連續成功消除每 {{ COMBO_TIME_BONUS_STEP }} 次加時 {{ TIME_BONUS_SEC }} 秒。ESC / P 可暫停。
           </p>
         </div>
       </aside>
@@ -812,6 +850,12 @@ onBeforeUnmount(() => {
       font-size: 0.85rem;
       text-shadow: 0 0 6px rgba(244, 63, 94, 0.45);
       font-variant-numeric: tabular-nums;
+
+      .bub-time.low {
+        color: #ffcc33;
+        text-shadow: 0 0 8px rgba(255, 204, 51, 0.6);
+        animation: bub-time-flash 0.9s ease-in-out infinite;
+      }
     }
 
     .bub-frame {
@@ -1056,6 +1100,18 @@ onBeforeUnmount(() => {
 
   50% {
     opacity: 0.4;
+  }
+}
+
+@keyframes bub-time-flash {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
   }
 }
 
