@@ -44,8 +44,8 @@ const TICK_MS = 16
  *     頂緣會落在 y<0，不整體往下位移會被從上面切掉。
  */
 const Y_OFFSET_PX = Math.max(0, BUBBLE_RADIUS - ROW_HEIGHT_RATIO / 2) * CELL
-/** 球落地、判定完有沒有消除之後，先停頓這麼久（畫面什麼都還不會變）才開始播消除/掉落動畫 */
-const PRE_POP_PAUSE_MS = 500
+/** 球落地、判定完有沒有消除之後，先讓球正常顯示停頓這麼久，才開始播消除/掉落動畫 */
+const PRE_POP_PAUSE_MS = 300
 /** 消除動畫（球放大＋淡出）播放時間；播完才會真的把格子清空、開始播下一段掉落動畫 */
 const MATCH_POP_MS = 200
 /** 掉落動畫（球往下滑出＋淡出）播放時間；播完才真正解鎖發射，做出「消除→掉落→才能射」的分段節奏 */
@@ -302,13 +302,17 @@ const _actions = {
   /**
    * 消除／掉落改成分段播放，不是瞬間套用最終結果：
    *   1. 有 match 才需要分段；沒有 match（可能仍有 rowPushed）直接照舊處理，不鎖發射。
-   *   2. 立刻鎖住發射（state.locked），但畫面維持原狀停頓 PRE_POP_PAUSE_MS——
-   *      先判定完有沒有消除，停頓一下，才開始播接下來的消除／掉落動畫。
-   *   3. 停頓結束後，手動把 matched／dropped 的格子標成 popping／falling 疊回 state.grid
+   *   2. 立刻鎖住發射（state.locked），但先把剛落地的那顆球加回畫面正常顯示——這個當下
+   *      state.grid 還是「這次發射落地前」的畫面（tick 迴圈刻意沒有整包 sync，見
+   *      syncSnapshotExceptGrid 的說明），沒有這一步的話，剛落地又同時是 match 一員的球，
+   *      會直接從「飛行中」跳成「不存在」，玩家完全看不到球有確實停在那裡。
+   *   3. 畫面（含剛落地的球）維持這個正常狀態停頓 PRE_POP_PAUSE_MS——先判定完有沒有消除，
+   *      停頓一下，才開始播接下來的消除／掉落動畫。
+   *   4. 停頓結束後，手動把 matched／dropped 的格子標成 popping／falling 疊回 state.grid
    *      （engine 內部其實已經把它們清掉了，這裡只是頁面畫面上還留著播動畫）。
-   *   4. 等 MATCH_POP_MS 過後，才真的把 matched 格子清空（觸發 TransitionGroup 的 leave），
+   *   5. 等 MATCH_POP_MS 過後，才真的把 matched 格子清空（觸發 TransitionGroup 的 leave），
    *      這時才讓 dropped 的格子開始播下落動畫；如果沒有 dropped，直接收尾。
-   *   5. 再等 DROP_FALL_MS，呼叫 finishStagedSequence 拉回 engine 的真實狀態並解鎖發射。
+   *   6. 再等 DROP_FALL_MS，呼叫 finishStagedSequence 拉回 engine 的真實狀態並解鎖發射。
    */
   handleSnapResult: (result: TickResult) => {
     if (result.matched.length === 0) {
@@ -324,10 +328,15 @@ const _actions = {
       return
     }
 
-    // 落地判定完有消除，先鎖住發射，但畫面維持原狀停頓 PRE_POP_PAUSE_MS，
-    // 停頓結束才開始播消除動畫，接著才是掉落動畫（見下方兩層 setTimeout）
     state.locked = true
     state.message = `+${result.scoreGained} 分！`
+
+    // 先把剛落地的球加回目前畫面，正常顯示（不是 popping 幽靈），球確實停在那裡一下
+    if (result.landed) {
+      const withLanded = state.grid.map((row) => [...row])
+      withLanded[result.landed.row]![result.landed.col] = { id: result.landed.id, color: result.landed.color, pushed: false }
+      state.grid = withLanded
+    }
 
     _handlers.stopStageTimer()
     stageTimer = setTimeout(() => {

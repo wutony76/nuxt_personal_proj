@@ -58,6 +58,14 @@ export type RemovedBubble = { id: number; row: number; col: number; color: Bubbl
 
 export type TickResult = {
   snapped: boolean
+  /**
+   * 這次剛落地、變成 grid 一部分的球（snapped 為 true 時一定有值）。頁面在有 match 時會刻意
+   * 延後整包同步 grid（避免跟插入新列的座標打架，見頁面 syncSnapshotExceptGrid 的說明），
+   * 這個欄位讓頁面能在那之前，先把這顆剛落地的球加回畫面正常顯示，玩家才看得到「球有確實
+   * 停在那裡」，而不是球一落地就直接不見（因為它同時也是 matched 陣列的其中一員，要等
+   * PRE_POP_PAUSE_MS 停頓過後才會開始播消除動畫）。
+   */
+  landed: RemovedBubble | null
   /** 這次 snap 同色連成一片被消除的泡泡（≥MATCH_MIN 才會非空） */
   matched: RemovedBubble[]
   /** 這次 snap 因為跟頂列失去連接而掉落的泡泡（只有在有 match 時才可能非空） */
@@ -307,7 +315,9 @@ export default class BubbleShooterEngine {
 
   /** snap 進格子後的統一結算：同色 flood-fill 消除 → 懸空群消除 → 計分 → combo → 施壓 → Game Over 判定 */
   private resolveSnap(row: number, col: number, color: BubbleColor): TickResult {
-    this.grid[row]![col] = { id: this.nextBubbleId++, color, pushed: false }
+    const landedId = this.nextBubbleId++
+    this.grid[row]![col] = { id: landedId, color, pushed: false }
+    const landed: RemovedBubble = { id: landedId, row, col, color }
     this.flying = null
     this.shotsFired += 1
 
@@ -348,13 +358,13 @@ export default class BubbleShooterEngine {
     const gameOver = this.checkGameOver()
     if (gameOver) this.status = 'gameover'
 
-    return { snapped: true, matched, dropped, scoreGained, rowPushed, gameOver }
+    return { snapped: true, landed, matched, dropped, scoreGained, rowPushed, gameOver }
   }
 
   /** 推進飛行中的泡泡一個 tick：移動 → 牆壁反彈 → 碰到頂列或既有泡泡即 snap 並結算 */
   tick(dtMs: number): TickResult {
     if (this.status !== 'playing' || !this.flying) {
-      return { snapped: false, matched: [], dropped: [], scoreGained: 0, rowPushed: false, gameOver: false }
+      return { snapped: false, landed: null, matched: [], dropped: [], scoreGained: 0, rowPushed: false, gameOver: false }
     }
     const dt = dtMs / 1000
     const f = this.flying
@@ -395,7 +405,7 @@ export default class BubbleShooterEngine {
       }
     }
 
-    return { snapped: false, matched: [], dropped: [], scoreGained: 0, rowPushed: false, gameOver: false }
+    return { snapped: false, landed: null, matched: [], dropped: [], scoreGained: 0, rowPushed: false, gameOver: false }
   }
 
   /** 對外回傳純資料快照（頁面用 reactive() 鏡像） */
