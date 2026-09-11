@@ -49,7 +49,7 @@ const state = reactive({
   starsThisAttempt: 0,
   totalScore: 0,
   totalStars: 0,
-  /** 過關／失敗時短暫凍結畫面顯示提示，之後自動繼續（CLEARED／FAILED／null） */
+  /** 過關／失敗時短暫凍結畫面顯示提示：CLEARED 之後自動繼續下一關，FAILED 之後直接結算（CLEARED／FAILED／null） */
   freezeMessage: null as 'CLEARED' | 'FAILED' | null,
   message: '點擊繩子剪斷，讓糖果送進終點！',
   rewardMessage: '',
@@ -62,11 +62,11 @@ const state = reactive({
 const CUT_THE_ROPE_RULE = {
   description:
     `割繩子解謎：點擊／觸控繩子即可剪斷，糖果會受重力與繩子擺盪影響移動，送進終點即過關，關卡無限、玩不完。` +
-    '沿路收集星星額外加分，部分關卡有多條繩子（剪的順序會影響結果）或尖刺（碰到即失敗，重來目前這一關，' +
-    '不影響已經過關的分數）。有些關卡需要先讓糖果擺盪借力，抓對時機再剪，直線下墜不一定能到終點。',
+    '沿路收集星星額外加分，部分關卡有多條繩子（剪的順序會影響結果）或尖刺（碰到即失敗，直接結束本局，' +
+    '但保留目前累積的分數）。有些關卡需要先讓糖果擺盪借力，抓對時機再剪，直線下墜不一定能到終點。',
   scoreRule:
     `每過一關得 ${LEVEL_CLEAR_BASE_SCORE} 分，收集到的每顆星星再 +${SCORE_PER_STAR} 分，分數跨關累計。` +
-    '失敗只會重來當前這關，不會扣分、也不會遺失已經過關拿到的分數。',
+    '只要失敗一次（碰到尖刺或讓糖果掉出畫面）就會直接結束本局並結算，目前累積的分數不會被扣掉。',
   levelsTitle: '關卡進度',
   levels: [
     { level: `LEVEL 1 ~ ${CURATED_LEVEL_COUNT}`, condition: '手工設計，難度依序漸增：單繩直剪 → 加星星 → 需要擺盪借力 → 多繩決定剪的順序 → 加入尖刺' },
@@ -128,7 +128,8 @@ const _handlers = {
         state.message = `過關！+${result.levelScoreGained} 分`
         _actions.freezeThen('CLEARED')
       } else if (result.failed) {
-        state.message = '失敗了，重新挑戰這一關！'
+        state.message = '失敗了，遊戲結束！'
+        _handlers.stopTickTimer()
         _actions.freezeThen('FAILED')
       }
     }, TICK_MS)
@@ -184,8 +185,9 @@ const _actions = {
     _handlers.syncSnapshot()
   },
   /**
-   * 過關／失敗後短暫凍結畫面（停止 tick，只顯示提示），時間到自動繼續（比照 frogger 的 _pauseThen）。
-   * 關卡無限，過關永遠只是「凍結一下、進下一關」，沒有「全部過關」這個分支，想結束要按 END。
+   * 過關／失敗後短暫凍結畫面（停止 tick，只顯示提示），時間到才繼續下一步（比照 frogger 的
+   * _pauseThen）。關卡無限，過關永遠只是「凍結一下、進下一關」，沒有「全部過關」這個分支；
+   * 失敗則是一次就結束整局，凍結後直接進結算畫面，不會重來。
    */
   freezeThen: (kind: 'CLEARED' | 'FAILED') => {
     _handlers.stopFreezeTimer()
@@ -193,7 +195,11 @@ const _actions = {
     freezeTimer = setTimeout(() => {
       state.freezeMessage = null
       freezeTimer = null
-      state.message = '點擊繩子剪斷，讓糖果送進終點！'
+      if (kind === 'FAILED') {
+        _actions.endGameNow()
+      } else {
+        state.message = '點擊繩子剪斷，讓糖果送進終點！'
+      }
     }, FREEZE_MS)
   },
   pause: () => {
@@ -356,7 +362,7 @@ onBeforeUnmount(() => {
           <p class="ctr-help-title">HOW TO PLAY</p>
           <p class="ctr-help-text">
             點擊／觸控繩子即可剪斷，糖果會受重力與擺盪影響移動，碰到終點即過關。沿路收集星星額外加分，
-            碰到尖刺會失敗、重來這一關（不影響已過關的分數）。有些關卡要先讓糖果擺盪借力再剪，直接剪不一定能到終點。ESC / P 可暫停。
+            碰到尖刺或讓糖果掉出畫面會失敗、直接結束本局（不會扣掉已過關的分數）。有些關卡要先讓糖果擺盪借力再剪，直接剪不一定能到終點。ESC / P 可暫停。
           </p>
         </div>
       </aside>

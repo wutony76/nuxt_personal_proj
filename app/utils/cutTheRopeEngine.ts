@@ -102,10 +102,14 @@ export const CUT_THE_ROPE_LEVELS: CutTheRopeLevelDef[] = [
     goal: { x: 180, y: 470 }
   },
   {
+    // 起手距離（139）小於繩長（160），放手先自由落體一小段才拉直繩子，形成鐘擺擺盪；
+    // 終點刻意放在「剪繩借到左向擺盪動能後」自由落體會經過的路徑上（見開發時用 tracer 腳本
+    // 描出的軌跡：約 tick 24~86 剪繩都能過關），若一開始就直接剪繩（不擺盪）會直墜掉出畫面失敗，
+    // 確保真的需要借力才能過關。
     candyStart: { x: 250, y: 110 },
     ropes: [{ anchor: { x: 120, y: 60 }, length: 160 }],
-    stars: [{ x: 260, y: 260 }],
-    goal: { x: 290, y: 420 }
+    stars: [{ x: 188, y: 205 }],
+    goal: { x: 77, y: 385 }
   },
   {
     // 錨點正上方偏移起手（起始距離＝繩長，一開始就是拉直的），釋放後自然形成鐘擺弧線，
@@ -412,11 +416,6 @@ export default class CutTheRopeEngine {
     if (rope) rope.attached = false
   }
 
-  /** 失敗重試：保留 totalScore/totalStars，只重建目前這關（不清空整局進度） */
-  private retryLevel(): void {
-    this.loadLevel()
-  }
-
   /** 推進物理一個 tick：重力 → 每條附著繩子的距離約束 → 邊界反彈 → 星星／終點／尖刺／掉出畫面判定 */
   tick(dtMs: number): CutTheRopeTickResult {
     const result: CutTheRopeTickResult = { starCollected: false, levelCleared: false, failed: false, levelScoreGained: 0 }
@@ -470,7 +469,7 @@ export default class CutTheRopeEngine {
       if (dist(c, spike) <= CANDY_RADIUS + SPIKE_RADIUS) {
         result.failed = true
         this.message = 'failed'
-        this.retryLevel()
+        this.status = 'gameover'
         return result
       }
     }
@@ -493,7 +492,7 @@ export default class CutTheRopeEngine {
     if (c.y > CTR_STAGE_HEIGHT + CANDY_RADIUS * 4) {
       result.failed = true
       this.message = 'failed'
-      this.retryLevel()
+      this.status = 'gameover'
       return result
     }
 
