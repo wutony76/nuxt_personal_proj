@@ -130,6 +130,7 @@ onMounted(async () => {
           </div>
         </div>
         <div class="tw-header-pills">
+          <NuxtLink to="/" class="tw-tag tw-home-link">首頁</NuxtLink>
           <span class="tw-tag tw-pill-live">
             <span class="tw-blink-dot"></span>
             開獎中
@@ -285,6 +286,26 @@ onMounted(async () => {
     border: 1px solid rgba(245, 234, 216, 0.22);
     color: var(--color-bg);
   }
+
+  .tw-home-link {
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+      background: rgba(245, 234, 216, 0.2);
+      border-color: rgba(245, 234, 216, 0.4);
+    }
+  }
+
+  .tw-btn-secondary {
+    border-color: rgba(245, 234, 216, 0.35);
+    color: var(--color-bg);
+
+    &:hover {
+      background: rgba(245, 234, 216, 0.2);
+      border-color: rgba(245, 234, 216, 0.5);
+    }
+  }
 }
 
 .tw-pill-live {
@@ -408,6 +429,7 @@ onMounted(async () => {
   margin: 0 0 3px;
   font-size: 20px;
   color: var(--color-neutral-900);
+  white-space: nowrap;
 }
 
 .tw-card-tagline {
@@ -415,6 +437,7 @@ onMounted(async () => {
   font-size: 12px;
   color: var(--color-neutral-700);
   line-height: 1.5;
+  white-space: nowrap;
 }
 
 .tw-card-period {
@@ -454,6 +477,7 @@ onMounted(async () => {
 
 .tw-btn-block {
   width: 100%;
+  margin-top: auto;
 }
 
 .tw-footer {
