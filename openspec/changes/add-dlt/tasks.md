@@ -3,8 +3,9 @@
 - [ ] 完成 `proposal.md` 定稿（範圍/風險/驗證方式）
 - [ ] 完成 `design.md` 定稿（官方資料來源、8 獎項對中條件、鏡射官方派彩、歷史累積、輪詢結算、
       tw 分類、layout 對照表）
-- [ ] `design.md` Open Questions 的 4 項（單期最多送單注數、結算輪詢頻率/逾時、複式是否列入下一變更、
-      近10期不足時的 UI 呈現方式）已由使用者拍板
+- [x] `design.md` Open Questions：單期最多送單注數（頭獎金額基準）、結算輪詢頻率/逾時
+      （5分鐘/3小時降頻）、近10期不足時的 UI 呈現方式（顯示既有資料）已由使用者拍板；
+      複式是否列入下一變更仍待確認（不阻塞本次實作）
 
 ## 2. 重構既有台彩資料端點（供 dlt.ts 內部呼叫，不改變既有對外行為）
 
@@ -40,12 +41,16 @@
       `bg/base.ts`）——
       - 期別 = 官方 `period`（直接沿用，不自行編碼映射）
       - 依日曆判斷下一個開獎日（每週二、五）、20:00 鎖單
+      - `lastJackpotPrize: number` 欄位：服務啟動時初始化為 `DLT_QUOTA_FALLBACK_COIN`(80,000,000)，
+        每次結算若 `jackpotAssign.perPrize > 0` 就覆寫此值（見 Decision 3）
       - `validateBetQuota`：下注金額必須固定為 50，其餘金額整筆拒絕；一次送單最多 5 筆獨立注單
-        （比照官方投注單 A~E，非複式展開），每筆各自驗證
-      - `settleIssuePrize`：20:30 後開始輪詢 `fetchTaiwanLotteryLastNumber()` +
+        （比照官方投注單 A~E，非複式展開），每筆各自驗證；單期總注數上限＝
+        `Math.floor(this.lastJackpotPrize / 50)`，超過整筆拒絕
+      - `settleIssuePrize`：20:30 起每 5 分鐘輪詢 `fetchTaiwanLotteryLastNumber()` +
         `fetchTaiwanLotteryPrize('5118', period)`；任一未到位則維持 `pending-settlement`
-        （不得誤判為無人中獎）；兩者到位後，逐注以 `dltTierOf()` 分類、派彩＝該獎項當期 `perPrize`；
-        結算完成後把該期官方開獎號 push 進 `this.recordOpenCode`（Decision 4）
+        （不得誤判為無人中獎）；超過 3 小時未到位則降頻為每 30 分鐘並記警示 log（不設最終放棄時限、
+        不觸發任何自動結算）；兩者到位後，逐注以 `dltTierOf()` 分類、派彩＝該獎項當期 `perPrize`；
+        結算完成後把該期官方開獎號 push 進 `this.recordOpenCode`（Decision 4）並更新 `lastJackpotPrize`
       - `get.userInfo`、`get.userDialogRecord`、`actions.claimOneIssue`、`user.dltRecord`
 - [ ] 已結算期別標記，避免輪詢重試重複結算
 - [ ] `server/services/storage.ts` 註冊 `new DltClass()`
