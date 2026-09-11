@@ -87,13 +87,17 @@ export const LEVEL_CLEAR_BASE_SCORE = 200
  */
 export const CUT_THE_ROPE_LEVELS: CutTheRopeLevelDef[] = [
   {
-    candyStart: { x: 180, y: 180 },
+    // 起手偏移 8 度（原本正下方垂直懸掛，完全靜止不動），讓糖果一放手就有輕微鐘擺晃動，
+    // 幅度刻意壓小，剪繩時機掃描 0~350 tick 全部過關（88/88），不影響「直接剪」的入門難度。
+    candyStart: { x: 197, y: 179 },
     ropes: [{ anchor: { x: 180, y: 60 }, length: 120 }],
     stars: [{ x: 180, y: 300 }],
     goal: { x: 180, y: 460 }
   },
   {
-    candyStart: { x: 180, y: 200 },
+    // 同樣加上輕微起手偏移（6 度）製造晃動感，幅度更小以確保兩顆星星都還能收集到，
+    // 剪繩時機掃描 0~350 tick 全部過關且兩顆星都收集到（88/88）。
+    candyStart: { x: 195, y: 199 },
     ropes: [{ anchor: { x: 180, y: 60 }, length: 140 }],
     stars: [
       { x: 180, y: 330 },
