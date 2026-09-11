@@ -489,15 +489,11 @@ export default class CutTheRopeEngine {
       }
     }
 
-    for (const spike of this.spikes) {
-      if (distToSegment(spike, prevPos, c) <= CANDY_RADIUS + SPIKE_RADIUS) {
-        result.failed = true
-        this.message = 'failed'
-        this.status = 'gameover'
-        return result
-      }
-    }
-
+    // 終點判定放在尖刺前面：尖刺跟終點判定都用「整段移動路徑」的線段距離，速度快時偶爾會
+    // 同一個 tick 內兩個條件都滿足（尤其尖刺剛好在終點附近時），若尖刺先判定就會直接 return，
+    // 導致畫面上明明看到糖果飛進了金框，卻被判定失敗。改成終點優先，玩家真的把糖果送進終點
+    // 這個結果應該優先於「路徑上剛好也掃到尖刺」。
+    //
     // 原本用「兩圓半徑相加」判定，糖果邊緣一碰到終點邊緣就算過關，等於幾乎沒真的飛進去；
     // 改成只看 GOAL_RADIUS：糖果中心要進到終點圓內才算，中心剛好在邊界上時糖果恰好一半
     // 深度已經進入終點，等於「至少要進入一半」才判定過關。用整段移動路徑（而非只看移動後
@@ -516,6 +512,15 @@ export default class CutTheRopeEngine {
       this.levelIndex += 1
       this.loadLevel()
       return result
+    }
+
+    for (const spike of this.spikes) {
+      if (distToSegment(spike, prevPos, c) <= CANDY_RADIUS + SPIKE_RADIUS) {
+        result.failed = true
+        this.message = 'failed'
+        this.status = 'gameover'
+        return result
+      }
     }
 
     if (c.y > CTR_STAGE_HEIGHT + CANDY_RADIUS * 4) {
