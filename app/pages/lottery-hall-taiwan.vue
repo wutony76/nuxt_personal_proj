@@ -67,7 +67,11 @@ const _handlers = {
     if (mod === 1) return 'bg-sky-500 text-white'
     return 'bg-emerald-500 text-white'
   },
-  meta: (gameCode: number) => GAME_META[gameCode] ?? { mark: '?', tagline: '' }
+  meta: (gameCode: number) => GAME_META[gameCode] ?? { mark: '?', tagline: '' },
+  updatedTime: (iso: string) => {
+    if (!iso) return '-'
+    return new Date(iso).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
+  }
 }
 
 const _actions = {
@@ -126,7 +130,7 @@ onMounted(async () => {
           <span class="tw-brand-badge">彩</span>
           <div>
             <div class="tw-brand-name">彩運來</div>
-            <div class="tw-brand-sub">開 獎 大 廳</div>
+            <div class="tw-brand-sub">彩 票 大 廳</div>
           </div>
         </div>
         <div class="tw-header-pills">
@@ -136,12 +140,8 @@ onMounted(async () => {
             開獎中
           </span>
           <span class="tw-tag">今仔日 {{ todayLabel }}</span>
-          <button
-            type="button"
-            class="tw-btn tw-btn-secondary"
-            :disabled="state.loading"
-            @click="_actions.loadLastNumber"
-          >
+          <button type="button" class="tw-btn tw-btn-secondary" :disabled="state.loading"
+            @click="_actions.loadLastNumber">
             {{ state.loading ? '更新中...' : '重新整理' }}
           </button>
         </div>
@@ -160,7 +160,49 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div class="tw-content">
+      <div class="tw-hero">
+        <div class="tw-hero-copy">
+          <span class="tw-hero-tag">彩 運 來 · 彩 票 大 廳</span>
+          <h1 class="tw-hero-title">今仔日<br>開獎行情，好運報你知</h1>
+          <p class="tw-hero-desc">大樂透、威力彩、今彩539 到賓果賓果，八款玩法一次看透透。開獎期數、獎號、明細寫甲清清楚楚，一眼就知影今仔日好運到未到。</p>
+          <div class="tw-hero-actions">
+            <a href="#tw-games" class="tw-btn tw-btn-primary">查看今仔日開獎</a>
+            <a href="#tw-games" class="tw-btn tw-btn-secondary">看全部玩法</a>
+          </div>
+        </div>
+
+        <div class="tw-hero-art">
+          <div class="tw-hero-blob"></div>
+          <div class="tw-hero-blob-sm"></div>
+          <svg viewBox="0 0 320 300" class="tw-hero-svg" aria-label="大同電鍋與紅色郵筒插畫">
+            <ellipse cx="160" cy="270" rx="128" ry="15" fill="#2e2b25" opacity="0.1"></ellipse>
+            <rect x="228" y="120" width="58" height="146" rx="18" fill="#8c491a"></rect>
+            <rect x="228" y="120" width="58" height="146" rx="18" fill="none" stroke="#402310" stroke-width="3"></rect>
+            <path d="M222 122 q34 -26 70 0 z" fill="#402310"></path>
+            <rect x="242" y="150" width="30" height="8" rx="4" fill="#f5ead8" opacity="0.85"></rect>
+            <rect x="248" y="176" width="18" height="24" rx="4" fill="#f5ead8" opacity="0.35"></rect>
+            <rect x="252" y="266" width="10" height="16" fill="#645c50"></rect>
+            <path d="M52 250 q-14 0 -14 -16 v-72 q0 -58 66 -58 h44 q66 0 66 58 v72 q0 16 -16 16 z" fill="#dcd3c4">
+            </path>
+            <path d="M52 250 q-14 0 -14 -16 v-72 q0 -58 66 -58 h44 q66 0 66 58 v72 q0 16 -16 16 z" fill="none"
+              stroke="#474238" stroke-width="4"></path>
+            <path d="M44 168 h172" stroke="#474238" stroke-width="3" opacity="0.5"></path>
+            <ellipse cx="130" cy="104" rx="82" ry="20" fill="#eee7db" stroke="#474238" stroke-width="4"></ellipse>
+            <rect x="118" y="82" width="24" height="16" rx="7" fill="#8c491a" stroke="#402310" stroke-width="3"></rect>
+            <circle cx="130" cy="200" r="26" fill="#8fa073" stroke="#474238" stroke-width="4"></circle>
+            <path d="M130 182 v18 l13 8" stroke="#2e2b25" stroke-width="4" fill="none" stroke-linecap="round"></path>
+            <rect x="40" y="232" width="180" height="10" rx="5" fill="#c67139" opacity="0.75"></rect>
+          </svg>
+          <div class="tw-hero-note">憨人有憨福</div>
+        </div>
+      </div>
+
+      <div id="tw-games" class="tw-content">
+        <div class="tw-section-head">
+          <h2 class="tw-section-title">開獎總覽</h2>
+          <span class="tw-section-sub">8 款台灣彩券 · 即時開獎</span>
+        </div>
+
         <p v-if="state.errorMessage" class="tw-alert">{{ state.errorMessage }}</p>
 
         <div v-else-if="state.loading" class="tw-loading">正在取得彩運來開獎資料...</div>
@@ -174,16 +216,22 @@ onMounted(async () => {
                 <h2 class="tw-card-title">{{ game.gameName }}</h2>
                 <p class="tw-card-tagline">{{ _handlers.meta(game.gameCode).tagline }}</p>
               </div>
-              <span class="tw-card-period">第 {{ game.period || '-' }} 期</span>
+            </div>
+
+            <div class="tw-card-stat">
+              <div>
+                <div class="tw-card-stat-label">本期期號</div>
+                <div class="tw-card-stat-value">{{ game.period || '-' }}</div>
+              </div>
+              <div class="tw-card-stat-right">
+                <div class="tw-card-stat-label">更新時間</div>
+                <div class="tw-card-stat-value tw-card-stat-accent">{{ _handlers.updatedTime(state.updatedAt) }}</div>
+              </div>
             </div>
 
             <div class="tw-balls">
-              <span
-                v-for="(num, idx) in game.lotNumber"
-                :key="`${game.gameCode}-${idx}-${num}`"
-                class="tw-ball"
-                :class="_handlers.getBallClass(idx, game.lotNumber.length)"
-              >
+              <span v-for="(num, idx) in game.lotNumber" :key="`${game.gameCode}-${idx}-${num}`" class="tw-ball"
+                :class="_handlers.getBallClass(idx, game.lotNumber.length)">
                 {{ String(num).padStart(2, '0') }}
               </span>
             </div>
@@ -207,18 +255,13 @@ onMounted(async () => {
       <div class="tw-footer">
         <div class="tw-corrugated" />
         <div class="tw-footer-content">
-          <span class="tw-footer-brand">彩運來 · 開獎大廳</span>
+          <span class="tw-footer-brand">彩運來 · 彩票大廳</span>
           <p>未滿十八歲不得購買、兌領彩券。理性投注，量力而為。彩運來開獎與中獎資料來源為台灣彩券官方公開 API。</p>
         </div>
       </div>
 
-      <TaiwanLotteryPrizeDialog
-        :visible="state.dialog.visible"
-        :game-code="state.dialog.gameCode"
-        :game-name="state.dialog.gameName"
-        :period="state.dialog.period"
-        @close="click.closePrize"
-      />
+      <TaiwanLotteryPrizeDialog :visible="state.dialog.visible" :game-code="state.dialog.gameCode"
+        :game-name="state.dialog.gameName" :period="state.dialog.period" @close="click.closePrize" />
     </template>
   </main>
 </template>
@@ -348,6 +391,119 @@ onMounted(async () => {
   }
 }
 
+.tw-hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: clamp(24px, 4vw, 56px);
+  align-items: center;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: clamp(28px, 5vw, 64px) clamp(16px, 4vw, 48px) clamp(20px, 3vw, 40px);
+}
+
+.tw-hero-tag {
+  display: inline-block;
+  transform: rotate(-2.5deg);
+  background: var(--color-accent-200);
+  color: var(--color-accent-800);
+  border: 1px dashed var(--color-accent-500);
+  padding: 5px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  margin-bottom: 18px;
+}
+
+.tw-hero-title {
+  font-size: clamp(40px, 7vw, 76px);
+  line-height: 1.08;
+  margin: 0 0 18px;
+  color: var(--color-accent-800);
+}
+
+.tw-hero-desc {
+  font-size: clamp(15px, 1.6vw, 18px);
+  max-width: 34ch;
+  line-height: 1.85;
+  color: var(--color-neutral-800);
+}
+
+.tw-hero-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 26px;
+}
+
+.tw-hero-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 320px;
+}
+
+.tw-hero-blob {
+  position: absolute;
+  width: min(88%, 380px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: var(--color-accent-2-200);
+}
+
+.tw-hero-blob-sm {
+  position: absolute;
+  inset: auto auto 6% 2%;
+  width: 34%;
+  max-width: 150px;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: var(--color-accent-200);
+}
+
+.tw-hero-svg {
+  position: relative;
+  width: min(94%, 420px);
+  height: auto;
+  filter: drop-shadow(0 10px 22px rgba(46, 43, 37, 0.18));
+}
+
+.tw-hero-note {
+  position: absolute;
+  right: 0;
+  top: 4%;
+  transform: rotate(6deg);
+  background: var(--color-bg);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 4px;
+  padding: 8px 12px;
+  box-shadow: var(--shadow-sm);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-accent-800);
+}
+
+.tw-section-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-bottom: 3px double var(--color-accent-500);
+  padding-bottom: 12px;
+  margin-bottom: 28px;
+}
+
+.tw-section-title {
+  margin: 0;
+  font-size: clamp(26px, 3.4vw, 40px);
+  color: var(--color-accent-800);
+}
+
+.tw-section-sub {
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--color-neutral-700);
+}
+
 .tw-content {
   max-width: 1400px;
   margin: 0 auto;
@@ -391,11 +547,9 @@ onMounted(async () => {
   inset: 0 0 auto 0;
   height: 6px;
   background: var(--color-accent-500);
-  background-image: repeating-linear-gradient(
-    90deg,
-    var(--color-accent-2-400) 0 14px,
-    var(--color-accent-500) 14px 28px
-  );
+  background-image: repeating-linear-gradient(90deg,
+      var(--color-accent-2-400) 0 14px,
+      var(--color-accent-500) 14px 28px);
 }
 
 .tw-card-head {
@@ -406,8 +560,8 @@ onMounted(async () => {
 }
 
 .tw-card-badge {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   flex: none;
   border-radius: 999px;
   background: var(--color-accent-2-200);
@@ -416,7 +570,7 @@ onMounted(async () => {
   place-items: center;
   font-family: var(--font-heading);
   font-weight: 900;
-  font-size: 15px;
+  font-size: 17px;
   color: var(--color-accent-2-800);
 }
 
@@ -427,27 +581,49 @@ onMounted(async () => {
 
 .tw-card-title {
   margin: 0 0 3px;
-  font-size: 20px;
+  font-size: 22px;
   color: var(--color-neutral-900);
   white-space: nowrap;
 }
 
 .tw-card-tagline {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-neutral-700);
   line-height: 1.5;
   white-space: nowrap;
 }
 
-.tw-card-period {
-  flex: none;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-neutral-700);
+.tw-card-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   background: var(--color-neutral-200);
-  border-radius: 999px;
-  padding: 4px 10px;
+  border: 1px dashed var(--color-neutral-400);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.tw-card-stat-right {
+  text-align: right;
+}
+
+.tw-card-stat-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-neutral-600);
+}
+
+.tw-card-stat-value {
+  font-family: var(--font-heading);
+  font-weight: 900;
+  font-size: 17px;
+  color: var(--color-neutral-900);
+}
+
+.tw-card-stat-accent {
+  color: var(--color-accent-700);
 }
 
 .tw-balls {
@@ -511,12 +687,25 @@ onMounted(async () => {
 }
 
 @keyframes twMarquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 @keyframes twBlink {
-  0%, 60% { opacity: 1; }
-  61%, 100% { opacity: 0.25; }
+
+  0%,
+  60% {
+    opacity: 1;
+  }
+
+  61%,
+  100% {
+    opacity: 0.25;
+  }
 }
 </style>
