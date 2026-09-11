@@ -481,7 +481,10 @@ export default class CutTheRopeEngine {
       }
     }
 
-    if (dist(c, this.goal) <= CANDY_RADIUS + GOAL_RADIUS) {
+    // 原本用「兩圓半徑相加」判定，糖果邊緣一碰到終點邊緣就算過關，等於幾乎沒真的飛進去；
+    // 改成只看 GOAL_RADIUS：糖果中心要進到終點圓內才算，中心剛好在邊界上時糖果恰好一半
+    // 深度已經進入終點，等於「至少要進入一半」才判定過關。
+    if (dist(c, this.goal) <= GOAL_RADIUS) {
       const levelScore = LEVEL_CLEAR_BASE_SCORE + this.starsThisAttempt * SCORE_PER_STAR
       this.totalScore += levelScore
       this.totalStars += this.starsThisAttempt
