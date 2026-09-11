@@ -31,7 +31,7 @@ import CutTheRopeEngine, {
 const ACCENT = '#fbbf24'
 const TICK_MS = 16
 /** 過關／失敗後的短暫凍結時間（比照 frogger 的 _pauseThen 手法），凍結期間不 tick，只顯示提示文字 */
-const FREEZE_MS = 500
+const FREEZE_MS = 2000
 
 const router = useRouter()
 const engine = new CutTheRopeEngine()
