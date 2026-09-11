@@ -32,7 +32,7 @@ import CutTheRopeEngine, {
 const ACCENT = '#fbbf24'
 const TICK_MS = 16
 /** 過關／失敗後的短暫凍結時間（比照 frogger 的 _pauseThen 手法），凍結期間不 tick，只顯示提示文字 */
-const FREEZE_MS = 700
+const FREEZE_MS = 500
 
 const router = useRouter()
 const engine = new CutTheRopeEngine()
@@ -87,6 +87,9 @@ const goalStyle = computed(
 )
 
 const statusText = computed(() => {
+  // 失敗當下 engine 內部狀態已經是 gameover，但畫面要等凍結結束才真正進結算畫面，
+  // 這段凍結期間狀態列先維持顯示 PLAYING，避免文字比畫面早一步洩漏結果
+  if (state.status === 'gameover' && state.freezeMessage === 'FAILED') return 'PLAYING'
   if (state.status === 'playing') return 'PLAYING'
   if (state.status === 'paused') return 'PAUSED'
   if (state.status === 'gameover') return 'GAME OVER'
