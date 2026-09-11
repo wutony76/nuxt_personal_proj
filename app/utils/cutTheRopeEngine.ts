@@ -47,6 +47,7 @@ export type CutTheRopeSnapshot = {
   ropes: RopeState[]
   stars: StarState[]
   goal: Vec2
+  goalRadius: number
   spikes: Vec2[]
   starsThisAttempt: number
   totalScore: number
@@ -71,6 +72,16 @@ export const CANDY_RADIUS = 14
 export const STAR_RADIUS = 18
 export const GOAL_RADIUS = 32
 export const SPIKE_RADIUS = 16
+
+/** 終點難度曲線：每過 5 關縮小 0.5px，最小縮到 15px（見 goalRadiusForLevel） */
+export const GOAL_RADIUS_MIN = 15
+const GOAL_RADIUS_STEP = 0.5
+const GOAL_RADIUS_STEP_LEVELS = 5
+
+/** 第 N 關實際使用的終點判定半徑：LEVEL 1~5 維持 GOAL_RADIUS，之後每過 5 關再縮小 0.5px，
+ *  縮到 GOAL_RADIUS_MIN 就不再變小 */
+export const goalRadiusForLevel = (levelIndex: number): number =>
+  Math.max(GOAL_RADIUS_MIN, GOAL_RADIUS - GOAL_RADIUS_STEP * Math.floor((levelIndex - 1) / GOAL_RADIUS_STEP_LEVELS))
 
 export const CTR_GRAVITY = 0.32
 export const WALL_RESTITUTION = 0.6
@@ -381,6 +392,7 @@ export default class CutTheRopeEngine {
   private ropes: RopeState[] = []
   private stars: StarState[] = []
   private goal: Vec2 = { x: 0, y: 0 }
+  private goalRadius: number = GOAL_RADIUS
   private spikes: Vec2[] = []
   private starsThisAttempt = 0
   private totalScore = 0
@@ -405,6 +417,7 @@ export default class CutTheRopeEngine {
     this.ropes = def.ropes.map((r, i) => ({ id: `rope-${i}`, anchor: { ...r.anchor }, length: r.length, attached: true }))
     this.stars = def.stars.map((s, i) => ({ id: `star-${i}`, pos: { ...s }, collected: false }))
     this.goal = { ...def.goal }
+    this.goalRadius = goalRadiusForLevel(this.levelIndex)
     this.spikes = (def.spikes ?? []).map((s) => ({ ...s }))
     this.starsThisAttempt = 0
   }
@@ -498,11 +511,11 @@ export default class CutTheRopeEngine {
     // 這個結果應該優先於「路徑上剛好也掃到尖刺」。
     //
     // 原本用「兩圓半徑相加」判定，糖果邊緣一碰到終點邊緣就算過關，等於幾乎沒真的飛進去；
-    // 改成只看 GOAL_RADIUS：糖果中心要進到終點圓內才算，中心剛好在邊界上時糖果恰好一半
-    // 深度已經進入終點，等於「至少要進入一半」才判定過關。用整段移動路徑（而非只看移動後
-    // 的單點）檢查，避免擺盪剪繩瞬間速度太快、一個 tick 就直接跳過終點造成視覺上「穿過去了
-    // 卻沒判定到」的穿透問題。
-    if (distToSegment(this.goal, prevPos, c) <= GOAL_RADIUS) {
+    // 改成只看 this.goalRadius（每過 5 關縮小 0.5px，最小 15px，見 goalRadiusForLevel）：
+    // 糖果中心要進到終點圓內才算，中心剛好在邊界上時糖果恰好一半深度已經進入終點，等於
+    // 「至少要進入一半」才判定過關。用整段移動路徑（而非只看移動後的單點）檢查，避免擺盪
+    // 剪繩瞬間速度太快、一個 tick 就直接跳過終點造成視覺上「穿過去了卻沒判定到」的穿透問題。
+    if (distToSegment(this.goal, prevPos, c) <= this.goalRadius) {
       const levelScore = LEVEL_CLEAR_BASE_SCORE + this.starsThisAttempt * SCORE_PER_STAR
       this.totalScore += levelScore
       this.totalStars += this.starsThisAttempt
@@ -545,6 +558,7 @@ export default class CutTheRopeEngine {
       ropes: this.ropes.map((r) => ({ ...r, anchor: { ...r.anchor } })),
       stars: this.stars.map((s) => ({ ...s, pos: { ...s.pos } })),
       goal: { ...this.goal },
+      goalRadius: this.goalRadius,
       spikes: this.spikes.map((s) => ({ ...s })),
       starsThisAttempt: this.starsThisAttempt,
       totalScore: this.totalScore,

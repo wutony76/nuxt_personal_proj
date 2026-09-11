@@ -8,7 +8,6 @@ import CutTheRopeEngine, {
   CURATED_LEVEL_COUNT,
   CANDY_RADIUS,
   STAR_RADIUS,
-  GOAL_RADIUS,
   SPIKE_RADIUS,
   ROPE_HIT_RADIUS,
   SCORE_PER_STAR,
@@ -45,6 +44,7 @@ const state = reactive({
   ropes: engine.getSnapshot().ropes as RopeState[],
   stars: engine.getSnapshot().stars as StarState[],
   goal: engine.getSnapshot().goal as Vec2,
+  goalRadius: engine.getSnapshot().goalRadius,
   spikes: engine.getSnapshot().spikes as Vec2[],
   starsThisAttempt: 0,
   totalScore: 0,
@@ -83,7 +83,9 @@ const candyStyle = computed(
   () => `left:${state.candy.x - CANDY_RADIUS}px; top:${state.candy.y - CANDY_RADIUS}px; width:${CANDY_RADIUS * 2}px; height:${CANDY_RADIUS * 2}px;`
 )
 const goalStyle = computed(
-  () => `left:${state.goal.x - GOAL_RADIUS}px; top:${state.goal.y - GOAL_RADIUS}px; width:${GOAL_RADIUS * 2}px; height:${GOAL_RADIUS * 2}px;`
+  () =>
+    `left:${state.goal.x - state.goalRadius}px; top:${state.goal.y - state.goalRadius}px; ` +
+    `width:${state.goalRadius * 2}px; height:${state.goalRadius * 2}px;`
 )
 
 const statusText = computed(() => {
@@ -110,8 +112,21 @@ const _handlers = {
     state.ropes = snap.ropes
     state.stars = snap.stars
     state.goal = snap.goal
+    state.goalRadius = snap.goalRadius
     state.spikes = snap.spikes
     state.starsThisAttempt = snap.starsThisAttempt
+    state.totalScore = snap.totalScore
+    state.totalStars = snap.totalStars
+  },
+  /**
+   * 過關那一刻 engine 內部已經推進到下一關、重建了 candy/ropes/goal/stars/spikes/levelIndex，
+   * 但畫面要等凍結結束才能揭曉新關卡，故意不同步這幾個欄位，讓玩家在凍結期間仍看到剛通關
+   * 那一刻的畫面（糖果停在終點附近、LEVEL 數字還沒變），避免「一剪就跳下一關」的錯覺。
+   * 凍結結束時（freezeThen 裡）才呼叫完整的 syncSnapshot() 補上新關卡。
+   */
+  syncSnapshotExceptLevelChange: () => {
+    const snap = engine.getSnapshot()
+    state.status = snap.status
     state.totalScore = snap.totalScore
     state.totalStars = snap.totalStars
   },
@@ -126,14 +141,17 @@ const _handlers = {
     tickTimer = setInterval(() => {
       if (state.status !== 'playing' || state.freezeMessage) return
       const result = engine.tick(TICK_MS)
-      _handlers.syncSnapshot()
       if (result.levelCleared) {
+        _handlers.syncSnapshotExceptLevelChange()
         state.message = `過關！+${result.levelScoreGained} 分`
         _actions.freezeThen('CLEARED')
       } else if (result.failed) {
+        _handlers.syncSnapshot()
         state.message = '失敗了，遊戲結束！'
         _handlers.stopTickTimer()
         _actions.freezeThen('FAILED')
+      } else {
+        _handlers.syncSnapshot()
       }
     }, TICK_MS)
   },
@@ -201,6 +219,7 @@ const _actions = {
       if (kind === 'FAILED') {
         _actions.endGameNow()
       } else {
+        _handlers.syncSnapshot()
         state.message = '點擊繩子剪斷，讓糖果送進終點！'
       }
     }, FREEZE_MS)
