@@ -1,0 +1,96 @@
+import { Storage } from '../../../storage'
+
+// ⚠️ 這支是 tw/orders.ts，複製自 bg/orders.ts（見 bg/base.ts 同名檔）——
+// bg／tw 兩個分類的 service 基底刻意不共用同一份檔案，改一邊不會牽動另一邊。
+
+type OrderRow = {
+  issue: string
+  userId: string
+  coin: number
+  orderId: string
+  betCode: string[]
+  tabId?: number
+  /** 玩法 key，結算時用來分派各玩法的中獎判定 */
+  playKey?: string
+  /** 下注時鎖定的賠率（含本金），結算派彩以此為準 */
+  odds?: number
+  /** 命中檔次表快照（若玩法一注有多種中法，賠率開獎後才確定，單一 odds 不夠用時使用） */
+  tiers?: Array<Record<string, unknown>>
+}
+
+type AddInput = Partial<OrderRow> & { issue: string; userId: string; coin: number }
+
+export default class OrdersClass {
+  lotteryId: number
+  lotteryKey: string
+  orders: Record<string, OrderRow[]>
+  members: Record<string, number>
+
+  constructor(lottery: { id: number, key: string }) {
+    this.lotteryId = lottery.id
+    this.lotteryKey = lottery.key
+    this.orders = {}
+    this.members = {}
+    this.init()
+  }
+  init() {
+    ; (Storage.lottery.orders as Record<string, unknown>)[this.lotteryKey] = this
+  }
+
+  add = {
+    record: (data: AddInput) => {
+      const issue = data.issue
+      const coin = Number(data.coin)
+      const tabId = Number(data.tabId)
+      const payload: OrderRow = {
+        issue,
+        userId: String(data.userId ?? ''),
+        coin,
+        orderId: String(data.orderId ?? ''),
+        betCode: Array.isArray(data.betCode) ? data.betCode : [],
+        tabId: Number.isFinite(tabId) && tabId > 0 ? tabId : 0,
+        playKey: String(data.playKey ?? ''),
+        odds: Number(data.odds ?? 0),
+        ...(Array.isArray(data.tiers) && data.tiers.length > 0 ? { tiers: data.tiers } : {})
+      }
+
+      if (this.orders[issue]) this.orders[issue].push(payload)
+      else {
+        this.orders[issue] = []
+        this.orders[issue].push(payload)
+      }
+
+      const prevCoin = Number(this.members[payload.userId] ?? 0)
+      this.members[payload.userId] = prevCoin + coin
+
+      console.log('OrdersClass.add.record', this.orders)
+    }
+  }
+
+  get = {
+    orders: {
+      all: () => {
+        return this.orders
+      },
+      currentIssue: (_issue: string) => {
+        return this.orders[_issue]
+      },
+    },
+    /** 同一玩家、同一期、同一分頁的累計投注額（單期限額驗證用） */
+    issueTabCoin: (_issue: string, userId: string, tabId: number) => {
+      const id = Number(tabId)
+      return (this.orders[_issue] ?? [])
+        .filter((order) => order.userId === userId && Number(order.tabId) === id)
+        .reduce((acc, order) => acc + Number(order.coin ?? 0), 0)
+    },
+    members: {
+      user: (userId: string) => {
+        return this.members[userId] ?? 0
+      },
+      issue: (_issue: string, userId: string) => {
+        const filtered = this.orders[_issue]?.filter((order) => order.userId === userId) ?? []
+        return filtered.reduce((acc, order) => acc + Number(order.coin), 0)
+      }
+    }
+  }
+}

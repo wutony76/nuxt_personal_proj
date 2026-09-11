@@ -1237,9 +1237,9 @@ export const api = {
   },
   taiwanLottery: {
     lastNumber: () =>
-      $fetch<{ updatedAt: string; results: TaiwanLotteryResult[] }>('/api/taiwan-lottery/last-number'),
+      $fetch<{ updatedAt: string; results: TaiwanLotteryResult[] }>('/api/lottery-tw/last-number'),
     prize: (gameCode: number, period: string) =>
-      $fetch<TaiwanLotteryPrizeResponse>('/api/taiwan-lottery/prize', { query: { gameCode, period } })
+      $fetch<TaiwanLotteryPrizeResponse>('/api/lottery-tw/prize', { query: { gameCode, period } })
   },
   games: {
     /** 目前登入者的角色被關閉的遊戲／盤口（見 add-role-game-perms） */

@@ -2,7 +2,7 @@ import { sessionController } from '../services/auth'
 import { Storage } from '../services/storage'
 import { findRetroByApiSlug } from '#shared/config/gameSlugs'
 
-const PROTECTED_PREFIXES = ['/api/lottery', '/api/taiwan-lottery', '/api/games']
+const PROTECTED_PREFIXES = ['/api/lottery', '/api/lottery-tw', '/api/games']
 
 /** `/api/games/retro/<slug>/...` 的 `<slug>` 段，用來查角色遊戲權限（見 add-role-game-perms）。 */
 const RETRO_API_KEY_PATTERN = /^\/api\/games\/retro\/([^/]+)\//

@@ -1,0 +1,301 @@
+import { Storage } from '../../../storage'
+import { STATUS_TIME } from '~/config/constants'
+import OrdersClass from './orders'
+// ⚠️ 這支是 services/base.ts（全域 BaseClass），與本檔（本層的彩票基底）不同層
+import BaseClass from '../../../base'
+
+// ⚠️ 這支是 tw/base.ts，複製自 bg/base.ts——依使用者要求，bg／tw 兩個分類的 service 基底
+// 刻意不共用同一份檔案（含 ./orders 也各自一份），改一邊不會牽動另一邊。
+// 目前內容與 bg/base.ts 完全一致；DLT（大樂透）走「鏡射官方開獎」，不會用到 handle.prdOpenCode /
+// handle.randomOpenCode / timer.getStatusBySeconds 這類「內部 RNG + 固定秒數倒數」的邏輯
+// （見 openspec/changes/add-dlt/design.md Decision 2、3），DltClass 會在自己的 service
+// 另外實作依日曆的期別產生與鎖單判斷，不透過這裡的 handle/timer 介面。
+
+type PlayItem = {
+  num?: number | string
+  label?: string | number
+}
+
+export type OpenCodeRecord = {
+  issue: string
+  openCode: string[]
+  time: {
+    start: string
+    end: string
+  }
+  startAt: number
+  endAt: number
+}
+
+export type CurrentInfo = OpenCodeRecord & {
+  currentStatus: string
+  issueCurrent: string
+  issueLatest: string
+  countdown: string
+  statusEndAt: number
+  openCodePlay: Array<Record<string, unknown>>
+  openingCode: string[]
+}
+
+export const CYCLE_SECONDS = 7 * 60
+export const CYCLE_MS = CYCLE_SECONDS * 1000
+export const TOTAL_ISSUES_PER_DAY = 205
+
+export default class LOTTERY_BASE extends BaseClass {
+  // STATIC CONST
+  static BASE_FIRST_PRIZE = 200000
+  static JACKPOT_PERCENT = 0.8
+  static BASE_PERCENT = 0.55
+  static JACKPOT_BASE_MIN = Math.ceil(LOTTERY_BASE.BASE_FIRST_PRIZE / LOTTERY_BASE.BASE_PERCENT) + Math.ceil(LOTTERY_BASE.BASE_FIRST_PRIZE / 3)
+  static JACKPOT_BASE_MAX = LOTTERY_BASE.BASE_FIRST_PRIZE * 7
+
+  // INSTANCE STATE
+  key: string
+  id: number
+  recordOpenCode: OpenCodeRecord[]
+  currentIndex: number
+  currentStatus: string
+  issueOrderSeqMap: Record<string, number>
+
+  constructor(key: string, id: number) {
+    super()
+    this.key = key
+    this.id = id
+    this.recordOpenCode = []
+    this.currentIndex = -1
+    this.currentStatus = STATUS_TIME.PREPARE
+    this.issueOrderSeqMap = {}
+  }
+
+  // STATIC FUNC
+  static getOrders(id: number, key: string): OrdersClass {
+    const map = Storage.lottery.orders as Record<string, OrdersClass | undefined>
+    if (!map[key]) map[key] = new OrdersClass({ id, key })
+    return map[key] as OrdersClass
+  }
+  static normalizeBetCode(play?: PlayItem): string {
+    const num = Number(play?.num)
+    if (Number.isFinite(num) && num > 0) return String(num).padStart(2, '0')
+    return String(play?.label ?? '').trim()
+  }
+  static createIssue(): string {
+    const now = new Date()
+    const year = String(now.getFullYear())
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const seq = String((now.getHours() * 60 + now.getMinutes()) % 300).padStart(3, '0')
+    return `${year}${month}${day}${seq}`
+  }
+  static nextSerial(map: Record<string, number>, key: string): string {
+    const current = Number(map[key] ?? 0) + 1
+    map[key] = current
+    return String(current).padStart(6, '0')
+  }
+  static createOrderId(prefix: string, map: Record<string, number>, issue: string): string {
+    const serial = LOTTERY_BASE.nextSerial(map, issue)
+    return `${prefix}${issue}${serial}`
+  }
+  static jackpotBase(min: number = LOTTERY_BASE.JACKPOT_BASE_MIN, max: number = LOTTERY_BASE.JACKPOT_BASE_MAX): number {
+    return Math.floor(Math.random() * (max - min + 1)) + min
+  }
+  static jackpotCalc(jackpotBase: number, issuePool: number, carryJackpot: number, jackpotPercent: number = LOTTERY_BASE.JACKPOT_PERCENT, basePercent: number = LOTTERY_BASE.BASE_PERCENT): number {
+    return Number((jackpotBase + (issuePool * jackpotPercent) + carryJackpot) * basePercent)
+  }
+
+  _get = {
+    latestIssue: () => {
+      if (this.recordOpenCode.length === 0) return '19900101001'
+      return this.recordOpenCode[this.currentIndex]?.issue ?? this.recordOpenCode[0]?.issue ?? '19900101001'
+    },
+    orders: () => LOTTERY_BASE.getOrders(this.id, this.key)
+  }
+
+  timer = {
+    getStartOfDay: (now: Date) => {
+      const at = new Date(now)
+      at.setHours(0, 0, 0, 0)
+      return at
+    },
+    formatDateKey: (date: Date) => {
+      const y = date.getFullYear().toString()
+      const m = String(date.getMonth() + 1).padStart(2, '0')
+      const d = String(date.getDate()).padStart(2, '0')
+      return `${y}${m}${d}`
+    },
+    secondsFromIssueStart: (record: OpenCodeRecord, nowMs: number) => {
+      return Math.floor((nowMs - record.startAt) / 1000)
+    },
+    getStatusBySeconds: (sec: number) => {
+      if (sec < 30) return STATUS_TIME.PREPARE
+      if (sec < 340) return STATUS_TIME.OPEN
+      if (sec < 350) return STATUS_TIME.CLOSED
+      if (sec < 360) return STATUS_TIME.PREPARE_OPEN
+      if (sec < 400) return STATUS_TIME.OPENING
+      return STATUS_TIME.OPENED
+    },
+    formatCountdown: (seconds: number) => {
+      const safe = Math.max(0, seconds)
+      const min = Math.floor(safe / 60)
+      const sec = safe % 60
+      return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+    },
+    getStatusEndAt: (record: OpenCodeRecord, nowMs: number) => {
+      const sec = this.timer.secondsFromIssueStart(record, nowMs)
+      let endSec = CYCLE_SECONDS
+      if (sec < 30) endSec = 30
+      else if (sec < 340) endSec = 340
+      else if (sec < 350) endSec = 350
+      else if (sec < 360) endSec = 360
+      else if (sec < 400) endSec = 400
+      return record.startAt + endSec * 1000
+    }
+  }
+
+  handle = {
+    randomOpenCode: () => {
+      const source = Array.from({ length: 49 }, (_, i) => String(i + 1).padStart(2, '0'))
+      for (let i = source.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        const tmp = source[i]
+        source[i] = source[j] as string
+        source[j] = tmp as string
+      }
+      const picked = source.slice(0, 7)
+      const normalCodes = (picked.slice(0, 6) as string[]).sort((a, b) => Number(a) - Number(b))
+      const specialCode = picked[6] as string
+      return [...normalCodes, specialCode]
+    },
+    addOpenCodeItem: (): OpenCodeRecord => ({
+      issue: '',
+      openCode: [],
+      time: { start: '', end: '' },
+      startAt: 0,
+      endAt: 0
+    }),
+    createOrderId: (issue: string) => {
+      const safeIssue = String(issue ?? '').trim() || this._get.latestIssue()
+      return LOTTERY_BASE.createOrderId(this.key, this.issueOrderSeqMap, safeIssue)
+    },
+    prdOpenCode: (now = new Date()) => {
+      const dayStart = this.timer.getStartOfDay(now).getTime()
+      const dateKey = this.timer.formatDateKey(now)
+      this.recordOpenCode = []
+      for (let i = 0; i < TOTAL_ISSUES_PER_DAY; i++) {
+        const record = this.handle.addOpenCodeItem()
+        const startAt = dayStart + i * CYCLE_MS
+        const endAt = startAt + CYCLE_MS
+        record.issue = `${dateKey}${String(i + 1).padStart(3, '0')}`
+        record.openCode = this.handle.randomOpenCode()
+        record.time.start = new Date(startAt).toISOString()
+        record.time.end = new Date(endAt).toISOString()
+        record.startAt = startAt
+        record.endAt = endAt
+        this.recordOpenCode.push(record)
+      }
+      this.currentIndex = 0
+      this.currentStatus = STATUS_TIME.PREPARE
+    },
+    refreshCurrent: (now = new Date()) => {
+      if (this.recordOpenCode.length === 0) {
+        this.handle.prdOpenCode(now)
+      }
+      const first = this.recordOpenCode[0]
+      if (!first) {
+        this.currentIndex = -1
+        this.currentStatus = STATUS_TIME.PREPARE
+        return
+      }
+      const dayKey = this.timer.formatDateKey(now)
+      if (!first.issue.startsWith(dayKey)) {
+        this.handle.prdOpenCode(now)
+      }
+      const dayStartMs = this.timer.getStartOfDay(now).getTime()
+      const nowMs = now.getTime()
+      const diffMs = Math.max(0, nowMs - dayStartMs)
+      const nextIndex = Math.min(TOTAL_ISSUES_PER_DAY - 1, Math.floor(diffMs / CYCLE_MS))
+      this.currentIndex = nextIndex
+      const current = this.recordOpenCode[this.currentIndex]
+      if (!current) {
+        this.currentStatus = STATUS_TIME.PREPARE
+        return
+      }
+      const sec = this.timer.secondsFromIssueStart(current, nowMs)
+      this.currentStatus = this.timer.getStatusBySeconds(sec)
+    },
+    // 球號分析（路珠）：49 顆球帶上 countIssue（距上次開出的期數）/ countShow（累計攪出次數）
+    // 統計範圍僅到「已開獎」的期數，未開獎的當期不計入
+    // ⚠️ 沿用 bg 版本讀 Storage.config.LHC 當號碼基底清單（1~49，恰好與大樂透號碼範圍相同），
+    //    這是共用的全域設定物件、不是從 bg/ 資料夾 import 檔案；DLT 若要客製自己的號碼中繼資料
+    //    （例如顯示樣式），可在 DltClass 覆寫 handle.buildRoadPlays 而不需要改這裡。
+    buildRoadPlays: (): Array<Record<string, unknown>> => {
+      const source = Storage.config.LHC as Record<string, any> | undefined
+      const basePlays = source
+        ? Object.values(source)
+          .filter((item) => Number(item?.num) > 0 && Number(item?.num) <= 49)
+          .sort((a, b) => Number(a.num) - Number(b.num))
+        : []
+
+      const closedIndex = this.currentStatus === STATUS_TIME.OPENED
+        ? this.currentIndex
+        : Math.max(this.currentIndex - 1, -1)
+      const records = this.recordOpenCode.slice(0, closedIndex + 1)
+      const lastSeenMap = new Map<number, number>()
+      const showCountMap = new Map<number, number>()
+
+      records.forEach((record, issueIdx) => {
+        record.openCode.forEach((code) => {
+          const num = Number(code)
+          if (!Number.isFinite(num) || num < 1 || num > 49) return
+          showCountMap.set(num, Number(showCountMap.get(num) ?? 0) + 1)
+          lastSeenMap.set(num, issueIdx)
+        })
+      })
+
+      const statsMap = new Map<number, { countShow: number; countIssue: number }>()
+      for (let num = 1; num <= 49; num++) {
+        const countShow = Number(showCountMap.get(num) ?? 0)
+        const lastSeenIdx = Number(lastSeenMap.get(num) ?? -1)
+        const countIssue = lastSeenIdx < 0 ? records.length : (records.length - 1 - lastSeenIdx)
+        statsMap.set(num, { countShow, countIssue })
+      }
+
+      return basePlays.map((play) => {
+        const num = Number(play?.num ?? 0)
+        const stats = statsMap.get(num) ?? { countShow: 0, countIssue: 0 }
+        return {
+          ...play,
+          countShow: stats.countShow,
+          countIssue: stats.countIssue,
+          selected: true
+        }
+      })
+    },
+    // 子類別覆寫此方法以提供實際的球號對照資料
+    openCodePlay: (_openCode: string[]): Array<Record<string, unknown>> => []
+  }
+
+  get = {
+    currentInfo: (): CurrentInfo | null => {
+      this.handle.refreshCurrent(new Date())
+      const current = this.recordOpenCode[this.currentIndex]
+      if (!current) return null
+      const latestOpenRecord =
+        this.currentStatus === STATUS_TIME.OPENED
+          ? current
+          : (this.recordOpenCode[this.currentIndex - 1] ?? current)
+      const nowMs = Date.now()
+      const remain = Math.max(0, Math.floor((current.endAt - nowMs) / 1000))
+      const statusEndAt = this.timer.getStatusEndAt(current, nowMs)
+      return {
+        ...latestOpenRecord,
+        currentStatus: this.currentStatus,
+        issueCurrent: current.issue,
+        issueLatest: latestOpenRecord.issue,
+        countdown: this.timer.formatCountdown(remain),
+        statusEndAt,
+        openCodePlay: this.handle.openCodePlay(latestOpenRecord.openCode),
+        openingCode: current.openCode
+      } satisfies CurrentInfo
+    }
+  }
+}
