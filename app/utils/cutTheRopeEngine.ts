@@ -200,6 +200,22 @@ export const CUT_THE_ROPE_LEVELS: CutTheRopeLevelDef[] = [
 
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y)
 
+/**
+ * 點到「上一個 tick 位置 → 這個 tick 位置」線段的最短距離。擺盪中剪繩瞬間速度可能很快，
+ * 一個 16ms tick 移動的距離足以直接跳過終點／星星／尖刺的判定範圍（只檢查移動後的單點會
+ * 出現「看起來穿過去了但沒判定到」的穿透問題），改成檢查整段移動路徑到目標點的最短距離，
+ * 只要這段路徑有經過判定範圍內就算，不會再因為移動太快而漏判。
+ */
+const distToSegment = (p: Vec2, a: Vec2, b: Vec2): number => {
+  const abx = b.x - a.x
+  const aby = b.y - a.y
+  const lenSq = abx * abx + aby * aby
+  if (lenSq < 1e-9) return dist(p, a)
+  let t = ((p.x - a.x) * abx + (p.y - a.y) * aby) / lenSq
+  t = Math.max(0, Math.min(1, t))
+  return dist(p, { x: a.x + abx * t, y: a.y + aby * t })
+}
+
 /** 物理模擬一步，公式跟 tick() 完全一樣（重力→(可選)繩子約束→邊界反彈），dt 固定為 1（對應 16ms）；
  *  只給 generateProceduralLevel() 在「建構關卡」時用來描出一條保證可行的軌跡，不影響正式 tick() */
 const simulateStep = (s: CandyState, rope: { anchor: Vec2; length: number } | null): CandyState => {
@@ -430,6 +446,7 @@ export default class CutTheRopeEngine {
 
     const dt = dtMs / 16
     const c = this.candy
+    const prevPos: Vec2 = { x: c.x, y: c.y }
     c.vy += CTR_GRAVITY * dt
     c.x += c.vx * dt
     c.y += c.vy * dt
@@ -464,7 +481,7 @@ export default class CutTheRopeEngine {
 
     for (const star of this.stars) {
       if (star.collected) continue
-      if (dist(c, star.pos) <= CANDY_RADIUS + STAR_RADIUS) {
+      if (distToSegment(star.pos, prevPos, c) <= CANDY_RADIUS + STAR_RADIUS) {
         star.collected = true
         this.starsThisAttempt += 1
         result.starCollected = true
@@ -473,7 +490,7 @@ export default class CutTheRopeEngine {
     }
 
     for (const spike of this.spikes) {
-      if (dist(c, spike) <= CANDY_RADIUS + SPIKE_RADIUS) {
+      if (distToSegment(spike, prevPos, c) <= CANDY_RADIUS + SPIKE_RADIUS) {
         result.failed = true
         this.message = 'failed'
         this.status = 'gameover'
@@ -483,8 +500,10 @@ export default class CutTheRopeEngine {
 
     // 原本用「兩圓半徑相加」判定，糖果邊緣一碰到終點邊緣就算過關，等於幾乎沒真的飛進去；
     // 改成只看 GOAL_RADIUS：糖果中心要進到終點圓內才算，中心剛好在邊界上時糖果恰好一半
-    // 深度已經進入終點，等於「至少要進入一半」才判定過關。
-    if (dist(c, this.goal) <= GOAL_RADIUS) {
+    // 深度已經進入終點，等於「至少要進入一半」才判定過關。用整段移動路徑（而非只看移動後
+    // 的單點）檢查，避免擺盪剪繩瞬間速度太快、一個 tick 就直接跳過終點造成視覺上「穿過去了
+    // 卻沒判定到」的穿透問題。
+    if (distToSegment(this.goal, prevPos, c) <= GOAL_RADIUS) {
       const levelScore = LEVEL_CLEAR_BASE_SCORE + this.starsThisAttempt * SCORE_PER_STAR
       this.totalScore += levelScore
       this.totalStars += this.starsThisAttempt
