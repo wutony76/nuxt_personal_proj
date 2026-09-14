@@ -31,58 +31,9 @@
  * 其餘測試資料都在獨立的合成期別（TEST-*）下進行，不會動到真實的 currentIssue。
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:6100'
-const EMAIL = process.env.DLT_TEST_EMAIL || 'admin@example.com'
-const PASSWORD = process.env.DLT_TEST_PASSWORD || '123456'
+import { createTestRunner } from './_test-utils.mjs'
 
-let cookie = ''
-let passCount = 0
-let failCount = 0
-const failures = []
-
-function ok(label, condition, detail) {
-  if (condition) {
-    passCount += 1
-    console.log(`  ✔ ${label}`)
-  } else {
-    failCount += 1
-    failures.push(label)
-    console.log(`  ✘ ${label}${detail ? `  (${detail})` : ''}`)
-  }
-}
-
-function section(title) {
-  console.log(`\n── ${title} ──`)
-}
-
-async function api(path, options = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(cookie ? { Cookie: cookie } : {}),
-      ...(options.headers || {})
-    }
-  })
-  const setCookie = res.headers.get('set-cookie')
-  if (setCookie) cookie = setCookie.split(',').map((c) => c.split(';')[0]).join('; ')
-  let body = null
-  try { body = await res.json() } catch { /* 204 或非 JSON 回應忽略 */ }
-  return { status: res.status, body }
-}
-
-async function login() {
-  section('登入')
-  const { status, body } = await api('/api/login', {
-    method: 'POST',
-    body: JSON.stringify({ email: EMAIL, password: PASSWORD })
-  })
-  ok(`登入成功（${EMAIL}）`, status === 200 && body?.user?.id, JSON.stringify(body))
-  if (status !== 200) {
-    console.error('登入失敗，無法繼續測試，請確認 dev server 是否啟動且種子帳號存在。')
-    process.exit(1)
-  }
-}
+const { baseUrl: BASE_URL, api, ok, section, login, summary } = createTestRunner()
 
 async function getCoin() {
   const { body } = await api('/api/lottery/userInfo?lottery=DLT')
@@ -321,15 +272,7 @@ async function main() {
   await testIdempotency()
   await testDrawAndSettlement()
 
-  console.log(`\n=================================`)
-  console.log(`通過 ${passCount} 項，失敗 ${failCount} 項`)
-  if (failCount > 0) {
-    console.log('失敗項目：')
-    failures.forEach((f) => console.log(`  - ${f}`))
-    process.exitCode = 1
-  } else {
-    console.log('全部通過 ✔')
-  }
+  summary()
 }
 
 main().catch((err) => {

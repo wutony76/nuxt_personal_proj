@@ -8,7 +8,8 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "test:dlt": "node scripts/test-dlt.mjs"
+    "test:dlt": "node scripts/test-dlt.mjs",
+    "test:k3-cd": "node scripts/test-k3-cd.mjs"
   },
   "dependencies": {
     "@nuxt/content": "^3.12.0",
