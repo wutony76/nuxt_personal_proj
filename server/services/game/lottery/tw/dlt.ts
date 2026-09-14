@@ -145,6 +145,12 @@ export default class DltClass extends LOTTERY_BASE {
   issueSettledMap: Record<string, boolean>
   /** 追蹤到的「最近一次真的有人中頭獎」金額，尚無歷史時用回退預設值（見 Decision 3） */
   lastJackpotPrize: number
+  /**
+   * 測試用：設定後，`_attemptSettlement()` 不會呼叫外部官方 API，改用這裡的假資料
+   * （見 `debugForceSettleNow`／`server/api/admin/dlt-test-draw.post.ts`）。用完自動清空
+   * （`_attemptSettlement` 的 finally 區塊），一次只影響一次呼叫。
+   */
+  _testFetchOverride: { period: string; lotNumber: number[]; tiers: Partial<Record<DltTierKey, number>> } | null
 
   declare _get: LOTTERY_BASE['_get'] & {
     user: (userId: string) => UserStoreLike
@@ -189,6 +195,7 @@ export default class DltClass extends LOTTERY_BASE {
     this.lastKnownOfficialPeriod = ''
     this.issueSettledMap = {}
     this.lastJackpotPrize = DLT_QUOTA_FALLBACK_COIN
+    this._testFetchOverride = null
 
     Object.assign(this._get, {
       user: (userId: string) => Storage.get.user(userId) as UserStoreLike,
@@ -396,26 +403,52 @@ export default class DltClass extends LOTTERY_BASE {
   }
 
   async _attemptSettlement(now: Date) {
+    const testOverride = this._testFetchOverride
     try {
-      const last = await fetchTaiwanLotteryLastNumberOf(DLT_GAME_CODE)
-      const period = String(last?.period ?? '')
-      const lotNumber = Array.isArray(last?.lotNumber) ? last!.lotNumber.map((n) => Number(n)) : []
-      // 官方「最新一期」還沒變、或號碼還沒給滿 7 個（6 一般號+1 特別號），代表尚未到位
-      if (!period || period === this.lastKnownOfficialPeriod || lotNumber.length < 7) {
-        this._scheduleNextPoll(now)
+      let period: string
+      let lotNumber: number[]
+      let tiers: TaiwanLotteryPrizeTier[]
+
+      if (testOverride) {
+        // 測試模式：不打外部官方 API，改用呼叫端指定的假資料（見 debugForceSettleNow）。
+        // period 強制加上「（測試）」後綴，確保測試產生的紀錄（recordOpenCode／史紀錄）
+        // 永遠能跟真實開獎紀錄一眼分辨開來，使用者要求「紀錄不用移除」所以不清也不特別標記別的地方。
+        period = `${testOverride.period}（測試）`
+        lotNumber = testOverride.lotNumber
+        tiers = DLT_TIERS.map((t) => ({
+          label: t.label,
+          winnerCount: Number(testOverride.tiers?.[t.key] ?? 0) > 0 ? 1 : 0,
+          perPrize: Number(testOverride.tiers?.[t.key] ?? 0)
+        }))
+      } else {
+        const last = await fetchTaiwanLotteryLastNumberOf(DLT_GAME_CODE)
+        period = String(last?.period ?? '')
+        lotNumber = Array.isArray(last?.lotNumber) ? last!.lotNumber.map((n) => Number(n)) : []
+        // 官方「最新一期」還沒變、或號碼還沒給滿 7 個（6 一般號+1 特別號），代表尚未到位
+        if (!period || period === this.lastKnownOfficialPeriod || lotNumber.length < 7) {
+          this._scheduleNextPoll(now)
+          return
+        }
+        const prize = await fetchTaiwanLotteryPrize(DLT_GAME_CODE, period)
+        if (!prize?.tiers?.length) {
+          this._scheduleNextPoll(now)
+          return
+        }
+        tiers = prize.tiers
+      }
+
+      if (lotNumber.length < 7) {
+        if (!testOverride) this._scheduleNextPoll(now)
         return
       }
       const winningNumbers = lotNumber.slice(0, 6)
       const special = lotNumber[6]
 
-      const prize = await fetchTaiwanLotteryPrize(DLT_GAME_CODE, period)
-      if (!prize?.tiers?.length) {
-        this._scheduleNextPoll(now)
-        return
-      }
-
-      this._settleIssue(this.currentIssue, period, winningNumbers, Number(special), prize.tiers)
-      this.lastKnownOfficialPeriod = period
+      this._settleIssue(this.currentIssue, period, winningNumbers, Number(special), tiers)
+      // 測試模式不更新 lastKnownOfficialPeriod：真實輪詢的「官方是否已開新一期」比對狀態
+      // 完全不受測試呼叫影響（真實 period 字串不可能等於帶「（測試）」後綴的假 period，
+      // 就算不特別擋，下一次真實輪詢也不會被誤判成「還沒變」，但明確不寫更清楚、更安全）。
+      if (!testOverride) this.lastKnownOfficialPeriod = period
 
       // 這一期結算完成，往下一個開獎日推進
       const { drawDate, cutoffAt, drawAt } = _nextDrawWindow(new Date(this.drawAt + 60_000))
@@ -427,8 +460,20 @@ export default class DltClass extends LOTTERY_BASE {
       this._refreshStatus(now)
     } catch (err) {
       console.warn('TTT---WARN.DLT 結算輪詢失敗，稍後重試', err)
-      this._scheduleNextPoll(now)
+      if (!testOverride) this._scheduleNextPoll(now)
+    } finally {
+      this._testFetchOverride = null
     }
+  }
+
+  /**
+   * 測試用：強制立刻跑一次 `_attemptSettlement()`，用假資料取代外部官方 API 呼叫，
+   * 不用等真實開獎時間、也不受目前 currentStatus 是否為 pending-settlement 限制
+   * （見 server/api/admin/dlt-test-draw.post.ts，保留下來供 scripts/test-dlt.mjs 隨時呼叫）。
+   */
+  async debugForceSettleNow(override: { period: string; lotNumber: number[]; tiers: Partial<Record<DltTierKey, number>> }) {
+    this._testFetchOverride = override
+    await this._attemptSettlement(MEMORY.now)
   }
 
   /**

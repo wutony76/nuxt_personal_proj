@@ -128,11 +128,10 @@
         的自動輪詢＋結算全程跑通：抓到真實官方 period（115000086）與開獎號、`lastJackpotPrize`
         從回退預設 80,000,000 正確更新為真實頭獎金額 253,563,028、期別正確推進到下一個開獎日、
         測試注單正確判定為「未中」（bet 07-12 對不到真實開獎號）
-      - 另用臨時測試路由（`server/api/admin/dlt-debug-settle.post.ts`，驗證後**已刪除**，
-        比照 add-kl10 慣例）模擬 8 種情境全部正確：頭獎/二獎/三獎/普獎/完全不中；
-        A~E 多組同時結算互不影響且互不稀釋（頭獎 500,000,000 + 普獎 400 = 正確加總 500,000,400，
-        不中那組 0）；已結算期別重複呼叫 `_settleIssue` 被正確擋下（不重複派彩、`recordOpenCode`
-        不重複 push、`lastJackpotPrize` 不被覆寫）
+      - 另建立**保留下來的**管理員限定測試工具 `server/api/admin/dlt-test-settle.post.ts`
+        （使用者要求「隨時測試」，跟一般實作期間「用完即刪」的臨時探測路由不同，這支刻意保留），
+        搭配 `scripts/test-dlt.mjs`（`npm run test:dlt`）自動跑 8 個獎項判定、A~E 多組互不影響、
+        已結算期別不重複結算共 33 項斷言，**全數通過**（見下方「持續可跑的測試腳本」）
 - [x] 端到端（curl + admin 測試帳號 session cookie，dev server 實測）：
       - 登入 → `GET /api/lottery-tw/dlt/current` 正確回傳 `issue`（純 YYYYMMDD）／狀態／倒數／
         `quotaIssueMaxBets`（80,000,000÷50=1,600,000）／8 獎項清單
@@ -149,6 +148,15 @@
       與重構前相同）；`/lottery-hall-taiwan` 頁面 200
 - [x] dev server 持續運行期間（`circle()` 每 300ms 執行）無任何錯誤累積；
       `/lottery-hall`、`/lottery/tw/dlt`、`/lottery-hall-taiwan` 皆 200
+- [x] **持續可跑的測試腳本**：`npm run test:dlt`（`scripts/test-dlt.mjs`）——登入、當期資訊格式、
+      下注／拒單／扣款、8 獎項判定、A~E 互不影響、已結算不重複結算、**開獎＋結算整條流程**
+      （對真正的 `currentIssue` 下注 → 呼叫 `debugForceSettleNow()` 模擬開獎 → 驗證注單正確結算、
+      `currentIssue` 正確推進到下一個開獎日、`recordOpenCode` 帶「（測試）」後綴），共 40 項斷言，
+      全數通過、exit code 0。依賴兩支保留下來的管理員限定測試工具：
+      `dlt-test-settle.post.ts`（只測派彩判定）／`dlt-test-draw.post.ts`（測整條開獎+結算流程，
+      內部呼叫 `DltClass.debugForceSettleNow()`，會讓真正的 `currentIssue` 往前推進）。
+      使用者要求「測試紀錄不用移除」——所有測試產生的 `recordOpenCode`／期別紀錄一律帶
+      「（測試）」後綴，與真實開獎紀錄可一眼分辨，不需要事後清除
 - [ ] `npm run build`（正式建置）—— **尚未執行**，目前僅驗證 dev server
 
 ## 11. 交付檢查
