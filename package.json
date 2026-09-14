@@ -12,7 +12,9 @@
     "test:k3-cd": "node scripts/test-k3-cd.mjs",
     "test:k3-of": "node scripts/test-k3-of.mjs",
     "test:6hc-cd": "node scripts/test-6hc-cd.mjs",
-    "test:6hc-of": "node scripts/test-6hc-of.mjs"
+    "test:6hc-of": "node scripts/test-6hc-of.mjs",
+    "test:pk10-cd": "node scripts/test-pk10-cd.mjs",
+    "test:pk10-of": "node scripts/test-pk10-of.mjs"
   },
   "dependencies": {
     "@nuxt/content": "^3.12.0",
