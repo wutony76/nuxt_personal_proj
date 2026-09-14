@@ -16,7 +16,9 @@
     "test:pk10-cd": "node scripts/test-pk10-cd.mjs",
     "test:pk10-of": "node scripts/test-pk10-of.mjs",
     "test:ssc-cd": "node scripts/test-ssc-cd.mjs",
-    "test:ssc-of": "node scripts/test-ssc-of.mjs"
+    "test:ssc-of": "node scripts/test-ssc-of.mjs",
+    "test:x5-cd": "node scripts/test-x5-cd.mjs",
+    "test:x5-of": "node scripts/test-x5-of.mjs"
   },
   "dependencies": {
     "@nuxt/content": "^3.12.0",
