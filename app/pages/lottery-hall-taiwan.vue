@@ -20,15 +20,63 @@ useHead({
 // 賓果賓果（1102）沒有官方中獎明細端點，玩法結構也跟其他 7 款不同，卡片不顯示「查看中獎明細」按鈕。
 const BINGO_GAME_CODE = 1102
 
-const GAME_META: Record<number, { mark: string; tagline: string }> = {
-  5134: { mark: '威', tagline: '兩區選號，頭獎累積無上限' },
-  5118: { mark: '樂', tagline: '49 選 6，加一個特別號' },
-  1197: { mark: '539', tagline: '39 選 5，一週開六天' },
-  5120: { mark: '39', tagline: '跟著今彩539開獎' },
-  1121: { mark: '49', tagline: '跟著大樂透開獎' },
-  2108: { mark: '3', tagline: '三位數字，正彩倒彩隨你選' },
-  2109: { mark: '4', tagline: '四位數字，一次對到底' },
-  1102: { mark: 'B', tagline: '80 選 20，五分鐘一期' }
+const GAME_META: Record<number, { mark: string; tagline: string; drawTime: string; topPrize: string; rules: string[] }> = {
+  5134: {
+    mark: '威',
+    tagline: '兩區選號，頭獎累積無上限',
+    drawTime: '每週一、四 20:30',
+    topPrize: '頭獎 2 億起',
+    rules: ['第一區從 01–38 選 6 個號碼。', '第二區從 01–08 選 1 個號碼。', '兩區全中即為頭獎。', '每注 100 元。']
+  },
+  5118: {
+    mark: '樂',
+    tagline: '49 選 6，加一個特別號',
+    drawTime: '每週二、五 20:30',
+    topPrize: '頭獎 1 億起',
+    rules: ['從 01–49 中選 6 個號碼。', '另開出 1 個特別號。', '6 個全中即為頭獎。', '每注 50 元。']
+  },
+  1197: {
+    mark: '539',
+    tagline: '39 選 5，一週開六天',
+    drawTime: '週一至週六 20:30',
+    topPrize: '頭獎 800 萬',
+    rules: ['從 01–39 中選 5 個號碼。', '5 個全中即為頭獎。', '中 2 個號碼就有獎。', '每注 50 元。']
+  },
+  5120: {
+    mark: '39',
+    tagline: '跟著今彩539開獎',
+    drawTime: '週一至週六 20:30',
+    topPrize: '四合 15 萬',
+    rules: ['對應今彩539開出的號碼。', '可選二合、三合、四合。', '選中的號碼全開出才中獎。', '每注 25 元。']
+  },
+  1121: {
+    mark: '49',
+    tagline: '跟著大樂透開獎',
+    drawTime: '每週二、五 20:30',
+    topPrize: '四合 15 萬',
+    rules: ['對應大樂透開出的號碼。', '可選二合、三合、四合。', '選中的號碼全開出才中獎。', '每注 25 元。']
+  },
+  2108: {
+    mark: '3',
+    tagline: '三位數字，正彩倒彩隨你選',
+    drawTime: '週一至週六 20:30',
+    topPrize: '正彩 5 萬',
+    rules: ['選一組 000–999 的三位數。', '玩法分正彩、組彩、對彩。', '號碼與順序全中為正彩。', '每注 25 元。']
+  },
+  2109: {
+    mark: '4',
+    tagline: '四位數字，一次對到底',
+    drawTime: '週一至週六 20:30',
+    topPrize: '正彩 50 萬',
+    rules: ['選一組 0000–9999 的四位數。', '玩法分正彩與組彩。', '號碼與順序全中為正彩。', '每注 25 元。']
+  },
+  1102: {
+    mark: 'B',
+    tagline: '80 選 20，五分鐘一期',
+    drawTime: '每 5 分鐘一期',
+    topPrize: '十星 25 萬',
+    rules: ['每期從 01–80 開出 20 個號碼。', '可選 1 到 10 個號碼投注。', '另有猜大小、單雙等玩法。', '每 5 分鐘開一期。']
+  }
 }
 
 const router = useRouter()
@@ -61,13 +109,13 @@ const marquee = computed(() => {
 
 const _handlers = {
   getBallClass: (index: number, total: number) => {
-    if (index === total - 1) return 'bg-rose-500 text-white'
+    if (index === total - 1) return 'tw-ball-special'
     const mod = index % 3
-    if (mod === 0) return 'bg-amber-400 text-slate-900'
-    if (mod === 1) return 'bg-sky-500 text-white'
-    return 'bg-emerald-500 text-white'
+    if (mod === 0) return 'tw-ball-a'
+    if (mod === 1) return 'tw-ball-b'
+    return 'tw-ball-c'
   },
-  meta: (gameCode: number) => GAME_META[gameCode] ?? { mark: '?', tagline: '' },
+  meta: (gameCode: number) => GAME_META[gameCode] ?? { mark: '?', tagline: '', drawTime: '-', topPrize: '-', rules: [] },
   updatedTime: (iso: string) => {
     if (!iso) return '-'
     return new Date(iso).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
@@ -166,7 +214,7 @@ onMounted(async () => {
           <h1 class="tw-hero-title">今仔日<br>開獎行情，好運報你知</h1>
           <p class="tw-hero-desc">大樂透、威力彩、今彩539 到賓果賓果，八款玩法一次看透透。開獎期數、獎號、明細寫甲清清楚楚，一眼就知影今仔日好運到未到。</p>
           <div class="tw-hero-actions">
-            <a href="#tw-games" class="tw-btn tw-btn-primary">查看今仔日開獎</a>
+            <a href="#tw-games" class="tw-btn tw-btn-primary">來一注 • 大樂透</a>
             <a href="#tw-games" class="tw-btn tw-btn-secondary">看全部玩法</a>
           </div>
         </div>
@@ -199,8 +247,8 @@ onMounted(async () => {
 
       <div id="tw-games" class="tw-content">
         <div class="tw-section-head">
-          <h2 class="tw-section-title">開獎總覽</h2>
-          <span class="tw-section-sub">8 款台灣彩券 · 即時開獎</span>
+          <h2 class="tw-section-title">玩法貨架</h2>
+          <span class="tw-section-sub">熟悉的玩法，簡單的樂趣</span>
         </div>
 
         <p v-if="state.errorMessage" class="tw-alert">{{ state.errorMessage }}</p>
@@ -229,6 +277,21 @@ onMounted(async () => {
               </div>
             </div>
 
+            <div class="tw-card-info">
+              <div class="tw-card-info-cell">
+                <div class="tw-card-info-label">開獎</div>
+                <div class="tw-card-info-value">{{ _handlers.meta(game.gameCode).drawTime }}</div>
+              </div>
+              <div class="tw-card-info-cell">
+                <div class="tw-card-info-label">最高獎金</div>
+                <div class="tw-card-info-value tw-card-info-accent">{{ _handlers.meta(game.gameCode).topPrize }}</div>
+              </div>
+            </div>
+
+            <ul class="tw-card-rules">
+              <li v-for="(rule, ruleIdx) in _handlers.meta(game.gameCode).rules" :key="ruleIdx">{{ rule }}</li>
+            </ul>
+
             <div class="tw-balls">
               <span v-for="(num, idx) in game.lotNumber" :key="`${game.gameCode}-${idx}-${num}`" class="tw-ball"
                 :class="_handlers.getBallClass(idx, game.lotNumber.length)">
@@ -245,7 +308,7 @@ onMounted(async () => {
             </template>
             <template v-else>
               <button type="button" class="tw-btn tw-btn-primary tw-btn-block" @click="click.openPrize(game)">
-                查看中獎明細
+                來一注 • {{ game.gameName }}
               </button>
             </template>
           </article>
@@ -253,7 +316,7 @@ onMounted(async () => {
       </div>
 
       <div class="tw-footer">
-        <div class="tw-corrugated" />
+        <div class="tw-corrugated tw-corrugated-bottom" />
         <div class="tw-footer-content">
           <span class="tw-footer-brand">彩運來 · 彩票大廳</span>
           <p>未滿十八歲不得購買、兌領彩券。理性投注，量力而為。彩運來開獎與中獎資料來源為台灣彩券官方公開 API。</p>
@@ -433,6 +496,16 @@ onMounted(async () => {
   gap: 12px;
   flex-wrap: wrap;
   margin-top: 26px;
+
+  .tw-btn-primary {
+    font-size: 16px;
+    padding: 13px 30px;
+  }
+
+  .tw-btn-secondary {
+    font-size: 15px;
+    padding: 13px 26px;
+  }
 }
 
 .tw-hero-art {
@@ -548,7 +621,7 @@ onMounted(async () => {
   height: 6px;
   background: var(--color-accent-500);
   background-image: repeating-linear-gradient(90deg,
-      var(--color-accent-2-400) 0 14px,
+      var(--color-accent-2-500) 0 14px,
       var(--color-accent-500) 14px 28px);
 }
 
@@ -583,7 +656,6 @@ onMounted(async () => {
   margin: 0 0 3px;
   font-size: 22px;
   color: var(--color-neutral-900);
-  white-space: nowrap;
 }
 
 .tw-card-tagline {
@@ -591,7 +663,6 @@ onMounted(async () => {
   font-size: 13px;
   color: var(--color-neutral-700);
   line-height: 1.5;
-  white-space: nowrap;
 }
 
 .tw-card-stat {
@@ -626,6 +697,46 @@ onMounted(async () => {
   color: var(--color-accent-700);
 }
 
+.tw-card-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.tw-card-info-cell {
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+}
+
+.tw-card-info-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--color-neutral-600);
+}
+
+.tw-card-info-value {
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.tw-card-info-accent {
+  color: var(--color-accent-800);
+}
+
+.tw-card-rules {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--color-neutral-800);
+  line-height: 1.6;
+}
+
 .tw-balls {
   display: flex;
   flex-wrap: wrap;
@@ -643,6 +754,26 @@ onMounted(async () => {
   font-size: 13px;
   font-weight: 700;
   box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.15);
+
+  &.tw-ball-a {
+    background: var(--color-accent-500);
+    color: var(--color-bg);
+  }
+
+  &.tw-ball-b {
+    background: var(--color-accent-2-400);
+    color: var(--color-neutral-900);
+  }
+
+  &.tw-ball-c {
+    background: var(--color-accent-800);
+    color: var(--color-bg);
+  }
+
+  &.tw-ball-special {
+    background: var(--color-accent-700);
+    color: var(--color-bg);
+  }
 }
 
 .tw-bingo-tags {

@@ -21,6 +21,9 @@
   --color-neutral-800: #474238;
   --color-neutral-900: #2e2b25;
 
+  --color-accent: #c67139;
+  --color-accent-2: #7a8a5e;
+
   --color-accent-100: #fff2eb;
   --color-accent-200: #ffe1d0;
   --color-accent-300: #ffc6a5;
@@ -35,6 +38,8 @@
   --color-accent-2-200: #e1eecc;
   --color-accent-2-300: #ccdbb2;
   --color-accent-2-400: #aebf92;
+  --color-accent-2-500: #8fa073;
+  --color-accent-2-600: #728157;
   --color-accent-2-700: #56633f;
   --color-accent-2-800: #3d472b;
 
@@ -79,7 +84,7 @@
     transition: background-color 0.15s ease;
 
     &.tw-btn-primary {
-      background: var(--color-accent-500);
+      background: var(--color-accent);
       color: var(--color-bg);
 
       &:hover { background: var(--color-accent-600); }
@@ -115,6 +120,10 @@
     background: var(--color-accent-700);
     background-image: radial-gradient(circle at 8px 14px, var(--color-bg) 6px, transparent 6.5px);
     background-size: 16px 16px;
+
+    &.tw-corrugated-bottom {
+      background-image: radial-gradient(circle at 8px 0px, var(--color-bg) 6px, transparent 6.5px);
+    }
   }
 }
 
