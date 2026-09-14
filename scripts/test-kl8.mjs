@@ -34,7 +34,7 @@
 
 import { createTestRunner } from './_test-utils.mjs'
 
-const { api, ok, section, login, summary } = createTestRunner()
+const { api, ok, section, login, summary, waitForOpen } = createTestRunner()
 
 // 四組固定測試開獎號（20 碼、1~80 互不重複），涵蓋大/小 × 單/雙 四種組合：
 // A = 1~20（小、雙、上盤、奇偶和、五行=金）
@@ -62,6 +62,7 @@ async function testCurrentInfo() {
 
 async function testBetting() {
   section('下注與拒單')
+  await waitForOpen('/api/lottery/kl8/current')
   const before = await getCoin()
 
   const oddsBet = await api('/api/lottery/bet', {

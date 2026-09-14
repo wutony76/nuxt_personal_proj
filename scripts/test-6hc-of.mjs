@@ -34,7 +34,7 @@
 
 import { createTestRunner } from './_test-utils.mjs'
 
-const { api, ok, section, login, summary } = createTestRunner()
+const { api, ok, section, login, summary, waitForOpen } = createTestRunner()
 
 const BASE_FIRST_PRIZE = 200000
 const SECOND_PRIZE_MIN = 50000
@@ -57,6 +57,7 @@ async function testCurrentInfo() {
 
 async function testBetting() {
   section('下注與餘額')
+  await waitForOpen('/api/lottery/6hc-of/current')
   const before = await getCoin()
 
   const bet = await api('/api/lottery/bet', {

@@ -32,7 +32,7 @@
 
 import { createTestRunner } from './_test-utils.mjs'
 
-const { api, ok, section, login, summary } = createTestRunner()
+const { api, ok, section, login, summary, waitForOpen } = createTestRunner()
 
 async function getCoin() {
   const { body } = await api('/api/lottery/userInfo?lottery=X5-OF')
@@ -50,6 +50,7 @@ async function testCurrentInfo() {
 
 async function testBetting() {
   section('下注')
+  await waitForOpen('/api/lottery/x5-of/current')
   const before = await getCoin()
 
   const oddsBet = await api('/api/lottery/bet', {

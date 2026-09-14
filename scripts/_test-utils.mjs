@@ -70,5 +70,23 @@ export function createTestRunner({
     }
   }
 
-  return { baseUrl, ok, section, api, login, summary }
+  /**
+   * 等真實遊戲回到「開盤中」再進行真實下注測試，避免測試腳本剛好跑在
+   * 封盤／開獎中的過渡窗口而誤判為失敗（這不是程式邏輯錯誤，是遊戲週期本身的正常狀態）。
+   * currentPath 例如 '/api/lottery/k3-cd/current'。
+   */
+  async function waitForOpen(currentPath, { timeoutMs = 30000, intervalMs = 500 } = {}) {
+    const deadline = Date.now() + timeoutMs
+    let lastStatus = null
+    while (Date.now() < deadline) {
+      const { body } = await api(currentPath)
+      lastStatus = body?.currentStatus
+      if (lastStatus === '開盤中') return true
+      await new Promise((resolve) => setTimeout(resolve, intervalMs))
+    }
+    console.log(`  ⚠ 等待開盤逾時（最後狀態：${lastStatus}），下面的真實下注測試可能因此失敗`)
+    return false
+  }
+
+  return { baseUrl, ok, section, api, login, summary, waitForOpen }
 }
