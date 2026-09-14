@@ -90,6 +90,25 @@ export function findTwByPageSlug(slug) {
   呼叫 `findTwByPageSlug`，判斷邏輯與既有 `bg` 分支一致，只是查表來源不同
 - `server/services/admin/modules/poolAudit.ts`：**不需要新增登記**（本玩法沒有本站自建的彩池）
 
+**角色遊戲權限（`roleGamePerms`）也要補上 `tw` 分類，否則 DLT 永遠無法被後台停用**：
+`server/services/admin/modules/roleGamePerms.ts` 的 `GameCategory` 型別目前是 `'bg' | 'retro'`，
+`_catalog()` 只枚舉 `BG_GAMES`／`RETRO_GAMES`。這是黑名單制（預設全開、只記被關閉的項目），
+`toggle()`／`toggleGlobal()` 會先驗證 `category`+`key` 是否存在於 `_catalog()`，`tw`/`DLT` 目前
+不存在，代表：不是「DLT 會被擋」，而是「DLT 永遠開放、且管理員在後台看不到它、無法關閉它」。
+需要一併修改（皆為新增分支，不影響既有 `bg`/`retro`）：
+- `roleGamePerms.ts`：`GameCategory` 加 `'tw'`；`_catalog()` 新增 `tw` 分支（import `TW_GAMES`）
+- `server/api/admin/games.patch.ts`、`server/api/admin/role-defs/[id]/games.patch.ts`：
+  兩處**各自獨立宣告**的 `VALID_CATEGORIES: GameCategory[] = ['bg', 'retro']` 都要加 `'tw'`
+  （非共用常數，兩處都要改，改一處另一處不會跟著變）
+- `app/services/api.ts`：前端 `GameCategory` 型別同步加 `'tw'`
+- `app/components/admin/GameCatalogPanel.vue`、`RoleGamesPanel.vue`：比照既有 `bgGames`/`retroGames`
+  的 filter + `<section>` 寫法，各自新增一份 `twGames` 區塊
+- `server/api/lottery/bet.post.ts`：目前寫死 `roleGamePerms.isEnabled(roleId, 'bg', getLottery.key)`
+  （第 41 行），需要改成**由伺端依 `getLottery.key` 反查 `TW_GAMES`/`BG_GAMES` 動態決定 category**
+  （`TW_GAMES.some(g => g.key === getLottery.key) ? 'tw' : 'bg'`），**不可信任前端送來的分類欄位**
+  （`payload.lottery` 目前型別是 `any`，偽造分類可繞過另一個分類的角色限制）；DLT 沿用這支共用
+  下注路由送單（Decision 8／9 已拍板「沿用既有下注 API」，不另開專屬下注端點）
+
 **自動下注面板**：使用者拍板「直接複製一組新的與 bg 分開」：
 
 ```

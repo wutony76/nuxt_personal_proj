@@ -118,6 +118,12 @@ const GAME_META: Record<string, {
     ribbon: 'BG · 3 位數字排列',
     desc: '三位排定見分曉，\n直組和值細推敲。\n不定大小皆可選，\n一局落定見輸贏。',
   },
+  // 大樂透：唯一鏡射官方台彩的玩法（tw 分類），開獎號與獎金皆為官方實際結果，不自建賠率
+  DLT: {
+    en: 'DLT',
+    ribbon: 'TW · 鏡射官方大樂透',
+    desc: '四十九選六定乾坤，\n特別號外再添春。\n開獎派彩皆如實，\n不自賠率不自陳。',
+  },
 }
 
 const MODE_META = [
@@ -152,6 +158,10 @@ const GAME_MODES: Record<string, typeof MODE_META> = {
   PL3: [
     { suffix: '', theme: 'of', mark: '官', label: '官 方', tag: 'OFFICIAL · MODE', note: '每注獨立 · 固定賠率結算' },
   ],
+  // 大樂透：單一模式，不屬於官方盤／信用盤這組概念（沿用 of 主題色系，不新增樣式主題）
+  DLT: [
+    { suffix: '', theme: 'of', mark: '鏡', label: '鏡射官方', tag: 'TW · MIRROR', note: '開獎／獎金皆為官方實際結果' },
+  ],
 }
 
 const router = useRouter()
@@ -172,6 +182,7 @@ const ROUTE_DICT: Record<string, string> = {
   'KL8': '/lottery/bg/kl8',
   'FC3D': '/lottery/bg/fc3d',
   'PL3': '/lottery/bg/pl3',
+  'DLT': '/lottery/tw/dlt',
 }
 
 const state = reactive({

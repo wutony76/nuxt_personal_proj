@@ -69,6 +69,16 @@ export const BG_GAMES = [
   { key: 'PL3', pageSlug: 'pl3' }
 ]
 
+/**
+ * tw（台彩鏡射玩法）：規則來自公開的真實台彩規則、不是移植自 bglottery，與 BG_GAMES
+ * 系列的來源性質本質不同，獨立成第三個分類（見 openspec/changes/add-dlt/design.md Decision 0）。
+ * `key` 對應 `app/config/constants.js` 的 `LOTTERY` key，同時也是 `POST /api/lottery/bet`
+ * 下注時 `payload.lottery.key` 的值（DLT 沿用既有共用下注端點，不另開專屬路由）。
+ */
+export const TW_GAMES = [
+  { key: 'DLT', pageSlug: 'dlt' }
+]
+
 export function findRetroByApiSlug(slug) {
   return RETRO_GAMES.find((g) => g.apiSlug === slug)
 }
@@ -79,4 +89,8 @@ export function findRetroByPageSlug(slug) {
 
 export function findBgByPageSlug(slug) {
   return BG_GAMES.find((g) => g.pageSlug === slug)
+}
+
+export function findTwByPageSlug(slug) {
+  return TW_GAMES.find((g) => g.pageSlug === slug)
 }

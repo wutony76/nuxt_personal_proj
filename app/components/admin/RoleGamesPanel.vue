@@ -22,6 +22,7 @@ const state = reactive({
 
 const bgGames = computed(() => state.games.filter((g) => g.category === 'bg'))
 const retroGames = computed(() => state.games.filter((g) => g.category === 'retro'))
+const twGames = computed(() => state.games.filter((g) => g.category === 'tw'))
 
 const _actions = {
   fetch: async (roleId: string) => {
@@ -91,6 +92,21 @@ watch(() => props.roleId, (roleId) => _actions.fetch(roleId), { immediate: true 
         </div>
         <div class="rgp-grid">
           <button v-for="row in retroGames" :key="row.key" type="button" class="rgp-toggle"
+            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey"
+            :aria-pressed="row.enabled" @click="click.toggle(row)">
+            <span class="rgp-toggle-name">{{ row.name }}</span>
+            <span class="rgp-toggle-state">{{ row.enabled ? '開啟' : '關閉' }}</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="rgp-section">
+        <div class="rgp-section-head">
+          <span class="admin-en">TW Lottery</span>
+          <span class="rgp-section-title">台彩鏡射玩法</span>
+        </div>
+        <div class="rgp-grid">
+          <button v-for="row in twGames" :key="row.key" type="button" class="rgp-toggle"
             :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey"
             :aria-pressed="row.enabled" @click="click.toggle(row)">
             <span class="rgp-toggle-name">{{ row.name }}</span>

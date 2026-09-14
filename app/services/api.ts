@@ -559,6 +559,49 @@ export type Pl3Current = {
   endAt: number
 }
 
+/**
+ * 大樂透（DLT）當期資訊
+ * ⚠️ 跟其他所有彩種最大的不同：`issue` 是本站內部佔位期別（`DLT-YYYYMMDD`），開獎前用來
+ * 分組下注；`lastOpenCode` 才是官方真實開獎號與真實 period（見 server dlt.ts 檔頭註解）。
+ * 下注當下不顯示獎金（`tiers` 只有名稱／對中條件，沒有 `perPrize`——要等開獎結算後才知道）。
+ */
+export type DltCurrent = {
+  issue: string
+  currentStatus: string
+  cutoffAt: number
+  drawAt: number
+  countdown: string
+  quotaIssueMaxCoin: number
+  quotaIssueMaxBets: number
+  lastOpenCode: { issue: string; openCode: string[] } | null
+  tiers: Array<{ key: string; label: string; desc: string | null }>
+}
+
+/** 大樂透玩家紀錄 */
+export type DltUserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: DltUserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+}
+
+export type DltUserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  /** 一組 6 碼（逗號分隔已正規化，例如 "01,07,15,22,33,49"） */
+  betCode: string[]
+  /** 官方真實開獎號（結算前為空陣列） */
+  openCode: string[]
+  /** 命中的官方獎項 key（jackpotAssign／secondAssign…），未中或結算前為 null */
+  tierKey: string | null
+  /** 對應獎項中文名稱（頭獎／二獎…），未中或結算前為空字串 */
+  tierLabel: string
+  winStatus: 'pending' | 'win' | 'lose'
+  /** 派彩金額＝官方當期該獎項實際 perPrize，未結算前為 0 */
+  winAmount: number
+}
+
 /** 排列3玩家紀錄 */
 export type Pl3UserRecordResponse = {
   balanceChanges: LotteryUserBalanceChange[]
@@ -669,6 +712,8 @@ export type LotteryBetPayload = {
   gameId?: number
   betType?: string
   number?: string
+  /** 僅大樂透（DLT）使用：A~E 最多 5 組各自獨立的 6 碼投注，不是複式（見 DltCurrent 註解） */
+  slots?: Array<{ numbers: number[] }>
 }
 
 export type LotteryBetOrder = {
@@ -903,7 +948,7 @@ export type RoleDef = {
 }
 
 /** 角色遊戲權限分類：'bg'（BG 彩票）／'retro'（遊戲中心） */
-export type GameCategory = 'bg' | 'retro'
+export type GameCategory = 'bg' | 'retro' | 'tw'
 
 /** 角色遊戲權限項目（見 server/services/admin/modules/roleGamePerms.ts） */
 export type RoleGamePerm = {
@@ -1092,6 +1137,8 @@ export const api = {
           return $fetch<Fc3dCurrent>('/api/lottery/fc3d/current')
         case LOTTERY.PL3.id:
           return $fetch<Pl3Current>('/api/lottery/pl3/current')
+        case LOTTERY.DLT.id:
+          return $fetch<DltCurrent>('/api/lottery-tw/dlt/current')
         default:
           return null
       }
@@ -1227,6 +1274,12 @@ export const api = {
     jackpotPl3: () => $fetch<CreditJackpotState>('/api/lottery/pl3/jackpot'),
     /** 三星直選分層彩池狀態，與上面的爆池是兩個獨立的池 */
     poolPl3: () => $fetch<PoolPlayState>('/api/lottery/pl3/pool'),
+    // ── 大樂透（DLT，tw 分類、完全鏡射官方，路由在 lottery-tw/dlt 而非 lottery/**）──
+    currentDlt: () => $fetch<DltCurrent>('/api/lottery-tw/dlt/current'),
+    openCodeHistoryDlt: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery-tw/dlt/opencode-history'),
+    userRecordDlt: () => $fetch<DltUserRecordResponse>('/api/lottery-tw/dlt/user-record'),
+    claimOneIssueDlt: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/dlt/claim', { method: 'POST' }),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),
     bet: (payload: LotteryBetPayload) =>

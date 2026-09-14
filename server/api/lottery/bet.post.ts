@@ -1,6 +1,7 @@
 import { Storage } from '../../services/storage'
 import { sessionController } from '../../services/auth'
 import { throwErrCode } from '../../utils/error'
+import { TW_GAMES } from '#shared/config/gameSlugs'
 
 type BetPayload = {
   lottery?: any
@@ -38,7 +39,10 @@ export default defineEventHandler(async (event) => {
   if (!gameClass?.playBets) throw createError({ statusCode: 400, message: '彩種不存在' })
 
   const roleId = Storage.manager.admin.access.roleOf(_login.id)
-  if (!Storage.manager.admin.roleGamePerms.isEnabled(roleId, 'bg', getLottery.key)) {
+  // ⚠️ category 一律由伺端依 getLottery.key 反查 TW_GAMES 決定，不可信任前端送來的分類欄位
+  // （payload.lottery 目前型別是 any，偽造分類可繞過另一分類的角色限制，見 add-dlt/design.md Decision 0）
+  const category = TW_GAMES.some((g) => g.key === getLottery.key) ? 'tw' : 'bg'
+  if (!Storage.manager.admin.roleGamePerms.isEnabled(roleId, category, getLottery.key)) {
     throw createError({ statusCode: 403, message: '目前角色未開放此盤口。' })
   }
   const betResult = gameClass.playBets(payload, _user)

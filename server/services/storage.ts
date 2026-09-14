@@ -28,6 +28,7 @@ import Kl10Class from './game/lottery/bg/kl10'
 import Kl8Class from './game/lottery/bg/kl8'
 import Fc3dClass from './game/lottery/bg/fc3d'
 import Pl3Class from './game/lottery/bg/pl3'
+import DltClass from './game/lottery/tw/dlt'
 import RetroSnakeClass from './game/retro/snake'
 import RetroRacingClass from './game/retro/racing'
 import RetroTetriminosClass from './game/retro/tetriminos'
@@ -137,6 +138,9 @@ export class Storage {
       new Fc3dClass()
       // 排列3：玩法結構與福彩3D相同（官方盤單盤口、無彩池），獨立彩種、自己持有期表
       new Pl3Class()
+      // 大樂透：唯一「完全鏡射官方台彩」的玩法（tw 分類，不屬於 bg），開獎號與 8 個獎項派彩金額
+      // 皆即時讀取官方 API，不自建 RNG、不自建賠率、不做彩池（見 openspec/changes/add-dlt/design.md）
+      new DltClass()
       // console.log('games.init.success', Storage.games)
       console.log('SUCCESS ---BASE>games.init')
     },

@@ -58,6 +58,11 @@ export const LOTTERY = {
   // （僅 playId 前綴／lotteryId 不同），但仍是完全獨立彩種，各自登記一組鍵值，
   // 與 FC3D／PC蛋蛋／快樂十分／快樂8 一樣只登記單一鍵值（無 sub 欄位）。
   'PL3':{ id: 10001, key: 'PL3', name: '排列3', sort: 10 },
+
+  // 大樂透：唯一一款「完全鏡射官方台彩」的玩法（開獎號與 8 個獎項派彩金額皆即時讀取官方
+  // API，不自建 RNG／賠率公式／彩池），分類獨立為 tw（見 openspec/changes/add-dlt/design.md
+  // Decision 0），不屬於 bg 系列，只登記單一鍵值（無 sub 欄位）。
+  'DLT':{ id: 11001, key: 'DLT', name: '大樂透', sort: 11 },
 }
 
 export const SORT = {
@@ -80,6 +85,9 @@ export const STATUS_TIME = {
   PREPARE_OPEN: '準備開獎',
   OPENING: '正在開獎中',
   OPENED: '已開獎',
+  // 大樂透專用：開獎時間已到，但官方尚未公布完整開獎號／獎金明細，需輪詢等待
+  // （見 openspec/changes/add-dlt/design.md Decision 5），MUST NOT 誤判為 OPENED 或無人中獎。
+  PENDING_SETTLEMENT: '結算中（等待官方資料）',
 }
 
 /**

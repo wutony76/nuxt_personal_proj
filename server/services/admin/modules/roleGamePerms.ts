@@ -1,9 +1,9 @@
 import { Storage } from 'serv/services/storage'
 import { LOTTERY } from '~/config/constants'
-import { RETRO_GAMES, BG_GAMES } from '#shared/config/gameSlugs'
+import { RETRO_GAMES, BG_GAMES, TW_GAMES } from '#shared/config/gameSlugs'
 import { roleDefsService } from './roleDefs'
 
-export type GameCategory = 'bg' | 'retro'
+export type GameCategory = 'bg' | 'retro' | 'tw'
 
 export type GameCatalogItem = {
   category: GameCategory
@@ -24,8 +24,8 @@ function _compositeKey(category: GameCategory, key: string): string {
 }
 
 /**
- * @returns 兩分類的權威清單（`bg` 15 個盤口 + `retro` 26 款遊戲），見
- * openspec/changes/add-role-game-perms/design.md Decision 2
+ * @returns 三分類的權威清單（`bg` 15 個盤口 + `retro` 26 款遊戲 + `tw` 台彩鏡射玩法），見
+ * openspec/changes/add-role-game-perms/design.md Decision 2、openspec/changes/add-dlt/design.md Decision 0
  */
 function _catalog(): GameCatalogItem[] {
   const bg: GameCatalogItem[] = BG_GAMES.map(({ key }) => {
@@ -37,7 +37,12 @@ function _catalog(): GameCatalogItem[] {
     const instance = (Storage.retroGames.instances as Record<string, { name?: string } | undefined>)[key]
     return { category: 'retro', key, name: instance?.name ?? key }
   })
-  return [...bg, ...retro]
+  const tw: GameCatalogItem[] = TW_GAMES.map(({ key }) => {
+    const lottery = (LOTTERY as Record<string, { name: string; sub?: string }>)[key]
+    const name = lottery ? `${lottery.name}${lottery.sub ? ` ${lottery.sub}` : ''}` : key
+    return { category: 'tw', key, name }
+  })
+  return [...bg, ...retro, ...tw]
 }
 
 /** 執行期「角色 → 被關閉項目」記錄；只記被關閉的，未記錄視為全開（見 design.md Decision 1）。 */
@@ -108,7 +113,7 @@ export const roleGamePermsService = {
 
   /**
    * @param roleId 角色 id
-   * @param category 分類（'bg'／'retro'）
+   * @param category 分類（'bg'／'retro'／'tw'）
    * @param key 該分類下的項目 key
    * @returns 該角色是否可使用此項目（總閘關閉時，不分角色一律 false）
    */

@@ -8,7 +8,7 @@ type Body = {
   enabled?: unknown
 }
 
-const VALID_CATEGORIES: GameCategory[] = ['bg', 'retro']
+const VALID_CATEGORIES: GameCategory[] = ['bg', 'retro', 'tw']
 
 /**
  * 切換指定角色的單一遊戲／盤口開關（僅限自訂角色）

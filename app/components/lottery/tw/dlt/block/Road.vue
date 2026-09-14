@@ -1,0 +1,105 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useDlt } from '~/composables/useDlt'
+import { DLT_NUMBER_MIN, DLT_NUMBER_MAX } from '#shared/config/dlt'
+
+/**
+ * 冷熱號：統計 recordOpenCode 內 1~49 各號碼出現次數（含特別號），
+ * 只能統計本站上線後逐期累積的資料，不做官方歷史回填（見 design.md Decision 4）。
+ */
+const { openCodeHistory } = useDlt()
+
+const counts = computed(() => {
+  const map = new Map<number, number>()
+  for (let n = DLT_NUMBER_MIN; n <= DLT_NUMBER_MAX; n++) map.set(n, 0)
+  openCodeHistory.list.forEach((row) => {
+    row.openCode.forEach((code) => {
+      const n = Number(code)
+      if (Number.isFinite(n)) map.set(n, (map.get(n) ?? 0) + 1)
+    })
+  })
+  return Array.from(map.entries()).map(([num, count]) => ({ num, count }))
+})
+
+const maxCount = computed(() => Math.max(1, ...counts.value.map((row) => row.count)))
+const hasData = computed(() => openCodeHistory.list.length > 0)
+</script>
+
+<template>
+  <div class="dlt-road">
+    <h3 class="dlt-road-title">冷熱號</h3>
+    <p v-if="!hasData" class="dlt-road-empty">
+      {{ openCodeHistory.isLoading ? '載入中…' : '目前累積的開獎期數還不夠，暫無冷熱號統計（非錯誤）' }}
+    </p>
+    <div v-else class="dlt-road-grid">
+      <div v-for="row in counts" :key="row.num" class="dlt-road-cell">
+        <span class="dlt-road-num">{{ String(row.num).padStart(2, '0') }}</span>
+        <span class="dlt-road-bar">
+          <span class="dlt-road-bar-fill" :style="{ width: `${(row.count / maxCount) * 100}%` }" />
+        </span>
+        <span class="dlt-road-count">{{ row.count }}</span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped lang="scss">
+.dlt-road {
+  border: 1px solid #fee2e2;
+  border-radius: var(--base-radius, 0.375rem);
+  background: #fff;
+  padding: 0.75rem;
+}
+
+.dlt-road-title {
+  margin: 0 0 0.5rem;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-red-main, #7f1d1d);
+}
+
+.dlt-road-empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-red-desc, #9ca3af);
+}
+
+.dlt-road-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.3rem;
+}
+
+.dlt-road-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 11px;
+}
+
+.dlt-road-num {
+  flex: 0 0 20px;
+  font-weight: 700;
+  color: var(--color-red-main, #7f1d1d);
+}
+
+.dlt-road-bar {
+  flex: 1;
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.dlt-road-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-red-main, #7f1d1d);
+}
+
+.dlt-road-count {
+  flex: 0 0 18px;
+  text-align: right;
+  color: var(--color-red-desc, #9ca3af);
+}
+</style>

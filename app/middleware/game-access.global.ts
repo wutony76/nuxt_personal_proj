@@ -1,4 +1,4 @@
-import { findBgByPageSlug, findRetroByPageSlug } from '#shared/config/gameSlugs'
+import { findBgByPageSlug, findRetroByPageSlug, findTwByPageSlug } from '#shared/config/gameSlugs'
 import { useGameAccess } from '~/composables/useGameAccess'
 
 /**
@@ -15,7 +15,7 @@ import { useGameAccess } from '~/composables/useGameAccess'
 export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) return
 
-  let category: 'bg' | 'retro' | null = null
+  let category: 'bg' | 'retro' | 'tw' | null = null
   let key: string | null = null
 
   if (to.path.startsWith('/game/')) {
@@ -30,6 +30,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const game = findBgByPageSlug(slug)
     if (game) {
       category = 'bg'
+      key = game.key
+    }
+  } else if (to.path.startsWith('/lottery/tw/')) {
+    const slug = to.path.slice('/lottery/tw/'.length).split('/')[0] ?? ''
+    const game = findTwByPageSlug(slug)
+    if (game) {
+      category = 'tw'
       key = game.key
     }
   }
