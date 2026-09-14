@@ -19,7 +19,8 @@
     "test:ssc-of": "node scripts/test-ssc-of.mjs",
     "test:x5-cd": "node scripts/test-x5-cd.mjs",
     "test:x5-of": "node scripts/test-x5-of.mjs",
-    "test:eggs": "node scripts/test-eggs.mjs"
+    "test:eggs": "node scripts/test-eggs.mjs",
+    "test:kl10": "node scripts/test-kl10.mjs"
   },
   "dependencies": {
     "@nuxt/content": "^3.12.0",
