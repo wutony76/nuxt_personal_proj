@@ -35,6 +35,7 @@ export default defineNitroPlugin((_nitroApp) => {
       console.log('***---START.TESTING.RUN')
       await new TestClass().bg()
       await new TestClass().tw()
+      await new TestClass().retro()
       console.log('***---END.TESTING.RUN')
     })()
   }

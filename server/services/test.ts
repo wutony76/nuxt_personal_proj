@@ -20,6 +20,11 @@ const TW_TEST_SCRIPTS = [
   'test-dlt.mjs'
 ]
 
+/** retro 遊戲中心（得分→coin 換算）的測試腳本 */
+const RETRO_TEST_SCRIPTS = [
+  'test-retro.mjs'
+]
+
 /** 等 dev server 真的開始接受連線再開始跑，避免第一支腳本因為 server 還沒起來而登入失敗 */
 async function waitForServerReady(baseUrl: string, maxAttempts = 60): Promise<boolean> {
   for (let i = 0; i < maxAttempts; i++) {
@@ -49,8 +54,9 @@ function runTestScript(scriptPath: string): Promise<void> {
 /**
  * 開發用測試工具：依序把 scripts/test-*.mjs 跑一輪，不用手動一支一支下指令。
  *
- *   new TestClass().bg()   // bg 系列（K3／6HC／PK10／SSC／X5／EGGS／KL10／KL8／FC3D／PL3）
- *   new TestClass().tw()   // 台彩系列（DLT）
+ *   new TestClass().bg()      // bg 系列（K3／6HC／PK10／SSC／X5／EGGS／KL10／KL8／FC3D／PL3）
+ *   new TestClass().tw()      // 台彩系列（DLT）
+ *   new TestClass().retro()   // retro 遊戲中心（得分→coin 換算）
  */
 export default class TestClass {
   private async run(label: string, scripts: string[]): Promise<void> {
@@ -80,5 +86,10 @@ export default class TestClass {
   /** 依序跑完台彩系列全部測試腳本 */
   async tw(): Promise<void> {
     await this.run('tw', TW_TEST_SCRIPTS)
+  }
+
+  /** 依序跑完 retro 遊戲中心全部測試腳本 */
+  async retro(): Promise<void> {
+    await this.run('retro', RETRO_TEST_SCRIPTS)
   }
 }
