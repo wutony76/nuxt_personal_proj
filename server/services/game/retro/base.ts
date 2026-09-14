@@ -1,5 +1,6 @@
 import { Storage } from '../../storage'
 import RetroHistoryClass, { type RetroHistoryRecordRow } from './history'
+import { retroLeaderboardBroadcast } from './retroBroadcast'
 
 type RetroUserLike = {
   coin?: number
@@ -100,6 +101,7 @@ export default class RETRO_GAME_BASE {
         ...(input.meta ? { meta: input.meta } : {})
       })
       const reward = this.actions.settleReward(userId, safeScore)
+      retroLeaderboardBroadcast.push()
       return { record, ...reward }
     },
 

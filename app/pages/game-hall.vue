@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import ChatPanelHud from '~/components/social/ChatPanelHud.vue'
 import GameHighScoreHud from '~/components/social/GameHighScoreHud.vue'
 import { useAuth } from '~/composables/useAuth'
@@ -124,6 +124,38 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (clockTimer) clearInterval(clockTimer)
 })
+
+/**
+ * 聊天面板要跟排行榜面板「完全等高」，但排行榜實際渲染高度沒辦法用 CSS 猜準
+ * （字型渲染、換行都會讓 calc(5 * 40px + 4 * 10px) 這種估算值跟實際差一點點）。
+ * 用 ResizeObserver 即時量測排行榜那側的實際高度，寫進 --rank-body-h-live 這個
+ * CSS 變數，聊天面板固定綁這個量出來的高度（見 .chat-panel> :not(.panel-title)）。
+ * isLoggedIn 為 false 時整個 .social-row 不存在，用 watch 而不是只在 onMounted
+ * 設一次，確保之後登入、面板才出現時也能補上觀察。
+ */
+const scoreBodyRef = ref<InstanceType<typeof GameHighScoreHud> | null>(null)
+const socialRowRef = ref<HTMLElement | null>(null)
+let scoreBodyResizeObserver: ResizeObserver | null = null
+
+watch(scoreBodyRef, (instance) => {
+  scoreBodyResizeObserver?.disconnect()
+  scoreBodyResizeObserver = null
+
+  const el = (instance as unknown as { $el?: HTMLElement } | null)?.$el
+  const container = socialRowRef.value
+  if (!el || !container) return
+
+  scoreBodyResizeObserver = new ResizeObserver((entries) => {
+    const height = entries[0]?.contentRect.height
+    if (height) container.style.setProperty('--rank-body-h-live', `${height}px`)
+  })
+  scoreBodyResizeObserver.observe(el)
+})
+
+onBeforeUnmount(() => {
+  scoreBodyResizeObserver?.disconnect()
+  scoreBodyResizeObserver = null
+})
 </script>
 
 <template>
@@ -185,13 +217,13 @@ onBeforeUnmount(() => {
       <GameHallArcadeLane />
 
       <!-- 登入後：左側高分排行 + 右側聊天室 -->
-      <div v-if="isLoggedIn" class="social-row">
+      <div v-if="isLoggedIn" ref="socialRowRef" class="social-row">
         <section class="hud-panel score-panel">
           <div class="panel-title">
             <h2>SCORE.RANK</h2>
             <div class="meta">// 遊戲高分排行 · <b>熱門遊戲.快來跳戰</b></div>
           </div>
-          <GameHighScoreHud />
+          <GameHighScoreHud ref="scoreBodyRef" />
         </section>
 
         <section class="hud-panel chat-panel">
@@ -627,7 +659,7 @@ onBeforeUnmount(() => {
   margin-bottom: 24px;
   align-items: stretch;
   /* 5 筆排行基準高度：每行 40px + 間距 10px × 4 */
-  --rank-body-h: calc(5 * 40px + 4 * 10px);
+  --rank-body-h: calc(5 * 41.5px + 4 * 10px);
 
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
@@ -643,15 +675,29 @@ onBeforeUnmount(() => {
     flex: 1;
     min-height: var(--rank-body-h);
     height: auto;
-    max-height: none;
+    max-height: 270px;
   }
 
-  /* 聊天面板固定高度（比照排行榜），內部 chp-list 才會真的捲動，不會被訊息撐高 */
+  /*
+   * 聊天面板必須維持「固定高度」，內部 .chp-list 才會真的用 overflow-y 捲動——
+   * 訊息數量沒有上限，若改成 height:auto 讓內容自己撐高，聊天室會直接把整個
+   * grid 列撐爆（而且訊息一多，整段版面跟著一直變高，.chp-list 也永遠不會出現
+   * 捲軸）。但固定高度不能用猜的：先前這裡寫死 calc(5 * 40px + 4 * 10px) 估算
+   * 排行榜 5 列的高度，只要排行榜實際渲染高度跟估算差一點點（字型渲染、換行都
+   * 有可能），排行榜這邊會把 grid 列撐得比估算值高，聊天面板卻還卡在寫死的
+   * 高度，.chp 下方就會多出一截空白。
+   *
+   * 改成用 JS（ResizeObserver，見 <script setup> 的 scoreBodyRef／
+   * scoreBodyResizeObserver）即時量測排行榜那側實際渲染高度，寫進
+   * --rank-body-h-live；聊天面板固定綁這個「真正量出來的高度」而不是用猜的，
+   * 兩邊就一定會完全一樣高。--rank-body-h-live 還沒量到之前（SSR／掛載瞬間）
+   * 退回原本的估算值 --rank-body-h，避免出現 0 高度的版面閃爍。
+   */
   .chat-panel> :not(.panel-title) {
     flex: 1;
     min-height: var(--rank-body-h);
-    height: var(--rank-body-h);
-    max-height: var(--rank-body-h);
+    height: var(--rank-body-h-live, var(--rank-body-h));
+    max-height: 270px;
   }
 
   .panel-title {

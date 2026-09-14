@@ -1,41 +1,23 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive } from 'vue'
-import { api, type RetroLeaderboardEntry } from '~/services/api'
+import { onMounted } from 'vue'
+import { useRetroLeaderboard } from '~/composables/useRetroLeaderboard'
 
-const state = reactive({
-  entries: [] as RetroLeaderboardEntry[],
-  loading: false,
-  error: ''
-})
-
-const entries = computed(() => state.entries)
-
-const _actions = {
-  fetch: async () => {
-    if (state.loading) return
-    state.loading = true
-    state.error = ''
-    try {
-      const result = await api.games.retro.leaderboard()
-      state.entries = result.entries
-    } catch (error: unknown) {
-      const data = (error as { data?: { message?: string } })?.data
-      state.error = data?.message ?? '排行榜載入失敗'
-    } finally {
-      state.loading = false
-    }
-  }
-}
+/**
+ * 排行榜資料與訂閱都交給 useRetroLeaderboard（module 級單例）：這裡只負責「第一次掛載
+ * 時如果還沒抓過就抓一次」，之後的更新全部靠 retro:leaderboard socket 推播即時反映，
+ * 不用自己再開一個 setInterval 輪詢。
+ */
+const { entries, loading, error, loaded, actions } = useRetroLeaderboard()
 
 onMounted(() => {
-  _actions.fetch()
+  actions.fetch()
 })
 </script>
 
 <template>
   <div class="ghs">
-    <p v-if="state.loading" class="ghs-status">// 載入中...</p>
-    <p v-else-if="state.error" class="ghs-status is-error">{{ state.error }}</p>
+    <p v-if="loading && !loaded" class="ghs-status">// 載入中...</p>
+    <p v-else-if="error" class="ghs-status is-error">{{ error }}</p>
     <p v-else-if="entries.length === 0" class="ghs-status">// 尚無紀錄</p>
 
     <ol v-else class="ghs-list">
