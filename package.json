@@ -22,7 +22,8 @@
     "test:eggs": "node scripts/test-eggs.mjs",
     "test:kl10": "node scripts/test-kl10.mjs",
     "test:kl8": "node scripts/test-kl8.mjs",
-    "test:fc3d": "node scripts/test-fc3d.mjs"
+    "test:fc3d": "node scripts/test-fc3d.mjs",
+    "test:pl3": "node scripts/test-pl3.mjs"
   },
   "dependencies": {
     "@nuxt/content": "^3.12.0",
