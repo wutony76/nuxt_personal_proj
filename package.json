@@ -9,7 +9,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test:dlt": "node scripts/test-dlt.mjs",
-    "test:k3-cd": "node scripts/test-k3-cd.mjs"
+    "test:k3-cd": "node scripts/test-k3-cd.mjs",
+    "test:k3-of": "node scripts/test-k3-of.mjs"
   },
   "dependencies": {
     "@nuxt/content": "^3.12.0",
