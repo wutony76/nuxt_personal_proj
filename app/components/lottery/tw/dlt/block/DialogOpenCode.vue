@@ -10,6 +10,9 @@ const emit = defineEmits<{ close: [] }>()
 
 const { openCodeHistory } = useDlt()
 
+/** 排除 admin 測試工具留下的假開獎紀錄（issue 帶「（測試）」後綴，見 dlt.ts _attemptSettlement()） */
+const realList = computed(() => openCodeHistory.list.filter((row) => !row.issue.includes('（測試）')))
+
 type SortKey = 'issue' | 'startAt' | 'endAt'
 type SortDir = 'asc' | 'desc'
 
@@ -26,8 +29,8 @@ function toggleSort(key: SortKey) {
 }
 
 const sortedList = computed(() => {
-  if (!sortKey.value) return openCodeHistory.list
-  return [...openCodeHistory.list].sort((a, b) => {
+  if (!sortKey.value) return realList.value
+  return [...realList.value].sort((a, b) => {
     const key = sortKey.value!
     const valA = key === 'issue' ? a.issue : a[key]
     const valB = key === 'issue' ? b.issue : b[key]

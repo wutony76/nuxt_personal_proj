@@ -143,6 +143,8 @@ $c-fail: #dc2626;
 
 .auto-warp {
   flex: 0 0 300px;
+  width: 300px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: $c-bg;
@@ -221,15 +223,14 @@ $c-fail: #dc2626;
 
     .auto-info {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
 
       .auto-desc {
         margin: 0;
         font-size: 12px;
         color: var(--color-red-desc);
-        white-space: nowrap;
       }
     }
 
@@ -237,14 +238,32 @@ $c-fail: #dc2626;
       display: flex;
       align-items: center;
       gap: 4px;
+      max-width: 100%;
       font-size: 12px;
+      color: $c-muted;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
 
       .status-dot {
         width: 6px;
         height: 6px;
         border-radius: 50%;
         background: $c-dot-idle;
+      }
+
+      &.running,
+      &.success {
+        color: $c-success;
+      }
+
+      &.waiting {
+        color: $c-waiting;
+      }
+
+      &.fail,
+      &.low {
+        color: $c-fail;
       }
 
       &.waiting .status-dot { background: $c-waiting; }

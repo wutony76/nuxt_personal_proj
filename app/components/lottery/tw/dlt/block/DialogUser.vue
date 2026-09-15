@@ -14,9 +14,21 @@ const emit = defineEmits<{ close: [] }>()
 
 const { userRecord, fetch } = useDlt()
 
+/**
+ * 官方期別格式：民國年 3 碼＋該年度序號 6 碼（見 align-dlt-issue-with-official-period）。
+ * admin 測試工具（dlt-test-settle）用登入帳號本人的 betHistory／claimableIssues 寫測試假
+ * 注單／假中獎金額，期別是合成的 "TEST-<timestamp>"，格式對不上，用來把假資料濾掉——
+ * 不影響 balanceChanges（那個本來就是刻意跨遊戲合併的整體錢包紀錄，見 user-record.get.ts）。
+ */
+const REAL_ISSUE_PATTERN = /^\d{3}\d{6}$/
+const realBetHistory = computed(() => userRecord.betHistory.filter((row) => REAL_ISSUE_PATTERN.test(row.issue)))
+const realClaimableIssues = computed(() =>
+  userRecord.claimableIssues.filter((row) => REAL_ISSUE_PATTERN.test(String(row.issue)))
+)
+
 const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
-const claimable = computed(() => userRecord.claimableIssues.filter((item) => Number(item.amount) > 0))
+const claimable = computed(() => realClaimableIssues.value.filter((item) => Number(item.amount) > 0))
 const totalClaimable = computed(() => claimable.value.reduce((sum, item) => sum + Number(item.amount ?? 0), 0))
 
 const click = {
@@ -51,18 +63,18 @@ const betSortField = ref<'default' | 'orderId' | 'winAmount'>('default')
 const betSortOrder = ref<'asc' | 'desc'>('desc')
 
 const betIssues = computed(() =>
-  [...new Set(userRecord.betHistory.map((i) => i.issue))].sort((a, b) => b.localeCompare(a))
+  [...new Set(realBetHistory.value.map((i) => i.issue))].sort((a, b) => b.localeCompare(a))
 )
 
 const selectedIssueOpenCode = computed<string[] | null>(() => {
   if (!betIssueFilter.value) return null
-  const found = userRecord.betHistory.find((i) => i.issue === betIssueFilter.value)
+  const found = realBetHistory.value.find((i) => i.issue === betIssueFilter.value)
   if (!found || found.winStatus === 'pending' || !found.openCode?.length) return null
   return found.openCode
 })
 
 const filteredBetHistory = computed(() => {
-  let list = userRecord.betHistory.slice()
+  let list = realBetHistory.value.slice()
   if (betIssueFilter.value) list = list.filter((i) => i.issue === betIssueFilter.value)
 
   if (betSortField.value !== 'default') {
@@ -87,6 +99,11 @@ function toggleSort(field: 'orderId' | 'winAmount') {
 
 function isBallHit(code: string, openCode: string[]): boolean {
   return openCode.some((c) => +c === +code)
+}
+
+/** betCode 是「1 個元素、內容逗號分隔」的陣列（例如 ["02,04,06,08,10,12"]），這裡拆成 6 個號碼字串 */
+function betNumbers(betCode: string[]): string[] {
+  return (betCode[0] ?? '').split(',').map((s) => s.trim()).filter(Boolean)
 }
 </script>
 
@@ -201,20 +218,20 @@ function isBallHit(code: string, openCode: string[]): boolean {
                   <td>{{ item.issue }}</td>
                   <td>
                     <div class="bet-balls">
-                      <Ball v-for="code in item.betCode" :key="code" :num="code"
+                      <Ball v-for="code in betNumbers(item.betCode)" :key="code" :num="code"
                         :hit="item.winStatus === 'win' && !!selectedIssueOpenCode && isBallHit(code, selectedIssueOpenCode)"
                         size="sm" />
                     </div>
                   </td>
                   <td>{{ money(item.coin) }}</td>
                   <td :class="item.winStatus === 'win' ? 'win-status' : ''">
-                    {{ item.winStatus === 'pending' ? '結算中' : item.winStatus === 'win' ? `中獎（${item.tierLabel}）` : '未中'
+                    {{ item.winStatus === 'pending' ? '待開獎' : item.winStatus === 'win' ? `中獎（${item.tierLabel}）` : '未中'
                     }}
                   </td>
                   <td :class="item.winAmount > 0 ? 'win-amount' : ''">{{ item.winAmount > 0 ? money(item.winAmount) :
                     '—' }}</td>
                 </tr>
-                <tr v-if="userRecord.betHistory.length === 0">
+                <tr v-if="realBetHistory.length === 0">
                   <td colspan="6" class="no-records">暫無資料</td>
                 </tr>
               </tbody>

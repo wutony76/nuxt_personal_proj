@@ -5,6 +5,7 @@ import { useAuth } from './composables/useAuth'
 import { useSocket } from './composables/useSocket'
 import Dialog from './components/Dialog.vue'
 import BgAutoPanel from './components/lottery/bg/BgAutoPanel.vue'
+import TwAutoPanel from './components/lottery/tw/TwAutoPanel.vue'
 import BroadcastBanner from './components/social/BroadcastBanner.vue'
 
 const route = useRoute()
@@ -41,6 +42,7 @@ const handleLogout = async () => {
     </NuxtLayout>
     <Dialog />
     <BgAutoPanel />
+    <TwAutoPanel />
     <BroadcastBanner />
   </div>
 </template>

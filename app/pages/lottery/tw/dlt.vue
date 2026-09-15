@@ -8,6 +8,7 @@ import Report from '~/components/lottery/tw/dlt/block/Report.vue'
 import History from '~/components/lottery/tw/dlt/block/History.vue'
 import Road from '~/components/lottery/tw/dlt/block/Road.vue'
 import PopularPicks from '~/components/lottery/tw/dlt/block/PopularPicks.vue'
+import BetRecord from '~/components/lottery/tw/dlt/block/BetRecord.vue'
 import DialogUser from '~/components/lottery/tw/dlt/block/DialogUser.vue'
 import DialogOpenCode from '~/components/lottery/tw/dlt/block/DialogOpenCode.vue'
 import DialogRule from '~/components/lottery/tw/dlt/block/DialogRule.vue'
@@ -94,6 +95,7 @@ onBeforeUnmount(() => {
       </section>
 
       <section class="record-warp">
+        <BetRecord />
       </section>
     </main>
 
@@ -181,12 +183,12 @@ onBeforeUnmount(() => {
     display: flex;
     gap: 0.75rem;
 
-    > .dlt-history {
+    >.dlt-history {
       flex: 1 1 auto;
       min-width: 0;
     }
 
-    > .dlt-popular {
+    >.dlt-popular {
       flex: 0 0 auto;
     }
   }
@@ -226,5 +228,6 @@ onBeforeUnmount(() => {
 
 .record-warp {
   display: flex;
+  height: 380px;
 }
 </style>
