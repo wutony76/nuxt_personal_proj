@@ -44,7 +44,7 @@ async function testCurrentInfo() {
   section('當期資訊')
   const { status, body } = await api('/api/lottery-tw/dlt/current')
   ok('current API 回 200', status === 200)
-  ok('issue 是純數字日期字串（不帶 DLT- 前綴）', /^\d{8}$/.test(String(body?.issue ?? '')), body?.issue)
+  ok('issue 對齊官方期別格式（民國年 3 碼＋該年度序號 6 碼）', /^\d{3}\d{6}$/.test(String(body?.issue ?? '')), body?.issue)
   ok('currentStatus 有值', typeof body?.currentStatus === 'string' && body.currentStatus.length > 0)
   ok('quotaIssueMaxBets = quotaIssueMaxCoin / 50', body?.quotaIssueMaxBets === Math.floor(Number(body?.quotaIssueMaxCoin) / 50))
   ok('tiers 剛好 8 個獎項', Array.isArray(body?.tiers) && body.tiers.length === 8)
