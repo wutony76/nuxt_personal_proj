@@ -62,7 +62,10 @@ export const LOTTERY = {
   // 大樂透：唯一一款「完全鏡射官方台彩」的玩法（開獎號與 8 個獎項派彩金額皆即時讀取官方
   // API，不自建 RNG／賠率公式／彩池），分類獨立為 tw（見 openspec/changes/add-dlt/design.md
   // Decision 0），不屬於 bg 系列，只登記單一鍵值（無 sub 欄位）。
-  'DLT':{ id: 11001, key: 'DLT', name: '大樂透', sort: 11 },
+  // category: 'tw' 讓 GET_CONT.lotteryAll()（/lottery-hall 大廳清單）能把它濾掉——
+  // 這裡跟其他 bg 系列共用同一份 LOTTERY 註冊表只是為了 id/key 查找方便，
+  // 不代表它該出現在 bg 大廳的玩法清單裡（它有自己獨立的 /lottery-hall-taiwan 入口）。
+  'DLT':{ id: 11001, key: 'DLT', name: '大樂透', sort: 11, category: 'tw' },
 }
 
 export const SORT = {
@@ -116,14 +119,16 @@ export const FLAG = {
 // FUNC
 export const GET_CONT = { 
   /**
-   * 大廳的玩法清單：只回「玩法本身」，不含 CD / OF 盤口
+   * 大廳（/lottery-hall，bg 系列）的玩法清單：只回「bg 系列的玩法本身」，不含 CD / OF 盤口，
+   * 也不含 tw 分類的玩法（目前只有 DLT——它有自己獨立的 /lottery-hall-taiwan 入口，
+   * 不該出現在 bg 大廳，見 LOTTERY.DLT 的 category 註解）。
    *
    * ⚠️ 以 sub 欄位判斷而非寫死 key 清單 —— 盤口一律帶 sub（'CD' / 'OF'），玩法本身沒有。
    *    原本寫死 ['LHC-CD','LHC-OF']，新增 K3-CD / K3-OF 後就漏掉，
    *    大廳把盤口也當成獨立玩法、各再 ×2 模式 → 出現重複的快3 卡。
    */
   lotteryAll: () => {
-    return Object.values(LOTTERY).filter(item => !item.sub).sort((a, b) => a.sort - b.sort)
+    return Object.values(LOTTERY).filter(item => !item.sub && item.category !== 'tw').sort((a, b) => a.sort - b.sort)
   },
   lotteryById: (id) => {
     return Object.values(LOTTERY).find((lottery) => lottery.id === id)
