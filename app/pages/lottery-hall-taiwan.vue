@@ -20,6 +20,11 @@ useHead({
 // 賓果賓果（1102）沒有官方中獎明細端點，玩法結構也跟其他 7 款不同，卡片不顯示「查看中獎明細」按鈕。
 const BINGO_GAME_CODE = 1102
 
+// 已有完整投注頁面的玩法，卡片按鈕直接跳轉過去；其餘玩法尚未實作投注頁，暫時維持開啟中獎明細彈窗。
+const GAME_ROUTES: Record<number, string> = {
+  5118: '/lottery/tw/dlt'
+}
+
 const GAME_META: Record<number, { mark: string; tagline: string; drawTime: string; topPrize: string; rules: string[] }> = {
   5134: {
     mark: '威',
@@ -108,14 +113,14 @@ const marquee = computed(() => {
 })
 
 const _handlers = {
-  getBallClass: (index: number, total: number) => {
-    if (index === total - 1) return 'tw-ball-special'
-    const mod = index % 3
-    if (mod === 0) return 'tw-ball-a'
-    if (mod === 1) return 'tw-ball-b'
-    return 'tw-ball-c'
-  },
+  getBallClass: (index: number, total: number) => (index === total - 1 ? 'tw-ball-special' : 'tw-ball-regular'),
   meta: (gameCode: number) => GAME_META[gameCode] ?? { mark: '?', tagline: '', drawTime: '-', topPrize: '-', rules: [] },
+  currentPeriod: (period?: string) => {
+    if (!period) return '-'
+    const next = Number(period) + 1
+    if (!Number.isFinite(next)) return period
+    return String(next).padStart(period.length, '0')
+  },
   updatedTime: (iso: string) => {
     if (!iso) return '-'
     return new Date(iso).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
@@ -147,6 +152,14 @@ const click = {
   },
   closePrize: () => {
     state.dialog.visible = false
+  },
+  enterGame: (game: TaiwanLotteryResult) => {
+    const route = GAME_ROUTES[game.gameCode]
+    if (route) {
+      router.push(route)
+      return
+    }
+    click.openPrize(game)
   }
 }
 
@@ -269,7 +282,7 @@ onMounted(async () => {
             <div class="tw-card-stat">
               <div>
                 <div class="tw-card-stat-label">本期期號</div>
-                <div class="tw-card-stat-value">{{ game.period || '-' }}</div>
+                <div class="tw-card-stat-value">{{ _handlers.currentPeriod(game.period) }}</div>
               </div>
               <div class="tw-card-stat-right">
                 <div class="tw-card-stat-label">更新時間</div>
@@ -292,6 +305,7 @@ onMounted(async () => {
               <li v-for="(rule, ruleIdx) in _handlers.meta(game.gameCode).rules" :key="ruleIdx">{{ rule }}</li>
             </ul>
 
+            <div class="tw-balls-label">最近期開獎（{{ game.period || '-' }} 期）</div>
             <div class="tw-balls">
               <span v-for="(num, idx) in game.lotNumber" :key="`${game.gameCode}-${idx}-${num}`" class="tw-ball"
                 :class="_handlers.getBallClass(idx, game.lotNumber.length)">
@@ -307,7 +321,7 @@ onMounted(async () => {
               </div>
             </template>
             <template v-else>
-              <button type="button" class="tw-btn tw-btn-primary tw-btn-block" @click="click.openPrize(game)">
+              <button type="button" class="tw-btn tw-btn-primary tw-btn-block" @click="click.enterGame(game)">
                 來一注 • {{ game.gameName }}
               </button>
             </template>
@@ -737,6 +751,15 @@ onMounted(async () => {
   line-height: 1.6;
 }
 
+.tw-balls-label {
+  border-top: 3px double var(--color-neutral-300);
+  padding-top: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-neutral-700);
+}
+
 .tw-balls {
   display: flex;
   flex-wrap: wrap;
@@ -755,23 +778,13 @@ onMounted(async () => {
   font-weight: 700;
   box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.15);
 
-  &.tw-ball-a {
-    background: var(--color-accent-500);
-    color: var(--color-bg);
-  }
-
-  &.tw-ball-b {
-    background: var(--color-accent-2-400);
-    color: var(--color-neutral-900);
-  }
-
-  &.tw-ball-c {
-    background: var(--color-accent-800);
-    color: var(--color-bg);
+  &.tw-ball-regular {
+    background: #f1c419;
+    color: #9c5410;
   }
 
   &.tw-ball-special {
-    background: var(--color-accent-700);
+    background: var(--color-red-main);
     color: var(--color-bg);
   }
 }
