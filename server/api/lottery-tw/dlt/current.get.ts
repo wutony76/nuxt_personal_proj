@@ -13,6 +13,7 @@ type DltService = {
       quotaIssueMaxCoin: number
       quotaIssueMaxBets: number
       lastOpenCode: { issue: string; openCode: string[] } | null
+      popularNumbers: Array<{ betCode: number[]; count: number }>
     }
     tiers: () => Array<{ key: string; label: string; desc: string | null }>
   }

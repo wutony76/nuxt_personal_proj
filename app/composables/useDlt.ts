@@ -84,6 +84,8 @@ const isPendingSettlement = computed(() => String(current.runtime?.currentStatus
 const canSubmit = computed(() => isOpen.value && state.submitStatus !== 'loading' && filledSlots.value.length > 0)
 /** 倒數文字（天/時/分，比照每週二五的長週期，不是分鐘級玩法常見的秒數倒數） */
 const countdownLabel = computed(() => current.runtime?.countdown ?? '')
+/** 熱門選號：本期已下注的注碼依人數排序前 5 組；本期還沒人下注時，後端會改回傳 5 組隨機號碼 */
+const popularNumbers = computed(() => current.runtime?.popularNumbers ?? [])
 
 const WEEKDAY_LABEL = ['日', '一', '二', '三', '四', '五', '六']
 /**
@@ -362,6 +364,7 @@ export function useDlt() {
     drawAtDateLabel,
     drawAtWeekdayLabel,
     drawAtTimeLabel,
+    popularNumbers,
 
     actions: _actions,
     fetch

@@ -12,6 +12,9 @@ import {
   DLT_DRAW_MINUTE,
   DLT_QUOTA_FALLBACK_COIN,
   DLT_TIERS,
+  DLT_NUMBER_MIN,
+  DLT_NUMBER_MAX,
+  DLT_PICK_COUNT,
   dltTierOf,
   dltNormalizeBetCode,
   type DltTierKey
@@ -59,6 +62,20 @@ import {
 const DLT_GAME_CODE = 5118
 /** 啟動時回填「開獎歷史」的期數（同一民國年度內往回推，見 `_prevOfficialPeriods()`） */
 const DLT_BACKFILL_COUNT = 10
+/** 「熱門選號」固定顯示幾組（見 `get.popularNumbers`） */
+const POPULAR_PICKS_COUNT = 5
+
+/** 隨機產生一組 6 個不重複、由小到大排序的號碼（1~49），供「熱門選號」在還沒有人下注時墊底用 */
+function _randomBetCode(): number[] {
+  const pool = Array.from({ length: DLT_NUMBER_MAX - DLT_NUMBER_MIN + 1 }, (_, i) => i + DLT_NUMBER_MIN)
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const tmp = pool[i] as number
+    pool[i] = pool[j] as number
+    pool[j] = tmp
+  }
+  return pool.slice(0, DLT_PICK_COUNT).sort((a, b) => a - b)
+}
 
 type Slot = { numbers?: Array<number | string> }
 type PlayBetsPayload = { amount?: number; slots?: Slot[] }
@@ -243,6 +260,7 @@ export default class DltClass extends LOTTERY_BASE {
       quotaIssueMaxCoin: number
       quotaIssueMaxBets: number
       lastOpenCode: { issue: string; openCode: string[] } | null
+      popularNumbers: Array<{ betCode: number[]; count: number }>
     }
     tiers: () => Array<{ key: DltTierKey; label: string; desc: string | null }>
   }
@@ -396,7 +414,8 @@ export default class DltClass extends LOTTERY_BASE {
           countdown: `${dd}天${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`,
           quotaIssueMaxCoin: this.lastJackpotPrize,
           quotaIssueMaxBets: this.quotaIssueMaxBets(),
-          lastOpenCode: last ? { issue: last.issue, openCode: last.openCode } : null
+          lastOpenCode: last ? { issue: last.issue, openCode: last.openCode } : null,
+          popularNumbers: this._popularNumbers()
         }
       },
       tiers: () => DLT_TIERS.map((t) => ({ key: t.key, label: t.label, desc: null }))
@@ -497,6 +516,32 @@ export default class DltClass extends LOTTERY_BASE {
   /** 單期最多受理注數 = 追蹤到的最近一次頭獎金額 ÷ 50（見 design.md Decision 3） */
   quotaIssueMaxBets(): number {
     return Math.floor(Number(this.lastJackpotPrize || DLT_QUOTA_FALLBACK_COIN) / DLT_BET_AMOUNT)
+  }
+
+  /**
+   * 「熱門選號」：統計本期（currentIssue）目前所有玩家已下注的注碼，依下注人數（注數）
+   * 由多到少排序取前 5 組；本期完全還沒有人下注時，改成隨機產生 5 組墊底（見 History.vue
+   * 「近期開獎」的「來一注」同一套 applyNumbers() 前端邏輯，這裡只負責提供號碼來源）。
+   */
+  _popularNumbers(): Array<{ betCode: number[]; count: number }> {
+    const issueOrders = (this._get.orders().get.orders.currentIssue(this.currentIssue) ?? []) as Array<{
+      betCode: string[]
+    }>
+
+    if (issueOrders.length === 0) {
+      return Array.from({ length: POPULAR_PICKS_COUNT }, () => ({ betCode: _randomBetCode(), count: 0 }))
+    }
+
+    const freq = new Map<string, number>()
+    issueOrders.forEach((row) => {
+      const code = (Array.isArray(row.betCode) ? row.betCode : [])[0]
+      if (code) freq.set(code, (freq.get(code) ?? 0) + 1)
+    })
+
+    return [...freq.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, POPULAR_PICKS_COUNT)
+      .map(([code, count]) => ({ betCode: code.split(',').map(Number), count }))
   }
 
   /** 確保 currentIssue／cutoffAt／drawAt／currentStatus 對應到「現在」這個時間點該有的狀態 */

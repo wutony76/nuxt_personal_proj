@@ -7,6 +7,7 @@ import Controls from '~/components/lottery/tw/dlt/block/Controls.vue'
 import Report from '~/components/lottery/tw/dlt/block/Report.vue'
 import History from '~/components/lottery/tw/dlt/block/History.vue'
 import Road from '~/components/lottery/tw/dlt/block/Road.vue'
+import PopularPicks from '~/components/lottery/tw/dlt/block/PopularPicks.vue'
 import DialogUser from '~/components/lottery/tw/dlt/block/DialogUser.vue'
 import DialogOpenCode from '~/components/lottery/tw/dlt/block/DialogOpenCode.vue'
 import DialogRule from '~/components/lottery/tw/dlt/block/DialogRule.vue'
@@ -71,6 +72,7 @@ onBeforeUnmount(() => {
         </aside>
         <div class="info-main">
           <History />
+          <PopularPicks />
         </div>
       </section>
 
@@ -179,9 +181,13 @@ onBeforeUnmount(() => {
     display: flex;
     gap: 0.75rem;
 
-    >* {
-      flex: 1 1 0;
+    > .dlt-history {
+      flex: 1 1 auto;
       min-width: 0;
+    }
+
+    > .dlt-popular {
+      flex: 0 0 auto;
     }
   }
 }
