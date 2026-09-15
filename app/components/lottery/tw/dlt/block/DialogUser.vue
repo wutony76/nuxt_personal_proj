@@ -91,7 +91,7 @@ function isBallHit(code: string, openCode: string[]): boolean {
 </script>
 
 <template>
-  <DialogShell :visible="props.visible" title="我的紀錄" @close="emit('close')">
+  <DialogShell :visible="props.visible" title="下注紀錄" @close="emit('close')">
     <div class="user-dialog-summary">
       <div>可領獎期數：{{ claimable.length }}</div>
       <div>可領獎金合計：{{ money(totalClaimable) }}</div>
@@ -109,8 +109,7 @@ function isBallHit(code: string, openCode: string[]): boolean {
           @click="activeTab = 'balance'">
           餘額變動表
         </button>
-        <button type="button" class="dialog-tab" :class="{ active: activeTab === 'bets' }"
-          @click="activeTab = 'bets'">
+        <button type="button" class="dialog-tab" :class="{ active: activeTab === 'bets' }" @click="activeTab = 'bets'">
           下注紀錄
         </button>
       </div>
@@ -155,7 +154,8 @@ function isBallHit(code: string, openCode: string[]): boolean {
             <div v-if="betIssueFilter" class="issue-open-code-label">開獎</div>
             <div v-if="betIssueFilter" class="issue-open-code">
               <template v-if="selectedIssueOpenCode">
-                <Ball v-for="(code, idx) in selectedIssueOpenCode.slice(0, 6)" :key="`o-${idx}`" :num="code" size="sm" />
+                <Ball v-for="(code, idx) in selectedIssueOpenCode.slice(0, 6)" :key="`o-${idx}`" :num="code"
+                  size="sm" />
                 <span>+</span>
                 <Ball :num="selectedIssueOpenCode[6]" size="sm" special />
               </template>
@@ -208,9 +208,11 @@ function isBallHit(code: string, openCode: string[]): boolean {
                   </td>
                   <td>{{ money(item.coin) }}</td>
                   <td :class="item.winStatus === 'win' ? 'win-status' : ''">
-                    {{ item.winStatus === 'pending' ? '結算中' : item.winStatus === 'win' ? `中獎（${item.tierLabel}）` : '未中' }}
+                    {{ item.winStatus === 'pending' ? '結算中' : item.winStatus === 'win' ? `中獎（${item.tierLabel}）` : '未中'
+                    }}
                   </td>
-                  <td :class="item.winAmount > 0 ? 'win-amount' : ''">{{ item.winAmount > 0 ? money(item.winAmount) : '—' }}</td>
+                  <td :class="item.winAmount > 0 ? 'win-amount' : ''">{{ item.winAmount > 0 ? money(item.winAmount) :
+                    '—' }}</td>
                 </tr>
                 <tr v-if="userRecord.betHistory.length === 0">
                   <td colspan="6" class="no-records">暫無資料</td>
@@ -339,7 +341,8 @@ function isBallHit(code: string, openCode: string[]): boolean {
   tr {
     min-height: 35px;
 
-    td, th {
+    td,
+    th {
       border-right: 1px solid var(--color-red-content, #fee2e2);
       border-bottom: 1px solid var(--color-red-content, #fee2e2);
       padding: 6px 8px;
@@ -357,7 +360,8 @@ function isBallHit(code: string, openCode: string[]): boolean {
       font-weight: 700;
     }
 
-    &:last-child td, &:last-child th {
+    &:last-child td,
+    &:last-child th {
       border-bottom: none;
     }
   }

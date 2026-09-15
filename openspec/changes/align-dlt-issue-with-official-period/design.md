@@ -8,12 +8,19 @@
 
 - 既有檔案調整：
   - `server/services/game/lottery/tw/dlt.ts`
+  - `server/services/game/lottery/tw/taiwanLotteryApi.ts`
+  - `server/api/lottery-tw/dlt/opencode-history.get.ts`（僅更新註解，行為不變）
   - `scripts/test-dlt.mjs`
 - 職責與邊界：
-  - `_parseOfficialPeriod()`／`_nextOfficialPeriod()`／`_laterOfficialPeriod()`：純函式，只做
-    期別字串的解析／推算／比大小，不碰任何 class 狀態
+  - `_parseOfficialPeriod()`／`_nextOfficialPeriod()`／`_laterOfficialPeriod()`／
+    `_prevOfficialPeriods()`：純函式，只做期別字串的解析／推算／比大小/回推，不碰任何 class 狀態
   - `_bootstrapOfficialPeriod()`：唯一「打官方 API 取得期別基準」的入口，成功後才允許
-    `_ensureIssue()` 分配 `currentIssue`
+    `_ensureIssue()` 分配 `currentIssue`，並觸發 `_backfillHistory()`
+  - `_backfillHistory()`：回填「開獎歷史」，只碰 `recordOpenCode`，完全不碰下注/結算/派彩
+    （回填的歷史期別沒有對應的站內注單，不需要也不應該走 `_settleIssue()`）
+  - `fetchTaiwanLotteryDrawOf()`（`taiwanLotteryApi.ts`）：單期查詢實際開獎號碼＋開獎日期，
+    是 `fetchTaiwanLotteryPrize()` 的姊妹函式（同一顆官方端點、同一個 `GAME_DEFS` 設定，
+    只是抽取的欄位不同：一個要 tiers，一個要 `drawNumberSize`／`lotteryDate`）
 
 ## 3. State 設計
 
@@ -47,6 +54,13 @@
   - 非測試模式：`lastKnownOfficialPeriod = period`（沿用原行為）
   - `seedPeriod = _laterOfficialPeriod(lastKnownOfficialPeriod, settledIssue)`（新增）
   - `currentIssue = _nextOfficialPeriod(nextDrawDate, seedPeriod)`
+- `_bootstrapOfficialPeriod()` 成功後（fire-and-forget，不 await）→ `_backfillHistory(10)`：
+  - `_prevOfficialPeriods(lastKnownOfficialPeriod, 10)` 反推最多 10 個同民國年度的過去期別
+  - 排除 `recordOpenCode` 裡已經存在的期別（避免跟真實/測試紀錄重複）
+  - 逐期呼叫 `fetchTaiwanLotteryDrawOf()`，成功就 push 進 `recordOpenCode`；單期失敗只
+    `console.warn` 略過，不影響其餘期別
+  - 全部跑完後依 `startAt` 重新排序（回填順序是由舊到新逐一 push，理論上已經有序，重新
+    排序是保險，避免跟既有測試資料的 `startAt` 交錯）
 
 ## 5. API Contract（JSDoc 必填）
 
@@ -70,6 +84,20 @@ function _nextOfficialPeriod(drawDate: Date, lastKnownOfficialPeriod: string): s
 
 /** @returns 兩個官方格式期別字串中數值較大的那個 */
 function _laterOfficialPeriod(a: string, b: string): string
+
+/** @returns 以 latest 為基準，往回推算最多 count 個同民國年度的官方期別字串（舊到新排序） */
+function _prevOfficialPeriods(latest: string, count: number): string[]
+```
+
+新增對外可匯出函式（`taiwanLotteryApi.ts`）：
+
+```js
+/**
+ * @param {number} gameCode
+ * @param {string} period
+ * @returns {Promise<{ period: string, lotNumber: number[], drawDate: string } | null>}
+ */
+// fetchTaiwanLotteryDrawOf(gameCode, period)
 ```
 
 ## 6. Token Mapping（Figma 對應）

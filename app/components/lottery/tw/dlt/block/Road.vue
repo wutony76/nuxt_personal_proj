@@ -4,15 +4,18 @@ import { useDlt } from '~/composables/useDlt'
 import { DLT_NUMBER_MIN, DLT_NUMBER_MAX } from '#shared/config/dlt'
 
 /**
- * 冷熱號：統計 recordOpenCode 內 1~49 各號碼出現次數（含特別號），
- * 只能統計本站上線後逐期累積的資料，不做官方歷史回填（見 design.md Decision 4）。
+ * 冷熱號：統計 recordOpenCode 內 1~49 各號碼出現次數（含特別號）。
+ * ⚠️ 排除 admin 測試端點留下的假資料（issue 帶「（測試）」後綴，見 dlt.ts _attemptSettlement()）
+ * ——統計只採真實開獎紀錄，避免假資料污染次數分布。
  */
 const { openCodeHistory } = useDlt()
+
+const realList = computed(() => openCodeHistory.list.filter((row) => !row.issue.includes('（測試）')))
 
 const counts = computed(() => {
   const map = new Map<number, number>()
   for (let n = DLT_NUMBER_MIN; n <= DLT_NUMBER_MAX; n++) map.set(n, 0)
-  openCodeHistory.list.forEach((row) => {
+  realList.value.forEach((row) => {
     row.openCode.forEach((code) => {
       const n = Number(code)
       if (Number.isFinite(n)) map.set(n, (map.get(n) ?? 0) + 1)
@@ -22,7 +25,7 @@ const counts = computed(() => {
 })
 
 const maxCount = computed(() => Math.max(1, ...counts.value.map((row) => row.count)))
-const hasData = computed(() => openCodeHistory.list.length > 0)
+const hasData = computed(() => realList.value.length > 0)
 </script>
 
 <template>

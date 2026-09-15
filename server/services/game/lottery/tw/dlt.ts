@@ -20,6 +20,7 @@ import { dltQuotaOf } from '#shared/config/dlt/helpers'
 import {
   fetchTaiwanLotteryLastNumberOf,
   fetchTaiwanLotteryPrize,
+  fetchTaiwanLotteryDrawOf,
   type TaiwanLotteryPrizeTier
 } from './taiwanLotteryApi'
 
@@ -56,6 +57,8 @@ import {
  */
 
 const DLT_GAME_CODE = 5118
+/** 啟動時回填「開獎歷史」的期數（同一民國年度內往回推，見 `_prevOfficialPeriods()`） */
+const DLT_BACKFILL_COUNT = 10
 
 type Slot = { numbers?: Array<number | string> }
 type PlayBetsPayload = { amount?: number; slots?: Slot[] }
@@ -139,6 +142,24 @@ function _laterOfficialPeriod(a: string, b: string): string {
   if (!pb) return a
   if (pa.rocYear !== pb.rocYear) return pa.rocYear > pb.rocYear ? a : b
   return pa.seq >= pb.seq ? a : b
+}
+
+/**
+ * 以 `latest` 為基準，往回推算最多 `count` 個「同一民國年度」的官方期別字串（用於回填歷史，
+ * 見 `_backfillHistory()`）。⚠️ 刻意不跨年往回推——序號重置為 1 只知道「今年第 1 期」的位置，
+ * 不知道「去年最後一期是第幾期」，跨年瞎猜會產生不存在的期別，寧可少回填幾筆也不猜錯。
+ * @returns 由舊到新排序（方便呼叫端依序 push 進 recordOpenCode）
+ */
+function _prevOfficialPeriods(latest: string, count: number): string[] {
+  const parsed = _parseOfficialPeriod(latest)
+  if (!parsed) return []
+  const periods: string[] = []
+  for (let i = 1; i <= count; i++) {
+    const seq = parsed.seq - i
+    if (seq < 1) break
+    periods.push(`${String(parsed.rocYear).padStart(3, '0')}${String(seq).padStart(6, '0')}`)
+  }
+  return periods.reverse()
 }
 
 /**
@@ -400,6 +421,13 @@ export default class DltClass extends LOTTERY_BASE {
         this.lastKnownOfficialPeriod = String(last.period)
         this.isBootstrapped = true
         this._ensureIssue(MEMORY.now)
+        // bootstrap 當下拿到的這期本身也是一筆真實開獎資料，順手直接記進歷史——它是
+        // 「已知的最新一期」，往後的正常結算流程只會記錄比它更新的期別，這期不記的話
+        // 永遠不會出現在 recordOpenCode（見 _recordDraw() 說明）
+        this._recordDraw(String(last.period), last.lotNumber ?? [], String(last.drawDate ?? ''))
+        // 不 await：回填是為了讓「開獎歷史」提早有資料可看，跟下注開放與否無關，
+        // 失敗也不影響本站正常運作（見 _backfillHistory() 內部的錯誤處理）
+        this._backfillHistory(DLT_BACKFILL_COUNT)
         return
       }
       console.warn('TTT---WARN.DLT 啟動時官方 API 沒有回傳有效期別，5 秒後重試')
@@ -407,6 +435,59 @@ export default class DltClass extends LOTTERY_BASE {
       console.warn('TTT---WARN.DLT 啟動時查詢官方最新期別失敗，5 秒後重試', err)
     }
     setTimeout(() => { this._bootstrapOfficialPeriod() }, 5000)
+  }
+
+  /**
+   * 把一期「已知的真實開獎資料」寫進 recordOpenCode（該期已存在就略過，不重複寫入）。
+   * 供 `_bootstrapOfficialPeriod()`（bootstrap 種子期別本身）與 `_backfillHistory()`
+   * （回填的過去期別）共用同一份「組裝 record／寫入」邏輯。
+   */
+  _recordDraw(period: string, lotNumber: Array<number | string>, drawDateRaw: string) {
+    if (!period || this.recordOpenCode.some((r) => r.issue === period)) return
+    const numbers = lotNumber.map((n) => Number(n))
+    if (numbers.length < 7 || !drawDateRaw) return
+    const openCode = numbers.map((n) => String(n).padStart(2, '0'))
+    const drawAt = new Date(drawDateRaw)
+    drawAt.setHours(DLT_DRAW_HOUR, DLT_DRAW_MINUTE, 0, 0)
+    const startAt = drawAt.getTime()
+    this.recordOpenCode.push({
+      issue: period,
+      openCode,
+      time: { start: new Date(startAt).toISOString(), end: new Date(startAt).toISOString() },
+      startAt,
+      endAt: startAt
+    })
+  }
+
+  /**
+   * 回填「開獎歷史」：官方沒有「近 N 期列表」端點，但既然已經知道期別編號規則（民國年＋
+   * 該年度序號，見 `_nextOfficialPeriod()`），就能用 `_prevOfficialPeriods()` 反推過去期別
+   * 字串，逐一查詢官方單期端點取得實際開獎號碼，補進 `recordOpenCode`——這推翻了
+   * `openspec/changes/add-dlt/design.md` Decision 4／Non-Goal「官方沒有對應端點、無法回填」
+   * 的舊結論（當初卡住的是「不知道怎麼猜期別字串」，不是端點本身不存在）。
+   *
+   * ⚠️ 只回填「站上完全沒有紀錄」的期別（不含帶「（測試）」後綴的假資料），避免跟真實結算
+   * 寫入的紀錄重複；任一期查詢失敗只 log 警告、跳過該期，不影響其餘期別或站台其他功能。
+   * ⚠️ 只回填「比目前已知最新一期更舊」的期別——最新一期本身在 `_bootstrapOfficialPeriod()`
+   * 就已經用 `_recordDraw()` 記過了，這裡不重複查。
+   */
+  async _backfillHistory(count: number) {
+    const known = new Set(this.recordOpenCode.map((r) => r.issue))
+    const periods = _prevOfficialPeriods(this.lastKnownOfficialPeriod, count).filter((p) => !known.has(p))
+    for (const period of periods) {
+      try {
+        const draw = await fetchTaiwanLotteryDrawOf(DLT_GAME_CODE, period)
+        if (!draw) {
+          console.warn(`TTT---WARN.DLT 回填歷史期別 ${period} 查無資料，略過`)
+          continue
+        }
+        this._recordDraw(draw.period, draw.lotNumber, draw.drawDate)
+      } catch (err) {
+        console.warn(`TTT---WARN.DLT 回填歷史期別 ${period} 失敗，略過`, err)
+      }
+    }
+    this.recordOpenCode.sort((a, b) => a.startAt - b.startAt)
+    if (this.recordOpenCode.length > 200) this.recordOpenCode = this.recordOpenCode.slice(-100)
   }
 
   /** 單期最多受理注數 = 追蹤到的最近一次頭獎金額 ÷ 50（見 design.md Decision 3） */
@@ -516,15 +597,20 @@ export default class DltClass extends LOTTERY_BASE {
 
       const settledIssue = this.currentIssue // 這期剛被結算掉的內部期別，下面推進序號要用到
       this._settleIssue(settledIssue, period, winningNumbers, Number(special), tiers)
-      // 測試模式不更新 lastKnownOfficialPeriod：真實輪詢的「官方是否已開新一期」比對狀態
-      // 完全不受測試呼叫影響（真實 period 字串不可能等於帶「（測試）」後綴的假 period，
-      // 就算不特別擋，下一次真實輪詢也不會被誤判成「還沒變」，但明確不寫更清楚、更安全）。
-      if (!testOverride) this.lastKnownOfficialPeriod = period
+
+      // ⚠️ 測試模式（dlt-test-draw）到此為止：只驗證「真實下注 → 依假開獎號正確判定/派彩」，
+      // 絕不能再往下動 currentIssue／cutoffAt／drawAt／lastKnownOfficialPeriod 這些真正的期別
+      // 追蹤狀態——這些欄位是要拿來跟官方 API 對得上的，一旦被測試呼叫（尤其是重複呼叫）
+      // 悄悄推進，站上顯示的期號就會跟官方真實序號脫鉤，且無法回復（只能重啟 server）。
+      // 見使用者回報：對齊官方期別格式後，反覆跑測試腳本讓 currentIssue 從 115000088
+      // 一路被推到 115000091，跟官方最新一期對不起來。
+      if (testOverride) return
+
+      this.lastKnownOfficialPeriod = period
 
       // 這一期結算完成，往下一個開獎日推進。序號基準取「官方最新已知期別」與「剛結算掉的
-      // 內部期別」兩者較大的一個（見 `_laterOfficialPeriod`）——測試模式不會更新
-      // lastKnownOfficialPeriod，若只以它為基準，序號會停在原地跟 settledIssue 撞號，
-      // 導致下一期注單被 `issueSettledMap` 誤判成「已經結算過」而永遠不會派彩。
+      // 內部期別」兩者較大的一個（見 `_laterOfficialPeriod`）——理論上兩者這時應該相等
+      // （都剛被設成 period／settledIssue），保留這層比較純粹是防禦性寫法。
       const seedPeriod = _laterOfficialPeriod(this.lastKnownOfficialPeriod, settledIssue)
       const { drawDate, cutoffAt, drawAt } = _nextDrawWindow(new Date(this.drawAt + 60_000))
       this.currentIssue = _nextOfficialPeriod(drawDate, seedPeriod)

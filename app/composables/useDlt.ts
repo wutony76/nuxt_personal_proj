@@ -164,6 +164,33 @@ const _actions = {
   },
   clearAll: () => {
     slots.splice(0, slots.length, _emptySlot('A'))
+  },
+  /**
+   * 把一組已知的 6 個號碼套用到投注區（「近期開獎」的「來一注」按鈕用，見 History.vue）。
+   * 優先套進第一個還空著的組別；都滿了就在還沒到上限時新增一組；已到 DLT_MAX_SLOTS
+   * 上限才會覆蓋第一組（極少見情境，5 組都已選滿才會走到這裡）。
+   */
+  applyNumbers: (numbers: number[]) => {
+    const normalized = [...new Set(numbers)].sort((a, b) => a - b)
+    const empty = slots.find((s) => s.numbers.length === 0)
+    if (empty) {
+      empty.numbers = normalized
+      empty.isQuickPick = false
+      return
+    }
+    if (slots.length < DLT_MAX_SLOTS) {
+      const usedIds = new Set(slots.map((s) => s.id))
+      const nextId = SLOT_IDS.find((id) => !usedIds.has(id))
+      if (nextId) {
+        slots.push({ id: nextId, numbers: normalized, isQuickPick: false })
+        return
+      }
+    }
+    const first = slots[0]
+    if (first) {
+      first.numbers = normalized
+      first.isQuickPick = false
+    }
   }
 }
 

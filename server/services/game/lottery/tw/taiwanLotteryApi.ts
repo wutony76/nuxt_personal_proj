@@ -262,6 +262,38 @@ export async function fetchTaiwanLotteryPrize(
 }
 
 /**
+ * 取得指定遊戲、指定期別「已經開獎」的實際開獎號碼與開獎日期（不含獎金明細）。
+ * 用途：DLT 用已知的官方期別編號規則（民國年＋序號）反推過去期別字串，逐期呼叫這支
+ * 回填 `recordOpenCode`（見 server/services/game/lottery/tw/dlt.ts `_backfillHistory()`）——
+ * 官方本身沒有「近 N 期列表」端點，但只要知道期別字串就能個別查到，等於間接可以回填。
+ * @param gameCode 遊戲代碼（例如大樂透 5118）
+ * @param period 期別字串（必須是已經開獎的期別，未開獎或不存在的期別回傳 null）
+ * @returns 查無資料或欄位不足回傳 null（呼叫端應略過，不視為致命錯誤）
+ */
+export async function fetchTaiwanLotteryDrawOf(
+  gameCode: number,
+  period: string
+): Promise<{ period: string; lotNumber: number[]; drawDate: string } | null> {
+  const def = GAME_DEFS[gameCode]
+  if (!def) return null
+
+  const response = await $fetch<{ rtCode: number; content?: Record<string, unknown[]> }>(
+    `https://api.taiwanlottery.com/TLCAPIWeB/Lottery/${def.endpoint}`,
+    { query: { period, pageNum: 1, pageSize: 1 } }
+  ).catch(() => null)
+
+  const row = response?.content?.[def.resKey]?.[0] as
+    | { period?: number | string; lotteryDate?: string; drawNumberSize?: Array<number | string> }
+    | undefined
+  if (!response || response.rtCode !== 0 || !row) return null
+
+  const lotNumber = Array.isArray(row.drawNumberSize) ? row.drawNumberSize.map((n) => Number(n)) : []
+  if (!row.lotteryDate || lotNumber.length < 7) return null
+
+  return { period: String(row.period ?? period), lotNumber, drawDate: row.lotteryDate }
+}
+
+/**
  * 依官方欄位 key 取單一獎項的中獎明細（DLT 結算用，避免呼叫端自己重找 tiers 陣列）。
  * @returns 找不到該 key 時回傳 null（可能是 gameCode 無對照設定，或官方回應尚未包含該欄位）
  */

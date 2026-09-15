@@ -71,23 +71,27 @@ onBeforeUnmount(() => {
         </aside>
         <div class="info-main">
           <History />
-          <Road />
         </div>
       </section>
 
-      <section class="play-warp">
-        <p v-if="!isOpen" class="closed-hint">目前非開盤時間，暫不受理投注</p>
-        <div class="boards">
-          <Board v-for="slot in slots" :key="slot.id" :slot="slot" :disabled="!isOpen" />
-        </div>
-        <div class="side">
-          <CurrItems />
-          <Controls />
+      <section>
+        <Road />
+      </section>
+
+      <section>
+        <div class="play-warp">
+          <p v-if="!isOpen" class="closed-hint">目前非開盤時間，暫不受理投注</p>
+          <div class="boards">
+            <Board v-for="slot in slots" :key="slot.id" :slot="slot" :disabled="!isOpen" />
+          </div>
+          <div class="side">
+            <CurrItems />
+            <Controls />
+          </div>
         </div>
       </section>
 
       <section class="record-warp">
-        <Report />
       </section>
     </main>
 
@@ -119,6 +123,7 @@ onBeforeUnmount(() => {
   .user-warp {
     width: 22%;
     min-width: 200px;
+    height: 250px;
     display: flex;
     flex-direction: column;
     border: 1px solid var(--color-red-700, #f3b7bf);
@@ -140,23 +145,21 @@ onBeforeUnmount(() => {
     .user-content {
       flex: 1;
       display: grid;
+      align-content: start;
       gap: 4px;
       padding: 0.6rem 0.75rem;
       font-size: 13px;
       color: var(--color-red-desc, #9ca3af);
 
       .row {
+        height: 32.12px;
         display: flex;
         align-items: center;
-        justify-content: space-between;
 
         b {
+          margin-left: 5px;
           font-weight: 700;
           color: var(--color-red-main, #7f1d1d);
-        }
-
-        b.is-coin {
-          color: #15803d;
         }
       }
     }

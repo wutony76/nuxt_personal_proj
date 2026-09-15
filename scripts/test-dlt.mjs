@@ -12,7 +12,7 @@
  *   - 用種子帳號 admin@example.com / 123456 登入（見 server/services/storage.ts）
  *   - 依賴兩支保留下來的管理員限定測試工具（皆不打外部官方 API，用假資料取代）：
  *       server/api/admin/dlt-test-settle.post.ts —— 只測「已知開獎號 → 派彩判定」這一段
- *       server/api/admin/dlt-test-draw.post.ts   —— 測「開獎＋結算」整條流程（含期別推進）
+ *       server/api/admin/dlt-test-draw.post.ts   —— 測「開獎＋結算」整條流程（真實下注 → 判定/派彩）
  *
  * 涵蓋範圍：
  *   1. 當期資訊格式
@@ -23,12 +23,15 @@
  *   6. A~E 多組同時結算、互不影響、互不稀釋
  *   7. 已結算期別不重複結算（冪等性）
  *   8. 開獎＋結算整條流程：對「真正的」currentIssue 下注 → 模擬開獎觸發 _attemptSettlement →
- *      驗證注單被正確結算、currentIssue 正確推進到下一個開獎日、recordOpenCode 帶「（測試）」後綴
+ *      驗證注單被正確結算，且 currentIssue／狀態完全不受測試影響（見 dlt.ts `_attemptSettlement()`
+ *      測試模式一律在判定/派彩後直接 return，不會走到期別推進那段）
  *
  * ⚠️ 這支腳本會留下測試紀錄（不清除、也不需要清除，`recordOpenCode` 等假資料一律帶
- * 「（測試）」後綴以便和真實開獎紀錄分辨）；第 8 項會讓真正的 `currentIssue` 往前推進一期，
- * 這是刻意的（測試「結算後正確換下一期」本身），不是副作用錯誤。
- * 其餘測試資料都在獨立的合成期別（TEST-*）下進行，不會動到真實的 currentIssue。
+ * 「（測試）」後綴以便和真實開獎紀錄分辨）；所有測試（含第 8 項）都刻意設計成
+ * **絕不會**讓真正的 `currentIssue`／`cutoffAt`／`drawAt`／`lastKnownOfficialPeriod` 改變——
+ * 這些欄位要拿來跟台灣彩券官方 API 對齊，反覆執行這支腳本本身不能造成站上顯示的期號
+ * 跟官方真實序號脫鉤（一旦脫鉤只能重啟 server 才能重新對齊，見 openspec/changes/
+ * align-dlt-issue-with-official-period）。
  */
 
 import { createTestRunner } from './_test-utils.mjs'
@@ -213,7 +216,7 @@ async function testIdempotency() {
 }
 
 async function testDrawAndSettlement() {
-  section('開獎＋結算整條流程（真正的 currentIssue，會讓它推進到下一期）')
+  section('開獎＋結算整條流程（真正的 currentIssue，測試不會讓真正期別推進）')
 
   const before = await api('/api/lottery-tw/dlt/current')
   const issueBefore = String(before.body?.issue ?? '')
@@ -238,12 +241,12 @@ async function testDrawAndSettlement() {
   })
   ok('開獎+結算 API 回 200', draw.status === 200, JSON.stringify(draw.body))
   ok(
-    '結算後 currentIssue 正確推進到下一個開獎日（不等於結算前）',
-    draw.body?.issueAfterSettlement && draw.body.issueAfterSettlement !== issueBefore,
+    '結算後 currentIssue 維持不變（測試不能讓真正期別跟官方序號脫鉤）',
+    draw.body?.issueAfterSettlement === issueBefore,
     `before=${issueBefore} after=${draw.body?.issueAfterSettlement}`
   )
   ok(
-    '推進後的狀態回到開盤中',
+    '結算後狀態不受測試影響（維持開盤中）',
     draw.body?.statusAfterSettlement === '開盤中',
     draw.body?.statusAfterSettlement
   )

@@ -25,16 +25,25 @@ DLT（大樂透）原本的內部佔位期別（`currentIssue`）用純 `YYYYMMD
 - 確保 admin 測試端點（`dlt-test-draw`／`dlt-test-settle`）的假資料流程，不會讓 `currentIssue`
   意外撞回剛結算掉的舊期別（避免撞號的期別被 `issueSettledMap` 誤判成已結算，導致新一期注單
   永遠不會派彩）
+- **（追加）** 回填「開獎歷史」：使用者實測發現對齊格式後，`開獎歷史` 彈窗仍然只有本站上線後
+  逐期累積的資料，沒有正式官方 API 的歷史紀錄。既然已經知道官方期別編號規則，就能反推過去
+  期別字串、逐一查詢官方單期端點取得真實開獎號碼，回填 `recordOpenCode`——這推翻了
+  `openspec/changes/add-dlt/design.md` Decision 4／Non-Goal「官方沒有對應端點、無法回填」的
+  舊結論（當初卡住的是不知道怎麼猜期別字串，不是端點本身不存在）
 
 ## 範圍
 
 - 包含：
-  - `server/services/game/lottery/tw/dlt.ts`（期別計算／啟動時序）
+  - `server/services/game/lottery/tw/dlt.ts`（期別計算／啟動時序／回填歷史）
+  - `server/services/game/lottery/tw/taiwanLotteryApi.ts`（新增 `fetchTaiwanLotteryDrawOf()`）
+  - `server/api/lottery-tw/dlt/opencode-history.get.ts`（更新過時的 Decision 4 註解）
   - `scripts/test-dlt.mjs`（更新格式斷言）
 - 不包含：
   - 不改 `_settleIssue()` 判定/派彩邏輯本身
   - 不改前端顯示格式或 `useDlt.ts`（前端本來就不解析 `issue` 字串內部結構，純顯示不受影響）
   - 不處理既有（YYYYMMDD 格式）測試資料的格式轉換／遷移（純記憶體內的 dev 測試資料，重啟即可）
+  - 不回填跨民國年度的歷史（序號重置為 1 只知道「今年第 1 期」，不知道「去年最後一期是第幾
+    期」，跨年瞎猜會查到不存在的期別，寧可少回填幾筆也不猜錯）
 
 ## 影響面
 
@@ -64,6 +73,9 @@ DLT（大樂透）原本的內部佔位期別（`currentIssue`）用純 `YYYYMMD
   - 手動確認 `_bootstrapOfficialPeriod()` 真的打到官方 API 並取得真實期別（本次已用
     `curl https://api.taiwanlottery.com/TLCAPIWeB/Lottery/LastNumber` 驗證即時官方資料，
     確認目前大樂透最新一期真的是 `115000087`）
+  - 登入後打 `/api/lottery-tw/dlt/opencode-history`，確認回填＋bootstrap 種子共 11 筆真實歷史（期別
+    `115000077`～`115000087`（含 bootstrap 種子期別本身））都有真實開獎號碼與正確的週二/五開獎日期，且跟本站自己的
+    測試/真實結算紀錄不重複、不衝突
 - 視覺驗證：不涉及
 - 回歸驗證：
   - 既有下注／拒單／8 獎項判定／A~E 多組互不影響／重複結算防護／開獎+結算整條流程全部維持通過

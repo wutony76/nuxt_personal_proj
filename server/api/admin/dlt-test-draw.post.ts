@@ -7,8 +7,14 @@ import type { DltTierKey } from '#shared/config/dlt'
  * 大樂透（DLT）開發用測試工具：模擬「開獎＋結算」整條流程（保留下來，不刪），
  * 跟 `dlt-test-settle.post.ts`（只測「已知開獎號 → 派彩判定」這一段，直接呼叫
  * `_settleIssue`）不同——這支呼叫的是 `debugForceSettleNow()`，會實際跑過
- * `_attemptSettlement()` 整段邏輯：判斷官方期別是否已到位、依假資料結算目前
- * 真正 `currentIssue` 底下的所有注單、往下一個開獎日推進 `currentIssue`/`cutoffAt`/`drawAt`。
+ * `_attemptSettlement()` 依假資料結算目前真正 `currentIssue` 底下的所有注單。
+ *
+ * ⚠️ 只驗證「真實下注 → 依假開獎號正確判定/派彩」這一段；`currentIssue`／`cutoffAt`／
+ * `drawAt`／`lastKnownOfficialPeriod` 這些要拿來跟官方 API 對齊的真正期別追蹤狀態，
+ * 測試呼叫一律不會去動（`_attemptSettlement()` 偵測到是測試模式就直接 return，不會走到
+ * 期別推進那段）——避免反覆呼叫這支工具讓站上顯示的期號悄悄跟官方真實序號脫鉤（且無法
+ * 回復，只能重啟 server），見 `dlt.ts` `_attemptSettlement()` 裡對應的說明。
+ * 所以下面回傳的 `issueAfterSettlement` 理論上永遠等於 `issueBeforeSettlement`。
  *
  * 不用等真實開獎日、也不打外部官方 API（假資料取代），且不受目前 `currentStatus`
  * 是否為 pending-settlement 限制，隨時可呼叫。產生的 `recordOpenCode`／注單紀錄一律

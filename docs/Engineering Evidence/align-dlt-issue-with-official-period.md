@@ -2,9 +2,12 @@
 
 ## 變更摘要
 
-- 對應變更：`align-dlt-issue-with-official-period` — DLT 內部期別格式對齊官方期別編號規則
+- 對應變更：`align-dlt-issue-with-official-period` — DLT 內部期別格式對齊官方期別編號規則，
+  並回填開獎歷史
 - 變更檔案清單：
   - `server/services/game/lottery/tw/dlt.ts`
+  - `server/services/game/lottery/tw/taiwanLotteryApi.ts`
+  - `server/api/lottery-tw/dlt/opencode-history.get.ts`
   - `scripts/test-dlt.mjs`
   - `openspec/changes/align-dlt-issue-with-official-period/{proposal,design,tasks,validation}.md`
 - Commit / PR 參考：（尚未 commit，待使用者確認後再建立）
@@ -17,6 +20,9 @@
   - `curl -s https://api.taiwanlottery.com/TLCAPIWeB/Lottery/LastNumber`：確認大樂透
     （gameCode 5118）目前最新一期為 `115000087`（民國 115 年第 87 期，2026-09-11 開獎），
     驗證了官方期別編號規則（民國年 3 碼＋該年度序號 6 碼）與本次實作一致
+  - 登入後打 `/api/lottery-tw/dlt/opencode-history`：過濾「（測試）」紀錄後，成功回填
+    11 筆真實歷史（`115000077`～`115000087`，含 bootstrap 種子期別本身），開獎日期正確落在週二/五，開獎號碼與直接
+    `curl` `Lotto649Result?period=115000086` 拿到的官方資料一致
 
 ## 風險與後續追蹤
 
@@ -25,9 +31,13 @@
   - `scripts/test-dlt.mjs` 對同一個長駐 dev server 連續重複執行可能累積狀態造成偶發假警報
     （本次驗證時觀察到一次「三種拒單情境皆未扣款」的假失敗，重跑即恢復正常，與本次變更
     的期別計算邏輯無關）
+  - 回填只能回填同一民國年度內的期數，固定 10 筆（`DLT_BACKFILL_COUNT`）；跨年度回填
+    需要另外評估安全的序號起點推算方式
 - 後續追蹤事項（Open Questions 延伸）：
   - 若之後要讓 `test:dlt` 可重複執行不受歷史狀態影響，需另外設計「測試前重置」機制
   - 舊格式（YYYYMMDD）的 dev 測試資料不會回溯轉換（純記憶體資料，重啟即清空，非正式風險）
+  - 若使用者希望回填更多筆數或涵蓋跨年度，屬於獨立的後續調查（需先確認能否可靠推算跨年
+    序號起點），不在本次範圍內
 
 ## 封存前檢查
 
