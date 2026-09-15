@@ -41,13 +41,14 @@ const label = computed(() => (num.value > 0 ? String(num.value).padStart(2, '0')
   border-radius: 50%;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
-  background: #dc2626;
-  color: #fff;
+  background: var(--color-yellow-black-btn, #fecf13);
+  color: var(--color-yellow-btn-text, #38300d);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 
   &.is-special {
-    background: #b45309;
-    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #fbbf24;
+    background: #dc2626;
+    color: #fff;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #dc2626;
   }
 
   &.is-xs {

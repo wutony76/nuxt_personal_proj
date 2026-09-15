@@ -19,7 +19,7 @@ import { useTwAutoActive } from '~/composables/useTwAutoActive'
  * openspec/changes/add-dlt/design.md）。頁面骨架比照 K3-CD，但選號互動改用 7×7 方格
  * （base/Board.vue，每組 A~E 各渲染一份），且不顯示彩池／爆池（本玩法不做彩池）。
  */
-const { slots, wallet: mxWallet, fetch: mxFetch, isOpen } = useDlt()
+const { slots, wallet: mxWallet, fetch: mxFetch, isOpen, userRecord } = useDlt()
 
 const router = useRouter()
 const { isLoggedIn, init: authInit } = useAuth()
@@ -53,6 +53,9 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="lottery-dlt">
+    <LotteryTwBaseTop @open-user-dialog="dialogClick.openUser()" @open-opencode-dialog="dialogClick.openOpenCode()"
+      @open-rule-dialog="dialogClick.openRule()" />
+
     <main class="main">
       <DltHeader @open-opencode-dialog="dialogClick.openOpenCode()" @open-rule-dialog="dialogClick.openRule()" />
 
@@ -89,7 +92,8 @@ onBeforeUnmount(() => {
     </main>
 
     <DialogUser :visible="dialog.user" @close="dialog.user = false" />
-    <DialogOpenCode :visible="dialog.openCode" @close="dialog.openCode = false" />
+    <DialogOpenCode :visible="dialog.openCode" :bet-issues="userRecord.betHistory.map((b) => b.issue)"
+      @close="dialog.openCode = false" />
     <DialogRule :visible="dialog.rule" @close="dialog.rule = false" />
   </div>
 </template>
@@ -172,7 +176,7 @@ onBeforeUnmount(() => {
     display: flex;
     gap: 0.75rem;
 
-    > * {
+    >* {
       flex: 1 1 0;
       min-width: 0;
     }

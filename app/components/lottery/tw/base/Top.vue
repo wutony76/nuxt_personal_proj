@@ -1,0 +1,180 @@
+<script setup lang="ts">
+import { useRouter } from 'vue-router'
+import { useAuth } from '~/composables/useAuth'
+import { reactive } from 'vue'
+
+/**
+ * 彩運來（tw 分類）專用頂欄——複製自 LotteryBgBaseTop（見該檔），
+ * 二次確認登出彈窗的行為與樣式（$dialog className: 'is-logout'，
+ * 定義在 Dialog.vue 的 &.is-logout）直接沿用同一套，不重新設計。
+ * 差異只有：連結固定指向彩運來大廳 /lottery-hall-taiwan，
+ * 登出完成後導向 / 而不是 /login。
+ */
+const router = useRouter()
+const { logout } = useAuth()
+const { $dialog } = useNuxtApp()
+const state = reactive({
+  isLoggingOut: false
+})
+const emit = defineEmits<{
+  (event: 'open-user-dialog'): void
+  (event: 'open-opencode-dialog'): void
+  (event: 'open-rule-dialog'): void
+}>()
+
+const submitLogout = async () => {
+  if (state.isLoggingOut) return
+  state.isLoggingOut = true
+  try {
+    await logout()
+    router.push('/')
+  } finally {
+    state.isLoggingOut = false
+  }
+}
+
+const handleLogout = () => {
+  $dialog.alert('請問，您確定要登出嗎？', {
+    title: '確認登出嗎？',
+    cb: () => {
+      submitLogout()
+    },
+    options: {
+      cancelButton: true,
+      // 只調整這個彈窗的兩顆鈕（取消實心紅底、確認白底外框），
+      // 其他 $dialog 呼叫點不受影響 —— 樣式定義在 Dialog.vue 的 &.is-logout
+      className: 'is-logout'
+    }
+  })
+}
+</script>
+
+<template>
+  <section class="tw-top">
+    <div class="inner">
+      <div class="left">
+        <NuxtLink to="/lottery-hall-taiwan">返回</NuxtLink>
+      </div>
+      <div class="right menu">
+        <NuxtLink to="/lottery-hall-taiwan">大廳</NuxtLink>
+        <button type="button" class="ghost-btn" @click="emit('open-user-dialog')">會員</button>
+        <button type="button" class="ghost-btn" @click="emit('open-opencode-dialog')">開獎</button>
+        <button type="button" class="ghost-btn" @click="emit('open-rule-dialog')">玩法</button>
+        <button type="button" class="logout-btn" @click="handleLogout">登出</button>
+      </div>
+    </div>
+  </section>
+</template>
+
+<style scoped lang="scss">
+.tw-top {
+  --top-main: #8c491a;
+  --top-desc: #82796a;
+  --top-soft-border: #dcd3c4;
+  --top-grad-start: #fff2eb;
+  --top-shadow: rgba(46, 43, 37, 0.08);
+  --top-hover-main: #643312;
+  border-bottom: 1px solid var(--top-soft-border);
+  background: linear-gradient(180deg, var(--top-grad-start) 0%, #fff 100%);
+  box-shadow: 0 2px 8px var(--top-shadow);
+}
+
+.inner {
+  margin: 0 auto;
+  max-width: 1240px;
+  min-height: 56px;
+  padding: 0.5rem 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.left :deep(a) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--top-main);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--top-main);
+  padding: 0.35rem 0.75rem;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition: all 0.18s ease;
+}
+
+.left :deep(a:hover) {
+  background: var(--top-main);
+  color: #fff;
+}
+
+.menu {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.menu :deep(a),
+.menu .ghost-btn {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--top-desc);
+  padding: 0.35rem 0.55rem;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.menu :deep(a:hover),
+.menu .ghost-btn:hover {
+  border-color: var(--top-soft-border);
+  background: #fff;
+  color: var(--top-main);
+}
+
+.menu .logout-btn {
+  border-color: var(--top-main);
+  background: var(--top-main);
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.35rem 0.55rem;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.menu .logout-btn:hover {
+  border-color: var(--top-hover-main);
+  background: var(--top-hover-main);
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .inner {
+    min-height: auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .left {
+    display: flex;
+    justify-content: center;
+  }
+
+  .menu {
+    justify-content: space-between;
+  }
+}
+</style>
