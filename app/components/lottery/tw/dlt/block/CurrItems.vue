@@ -4,7 +4,7 @@ import { useDlt } from '~/composables/useDlt'
 import { DLT_PICK_COUNT } from '#shared/config/dlt'
 
 /** 目前已填寫的 A~E 各組號碼與狀態一覽（送單前的預覽清單） */
-const { slots, totalAmount } = useDlt()
+const { slots, totalAmount, actions } = useDlt()
 
 const rows = computed(() => slots.map((slot) => ({
   id: slot.id,
@@ -13,16 +13,22 @@ const rows = computed(() => slots.map((slot) => ({
     : `尚未選滿（${slot.numbers.length}/${DLT_PICK_COUNT}）`,
   ready: slot.numbers.length === DLT_PICK_COUNT
 })))
+
+const click = {
+  /** 刪除某一組（見 useDlt.ts removeSlot：至少保留 1 組，刪到剩最後一組時只清空不刪除） */
+  remove: (slotId: string) => actions.removeSlot(slotId)
+}
 </script>
 
 <template>
   <div class="dlt-curr-items">
-    <h3 class="dlt-curr-title">目前投注</h3>
+    <h3 class="dlt-curr-title">投注單</h3>
     <ul class="dlt-curr-list">
       <li v-for="row in rows" :key="row.id" class="dlt-curr-row" :class="{ 'is-ready': row.ready }">
         <span class="dlt-curr-tag">{{ row.id }}</span>
         <span class="dlt-curr-numbers">{{ row.label }}</span>
         <span v-if="row.ready" class="dlt-curr-amount">50</span>
+        <button type="button" class="dlt-curr-del" title="刪除這組" @click="click.remove(row.id)">×</button>
       </li>
     </ul>
     <div class="dlt-curr-total">
@@ -82,6 +88,29 @@ const rows = computed(() => slots.map((slot) => ({
 
   .dlt-curr-amount {
     margin-left: auto;
+  }
+
+  .dlt-curr-del {
+    flex: none;
+    margin-left: auto;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 4px;
+    background: none;
+    padding: 0;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--color-red-desc, #9ca3af);
+    cursor: pointer;
+
+    &:hover {
+      background: #fee2e2;
+      color: var(--color-red-main, #7f1d1d);
+    }
   }
 }
 

@@ -1,51 +1,50 @@
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
 import { useDlt } from '~/composables/useDlt'
 
-/** 送出／清空／新增一組（最多 5 組）／刪除某一組 */
-const { slots, canAddSlot, canSubmit, state, actions, fetch } = useDlt()
+/**
+ * 送出／清空／新增一組（最多 5 組）
+ * 刪除某一組已改在 CurrItems.vue 每列直接按「×」，這裡不再重複提供下拉選單刪除。
+ */
+const { canAddSlot, canSubmit, state, actions, fetch } = useDlt()
 
-const local = reactive({ removeId: '' })
+const { $dialog } = useNuxtApp()
+const router = useRouter()
+const money = (value: number) => Number(value ?? 0).toLocaleString('zh-TW')
 
 const click = {
   addSlot: () => actions.addSlot(),
-  removeSlot: () => {
-    if (!local.removeId) return
-    actions.removeSlot(local.removeId)
-    local.removeId = ''
-  },
   clearAll: () => actions.clearAll(),
   submit: async () => {
     const result = await fetch.submit()
-    if (!result.ok && result.message) state.message = result.message
+    // 登入失效：提示後導回登入頁（比照 bg 系列 Controls.vue 的既有做法）
+    if (result.loginExpired) {
+      $dialog.alert(result.message, { cb: () => router.push('/login') })
+      return
+    }
+    $dialog.alert(
+      result.ok ? `下注成功（${result.count} 組 / ${money(result.amount ?? 0)}）` : result.message
+    )
   }
 }
-
-const removableIds = computed(() => slots.map((s) => s.id))
 </script>
 
 <template>
   <div class="dlt-controls">
-    <div class="dlt-controls-row">
+    <div class="dlt-controls-row dlt-controls-row-actions">
       <button type="button" class="dlt-btn" :disabled="!canAddSlot" @click="click.addSlot">
-        新增一組（最多 5 組）
+        新增 (最多5組)
       </button>
-      <select v-model="local.removeId" class="dlt-select">
-        <option value="">刪除哪一組？</option>
-        <option v-for="id in removableIds" :key="id" :value="id">第 {{ id }} 組</option>
-      </select>
-      <button type="button" class="dlt-btn" :disabled="!local.removeId" @click="click.removeSlot">刪除</button>
       <button type="button" class="dlt-btn dlt-btn-plain" @click="click.clearAll">全部清空</button>
     </div>
+
+    <div class="dlt-controls-row dlt-controls-row-spacer"></div>
 
     <div class="dlt-controls-row">
       <button type="button" class="dlt-btn dlt-btn-submit" :disabled="!canSubmit" @click="click.submit">
         {{ state.submitStatus === 'loading' ? '送出中…' : '送出投注' }}
       </button>
-      <span v-if="state.message" class="dlt-message" :class="{ 'is-error': state.submitStatus === 'error' }">
-        {{ state.message }}
-      </span>
     </div>
+    <p class="dlt-hint">溫馨提醒：點擊投注，即刻扣款</p>
   </div>
 </template>
 
@@ -61,6 +60,22 @@ const removableIds = computed(() => slots.map((s) => s.id))
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.dlt-controls-row-actions {
+  justify-content: space-between;
+}
+
+/** 原本「刪除哪一組？」下拉選單改由 CurrItems.vue 每列的「×」取代，這裡留一列空間避免版面跳動 */
+.dlt-controls-row-spacer {
+  height: 28px;
+}
+
+.dlt-hint {
+  margin: 0;
+  text-align: right;
+  font-size: 12px;
+  color: var(--color-red-desc, #9ca3af);
 }
 
 .dlt-btn {
@@ -84,24 +99,42 @@ const removableIds = computed(() => slots.map((s) => s.id))
   }
 
   &.dlt-btn-submit {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    border-color: var(--color-yellow-black-btn, #fecf13);
+    background: var(--color-yellow-black-btn, #fecf13);
+    color: var(--color-yellow-btn-text, #38300d);
     font-size: 15px;
-    padding: 8px 24px;
+    padding: 10px 24px;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -60%;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+      animation: dlt-btn-shine 2.2s ease-in-out infinite;
+    }
+
+    &:disabled::after {
+      animation: none;
+      display: none;
+    }
   }
 }
 
-.dlt-select {
-  border: 1px solid #fee2e2;
-  border-radius: 0.25rem;
-  font-size: 13px;
-  padding: 5px 8px;
-}
 
-.dlt-message {
-  font-size: 12px;
-  color: #15803d;
+@keyframes dlt-btn-shine {
+  0% {
+    left: -60%;
+  }
 
-  &.is-error {
-    color: #dc2626;
+  60%,
+  100% {
+    left: 130%;
   }
 }
 </style>

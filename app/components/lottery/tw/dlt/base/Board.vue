@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import Ball from '~/components/lottery/tw/dlt/base/Ball.vue'
 import { DLT_NUMBER_MIN, DLT_NUMBER_MAX, DLT_PICK_COUNT } from '#shared/config/dlt'
 import { useDlt } from '~/composables/useDlt'
 import type { DltSlot } from '~/composables/useDlt'
@@ -47,7 +46,7 @@ const click = {
       <button v-for="num in numbers" :key="num" type="button" class="dlt-board-cell"
         :disabled="disabled || (!slot.numbers.includes(num) && isFull)"
         :class="{ 'is-selected': slot.numbers.includes(num) }" @click="click.toggle(num)">
-        <Ball :num="num" size="sm" :hit="slot.numbers.includes(num)" />
+        {{ num }}
       </button>
     </div>
   </div>
@@ -111,23 +110,37 @@ const click = {
 
 .dlt-board-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0.35rem;
+  grid-template-columns: repeat(10, 30px);
+  justify-content: center;
+  gap: 0.4rem;
+  background: #fff8e7;
+  border: 1px solid #d1242f;
+  border-radius: 0.25rem;
+  padding: 0.6rem;
 }
 
 .dlt-board-cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid transparent;
-  border-radius: 0.375rem;
-  background: none;
-  padding: 2px;
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid #d1242f;
+  border-radius: 2px;
+  background: #fffdf8;
+  color: #d1242f;
+  font-family: var(--font-heading, inherit);
+  font-weight: 700;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  padding: 0;
   cursor: pointer;
+  transition: background-color 0.1s ease, color 0.1s ease;
 
   &.is-selected {
-    background: #fee2e2;
-    border-color: var(--color-red-main, #7f1d1d);
+    background: #6c2424;
+    border-color: #6c2424;
+    color: #fff;
   }
 
   &:disabled {
