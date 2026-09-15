@@ -53,6 +53,26 @@
     API），`_backfillHistory()` 改呼叫同一個 helper
   - 是否已重新驗證：是，登入後打 `/api/lottery-tw/dlt/opencode-history` 確認 `115000087`
     已出現在真實歷史清單最前面（共 11 筆），`npm run test:dlt` 重新執行後 40/40 全數通過
+- 問題：使用者回報「測試後的期號不能影響正式的」——`dlt-test-draw` 原本會讓真正的
+  `currentIssue`／`cutoffAt`／`drawAt` 跟著每次測試呼叫一起推進，反覆執行測試腳本會讓
+  站上顯示的期號跟官方真實序號脫鉤（實測從 `115000088` 一路被推到 `115000091`），且無法
+  回復（只能重啟 server）
+  - 修正方式：`_attemptSettlement()` 測試模式在 `_settleIssue()` 判定/派彩完成後直接
+    `return`，不再往下動 `currentIssue`／`cutoffAt`／`drawAt`／`lastKnownOfficialPeriod`
+  - 這個修正本身又衍生出第二個問題：`currentIssue` 不再推進後，反覆執行測試腳本會一直
+    對「同一個」真正的期別呼叫 `_settleIssue()`，而 `issueSettledMap` 這把「整期只結算
+    一次」的鎖是全域性的——第一次測試呼叫就會把這個真正的期別永久標記成「已結算」，
+    之後：(a) 同一期別下一次測試呼叫的新注單會被這把鎖擋下、永遠卡在 pending；
+    (b) 更嚴重的是，這期真正開獎時，真實的 `_attemptSettlement()` 呼叫 `_settleIssue()`
+    也會被同一把鎖擋下，導致這期所有真實注單永遠不會被真正結算
+    - 發現方式：`npm run test:dlt` 的「透過真實 /api/lottery/bet 送出的注單，經開獎+結算
+      流程後正確判定頭獎」在連續執行第二次後開始穩定失敗（`winStatus` 停在 `pending`）
+    - 修正方式：`_settleIssue()` 新增 `isTest` 參數——測試模式不檢查/不寫入
+      `issueSettledMap`，改成逐注判斷：只處理該注目前仍是 `pending` 的注單，已經測試過
+      （win/lose）的注單不重複派彩，避免反覆測試呼叫重複發錢；真實結算路徑（`isTest`
+      預設 `false`）完全不受影響，`issueSettledMap` 的鎖對真正的期別依然有效
+    - 是否已重新驗證：是，`npm run test:dlt` 連續執行 3 次皆 40/40 全數通過，
+      `currentIssue` 全程維持 `115000088` 不變
 - 問題（非本次變更所致，記錄供對照）：某一輪 `npm run test:dlt` 出現「三種拒單情境皆未扣款」
   失敗（coin 少了 600），但三個個別「應拒絕」斷言（400）本身都通過；重新執行後不再重現
   - 判斷：這支測試腳本打的是同一個長駐、非隔離的 dev server，連續重複執行會累積前幾輪

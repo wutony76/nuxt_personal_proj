@@ -23,6 +23,10 @@
   - 登入後打 `/api/lottery-tw/dlt/opencode-history`：過濾「（測試）」紀錄後，成功回填
     11 筆真實歷史（`115000077`～`115000087`，含 bootstrap 種子期別本身），開獎日期正確落在週二/五，開獎號碼與直接
     `curl` `Lotto649Result?period=115000086` 拿到的官方資料一致
+  - 修正「測試污染正式期別」問題後（`_attemptSettlement` 測試模式不再推進期別、
+    `_settleIssue` 新增 `isTest` 繞過全域 `issueSettledMap` 鎖改逐注判斷），連續執行
+    `npm run test:dlt` 3 次皆 40/40 全數通過，且期間 `currentIssue` 全程維持
+    `115000088` 不變（登入查 `/api/lottery-tw/dlt/current` 交叉確認）
 
 ## 風險與後續追蹤
 

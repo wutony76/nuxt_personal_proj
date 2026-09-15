@@ -85,6 +85,31 @@ const canSubmit = computed(() => isOpen.value && state.submitStatus !== 'loading
 /** 倒數文字（天/時/分，比照每週二五的長週期，不是分鐘級玩法常見的秒數倒數） */
 const countdownLabel = computed(() => current.runtime?.countdown ?? '')
 
+const WEEKDAY_LABEL = ['日', '一', '二', '三', '四', '五', '六']
+/**
+ * 開獎時間拆成「日期」「星期」「時間」三段，供 Header.vue 顯示「何時開獎」用——
+ * 星期跟後面的「開獎」字樣要用比日期/時間更小的字級，所以拆開讓樣板分別包 span。
+ */
+const drawAtDateLabel = computed(() => {
+  const ms = current.runtime?.drawAt
+  if (!ms) return ''
+  const d = new Date(ms)
+  return `${d.getMonth() + 1}/${d.getDate()}`
+})
+const drawAtWeekdayLabel = computed(() => {
+  const ms = current.runtime?.drawAt
+  if (!ms) return ''
+  return WEEKDAY_LABEL[new Date(ms).getDay()] ?? ''
+})
+const drawAtTimeLabel = computed(() => {
+  const ms = current.runtime?.drawAt
+  if (!ms) return ''
+  const d = new Date(ms)
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${hh}:${mm}`
+})
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 function _tickServerNow() {
   time.nowMs = time.syncedAtServerMs <= 0 || time.syncedAtClientMs <= 0
@@ -334,6 +359,9 @@ export function useDlt() {
     isPendingSettlement,
     canSubmit,
     countdownLabel,
+    drawAtDateLabel,
+    drawAtWeekdayLabel,
+    drawAtTimeLabel,
 
     actions: _actions,
     fetch

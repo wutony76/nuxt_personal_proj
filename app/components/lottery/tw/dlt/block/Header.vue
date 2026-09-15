@@ -11,7 +11,7 @@ import { useDlt } from '~/composables/useDlt'
  */
 const emit = defineEmits<{ (event: 'open-opencode-dialog'): void, (event: 'open-rule-dialog'): void }>()
 
-const { current: mxCurrent, countdownLabel, isPendingSettlement } = useDlt()
+const { current: mxCurrent, drawAtDateLabel, drawAtWeekdayLabel, drawAtTimeLabel, isPendingSettlement } = useDlt()
 
 const currentStatus = computed(() => String(mxCurrent.runtime?.currentStatus ?? STATUS_TIME.PREPARE))
 const lastOpenCode = computed(() => mxCurrent.runtime?.lastOpenCode ?? null)
@@ -23,22 +23,26 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
   <header class="dlt-header">
     <div class="dlt-header-left">
       <h1 class="dlt-title">大樂透</h1>
-      <p class="dlt-sub">開獎號碼與獎金完全鏡射台灣彩券官方大樂透</p>
-      <button type="button" class="dlt-rule-btn" @click="emit('open-rule-dialog')">玩法說明</button>
+      <p class="dlt-sub">開獎號碼與獎金完全參考台灣彩券官方大樂透</p>
     </div>
 
     <div class="dlt-header-right">
       <div class="dlt-timer">
-        <div class="dlt-issue">本期（內部代號）{{ mxCurrent.runtime?.issue ?? '—' }}</div>
+        <div class="dlt-issue">本期{{ mxCurrent.runtime?.issue ?? '—' }}</div>
         <div class="dlt-status" :class="{ 'is-pending': isPendingSettlement }">{{ currentStatus }}</div>
-        <div class="dlt-countdown">{{ countdownLabel || '—' }}</div>
+        <div class="dlt-countdown">
+          <template v-if="drawAtDateLabel">{{ drawAtDateLabel }}<span
+              class="dlt-countdown-suffix">({{ drawAtWeekdayLabel }})</span>{{ drawAtTimeLabel }} <span
+              class="dlt-countdown-suffix">開獎</span></template>
+          <template v-else>—</template>
+        </div>
       </div>
 
       <div class="dlt-open" role="button" tabindex="0" @click="emit('open-opencode-dialog')"
         @keydown.enter="emit('open-opencode-dialog')">
         <div class="dlt-open-title">
-          上一期官方開獎
-          <template v-if="lastOpenCode">（第 {{ lastOpenCode.issue }} 期）</template>
+          上一期開獎
+          <template v-if="lastOpenCode">(第 {{ lastOpenCode.issue }} 期)</template>
         </div>
         <div v-if="lastOpenCode" class="dlt-open-balls">
           <Ball v-for="(n, idx) in lastNumbers" :key="`n-${idx}`" :num="n" size="md" />
@@ -133,9 +137,15 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
   }
 
   .dlt-countdown {
+    white-space: nowrap;
     font-size: 22px;
     font-weight: 900;
     color: var(--color-red-main, #7f1d1d);
+
+    .dlt-countdown-suffix {
+      font-size: 13px;
+      font-weight: 700;
+    }
   }
 }
 
@@ -143,7 +153,9 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
   flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
+  text-align: center;
   gap: 0.375rem;
   padding: 0.5rem 0.75rem;
   cursor: pointer;
@@ -156,6 +168,7 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
   .dlt-open-balls {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.3rem;
     flex-wrap: wrap;
   }

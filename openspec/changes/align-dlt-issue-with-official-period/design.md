@@ -49,11 +49,20 @@
 - `playBets()` → 呼叫 `_ensureIssue()` 後檢查 `currentStatus === OPEN`：
   - bootstrap 尚未完成時 `currentStatus` 停在 `PREPARE`，行為等同「目前為『準備中』，不受理投注」
     （沿用既有錯誤訊息機制，不需要新增分支）
-- `_attemptSettlement()` 結算完成後推進期別：
-  - `settledIssue = this.currentIssue`（結算前先存一份，供下面推進序號用）
-  - 非測試模式：`lastKnownOfficialPeriod = period`（沿用原行為）
-  - `seedPeriod = _laterOfficialPeriod(lastKnownOfficialPeriod, settledIssue)`（新增）
-  - `currentIssue = _nextOfficialPeriod(nextDrawDate, seedPeriod)`
+- `_attemptSettlement()`（**改為測試模式到此為止，不推進期別**）：
+  - `_settleIssue(settledIssue, period, ..., isTest)` 判定/派彩
+  - `if (testOverride) return`——測試呼叫絕不觸碰 `currentIssue`／`cutoffAt`／`drawAt`／
+    `lastKnownOfficialPeriod`，避免反覆執行測試腳本讓這些欄位跟官方真實序號脫鉤
+  - 只有真實結算（非測試）才會往下走：`lastKnownOfficialPeriod = period` →
+    `seedPeriod = _laterOfficialPeriod(lastKnownOfficialPeriod, settledIssue)` →
+    `currentIssue = _nextOfficialPeriod(nextDrawDate, seedPeriod)`
+- `_settleIssue(..., isTest)`（新增最後一個參數）：
+  - `isTest = true` 時不檢查也不寫入 `issueSettledMap[internalIssue]`（這把鎖只保留給真實
+    結算用）；逐注判斷改成「該注目前是否仍是 `pending`」，已經判定過的注單不重複派彩
+  - 原因：期別不再因測試而推進後，反覆執行測試腳本會一直對「同一個」真正的期別呼叫
+    `_settleIssue()`——若沿用全域 `issueSettledMap` 鎖，第一次測試呼叫就會把這個真正的
+    期別永久標記成「已結算」，之後這期真正開獎時，真實結算會被同一把鎖誤擋，注單永遠
+    不會派彩（見 validation.md 的問題與修正紀錄）
 - `_bootstrapOfficialPeriod()` 成功後（fire-and-forget，不 await）→ `_backfillHistory(10)`：
   - `_prevOfficialPeriods(lastKnownOfficialPeriod, 10)` 反推最多 10 個同民國年度的過去期別
   - 排除 `recordOpenCode` 裡已經存在的期別（避免跟真實/測試紀錄重複）

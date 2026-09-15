@@ -377,7 +377,11 @@ export default class DltClass extends LOTTERY_BASE {
         }
       },
       currentInfo: () => {
-        const last = this.recordOpenCode[this.recordOpenCode.length - 1] ?? null
+        // 排除 admin 測試工具留下的假資料（issue 帶「（測試）」後綴）：這些紀錄的 startAt
+        // 是呼叫端隨意指定的假時間，可能比真實紀錄還「新」，若不過濾，「上一期開獎」
+        // 有機率顯示成測試假資料而非真正的官方最新一期。
+        const realRecords = this.recordOpenCode.filter((r) => !r.issue.includes('（測試）'))
+        const last = realRecords[realRecords.length - 1] ?? null
         const now = MEMORY.now.getTime()
         const remainMs = this.currentStatus === STATUS_TIME.OPEN ? Math.max(0, this.cutoffAt - now) : 0
         const remainSec = Math.floor(remainMs / 1000)
@@ -596,7 +600,7 @@ export default class DltClass extends LOTTERY_BASE {
       const special = lotNumber[6]
 
       const settledIssue = this.currentIssue // 這期剛被結算掉的內部期別，下面推進序號要用到
-      this._settleIssue(settledIssue, period, winningNumbers, Number(special), tiers)
+      this._settleIssue(settledIssue, period, winningNumbers, Number(special), tiers, Boolean(testOverride))
 
       // ⚠️ 測試模式（dlt-test-draw）到此為止：只驗證「真實下注 → 依假開獎號正確判定/派彩」，
       // 絕不能再往下動 currentIssue／cutoffAt／drawAt／lastKnownOfficialPeriod 這些真正的期別
@@ -641,15 +645,24 @@ export default class DltClass extends LOTTERY_BASE {
    * 結算一期：逐注以 dltTierOf() 分類 → 派彩＝官方當期該獎項 perPrize；
    * 完成後把官方真實開獎號寫進 recordOpenCode（歷史／冷熱號用，見 Decision 4），
    * 並在頭獎有人中時更新 lastJackpotPrize（見 Decision 3）。
+   *
+   * @param isTest 是否為 admin 測試呼叫（見 dlt-test-draw）。測試模式刻意不用
+   *   `issueSettledMap` 這個「整期只結算一次」的全域鎖：測試不會推進真正的
+   *   currentIssue（見 `_attemptSettlement()`），代表反覆呼叫測試工具會一直結算
+   *   「同一個」真正的期別——若沿用同一把鎖，第一次測試呼叫就會把這期永久標記
+   *   成「已結算」，之後這期真正開獎時，真實結算會被這把鎖誤擋，注單永遠卡在
+   *   pending。測試模式改成逐注判斷：只處理該注目前還是 `pending` 狀態的注單，
+   *   已經測試過（win/lose）的注單不重複派彩，這樣重複測試才不會重複發錢。
    */
   _settleIssue(
     internalIssue: string,
     officialPeriod: string,
     winningNumbers: number[],
     special: number,
-    tiers: TaiwanLotteryPrizeTier[]
+    tiers: TaiwanLotteryPrizeTier[],
+    isTest = false
   ) {
-    if (this.issueSettledMap[internalIssue]) return
+    if (!isTest && this.issueSettledMap[internalIssue]) return
 
     const perPrizeOf = (tierKey: DltTierKey): number => {
       const idx = DLT_TIERS.findIndex((t) => t.key === tierKey)
@@ -666,13 +679,17 @@ export default class DltClass extends LOTTERY_BASE {
     const payoutByUser = new Map<string, number>()
 
     issueOrders.forEach((row) => {
+      const record = this.handle.ensureUserRecord(this._get.user(row.userId))
+      const idx = record.betHistory.findIndex((item) => String(item.orderId) === String(row.orderId))
+      const current = record.betHistory[idx]
+      // 測試模式沒有 issueSettledMap 擋重複呼叫，改成逐注擋：已經判定過（非 pending）
+      // 的注單不重複派彩，避免同一注在反覆測試呼叫下被多次計入 payoutByUser 重複發錢。
+      if (isTest && current && current.winStatus !== 'pending') return
+
       const betCode = (Array.isArray(row.betCode) ? row.betCode : [])[0] ?? ''
       const tierKey = dltTierOf(betCode, winningNumbers, special)
       const payout = tierKey ? perPrizeOf(tierKey) : 0
 
-      const record = this.handle.ensureUserRecord(this._get.user(row.userId))
-      const idx = record.betHistory.findIndex((item) => String(item.orderId) === String(row.orderId))
-      const current = record.betHistory[idx]
       if (idx >= 0 && current) {
         record.betHistory[idx] = {
           ...current,
@@ -709,7 +726,7 @@ export default class DltClass extends LOTTERY_BASE {
       this.handle.pushClaimable(userId, internalIssue, amount, officialOpenCode)
     })
 
-    this.issueSettledMap[internalIssue] = true
+    if (!isTest) this.issueSettledMap[internalIssue] = true
   }
 
   playBets(payload: PlayBetsPayload, user: UserStoreLike) {
