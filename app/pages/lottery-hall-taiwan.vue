@@ -104,6 +104,25 @@ const state = reactive({
   }
 })
 
+/** 英雄插畫上的閃星；位置用百分比，避免跟著版面重排跑掉。 */
+const HERO_STARS = [
+  { id: 's1', x: '8%', y: '10%', d: '0s', s: '8px' },
+  { id: 's2', x: '22%', y: '6%', d: '0.6s', s: '5px' },
+  { id: 's3', x: '46%', y: '8%', d: '1.2s', s: '6px' },
+  { id: 's4', x: '68%', y: '5%', d: '0.3s', s: '7px' },
+  { id: 's5', x: '84%', y: '14%', d: '1.6s', s: '9px' },
+  { id: 's6', x: '92%', y: '32%', d: '0.9s', s: '5px' },
+  { id: 's7', x: '14%', y: '34%', d: '1.9s', s: '6px' },
+  { id: 's8', x: '74%', y: '22%', d: '2.2s', s: '4px' }
+]
+
+/** 流星錯開延遲，避免同時劃過。 */
+const HERO_METEORS = [
+  { id: 'm1', y: '6%', d: '0.4s', dur: '7s', angle: '28deg' },
+  { id: 'm2', y: '18%', d: '2.8s', dur: '8.4s', angle: '34deg' },
+  { id: 'm3', y: '2%', d: '5.1s', dur: '6.6s', angle: '22deg' }
+]
+
 const todayLabel = computed(() => {
   const now = new Date()
   return `${now.getMonth() + 1} 月 ${now.getDate()} 日`
@@ -238,6 +257,14 @@ onMounted(async () => {
           <div class="tw-hero-blob"></div>
           <div class="tw-hero-blob-sm"></div>
           <img src="/images/pig_treasure.png" class="tw-hero-img" alt="紅色存錢筒與彩球玩具堆疊插畫" />
+          <div class="tw-hero-fx" aria-hidden="true">
+            <span v-for="star in HERO_STARS" :key="star.id" class="tw-star"
+              :style="{ '--x': star.x, '--y': star.y, '--d': star.d, '--s': star.s }" />
+            <span v-for="meteor in HERO_METEORS" :key="meteor.id" class="tw-meteor"
+              :style="{ '--y': meteor.y, '--angle': meteor.angle }">
+              <span class="tw-meteor-body" :style="{ '--d': meteor.d, '--dur': meteor.dur }" />
+            </span>
+          </div>
           <div class="tw-hero-note">憨人有憨福</div>
         </div>
       </div>
@@ -253,7 +280,8 @@ onMounted(async () => {
         <div v-else-if="state.loading" class="tw-loading">正在取得彩運來開獎資料...</div>
 
         <div v-else class="tw-grid">
-          <article v-for="game in state.results" :key="game.gameCode" class="tw-card">
+          <article v-for="(game, cardIdx) in state.results" :key="game.gameCode" class="tw-card"
+            :style="{ '--tw-i': `${cardIdx * 0.06}s` }">
             <div class="tw-card-top" />
             <div class="tw-card-head">
               <div class="tw-card-badge">{{ _handlers.meta(game.gameCode).mark }}</div>
@@ -292,7 +320,8 @@ onMounted(async () => {
             <div class="tw-balls-label">最近期開獎（{{ game.period || '-' }} 期）</div>
             <div class="tw-balls">
               <span v-for="(num, idx) in game.lotNumber" :key="`${game.gameCode}-${idx}-${num}`" class="tw-ball"
-                :class="_handlers.getBallClass(idx, game.lotNumber.length)">
+                :class="_handlers.getBallClass(idx, game.lotNumber.length)"
+                :style="{ animationDelay: `${0.15 + idx * 0.03}s` }">
                 {{ String(num).padStart(2, '0') }}
               </span>
             </div>
@@ -343,6 +372,7 @@ onMounted(async () => {
   padding: 14px clamp(16px, 4vw, 48px);
   background: var(--color-neutral-900);
   color: var(--color-bg);
+  animation: twDrop 0.45s ease-out backwards;
 }
 
 .tw-brand {
@@ -363,6 +393,7 @@ onMounted(async () => {
   font-weight: 900;
   font-size: 20px;
   color: var(--color-neutral-900);
+  animation: twBadgePulse 3.2s ease-in-out infinite;
 }
 
 .tw-brand-name {
@@ -493,6 +524,7 @@ onMounted(async () => {
 .tw-hero-tag {
   display: inline-block;
   transform: translateY(-30px) rotate(-2.5deg);
+  animation: twFade 0.45s ease-out backwards;
   background: var(--color-accent-200);
   color: var(--color-accent-800);
   border: 1px dashed var(--color-accent-500);
@@ -508,6 +540,7 @@ onMounted(async () => {
   line-height: 1.25;
   margin: 0 0 18px;
   color: var(--color-accent-800);
+  animation: twRise 0.55s ease-out 0.08s backwards;
 }
 
 .tw-hero-desc {
@@ -515,6 +548,7 @@ onMounted(async () => {
   max-width: 34ch;
   line-height: 1.85;
   color: var(--color-neutral-800);
+  animation: twRise 0.55s ease-out 0.16s backwards;
 }
 
 .tw-hero-actions {
@@ -522,6 +556,7 @@ onMounted(async () => {
   gap: 12px;
   flex-wrap: wrap;
   margin-top: 26px;
+  animation: twRise 0.55s ease-out 0.24s backwards;
 
   .tw-btn-primary {
     font-size: 16px;
@@ -539,6 +574,7 @@ onMounted(async () => {
   display: grid;
   place-items: end center;
   min-height: 320px;
+  animation: twRise 0.7s ease-out 0.12s backwards;
 }
 
 .tw-hero-blob {
@@ -547,6 +583,7 @@ onMounted(async () => {
   aspect-ratio: 1;
   border-radius: 999px;
   background: var(--color-accent-2-200);
+  animation: twBlob 6s ease-in-out infinite;
 }
 
 .tw-hero-blob-sm {
@@ -557,6 +594,7 @@ onMounted(async () => {
   aspect-ratio: 1;
   border-radius: 999px;
   background: var(--color-accent-200);
+  animation: twBlob 5s ease-in-out infinite reverse;
 }
 
 .tw-hero-img {
@@ -565,11 +603,67 @@ onMounted(async () => {
   height: auto;
 }
 
+.tw-hero-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.tw-star {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--s);
+  height: var(--s);
+  background: #fff6d0;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  filter: drop-shadow(0 0 4px rgba(255, 214, 120, 0.9));
+  animation: twTwinkle 2.2s ease-in-out var(--d) infinite;
+}
+
+.tw-meteor {
+  position: absolute;
+  top: var(--y);
+  left: -12%;
+  width: 0;
+  height: 0;
+  transform: rotate(var(--angle));
+  transform-origin: 0 0;
+}
+
+.tw-meteor-body {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 90px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #fff8e4 78%, #fff);
+  box-shadow: 0 0 8px rgba(255, 230, 160, 0.75);
+  animation: twMeteor var(--dur) ease-in var(--d) infinite;
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: 50%;
+    width: 5px;
+    height: 5px;
+    border-radius: 999px;
+    background: #fff;
+    transform: translateY(-50%);
+    box-shadow: 0 0 8px #fff6d0;
+  }
+}
+
 .tw-hero-note {
   position: absolute;
   right: 0;
   top: 4%;
-  transform: rotate(6deg);
+  z-index: 2;
+  animation: twNote 3.4s ease-in-out infinite;
   background: var(--color-bg);
   border: 1px solid var(--color-neutral-300);
   border-radius: 4px;
@@ -588,6 +682,7 @@ onMounted(async () => {
   border-bottom: 3px double var(--color-accent-500);
   padding-bottom: 12px;
   margin-bottom: 28px;
+  animation: twRise 0.5s ease-out backwards;
 }
 
 .tw-section-title {
@@ -638,6 +733,13 @@ onMounted(async () => {
   border-radius: var(--radius-lg);
   padding: 22px 22px 20px;
   box-shadow: var(--shadow-sm);
+  animation: twRise 0.55s ease-out var(--tw-i, 0s) backwards;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+
+  &:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-md);
+  }
 }
 
 .tw-card-top {
@@ -648,6 +750,7 @@ onMounted(async () => {
   background-image: repeating-linear-gradient(90deg,
       var(--color-accent-2-500) 0 14px,
       var(--color-accent-500) 14px 28px);
+  animation: twStripe 8s linear infinite;
 }
 
 .tw-card-head {
@@ -788,6 +891,7 @@ onMounted(async () => {
   font-size: 13px;
   font-weight: 700;
   box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.15);
+  animation: twBallIn 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
 
   &.tw-ball-regular {
     background: #f1c419;
@@ -806,6 +910,18 @@ onMounted(async () => {
   gap: 8px;
 }
 
+.tw-btn {
+  transition: transform 0.15s ease, background-color 0.15s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
 .tw-btn-block {
   width: 100%;
   margin-top: auto;
@@ -815,6 +931,7 @@ onMounted(async () => {
   margin-top: clamp(32px, 6vw, 64px);
   background: var(--color-neutral-900);
   color: var(--color-neutral-300);
+  animation: twRise 0.5s ease-out 0.2s backwards;
 }
 
 .tw-footer-content {
@@ -851,6 +968,129 @@ onMounted(async () => {
   }
 }
 
+@keyframes twDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes twRise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes twFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes twTwinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.55) rotate(0deg);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(16deg);
+  }
+}
+
+@keyframes twMeteor {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  32% {
+    opacity: 0;
+    transform: translateX(720px);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(720px);
+  }
+}
+
+@keyframes twBlob {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes twNote {
+  0%,
+  100% {
+    transform: rotate(4deg) translateY(0);
+  }
+
+  50% {
+    transform: rotate(8deg) translateY(-6px);
+  }
+}
+
+@keyframes twBadgePulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes twStripe {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 28px 0;
+  }
+}
+
+@keyframes twBallIn {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @keyframes twBlink {
 
   0%,
@@ -861,6 +1101,34 @@ onMounted(async () => {
   61%,
   100% {
     opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tw-header,
+  .tw-brand-badge,
+  .tw-hero-tag,
+  .tw-hero-title,
+  .tw-hero-desc,
+  .tw-hero-actions,
+  .tw-hero-art,
+  .tw-star,
+  .tw-meteor-body,
+  .tw-hero-blob,
+  .tw-hero-blob-sm,
+  .tw-hero-note,
+  .tw-section-head,
+  .tw-card,
+  .tw-card-top,
+  .tw-ball,
+  .tw-footer {
+    animation: none;
+  }
+
+  .tw-card:hover,
+  .tw-btn:hover,
+  .tw-btn:active {
+    transform: none;
   }
 }
 </style>
