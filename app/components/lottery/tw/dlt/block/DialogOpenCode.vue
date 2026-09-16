@@ -68,7 +68,7 @@ const filteredList = computed(() => {
       <div class="table-filter">
         <input v-model="issueQuery" type="text" class="issue-query-input" placeholder="查詢期數..." />
       </div>
-      <div class="dialog-table-wrap">
+      <div class="dialog-table-wrap taiwan-lottery-scrollbar">
         <table class="report-table dialog-report-table">
           <thead>
             <tr>
@@ -104,26 +104,28 @@ const filteredList = computed(() => {
 <style scoped lang="scss">
 .dlt-opencode-hint {
   font-size: 12px;
-  color: var(--color-red-desc);
+  color: var(--color-neutral-700, #645c50);
   margin: 0 0 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed var(--color-neutral-400, #c0b6a5);
 }
 
 .user-dialog-loading,
 .user-dialog-error {
   padding: 1rem 0;
   font-size: 13px;
-  color: var(--color-red-desc);
+  color: var(--color-neutral-700, #645c50);
   text-align: center;
 }
 
 .user-dialog-error {
-  color: var(--color-red-main);
+  color: var(--color-accent-700, #8c491a);
 }
 
 .dialog-table-wrap {
   max-height: 55vh;
   overflow: auto;
-  border: 1px solid var(--color-red-content, #fee2e2);
+  border: 1px solid var(--color-neutral-300, #dcd3c4);
   border-top: 0;
 }
 
@@ -136,20 +138,20 @@ const filteredList = computed(() => {
   .issue-query-input {
     font-size: 12px;
     padding: 3px 8px;
-    border: 1px solid var(--color-red-main);
+    border: 1px solid var(--color-accent-700, #8c491a);
     border-radius: 0.25rem;
-    color: var(--color-red-main);
+    color: var(--color-accent-700, #8c491a);
     font-weight: 600;
     outline: none;
     width: 160px;
 
     &::placeholder {
-      color: #c9a0a8;
+      color: var(--color-neutral-400, #c0b6a5);
       font-weight: 400;
     }
 
     &:focus {
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-red-main) 20%, transparent);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent-700, #8c491a) 20%, transparent);
     }
   }
 }
@@ -158,7 +160,7 @@ const filteredList = computed(() => {
  * .report-table 是 6hc-of／k3 等玩法共用的全域 class（見 app/assets/style/lhc_of.scss，
  * scoped 在各自的 .lottery-xxx 頁面根層級）；DLT 沒有對應的 lhc_dlt.scss，
  * 所以直接把同一套基礎樣式（邊框/列高/表頭底色）搬進這裡的 scoped style，
- * 數值與色票 token（--color-red-content／--color-red-main／--color-red-desc）完全對齊。
+ * 數值與色票 token（--color-neutral-300／--color-accent-700／--color-neutral-700，柑仔店暖色系）完全對齊。
  *
  * 捲動＋sticky 表頭的完整寫法比照 pl3/eggs 的 Report.vue（bg 系列已驗證過的作法）：
  * 外框改包在 .dialog-table-wrap（捲動容器本身）上，<table> 自己的外框拿掉，
@@ -174,8 +176,8 @@ const filteredList = computed(() => {
     min-height: 35px;
 
     td, th {
-      border-right: 1px solid var(--color-red-content, #fee2e2);
-      border-bottom: 1px solid var(--color-red-content, #fee2e2);
+      border-right: 1px solid var(--color-neutral-300, #dcd3c4);
+      border-bottom: 1px solid var(--color-neutral-300, #dcd3c4);
       padding: 6px 8px;
       text-align: center;
 
@@ -186,8 +188,8 @@ const filteredList = computed(() => {
 
     &:first-child th {
       height: 40px;
-      background: color-mix(in srgb, var(--color-red-main) 8%, #fff);
-      color: var(--color-red-desc);
+      background: color-mix(in srgb, var(--color-accent-700, #8c491a) 8%, var(--color-neutral-100, #f9f4ed));
+      color: var(--color-neutral-700, #645c50);
       font-weight: 700;
     }
 
@@ -202,12 +204,12 @@ const filteredList = computed(() => {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: color-mix(in srgb, var(--color-red-main) 8%, #fff);
+    background: color-mix(in srgb, var(--color-accent-700, #8c491a) 8%, var(--color-neutral-100, #f9f4ed));
     border-top: none;
     border-bottom: none;
     box-shadow:
-      inset 0 1px 0 0 var(--color-red-content, #fee2e2),
-      inset 0 -1px 0 0 var(--color-red-content, #fee2e2);
+      inset 0 1px 0 0 var(--color-neutral-300, #dcd3c4),
+      inset 0 -1px 0 0 var(--color-neutral-300, #dcd3c4);
   }
 
   tbody tr.no-bet td {
@@ -223,7 +225,7 @@ const filteredList = computed(() => {
 
 .no-records {
   text-align: center;
-  color: var(--color-red-desc);
+  color: var(--color-neutral-700, #645c50);
   padding: 12px 0;
 }
 
@@ -233,7 +235,7 @@ const filteredList = computed(() => {
   white-space: nowrap;
 
   &:hover {
-    color: var(--color-red-main);
+    color: var(--color-accent-700, #8c491a);
   }
 }
 </style>

@@ -134,7 +134,7 @@ function betNumbers(betCode: string[]): string[] {
       <div class="dialog-tab-content">
         <!-- 餘額變動表 -->
         <section v-if="activeTab === 'balance'" class="dialog-block">
-          <div class="dialog-table-wrap">
+          <div class="dialog-table-wrap taiwan-lottery-scrollbar">
             <table class="report-table dialog-report-table">
               <thead>
                 <tr>
@@ -183,7 +183,7 @@ function betNumbers(betCode: string[]): string[] {
               <option v-for="issue in betIssues" :key="issue" :value="issue">{{ issue }}</option>
             </select>
           </div>
-          <div class="dialog-table-wrap">
+          <div class="dialog-table-wrap taiwan-lottery-scrollbar">
             <table class="report-table dialog-report-table bets-table">
               <colgroup>
                 <col style="width: 20%" />
@@ -250,16 +250,18 @@ function betNumbers(betCode: string[]): string[] {
   align-items: center;
   gap: 12px;
   margin-bottom: 0.75rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px dashed var(--color-neutral-400, #c0b6a5);
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-red-desc);
+  color: var(--color-neutral-700, #645c50);
 }
 
 .claim-btn {
   padding: 0.25rem 0.75rem;
   border-radius: 0.25rem;
-  border: 1px solid var(--color-red-main);
-  background: var(--color-red-main);
+  border: 1px solid var(--color-accent-700, #8c491a);
+  background: var(--color-accent-700, #8c491a);
   color: #fff;
   font-size: 13px;
   font-weight: 700;
@@ -277,12 +279,12 @@ function betNumbers(betCode: string[]): string[] {
 .user-dialog-error {
   padding: 1rem 0;
   font-size: 13px;
-  color: var(--color-red-desc);
+  color: var(--color-neutral-700, #645c50);
   text-align: center;
 }
 
 .user-dialog-error {
-  color: var(--color-red-main);
+  color: var(--color-accent-700, #8c491a);
 }
 
 .dialog-tabs {
@@ -292,18 +294,18 @@ function betNumbers(betCode: string[]): string[] {
 }
 
 .dialog-tab {
-  border: 1px solid #f3b7bf;
+  border: 1px solid var(--color-accent-400, #f6a06b);
   border-radius: 0.25rem;
-  background: #fff5f6;
+  background: var(--color-accent-100, #fff2eb);
   padding: 6px 14px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--color-red-main);
+  color: var(--color-accent-700, #8c491a);
   cursor: pointer;
 
   &.active {
-    background: var(--color-red-main);
-    border-color: var(--color-red-main);
+    background: var(--color-accent-700, #8c491a);
+    border-color: var(--color-accent-700, #8c491a);
     color: #fff;
   }
 }
@@ -321,7 +323,7 @@ function betNumbers(betCode: string[]): string[] {
     margin-bottom: 6px;
 
     .issue-open-code-label {
-      color: var(--color-red-700, var(--color-red-main));
+      color: var(--color-accent-400, #f6a06b);
     }
 
     .issue-open-code {
@@ -336,7 +338,7 @@ function betNumbers(betCode: string[]): string[] {
  * .report-table 是 6hc-of／k3 等玩法共用的全域 class（見 app/assets/style/lhc_of.scss，
  * scoped 在各自的 .lottery-xxx 頁面根層級）；DLT 沒有對應的 lhc_dlt.scss，
  * 所以直接把同一套基礎樣式（邊框/列高/表頭底色）搬進這裡的 scoped style，
- * 數值與色票 token（--color-red-content／--color-red-main／--color-red-desc）完全對齊。
+ * 數值與色票 token（--color-neutral-300／--color-accent-700／--color-neutral-700，柑仔店暖色系）完全對齊。
  *
  * 捲動＋sticky 表頭的完整寫法比照 pl3/eggs 的 Report.vue（bg 系列已驗證過的作法）：
  * 外框改包在 .dialog-table-wrap（捲動容器本身）上，<table> 自己的外框拿掉，
@@ -346,7 +348,7 @@ function betNumbers(betCode: string[]): string[] {
 .dialog-table-wrap {
   max-height: 55vh;
   overflow: auto;
-  border: 1px solid var(--color-red-content, #fee2e2);
+  border: 1px solid var(--color-neutral-300, #dcd3c4);
   border-top: 0;
 }
 
@@ -360,8 +362,8 @@ function betNumbers(betCode: string[]): string[] {
 
     td,
     th {
-      border-right: 1px solid var(--color-red-content, #fee2e2);
-      border-bottom: 1px solid var(--color-red-content, #fee2e2);
+      border-right: 1px solid var(--color-neutral-300, #dcd3c4);
+      border-bottom: 1px solid var(--color-neutral-300, #dcd3c4);
       padding: 6px 8px;
       text-align: center;
 
@@ -372,8 +374,8 @@ function betNumbers(betCode: string[]): string[] {
 
     &:first-child th {
       height: 40px;
-      background: color-mix(in srgb, var(--color-red-main) 8%, #fff);
-      color: var(--color-red-desc);
+      background: color-mix(in srgb, var(--color-accent-700, #8c491a) 8%, var(--color-neutral-100, #f9f4ed));
+      color: var(--color-neutral-700, #645c50);
       font-weight: 700;
     }
 
@@ -389,18 +391,18 @@ function betNumbers(betCode: string[]): string[] {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: color-mix(in srgb, var(--color-red-main) 8%, #fff);
+    background: color-mix(in srgb, var(--color-accent-700, #8c491a) 8%, var(--color-neutral-100, #f9f4ed));
     border-top: none;
     border-bottom: none;
     box-shadow:
-      inset 0 1px 0 0 var(--color-red-content, #fee2e2),
-      inset 0 -1px 0 0 var(--color-red-content, #fee2e2);
+      inset 0 1px 0 0 var(--color-neutral-300, #dcd3c4),
+      inset 0 -1px 0 0 var(--color-neutral-300, #dcd3c4);
   }
 }
 
 .no-records {
   text-align: center;
-  color: var(--color-red-desc);
+  color: var(--color-neutral-700, #645c50);
   padding: 12px 0;
 }
 
@@ -444,7 +446,7 @@ function betNumbers(betCode: string[]): string[] {
   white-space: nowrap;
 
   &:hover {
-    color: var(--color-red-main);
+    color: var(--color-accent-700, #8c491a);
   }
 
   .sort-icon {
@@ -457,21 +459,21 @@ function betNumbers(betCode: string[]): string[] {
 .issue-open-code-pending {
   font-size: 12px;
   font-weight: 600;
-  color: #9ca3af;
+  color: var(--color-neutral-700, #645c50);
 }
 
 .issue-select {
   font-size: 12px;
   padding: 3px 8px;
-  border: 1px solid var(--color-red-main);
+  border: 1px solid var(--color-accent-700, #8c491a);
   border-radius: 0.25rem;
-  color: var(--color-red-main);
+  color: var(--color-accent-700, #8c491a);
   font-weight: 600;
   cursor: pointer;
   outline: none;
 
   &:focus {
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-red-main) 20%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent-700, #8c491a) 20%, transparent);
   }
 }
 

@@ -81,7 +81,7 @@ const handleLogout = () => {
 
 .inner {
   margin: 0 auto;
-  max-width: 1240px;
+  width: min(1360px, 97%);
   min-height: 56px;
   padding: 0.5rem 0.875rem;
   display: flex;

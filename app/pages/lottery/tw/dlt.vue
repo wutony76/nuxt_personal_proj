@@ -54,7 +54,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="lottery-dlt">
+  <div class="lottery-dlt theme-taiwan-lottery">
     <LotteryTwBaseTop @open-user-dialog="dialogClick.openUser()" @open-opencode-dialog="dialogClick.openOpenCode()"
       @open-rule-dialog="dialogClick.openRule()" />
 
@@ -109,6 +109,7 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 .lottery-dlt {
   min-height: 100vh;
+  display: flow-root;
 
   .main {
     width: min(1360px, 97%);
@@ -130,9 +131,9 @@ onBeforeUnmount(() => {
     height: 250px;
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--color-red-700, #f3b7bf);
+    border: 1px solid var(--color-accent-400, #f6a06b);
     border-radius: 6px;
-    background: color-mix(in srgb, var(--color-red-main, #7f1d1d) 6%, #fff);
+    background: color-mix(in srgb, var(--color-accent-700, #8c491a) 6%, var(--color-neutral-100, #f9f4ed));
     cursor: pointer;
 
     .user-title {
@@ -140,10 +141,11 @@ onBeforeUnmount(() => {
       display: flex;
       align-items: center;
       justify-content: center;
-      border-bottom: 1px solid #f6d9de;
+      border-bottom: 1px solid var(--color-neutral-300, #dcd3c4);
       font-size: 0.875rem;
       font-weight: 700;
-      color: var(--color-red-main, #7f1d1d);
+      font-family: var(--font-heading);
+      color: var(--color-accent-700, #8c491a);
     }
 
     .user-content {
@@ -153,7 +155,7 @@ onBeforeUnmount(() => {
       gap: 4px;
       padding: 0.6rem 0.75rem;
       font-size: 13px;
-      color: var(--color-red-desc, #9ca3af);
+      color: var(--color-neutral-700, #645c50);
 
       .row {
         height: 32.12px;
@@ -163,17 +165,17 @@ onBeforeUnmount(() => {
         b {
           margin-left: 5px;
           font-weight: 700;
-          color: var(--color-red-main, #7f1d1d);
+          color: var(--color-accent-700, #8c491a);
         }
       }
     }
 
     .user-id {
       margin: 0;
-      border-top: 1px solid #f6d9de;
+      border-top: 1px solid var(--color-neutral-300, #dcd3c4);
       padding: 0.4rem 0.75rem;
       font-size: 11px;
-      color: var(--color-red-desc, #9ca3af);
+      color: var(--color-neutral-700, #645c50);
     }
   }
 
@@ -195,9 +197,9 @@ onBeforeUnmount(() => {
 }
 
 .play-warp {
-  border: 1px solid var(--color-red-700, #f3b7bf);
+  border: 1px solid #aebf92;
   border-radius: 0.5rem;
-  background: #fff;
+  background: var(--color-neutral-100, #f9f4ed);
   padding: 0.75rem;
   display: flex;
   gap: 0.75rem;

@@ -132,11 +132,11 @@ watch([isOpen, () => mxCurrent.runtime?.issue, currentStatusText], () => { _acti
 </template>
 
 <style scoped lang="scss">
-$c-border: #dcb4b4;
-$c-bg: #efe6e6;
-$c-muted: #9ca3af;
-$c-dot-idle: #d1d5db;
-$c-track-off: #e5e7eb;
+$c-border: #dcd3c4;
+$c-bg: #f5ead8;
+$c-muted: #645c50;
+$c-dot-idle: #c0b6a5;
+$c-track-off: #dcd3c4;
 $c-waiting: #f59e0b;
 $c-success: #16a34a;
 $c-fail: #dc2626;
@@ -165,7 +165,8 @@ $c-fail: #dc2626;
       .auto-title {
         font-size: 15px;
         font-weight: 700;
-        color: var(--color-red-main);
+        font-family: var(--font-heading, inherit);
+        color: var(--color-accent-700, #8c491a);
       }
     }
 
@@ -208,7 +209,7 @@ $c-fail: #dc2626;
 
       &.on {
         .toggle-track {
-          background: var(--color-red-main);
+          background: var(--color-accent-700, #8c491a);
 
           .toggle-thumb {
             left: 21px;
@@ -216,7 +217,7 @@ $c-fail: #dc2626;
         }
 
         .toggle-label {
-          color: var(--color-red-main);
+          color: var(--color-accent-700, #8c491a);
         }
       }
     }
@@ -230,7 +231,7 @@ $c-fail: #dc2626;
       .auto-desc {
         margin: 0;
         font-size: 12px;
-        color: var(--color-red-desc);
+        color: var(--color-neutral-700, #645c50);
       }
     }
 
@@ -279,37 +280,37 @@ $c-fail: #dc2626;
 
       .coin-label {
         font-size: 12px;
-        color: var(--color-red-desc);
+        color: var(--color-neutral-700, #645c50);
         white-space: nowrap;
       }
 
       .fixed-amount {
         font-size: 13px;
         font-weight: 700;
-        color: var(--color-red-main);
+        color: var(--color-accent-700, #8c491a);
       }
 
       .coin-input {
         width: 72px;
         border: 1px solid $c-border;
         border-radius: 4px;
-        background: #fff;
+        background: var(--color-neutral-100, #f9f4ed);
         padding: 5px 8px;
         text-align: right;
         font-size: 13px;
-        color: var(--color-red-main);
+        color: var(--color-accent-700, #8c491a);
         outline: none;
         transition: border-color 0.15s, box-shadow 0.15s;
 
         &:focus {
-          border-color: var(--color-red-main);
-          box-shadow: 0 0 0 2px rgba(213, 63, 83, 0.12);
+          border-color: var(--color-accent-700, #8c491a);
+          box-shadow: 0 0 0 2px rgba(140, 73, 26, 0.12);
         }
       }
 
       .auto-unit {
         font-size: 12px;
-        color: var(--color-red-desc);
+        color: var(--color-neutral-700, #645c50);
         white-space: nowrap;
       }
     }

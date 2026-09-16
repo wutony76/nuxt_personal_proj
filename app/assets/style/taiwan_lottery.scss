@@ -5,7 +5,14 @@
  * （同目錄 _ds/organic-.../styles.css），變數命名直接照抄方便對照設計稿，
  * scoped 在 .theme-taiwan-lottery 底下，不寫進全域 :root，避免跟其他頁面搶命名空間
  * （比照專案「管理後台樣式包在 .theme-admin {} scope 內」的既有慣例）。
+ *
+ * ⚠️ --font-heading 指定的 Caprasimo／Noto Serif TC 之前一直沒有實際載入字型檔，
+ * 所有標題文字其實都是 fallback 到瀏覽器預設 serif（看起來偏細瘦），這裡補上
+ * Google Fonts 引入（Noto Serif TC 只載 900 這個粗體字重，中文字型檔很大，其他
+ * 字重目前沒用到）。
  */
+@import url('https://fonts.googleapis.com/css2?family=Caprasimo&family=Noto+Serif+TC:wght@900&display=swap');
+
 .theme-taiwan-lottery {
   --color-bg: #f5ead8;
   --color-surface: #ebddc5;
@@ -133,7 +140,7 @@
  */
 .taiwan-lottery-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #8c491a #eee7db;
+  scrollbar-color: #c0b6a5 #eee7db;
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -146,12 +153,11 @@
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #b2622d;
+    background: #c0b6a5;
     border-radius: 999px;
-    border: 2px solid #eee7db;
   }
 
   &::-webkit-scrollbar-thumb:hover {
-    background: #8c491a;
+    background: #92725b;
   }
 }

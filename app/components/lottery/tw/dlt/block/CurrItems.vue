@@ -40,9 +40,9 @@ const click = {
 
 <style scoped lang="scss">
 .dlt-curr-items {
-  border: 1px solid #fee2e2;
+  border: 1px solid var(--color-neutral-300, #dcd3c4);
   border-radius: var(--base-radius, 0.375rem);
-  background: #fff;
+  background: var(--color-neutral-100, #f9f4ed);
   padding: 0.75rem;
 }
 
@@ -50,7 +50,8 @@ const click = {
   margin: 0 0 0.5rem;
   font-size: 13px;
   font-weight: 700;
-  color: var(--color-red-main, #7f1d1d);
+  font-family: var(--font-heading);
+  color: var(--color-accent-700, #8c491a);
 }
 
 .dlt-curr-list {
@@ -67,10 +68,10 @@ const click = {
   align-items: center;
   gap: 0.5rem;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--color-neutral-700, #645c50);
 
   &.is-ready {
-    color: var(--color-red-main, #7f1d1d);
+    color: var(--color-accent-700, #8c491a);
     font-weight: 600;
   }
 
@@ -81,7 +82,7 @@ const click = {
     width: 18px;
     height: 18px;
     border-radius: 4px;
-    background: #fee2e2;
+    background: var(--color-neutral-300, #dcd3c4);
     font-weight: 700;
     font-size: 11px;
   }
@@ -104,12 +105,12 @@ const click = {
     padding: 0;
     font-size: 14px;
     line-height: 1;
-    color: var(--color-red-desc, #9ca3af);
+    color: var(--color-neutral-700, #645c50);
     cursor: pointer;
 
     &:hover {
-      background: #fee2e2;
-      color: var(--color-red-main, #7f1d1d);
+      background: var(--color-neutral-300, #dcd3c4);
+      color: var(--color-accent-700, #8c491a);
     }
   }
 }
@@ -117,11 +118,11 @@ const click = {
 .dlt-curr-total {
   margin-top: 0.5rem;
   padding-top: 0.5rem;
-  border-top: 1px dashed #fee2e2;
+  border-top: 1px dashed var(--color-neutral-400, #c0b6a5);
   display: flex;
   justify-content: space-between;
   font-size: 13px;
   font-weight: 700;
-  color: var(--color-red-main, #7f1d1d);
+  color: var(--color-accent-700, #8c491a);
 }
 </style>

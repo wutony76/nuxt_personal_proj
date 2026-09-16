@@ -75,12 +75,12 @@ const click = {
   margin: 0;
   text-align: right;
   font-size: 12px;
-  color: var(--color-red-desc, #9ca3af);
+  color: var(--color-neutral-700, #645c50);
 }
 
 .dlt-btn {
-  border: 1px solid var(--color-red-main, #7f1d1d);
-  background: var(--color-red-main, #7f1d1d);
+  border: 1px solid var(--color-accent-700, #8c491a);
+  background: var(--color-accent-700, #8c491a);
   color: #fff;
   border-radius: 0.25rem;
   font-size: 13px;
@@ -94,8 +94,8 @@ const click = {
   }
 
   &.dlt-btn-plain {
-    background: #fff;
-    color: var(--color-red-main, #7f1d1d);
+    background: var(--color-neutral-100, #f9f4ed);
+    color: var(--color-accent-700, #8c491a);
   }
 
   &.dlt-btn-submit {

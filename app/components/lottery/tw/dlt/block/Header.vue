@@ -22,7 +22,13 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
 <template>
   <header class="dlt-header">
     <div class="dlt-header-left">
-      <h1 class="dlt-title">大樂透</h1>
+      <div class="dlt-brand">
+        <span class="dlt-title-badge">大</span>
+        <div class="dlt-brand-text">
+          <h1 class="dlt-title">大樂透</h1>
+          <div class="dlt-title-sub">49選6</div>
+        </div>
+      </div>
       <p class="dlt-sub">開獎號碼與獎金完全參考台灣彩券官方大樂透</p>
     </div>
 
@@ -61,9 +67,9 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
   flex-wrap: wrap;
   align-items: stretch;
   gap: 1rem;
-  border: 4px solid #7f1d1d;
+  border: 4px solid var(--color-accent-700, #8c491a);
   border-radius: 0.5rem;
-  background: #fff;
+  background: var(--color-neutral-100, #f9f4ed);
   padding: 1rem 1.25rem;
 }
 
@@ -73,27 +79,59 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
   flex-direction: column;
   gap: 0.375rem;
 
+  .dlt-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+  }
+
+  .dlt-title-badge {
+    flex: none;
+    width: 66px;
+    height: 66px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--color-accent-500, #d67f48);
+    font-family: var(--font-heading);
+    font-weight: 900;
+    font-size: 38px;
+    color: var(--color-neutral-900, #2e2b25);
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18);
+  }
+
+  .dlt-brand-text {
+    display: flex;
+    flex-direction: column;
+  }
+
   .dlt-title {
     margin: 0;
-    font-size: 34px;
+    font-size: 33px;
+    line-height: 1.1;
     font-weight: 900;
-    color: var(--color-red-main, #7f1d1d);
-    padding-left: 0.6rem;
-    border-left: 5px solid var(--color-gold, #c9a227);
+    font-family: var(--font-heading);
+    color: var(--color-accent-700, #8c491a);
+  }
+
+  .dlt-title-sub {
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    color: var(--color-accent-600, #b2622d);
   }
 
   .dlt-sub {
     margin: 0;
     font-size: 12px;
-    color: var(--color-red-desc, #9ca3af);
+    color: var(--color-neutral-700, #645c50);
   }
 
   .dlt-rule-btn {
     align-self: flex-start;
     margin-top: 0.25rem;
-    border: 1px solid var(--color-red-main, #7f1d1d);
-    color: var(--color-red-main, #7f1d1d);
-    background: #fff;
+    border: 1px solid var(--color-accent-700, #8c491a);
+    color: var(--color-accent-700, #8c491a);
+    background: var(--color-neutral-100, #f9f4ed);
     border-radius: 0.25rem;
     font-size: 12px;
     padding: 3px 10px;
@@ -105,7 +143,7 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
   flex: 2 1 420px;
   display: flex;
   gap: 0.75rem;
-  border: 1px solid #fee2e2;
+  border: 1px solid var(--color-neutral-300, #dcd3c4);
   border-radius: 0.375rem;
   overflow: hidden;
 }
@@ -117,19 +155,19 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  background: rgba(254, 242, 242, 0.7);
+  background: var(--color-accent-100, #fff2eb);
   padding: 0.5rem;
   text-align: center;
 
   .dlt-issue {
     font-size: 12px;
-    color: var(--color-red-desc, #9ca3af);
+    color: var(--color-neutral-700, #645c50);
   }
 
   .dlt-status {
     font-size: 13px;
     font-weight: 700;
-    color: var(--color-red-main, #7f1d1d);
+    color: var(--color-accent-700, #8c491a);
 
     &.is-pending {
       color: #b45309;
@@ -140,7 +178,7 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
     white-space: nowrap;
     font-size: 22px;
     font-weight: 900;
-    color: var(--color-red-main, #7f1d1d);
+    color: var(--color-accent-700, #8c491a);
 
     .dlt-countdown-suffix {
       font-size: 13px;
@@ -162,7 +200,7 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
 
   .dlt-open-title {
     font-size: 12px;
-    color: var(--color-red-desc, #9ca3af);
+    color: var(--color-neutral-700, #645c50);
   }
 
   .dlt-open-balls {
@@ -175,12 +213,12 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
 
   .dlt-open-plus {
     font-weight: 700;
-    color: var(--color-red-desc, #9ca3af);
+    color: var(--color-neutral-700, #645c50);
   }
 
   .dlt-open-empty {
     font-size: 12px;
-    color: var(--color-red-desc, #9ca3af);
+    color: var(--color-neutral-700, #645c50);
   }
 }
 </style>

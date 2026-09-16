@@ -109,7 +109,7 @@ const click = {
       </span>
     </div>
 
-    <div :ref="_handlers.setScrollRef" class="rp-body" :class="{ 'is-filled': state.isTableFilled }">
+    <div :ref="_handlers.setScrollRef" class="rp-body taiwan-lottery-scrollbar" :class="{ 'is-filled': state.isTableFilled }">
       <table class="rp-table" :class="{ 'is-empty': !hasData }">
         <thead>
           <tr>
@@ -157,9 +157,9 @@ const click = {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--color-red-700, #f3b7bf);
+  border: 1px solid #dcd3c4;
   border-radius: 0.5rem;
-  background: #fff;
+  background: var(--color-neutral-100, #f9f4ed);
   padding: 0.75rem;
 
   .rp-head {
@@ -168,15 +168,18 @@ const click = {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--color-neutral-400, #c0b6a5);
     font-size: 13px;
 
     .rp-title {
       font-weight: 700;
-      color: var(--color-red-main, #7f1d1d);
+      font-family: var(--font-heading);
+      color: var(--color-accent-700, #8c491a);
     }
 
     .rp-claim {
-      color: var(--color-red-desc, #9ca3af);
+      color: var(--color-neutral-700, #645c50);
 
       b {
         font-size: 15px;
@@ -185,9 +188,9 @@ const click = {
 
       .claim-btn {
         margin-left: 8px;
-        border: 1px solid var(--color-red-main, #7f1d1d);
+        border: 1px solid var(--color-accent-700, #8c491a);
         border-radius: 4px;
-        background: var(--color-red-main, #7f1d1d);
+        background: var(--color-accent-700, #8c491a);
         padding: 3px 12px;
         font-size: 12px;
         font-weight: 700;
@@ -208,31 +211,8 @@ const click = {
     width: 100%;
     overflow-x: hidden;
     overflow-y: auto;
-    border: 1px solid var(--color-red-content, #fee2e2);
+    border: 1px solid var(--color-neutral-300, #dcd3c4);
     border-top: 0;
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-red-main, #7f1d1d) var(--color-red-content, #fee2e2);
-
-    &::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: var(--color-red-content, #fee2e2);
-      border-radius: 999px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: var(--color-red-main, #7f1d1d);
-      border-radius: 999px;
-      border: 2px solid var(--color-red-content, #fee2e2);
-    }
-
-    &::-webkit-scrollbar-thumb:hover {
-      background: color-mix(in srgb, var(--color-red-main, #7f1d1d) 80%, black);
-    }
-
     &.is-filled .rp-table tbody tr:last-child td {
       border-bottom: none;
     }
@@ -253,16 +233,16 @@ const click = {
       position: sticky;
       top: 0;
       z-index: 1;
-      background: color-mix(in srgb, var(--color-red-main, #7f1d1d) 8%, #fff);
-      color: var(--color-red-desc, #9ca3af);
+      background: color-mix(in srgb, var(--color-accent-700, #8c491a) 8%, var(--color-neutral-100, #f9f4ed));
+      color: var(--color-neutral-700, #645c50);
       font-weight: 700;
       box-shadow:
-        inset 0 1px 0 0 var(--color-red-content, #fee2e2),
-        inset 0 -1px 0 0 var(--color-red-content, #fee2e2);
+        inset 0 1px 0 0 var(--color-neutral-300, #dcd3c4),
+        inset 0 -1px 0 0 var(--color-neutral-300, #dcd3c4);
     }
 
     tbody td {
-      border-bottom: 1px solid var(--color-red-content, #fee2e2);
+      border-bottom: 1px solid var(--color-neutral-300, #dcd3c4);
     }
 
     &.is-empty {
@@ -281,12 +261,12 @@ const click = {
     }
 
     .t-order {
-      color: var(--color-red-desc, #9ca3af);
+      color: var(--color-neutral-700, #645c50);
       overflow-wrap: anywhere;
     }
 
     .t-issue {
-      color: var(--color-red-desc, #9ca3af);
+      color: var(--color-neutral-700, #645c50);
       white-space: nowrap;
     }
 
@@ -312,7 +292,7 @@ const click = {
     }
 
     .is-lose .t-status {
-      color: var(--color-red-desc, #9ca3af);
+      color: var(--color-neutral-700, #645c50);
     }
 
     .is-pending .t-status {
@@ -329,7 +309,7 @@ const click = {
 
     .no-records {
       text-align: center;
-      color: var(--color-red-desc, #9ca3af);
+      color: var(--color-neutral-700, #645c50);
       padding: 12px 0;
     }
   }
@@ -340,19 +320,30 @@ const click = {
     box-sizing: border-box;
     padding: 0.55rem 0.1rem 0;
 
+    /* Pagination.vue 是 6hc-cd 共用的元件，顏色改用自訂屬性在這裡覆寫、不動元件本體 */
+    --color-red-main: var(--color-accent-700, #8c491a);
+    --color-red-content: var(--color-neutral-300, #dcd3c4);
+    --color-red-desc: var(--color-neutral-700, #645c50);
+
     :deep(.pagination-wrap) {
       width: 100%;
       justify-content: space-between;
       flex-wrap: wrap;
       row-gap: 0.45rem;
       font-size: 12px;
-      color: var(--color-red-desc, #9ca3af);
+      color: var(--color-neutral-700, #645c50);
     }
 
     :deep(.controls) {
       flex-wrap: wrap;
       justify-content: flex-end;
       row-gap: 0.35rem;
+    }
+
+    :deep(.btn:not(.active)),
+    :deep(.size select),
+    :deep(.page-input) {
+      background: var(--color-neutral-100, #f9f4ed);
     }
   }
 }

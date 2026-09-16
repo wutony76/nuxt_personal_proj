@@ -48,9 +48,9 @@ const hasData = computed(() => realList.value.length > 0)
 
 <style scoped lang="scss">
 .dlt-road {
-  border: 1px solid #fee2e2;
+  border: 1px solid var(--color-neutral-300, #dcd3c4);
   border-radius: var(--base-radius, 0.375rem);
-  background: #fff;
+  background: var(--color-neutral-100, #f9f4ed);
   padding: 0.75rem;
 }
 
@@ -58,13 +58,14 @@ const hasData = computed(() => realList.value.length > 0)
   margin: 0 0 0.5rem;
   font-size: 13px;
   font-weight: 700;
-  color: var(--color-red-main, #7f1d1d);
+  font-family: var(--font-heading);
+  color: var(--color-accent-700, #8c491a);
 }
 
 .dlt-road-empty {
   margin: 0;
   font-size: 12px;
-  color: var(--color-red-desc, #9ca3af);
+  color: var(--color-neutral-700, #645c50);
 }
 
 .dlt-road-grid {
@@ -83,13 +84,13 @@ const hasData = computed(() => realList.value.length > 0)
 .dlt-road-num {
   flex: 0 0 20px;
   font-weight: 700;
-  color: var(--color-red-main, #7f1d1d);
+  color: var(--color-accent-700, #8c491a);
 }
 
 .dlt-road-bar {
   flex: 1;
   height: 8px;
-  background: #f1f5f9;
+  background: var(--color-neutral-200, #eee7db);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -97,12 +98,12 @@ const hasData = computed(() => realList.value.length > 0)
 .dlt-road-bar-fill {
   display: block;
   height: 100%;
-  background: var(--color-red-main, #7f1d1d);
+  background: var(--color-accent-700, #8c491a);
 }
 
 .dlt-road-count {
   flex: 0 0 18px;
   text-align: right;
-  color: var(--color-red-desc, #9ca3af);
+  color: var(--color-neutral-700, #645c50);
 }
 </style>

@@ -6,7 +6,7 @@ const emit = defineEmits<{ close: [] }>()
 
 <template>
   <div v-if="props.visible" class="dlt-dialog-mask" @click.self="emit('close')">
-    <section class="dlt-dialog lottery-scrollbar" :style="props.width ? `width: ${props.width}` : undefined">
+    <section class="dlt-dialog taiwan-lottery-scrollbar" :style="props.width ? `width: ${props.width}` : undefined">
       <header class="dlt-dialog-header">
         <h3>{{ props.title }}</h3>
         <button type="button" class="close-btn" aria-label="關閉" @click="emit('close')">×</button>
@@ -34,9 +34,9 @@ const emit = defineEmits<{ close: [] }>()
   width: min(1000px, 96vw);
   max-height: 88vh;
   overflow: auto;
-  border: 4px solid #7f1d1d;
+  border: 4px solid var(--color-accent-700, #8c491a);
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-neutral-100, #f9f4ed);
   padding: 0.75rem;
 
   .dlt-dialog-header {
@@ -47,9 +47,9 @@ const emit = defineEmits<{ close: [] }>()
     margin-bottom: 10px;
     font-size: 16px;
     font-weight: 700;
-    color: var(--color-red-main);
+    color: var(--color-accent-700, #8c491a);
 
-    h3 { margin: 0; }
+    h3 { margin: 0; font-family: var(--font-heading); }
 
     .close-btn {
       position: absolute;
@@ -60,10 +60,10 @@ const emit = defineEmits<{ close: [] }>()
       font-size: 25px;
       font-weight: 700;
       line-height: 1;
-      color: var(--color-red-desc);
+      color: var(--color-neutral-700, #645c50);
       cursor: pointer;
 
-      &:hover { color: var(--color-red-main); }
+      &:hover { color: var(--color-accent-700, #8c491a); }
     }
   }
 }

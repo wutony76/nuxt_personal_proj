@@ -54,9 +54,9 @@ const click = {
 
 <style scoped lang="scss">
 .dlt-board {
-  border: 1px solid #fee2e2;
+  border: 1px solid var(--color-neutral-300, #dcd3c4);
   border-radius: var(--base-radius, 0.375rem);
-  background: #fff;
+  background: var(--color-neutral-100, #f9f4ed);
   padding: 0.75rem;
 
   &.is-disabled {
@@ -73,12 +73,13 @@ const click = {
   .dlt-board-title {
     font-size: 14px;
     font-weight: 700;
-    color: var(--color-red-main, #7f1d1d);
+    font-family: var(--font-heading);
+    color: var(--color-accent-700, #8c491a);
   }
 
   .dlt-board-count {
     font-size: 12px;
-    color: var(--color-red-desc, #9ca3af);
+    color: var(--color-neutral-700, #645c50);
 
     &.is-full {
       color: #15803d;
@@ -93,10 +94,10 @@ const click = {
   }
 
   .dlt-board-btn {
-    border: 1px solid var(--color-red-main, #7f1d1d);
+    border: 1px solid var(--color-accent-700, #8c491a);
     border-radius: 0.25rem;
-    background: #fff;
-    color: var(--color-red-main, #7f1d1d);
+    background: var(--color-neutral-100, #f9f4ed);
+    color: var(--color-accent-700, #8c491a);
     font-size: 12px;
     padding: 3px 8px;
     cursor: pointer;

@@ -50,7 +50,7 @@ const prizeTiers = [
 
 <template>
   <div v-if="visible" class="rule-dialog-mask" @click.self="emit('close')">
-    <section ref="dialogEl" class="rule-dialog lottery-scrollbar">
+    <section ref="dialogEl" class="rule-dialog taiwan-lottery-scrollbar">
       <header class="rule-dialog-header">
         <h3>玩法說明 — 大樂透（官方鏡射玩法）</h3>
         <button type="button" class="close-btn" @click="emit('close')">×</button>
@@ -171,9 +171,9 @@ const prizeTiers = [
   width: min(760px, 96vw);
   max-height: 88vh;
   overflow: auto;
-  background: #fff;
+  background: var(--color-neutral-100, #f9f4ed);
   border-radius: 8px;
-  border: 4px solid #7f1d1d;
+  border: 4px solid var(--color-accent-700, #8c491a);
   padding: 0.75rem;
 
   .rule-nav {
@@ -181,8 +181,8 @@ const prizeTiers = [
     flex-wrap: wrap;
     gap: 6px;
     padding: 8px 10px;
-    background: #fff5f6;
-    border: 1px solid #fee2e2;
+    background: var(--color-accent-100, #fff2eb);
+    border: 1px solid var(--color-neutral-300, #dcd3c4);
     border-bottom: unset;
     border-radius: 6px 6px 0 0;
   }
@@ -191,16 +191,16 @@ const prizeTiers = [
     padding: 3px 10px;
     font-size: 12px;
     font-weight: 600;
-    color: var(--color-red-main);
-    background: #fff;
-    border: 1px solid #f2b7c1;
+    color: var(--color-accent-700, #8c491a);
+    background: var(--color-neutral-100, #f9f4ed);
+    border: 1px solid var(--color-accent-400, #f6a06b);
     border-radius: 999px;
     cursor: pointer;
     white-space: nowrap;
     transition: background 0.15s, color 0.15s;
 
     &:hover {
-      background: var(--color-red-main);
+      background: var(--color-accent-700, #8c491a);
       color: #fff;
     }
   }
@@ -215,7 +215,8 @@ const prizeTiers = [
       margin: 0;
       font-size: 16px;
       font-weight: 700;
-      color: var(--color-red-main);
+      font-family: var(--font-heading);
+      color: var(--color-accent-700, #8c491a);
     }
 
     .close-btn {
@@ -227,11 +228,11 @@ const prizeTiers = [
       background: none;
       border: none;
       cursor: pointer;
-      color: var(--color-red-desc);
+      color: var(--color-neutral-700, #645c50);
       line-height: 1;
 
       &:hover {
-        color: var(--color-red-main);
+        color: var(--color-accent-700, #8c491a);
       }
     }
   }
@@ -242,7 +243,7 @@ const prizeTiers = [
   }
 
   .rule-section {
-    border: 1px solid #fee2e2;
+    border: 1px solid var(--color-neutral-300, #dcd3c4);
     border-radius: 6px;
     padding: 12px 14px;
 
@@ -259,15 +260,16 @@ const prizeTiers = [
     margin: 0 0 10px;
     font-size: 13px;
     font-weight: 700;
-    color: var(--color-red-main);
-    border-left: 3px solid var(--color-red-main);
+    font-family: var(--font-heading);
+    color: var(--color-accent-700, #8c491a);
+    border-left: 3px solid var(--color-accent-700, #8c491a);
     padding-left: 8px;
   }
 
   .rule-note {
     margin: 0 0 8px;
     font-size: 12px;
-    color: var(--color-red-desc);
+    color: var(--color-neutral-700, #645c50);
   }
 
   .rule-list {
@@ -280,7 +282,7 @@ const prizeTiers = [
     line-height: 1.55;
 
     strong {
-      color: var(--color-red-main);
+      color: var(--color-accent-700, #8c491a);
     }
   }
 
@@ -290,7 +292,7 @@ const prizeTiers = [
     font-size: 12px;
 
     thead th {
-      background: var(--color-red-main);
+      background: var(--color-accent-700, #8c491a);
       color: #fff;
       font-weight: 600;
       padding: 6px 8px;
@@ -301,7 +303,7 @@ const prizeTiers = [
     tbody td {
       padding: 6px 8px;
       text-align: center;
-      border-bottom: 1px solid #fee2e2;
+      border-bottom: 1px solid var(--color-neutral-300, #dcd3c4);
       color: #374151;
     }
 
@@ -310,7 +312,7 @@ const prizeTiers = [
     }
 
     tbody tr:hover td {
-      background: #fff5f6;
+      background: var(--color-accent-100, #fff2eb);
     }
   }
 
@@ -323,7 +325,7 @@ const prizeTiers = [
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
     font-weight: 600;
-    color: var(--color-red-desc);
+    color: var(--color-neutral-700, #645c50);
   }
 
   .status-badge {
@@ -346,8 +348,8 @@ const prizeTiers = [
     }
 
     &.status-已開獎 {
-      background: #fee2e2;
-      color: var(--color-red-main);
+      background: var(--color-neutral-300, #dcd3c4);
+      color: var(--color-accent-700, #8c491a);
     }
 
     &.status-已封盤 {
@@ -368,7 +370,7 @@ const prizeTiers = [
 
     .tier-name {
       font-weight: 700;
-      color: var(--color-red-main);
+      color: var(--color-accent-700, #8c491a);
     }
 
     .tier-match {
@@ -387,7 +389,7 @@ const prizeTiers = [
     font-size: 12px;
     font-weight: 700;
     color: #fff;
-    background: var(--color-red-main);
+    background: var(--color-accent-700, #8c491a);
     border: none;
     border-radius: 999px;
     cursor: pointer;
