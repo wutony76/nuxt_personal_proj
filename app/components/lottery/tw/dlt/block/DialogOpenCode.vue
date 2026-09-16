@@ -13,7 +13,7 @@ const { openCodeHistory } = useDlt()
 /** 排除 admin 測試工具留下的假開獎紀錄（issue 帶「（測試）」後綴，見 dlt.ts _attemptSettlement()） */
 const realList = computed(() => openCodeHistory.list.filter((row) => !row.issue.includes('（測試）')))
 
-type SortKey = 'issue' | 'startAt' | 'endAt'
+type SortKey = 'issue' | 'endAt'
 type SortDir = 'asc' | 'desc'
 
 const sortKey = ref<SortKey | null>('issue')
@@ -74,8 +74,7 @@ const filteredList = computed(() => {
             <tr>
               <th class="sortable-th" @click="toggleSort('issue')">開獎期數{{ sortIcon('issue') }}</th>
               <th>開獎球號</th>
-              <th class="sortable-th" @click="toggleSort('startAt')">開始時間{{ sortIcon('startAt') }}</th>
-              <th class="sortable-th" @click="toggleSort('endAt')">結束時間{{ sortIcon('endAt') }}</th>
+              <th class="sortable-th" @click="toggleSort('endAt')">開獎時間{{ sortIcon('endAt') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -88,11 +87,10 @@ const filteredList = computed(() => {
                   <Ball :num="item.openCode[6]" size="sm" special />
                 </div>
               </td>
-              <td>{{ new Date(item.startAt).toLocaleString() }}</td>
               <td>{{ new Date(item.endAt).toLocaleString() }}</td>
             </tr>
             <tr v-if="filteredList.length === 0">
-              <td colspan="4" class="no-records">{{ issueQuery ? '查無符合期數' : '暫無資料' }}</td>
+              <td colspan="3" class="no-records">{{ issueQuery ? '查無符合期數' : '暫無資料' }}</td>
             </tr>
           </tbody>
         </table>
@@ -220,6 +218,7 @@ const filteredList = computed(() => {
 .dlt-opencode-balls {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.25rem;
 }
 
