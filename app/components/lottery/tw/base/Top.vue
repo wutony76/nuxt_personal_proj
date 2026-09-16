@@ -69,14 +69,14 @@ const handleLogout = () => {
 <style scoped lang="scss">
 .tw-top {
   --top-main: #8c491a;
-  --top-desc: #82796a;
-  --top-soft-border: #dcd3c4;
-  --top-grad-start: #fff2eb;
-  --top-shadow: rgba(46, 43, 37, 0.08);
-  --top-hover-main: #643312;
-  border-bottom: 1px solid var(--top-soft-border);
-  background: linear-gradient(180deg, var(--top-grad-start) 0%, #fff 100%);
-  box-shadow: 0 2px 8px var(--top-shadow);
+  --top-desc: rgba(245, 234, 216, 0.85);
+  --top-pill-bg: rgba(245, 234, 216, 0.1);
+  --top-pill-border: rgba(245, 234, 216, 0.22);
+  --top-pill-hover-bg: rgba(245, 234, 216, 0.2);
+  --top-pill-hover-border: rgba(245, 234, 216, 0.4);
+  --top-hover-main: #a85d2e;
+  background: #2e2b25;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
 }
 
 .inner {
@@ -94,10 +94,10 @@ const handleLogout = () => {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  border: 1px solid var(--top-main);
+  border: 1px solid var(--top-pill-border);
   border-radius: 6px;
-  background: #fff;
-  color: var(--top-main);
+  background: var(--top-pill-bg);
+  color: #f5ead8;
   padding: 0.35rem 0.75rem;
   font-size: 12px;
   font-weight: 700;
@@ -107,7 +107,8 @@ const handleLogout = () => {
 }
 
 .left :deep(a:hover) {
-  background: var(--top-main);
+  background: var(--top-pill-hover-bg);
+  border-color: var(--top-pill-hover-border);
   color: #fff;
 }
 
@@ -135,9 +136,9 @@ const handleLogout = () => {
 
 .menu :deep(a:hover),
 .menu .ghost-btn:hover {
-  border-color: var(--top-soft-border);
-  background: #fff;
-  color: var(--top-main);
+  border-color: var(--top-pill-hover-border);
+  background: var(--top-pill-hover-bg);
+  color: #f5ead8;
 }
 
 .menu .logout-btn {
