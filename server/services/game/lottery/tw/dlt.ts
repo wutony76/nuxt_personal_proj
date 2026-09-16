@@ -520,17 +520,14 @@ export default class DltClass extends LOTTERY_BASE {
 
   /**
    * 「熱門選號」：統計本期（currentIssue）目前所有玩家已下注的注碼，依下注人數（注數）
-   * 由多到少排序取前 5 組；本期完全還沒有人下注時，改成隨機產生 5 組墊底（見 History.vue
-   * 「近期開獎」的「來一注」同一套 applyNumbers() 前端邏輯，這裡只負責提供號碼來源）。
+   * 由多到少排序取前 5 組；不足 5 組（含完全沒人下注）時，用隨機號碼墊到滿 5 組——
+   * 前端固定顯示 5 列，不會因為本期下注組合不夠而少顯示（見 PopularPicks.vue／
+   * History.vue「來一注」共用的 applyNumbers() 前端邏輯，這裡只負責提供號碼來源）。
    */
   _popularNumbers(): Array<{ betCode: number[]; count: number }> {
     const issueOrders = (this._get.orders().get.orders.currentIssue(this.currentIssue) ?? []) as Array<{
       betCode: string[]
     }>
-
-    if (issueOrders.length === 0) {
-      return Array.from({ length: POPULAR_PICKS_COUNT }, () => ({ betCode: _randomBetCode(), count: 0 }))
-    }
 
     const freq = new Map<string, number>()
     issueOrders.forEach((row) => {
@@ -538,10 +535,21 @@ export default class DltClass extends LOTTERY_BASE {
       if (code) freq.set(code, (freq.get(code) ?? 0) + 1)
     })
 
-    return [...freq.entries()]
+    const real = [...freq.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, POPULAR_PICKS_COUNT)
       .map(([code, count]) => ({ betCode: code.split(',').map(Number), count }))
+
+    const usedKeys = new Set(real.map((r) => r.betCode.join(',')))
+    const padded = [...real]
+    while (padded.length < POPULAR_PICKS_COUNT) {
+      const betCode = _randomBetCode()
+      const key = betCode.join(',')
+      if (usedKeys.has(key)) continue
+      usedKeys.add(key)
+      padded.push({ betCode, count: 0 })
+    }
+    return padded
   }
 
   /** 確保 currentIssue／cutoffAt／drawAt／currentStatus 對應到「現在」這個時間點該有的狀態 */
