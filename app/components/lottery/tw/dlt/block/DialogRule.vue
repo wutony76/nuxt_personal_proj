@@ -181,10 +181,11 @@ const prizeTiers = [
     flex-wrap: wrap;
     gap: 6px;
     padding: 8px 10px;
-    background: var(--color-accent-100, #fff2eb);
-    border: 1px solid var(--color-neutral-300, #dcd3c4);
+    background: #8c491a;
+    border: 1px solid var(--color-accent-800, #643312);
     border-bottom: unset;
     border-radius: 6px 6px 0 0;
+    box-shadow: var(--shadow-sm);
   }
 
   .rule-nav-btn {
@@ -193,14 +194,15 @@ const prizeTiers = [
     font-weight: 600;
     color: var(--color-accent-700, #8c491a);
     background: var(--color-neutral-100, #f9f4ed);
-    border: 1px solid var(--color-accent-400, #f6a06b);
+    border: 1px solid var(--color-accent-100, #fff2eb);
     border-radius: 999px;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s, color 0.15s;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 
     &:hover {
-      background: var(--color-accent-700, #8c491a);
+      background: var(--color-accent-800, #643312);
+      border-color: var(--color-accent-800, #643312);
       color: #fff;
     }
   }
