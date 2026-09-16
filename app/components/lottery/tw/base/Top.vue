@@ -41,9 +41,9 @@ const handleLogout = () => {
     },
     options: {
       cancelButton: true,
-      // 只調整這個彈窗的兩顆鈕（取消實心紅底、確認白底外框），
-      // 其他 $dialog 呼叫點不受影響 —— 樣式定義在 Dialog.vue 的 &.is-logout
-      className: 'is-logout'
+      // 取消實心底、確認外框（安全設計沿用 is-logout），配色改用柑仔店主題
+      // （is-dlt）——樣式定義在 Dialog.vue 的 &.is-logout 與 &.is-dlt.is-logout
+      className: 'is-logout is-dlt'
     }
   })
 }

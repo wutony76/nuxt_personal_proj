@@ -37,7 +37,8 @@ const click = {
       <span class="dlt-board-title">第 {{ slot.id }} 組</span>
       <span class="dlt-board-count" :class="{ 'is-full': isFull }">已選 {{ slot.numbers.length }} / {{ DLT_PICK_COUNT }}</span>
       <div class="dlt-board-actions">
-        <button type="button" class="dlt-board-btn" :disabled="disabled" @click="click.quickPick">電腦選號</button>
+        <button type="button" class="dlt-board-btn dlt-board-btn-primary" :disabled="disabled"
+          @click="click.quickPick">電腦選號</button>
         <button type="button" class="dlt-board-btn" :disabled="disabled" @click="click.clear">清空</button>
       </div>
     </div>
@@ -101,10 +102,26 @@ const click = {
     font-size: 12px;
     padding: 3px 8px;
     cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+    &:hover:not(:disabled) {
+      background: var(--color-accent-100, #fff2eb);
+    }
 
     &:disabled {
       opacity: 0.5;
       cursor: default;
+    }
+
+    &.dlt-board-btn-primary {
+      border-color: var(--color-accent-700, #8c491a);
+      background: var(--color-accent-700, #8c491a);
+      color: #fff;
+
+      &:hover:not(:disabled) {
+        background: var(--color-accent-800, #643312);
+        border-color: var(--color-accent-800, #643312);
+      }
     }
   }
 }

@@ -298,6 +298,84 @@ const dialogClick = {
       }
     }
   }
+
+  /* ── 彩運來／柑仔店主題（呼叫端傳 className: 'is-dlt'）──────────
+     Teleport 到 body，脫離 .theme-taiwan-lottery 的 DOM 範圍，
+     taiwan_lottery.scss 那組 --color-* 變數在這裡吃不到，所以顏色直接寫死 hex
+     （跟 is-admin 的做法一樣），字體則沿用 taiwan_lottery.scss 已全域載入的
+     Caprasimo／Noto Serif TC 字型檔（@import 是真的載入字型，不受 DOM 範圍限制）。 */
+  &.is-dlt {
+    max-width: 340px;
+    border: 2px solid #8c491a;
+    border-radius: 0.5rem;
+    box-shadow: 0 12px 28px rgba(46, 43, 37, 0.22);
+    background: #f9f4ed;
+
+    .header {
+      background: #2e2b25;
+      border-bottom: none;
+      padding: 10px 14px;
+
+      .title {
+        color: #f5ead8;
+        font-family: 'Caprasimo', 'Noto Serif TC', serif;
+        font-weight: 900;
+        font-size: 16px;
+      }
+    }
+
+    .close {
+      color: rgba(245, 234, 216, 0.75);
+
+      &:hover {
+        color: #f5ead8;
+      }
+    }
+
+    .dialog-content {
+      color: #474238;
+      font-size: 14px;
+      line-height: 1.7;
+      padding: 18px 16px;
+    }
+
+    .dialog-footer {
+      padding: 12px 16px 16px;
+
+      .btn-dialog {
+        border-radius: 0.25rem;
+        font-weight: 700;
+      }
+
+      .btn-dialog-cancel {
+        border: 1px solid #8c491a;
+        background: #f9f4ed;
+        color: #8c491a;
+      }
+
+      .btn-dialog-ok {
+        background: #8c491a;
+        color: #f9f4ed;
+        border: 1px solid #8c491a;
+      }
+    }
+
+    /* 登出二次確認（呼叫端傳 className: 'is-logout is-dlt'）：
+       沿用 is-logout「取消變顯眼、確認變低調」的安全設計，只是換成柑仔店色票，
+       避免直接吃到 is-logout 預設的 BG 紅色系跟這裡的暖色調打架。 */
+    &.is-logout .dialog-footer {
+      .btn-dialog-cancel {
+        background: #8c491a;
+        color: #f9f4ed;
+      }
+
+      .btn-dialog-ok {
+        border: 1px solid #8c491a;
+        background: #f9f4ed;
+        color: #8c491a;
+      }
+    }
+  }
 }
 
 .dialog-content.loading {

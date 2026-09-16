@@ -280,6 +280,35 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
     justify-content: center;
     gap: 0.45rem;
     flex-wrap: wrap;
+
+    /* 只在這裡的開獎球加金屬光澤，不動 Ball.vue 本體（其他地方共用同一支元件） */
+    :deep(.dlt-ball) {
+      position: relative;
+      overflow: hidden;
+      background-image:
+        radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 35%),
+        radial-gradient(circle at 75% 80%, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 45%),
+        linear-gradient(135deg,
+          rgba(255, 255, 255, 0.3) 0%,
+          rgba(88, 28, 135, 0.08) 45%,
+          rgba(76, 29, 149, 0.55) 100%);
+      box-shadow:
+        0 2px 4px rgba(76, 29, 149, 0.4),
+        inset 0 1px 2px rgba(255, 255, 255, 0.9),
+        inset 0 -3px 4px rgba(76, 29, 149, 0.5);
+    }
+
+    :deep(.dlt-ball)::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -60%;
+      width: 55%;
+      height: 200%;
+      background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+      transform: rotate(20deg);
+      animation: dlt-ball-shine 2.6s ease-in-out infinite;
+    }
   }
 
   .dlt-open-plus {
@@ -291,6 +320,16 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
   .dlt-open-empty {
     font-size: 13px;
     color: var(--color-neutral-700, #645c50);
+  }
+}
+
+@keyframes dlt-ball-shine {
+  0% {
+    left: -60%;
+  }
+
+  50%, 100% {
+    left: 130%;
   }
 }
 </style>

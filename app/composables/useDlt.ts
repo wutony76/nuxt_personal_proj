@@ -304,9 +304,10 @@ const fetch = {
       state.message = result?.message ?? '下注成功'
       state.lastOrderId = String(result?.orderId ?? '')
       wallet.coin = Number(result?.coin ?? wallet.coin)
+      const readyAmount = readySlots.length * DLT_BET_AMOUNT
       _actions.clearAll()
       await Promise.all([fetch.userInfo(), fetch.userRecordAll()])
-      return { ok: true, message: state.message, count: readySlots.length, amount: totalAmount.value }
+      return { ok: true, message: state.message, count: readySlots.length, amount: readyAmount }
     } catch (error) {
       state.submitStatus = 'error'
       const err = error as { data?: { message?: string; statusMessage?: string; data?: { code?: number } }; statusCode?: number }
