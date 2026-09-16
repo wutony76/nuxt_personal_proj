@@ -27,7 +27,8 @@
     "test:pl3": "node scripts/test-pl3.mjs",
     "test:retro": "node scripts/test-retro.mjs",
     "test:toy-lucky-draw": "node scripts/test-toy-lucky-draw.mjs",
-    "test:toy-cards": "node scripts/test-toy-cards.mjs"
+    "test:toy-cards": "node scripts/test-toy-cards.mjs",
+    "test:toy-soda-whistle": "node scripts/test-toy-soda-whistle.mjs"
   },
   "dependencies": {
     "@nuxt/content": "^3.12.0",

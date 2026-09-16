@@ -1091,6 +1091,25 @@ export type ToyCardsRollPayload = {
   choice?: ToyCardsChoice
 }
 
+export type ToySodaView = {
+  status: 'idle' | 'result'
+  busted: boolean | null
+  step: number
+  prize: number
+  unclaimed: number
+  reward: number
+  balance: number
+  claimed: boolean
+  canContinue: boolean
+  canClaim: boolean
+  gameKey: string | null
+}
+
+export type ToySodaRollPayload = {
+  action: 'start' | 'continue' | 'claim'
+  bet?: number
+}
+
 export const api = {
   system: {
     servTime: () => $fetch<{ serverTime: number }>('/api/servTime')
@@ -1421,7 +1440,10 @@ export const api = {
         $fetch<ToyLuckyDrawView>('/api/games/toys/lucky-draw/roll', { method: 'POST', body: payload }),
       cardsState: () => $fetch<ToyCardsView>('/api/games/toys/cards/state'),
       rollCards: (payload: ToyCardsRollPayload) =>
-        $fetch<ToyCardsView>('/api/games/toys/cards/roll', { method: 'POST', body: payload })
+        $fetch<ToyCardsView>('/api/games/toys/cards/roll', { method: 'POST', body: payload }),
+      sodaState: () => $fetch<ToySodaView>('/api/games/toys/soda-whistle/state'),
+      rollSoda: (payload: ToySodaRollPayload) =>
+        $fetch<ToySodaView>('/api/games/toys/soda-whistle/roll', { method: 'POST', body: payload })
     },
     retro: {
       historySnake: () => $fetch<GameHistoryListResponse>('/api/games/retro/snake/history'),

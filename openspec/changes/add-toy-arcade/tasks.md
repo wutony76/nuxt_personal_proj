@@ -45,9 +45,9 @@
 
 ## 8. 汽水笛
 
-- [ ] 8.1 新增 `/toys/soda-whistle`。獎金以注額 100 的示意表換算：`round(bet * 表定金額 / 100)`
-- [ ] 8.2 爆掉機率 2%、4%、7%、12%、20%、30%。爆掉歸零。第 6 次成功只能領
-- [ ] 8.3 補 `scripts/test-toy-soda-whistle.mjs`
+- [x] 8.1 新增 `/toys/soda-whistle`。獎金以注額 100 的示意表換算：`round(bet * 表定金額 / 100)`
+- [x] 8.2 爆掉機率 2%、4%、7%、12%、20%、30%。爆掉歸零。第 6 次成功只能領
+- [x] 8.3 補 `scripts/test-toy-soda-whistle.mjs`
 
 ## 9. 竹蜻蜓
 

@@ -19,6 +19,8 @@ export const TOY_BET_CHIPS = [10, 50, 100, 500] as const
 export const TOY_MAX_POT_MULTIPLIER = 500
 export const TOY_FLIP_MS = 600
 export const LUCKY_DRAW_CELLS = 12
+export const SODA_PRIZES = [100, 150, 250, 400, 700, 1200] as const
+export const SODA_BUST_RATES = [0.02, 0.04, 0.07, 0.12, 0.2, 0.3] as const
 
 export const TOY_CATALOG: ToyCatalogItem[] = [
   { slug: 'big-pig', name: '大豬公', kind: '懷舊零嘴', mark: '豬', blurb: '跟大豬公比兩顆骰', status: 'soon', path: null },
@@ -27,7 +29,7 @@ export const TOY_CATALOG: ToyCatalogItem[] = [
   { slug: 'whistle-candy', name: '哨子糖', kind: '懷舊零嘴', mark: '哨', blurb: '短、中、長，看誰壓過誰', status: 'soon', path: null },
   { slug: 'pog', name: '尪仔標', kind: '古早玩具', mark: '標', blurb: '五張牌跟對方比一輪', status: 'soon', path: null },
   { slug: 'bamboo-copter', name: '竹蜻蜓', kind: '古早玩具', mark: '蜓', blurb: '猜它能飛多高', status: 'soon', path: null },
-  { slug: 'soda-whistle', name: '汽水笛', kind: '古早玩具', mark: '笛', blurb: '繼續吹，小心吹破', status: 'soon', path: null },
+  { slug: 'soda-whistle', name: '汽水笛', kind: '古早玩具', mark: '笛', blurb: '繼續吹，小心吹破', status: 'open', path: '/toys/soda-whistle' },
   { slug: 'cards', name: '紙牌', kind: '古早玩具', mark: '牌', blurb: '猜下一張大、小或相同', status: 'open', path: '/toys/cards' }
 ]
 

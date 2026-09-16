@@ -7,6 +7,7 @@ defineProps<{
   canContinue: boolean
   canReplay: boolean
   busy: boolean
+  continueLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -22,7 +23,7 @@ const emit = defineEmits<{
     <p>{{ detail }}</p>
     <div class="result-actions">
       <button v-if="canClaim" type="button" :disabled="busy" @click="emit('claim')">領取</button>
-      <button v-if="canContinue" type="button" :disabled="busy" @click="emit('continue')">繼續抽</button>
+      <button v-if="canContinue" type="button" :disabled="busy" @click="emit('continue')">{{ continueLabel || '繼續抽' }}</button>
       <button v-if="canReplay" type="button" :disabled="busy" @click="emit('replay')">再玩一次</button>
       <NuxtLink to="/lottery-hall-taiwan#tw-shelf">回大廳</NuxtLink>
     </div>
