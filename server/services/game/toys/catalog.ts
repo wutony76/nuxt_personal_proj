@@ -44,7 +44,7 @@ export const GUMMY_COLORS = [
 ] as const
 
 export const TOY_CATALOG: ToyCatalogItem[] = [
-  { slug: 'big-pig', name: '大豬公', kind: '懷舊零嘴', mark: '豬', blurb: '跟大豬公比兩顆骰', status: 'soon', path: null },
+  { slug: 'big-pig', name: '大豬公', kind: '懷舊零嘴', mark: '豬', blurb: '跟大豬公比兩顆骰', status: 'open', path: '/toys/big-pig' },
   { slug: 'lucky-draw', name: '抽抽樂', kind: '懷舊零嘴', mark: '抽', blurb: '選一格，看看裡頭有沒有獎', status: 'open', path: '/toys/lucky-draw' },
   { slug: 'gummy', name: '橡皮糖', kind: '懷舊零嘴', mark: '糖', blurb: '猜下一顆是什麼顏色', status: 'open', path: '/toys/gummy' },
   { slug: 'whistle-candy', name: '哨子糖', kind: '懷舊零嘴', mark: '哨', blurb: '短、中、長，看誰壓過誰', status: 'soon', path: null },

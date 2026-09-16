@@ -1149,6 +1149,20 @@ export type ToyGummyRollPayload = {
   guess?: ToyGummyColor
 }
 
+export type ToyBigPigKind = 'tie' | 'gold' | 'pair' | 'win' | 'tiny' | 'lose'
+
+export type ToyBigPigView = {
+  status: 'idle' | 'result'
+  player: [number, number] | null
+  npc: [number, number] | null
+  kind: ToyBigPigKind | null
+  multiplier: number
+  reward: number
+  balance: number
+  gameKey: string | null
+  blocked: boolean
+}
+
 export const api = {
   system: {
     servTime: () => $fetch<{ serverTime: number }>('/api/servTime')
@@ -1488,7 +1502,10 @@ export const api = {
         $fetch<ToyBambooView>('/api/games/toys/bamboo-copter/roll', { method: 'POST', body: payload }),
       gummyState: () => $fetch<ToyGummyView>('/api/games/toys/gummy/state'),
       rollGummy: (payload: ToyGummyRollPayload) =>
-        $fetch<ToyGummyView>('/api/games/toys/gummy/roll', { method: 'POST', body: payload })
+        $fetch<ToyGummyView>('/api/games/toys/gummy/roll', { method: 'POST', body: payload }),
+      bigPigState: () => $fetch<ToyBigPigView>('/api/games/toys/big-pig/state'),
+      rollBigPig: (payload: { bet: number }) =>
+        $fetch<ToyBigPigView>('/api/games/toys/big-pig/roll', { method: 'POST', body: payload })
     },
     retro: {
       historySnake: () => $fetch<GameHistoryListResponse>('/api/games/retro/snake/history'),
