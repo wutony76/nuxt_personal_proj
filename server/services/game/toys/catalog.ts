@@ -36,11 +36,17 @@ export const BAMBOO_TARGETS = [
   { id: 'm40', min: 40, multiplier: 4 },
   { id: 'm50', min: 50, multiplier: 15 }
 ] as const
+export const GUMMY_COLORS = [
+  { id: 'red', label: '紅', weight: 2500 },
+  { id: 'yellow', label: '黃', weight: 2500 },
+  { id: 'blue', label: '藍', weight: 2500 },
+  { id: 'green', label: '綠', weight: 2500 }
+] as const
 
 export const TOY_CATALOG: ToyCatalogItem[] = [
   { slug: 'big-pig', name: '大豬公', kind: '懷舊零嘴', mark: '豬', blurb: '跟大豬公比兩顆骰', status: 'soon', path: null },
   { slug: 'lucky-draw', name: '抽抽樂', kind: '懷舊零嘴', mark: '抽', blurb: '選一格，看看裡頭有沒有獎', status: 'open', path: '/toys/lucky-draw' },
-  { slug: 'gummy', name: '橡皮糖', kind: '懷舊零嘴', mark: '糖', blurb: '猜下一顆是什麼顏色', status: 'soon', path: null },
+  { slug: 'gummy', name: '橡皮糖', kind: '懷舊零嘴', mark: '糖', blurb: '猜下一顆是什麼顏色', status: 'open', path: '/toys/gummy' },
   { slug: 'whistle-candy', name: '哨子糖', kind: '懷舊零嘴', mark: '哨', blurb: '短、中、長，看誰壓過誰', status: 'soon', path: null },
   { slug: 'pog', name: '尪仔標', kind: '古早玩具', mark: '標', blurb: '五張牌跟對方比一輪', status: 'soon', path: null },
   { slug: 'bamboo-copter', name: '竹蜻蜓', kind: '古早玩具', mark: '蜓', blurb: '猜它能飛多高', status: 'open', path: '/toys/bamboo-copter' },

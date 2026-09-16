@@ -29,7 +29,8 @@
     "test:toy-lucky-draw": "node scripts/test-toy-lucky-draw.mjs",
     "test:toy-cards": "node scripts/test-toy-cards.mjs",
     "test:toy-soda-whistle": "node scripts/test-toy-soda-whistle.mjs",
-    "test:toy-bamboo-copter": "node scripts/test-toy-bamboo-copter.mjs"
+    "test:toy-bamboo-copter": "node scripts/test-toy-bamboo-copter.mjs",
+    "test:toy-gummy": "node scripts/test-toy-gummy.mjs"
   },
   "dependencies": {
     "@nuxt/content": "^3.12.0",

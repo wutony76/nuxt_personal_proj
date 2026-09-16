@@ -1124,6 +1124,31 @@ export type ToyBambooView = {
   blocked: boolean
 }
 
+export type ToyGummyColor = 'red' | 'yellow' | 'blue' | 'green'
+
+export type ToyGummyView = {
+  status: 'idle' | 'result'
+  color: ToyGummyColor | null
+  guess: ToyGummyColor | null
+  correct: boolean | null
+  history: ToyGummyColor[]
+  multiplier: number
+  streak: number
+  unclaimed: number
+  reward: number
+  balance: number
+  claimed: boolean
+  canGuess: boolean
+  canClaim: boolean
+  gameKey: string | null
+}
+
+export type ToyGummyRollPayload = {
+  action: 'start' | 'guess' | 'claim'
+  bet?: number
+  guess?: ToyGummyColor
+}
+
 export const api = {
   system: {
     servTime: () => $fetch<{ serverTime: number }>('/api/servTime')
@@ -1460,7 +1485,10 @@ export const api = {
         $fetch<ToySodaView>('/api/games/toys/soda-whistle/roll', { method: 'POST', body: payload }),
       bambooState: () => $fetch<ToyBambooView>('/api/games/toys/bamboo-copter/state'),
       rollBamboo: (payload: { bet: number; target: ToyBambooTarget }) =>
-        $fetch<ToyBambooView>('/api/games/toys/bamboo-copter/roll', { method: 'POST', body: payload })
+        $fetch<ToyBambooView>('/api/games/toys/bamboo-copter/roll', { method: 'POST', body: payload }),
+      gummyState: () => $fetch<ToyGummyView>('/api/games/toys/gummy/state'),
+      rollGummy: (payload: ToyGummyRollPayload) =>
+        $fetch<ToyGummyView>('/api/games/toys/gummy/roll', { method: 'POST', body: payload })
     },
     retro: {
       historySnake: () => $fetch<GameHistoryListResponse>('/api/games/retro/snake/history'),
