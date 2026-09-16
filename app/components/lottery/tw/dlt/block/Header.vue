@@ -34,13 +34,21 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
 
     <div class="dlt-header-right">
       <div class="dlt-timer">
-        <div class="dlt-issue">本期{{ mxCurrent.runtime?.issue ?? '—' }}</div>
-        <div class="dlt-status" :class="{ 'is-pending': isPendingSettlement }">{{ currentStatus }}</div>
-        <div class="dlt-countdown">
-          <template v-if="drawAtDateLabel">{{ drawAtDateLabel }}<span
-              class="dlt-countdown-suffix">({{ drawAtWeekdayLabel }})</span>{{ drawAtTimeLabel }} <span
-              class="dlt-countdown-suffix">開獎</span></template>
-          <template v-else>—</template>
+        <div class="dlt-timer-card is-issue">
+          <div class="dlt-timer-label">本期期號</div>
+          <div class="dlt-timer-value">{{ mxCurrent.runtime?.issue ?? '—' }}</div>
+        </div>
+        <div class="dlt-timer-card is-status">
+          <div class="dlt-timer-label">
+            <span class="dlt-timer-dot" :class="{ 'is-pending': isPendingSettlement }" />
+            {{ currentStatus }}
+          </div>
+          <div class="dlt-timer-value dlt-timer-value-sm">
+            <template v-if="drawAtDateLabel">{{ drawAtDateLabel }}<span
+                class="dlt-countdown-suffix">({{ drawAtWeekdayLabel }})</span>{{ drawAtTimeLabel }} <span
+                class="dlt-countdown-suffix">開獎</span></template>
+            <template v-else>—</template>
+          </div>
         </div>
       </div>
 
@@ -51,9 +59,9 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
           <template v-if="lastOpenCode">(第 {{ lastOpenCode.issue }} 期)</template>
         </div>
         <div v-if="lastOpenCode" class="dlt-open-balls">
-          <Ball v-for="(n, idx) in lastNumbers" :key="`n-${idx}`" :num="n" size="md" />
+          <Ball v-for="(n, idx) in lastNumbers" :key="`n-${idx}`" :num="n" size="lg" />
           <span class="dlt-open-plus">+</span>
-          <Ball :num="lastSpecial ?? undefined" size="md" special />
+          <Ball :num="lastSpecial ?? undefined" size="lg" special />
         </div>
         <div v-else class="dlt-open-empty">尚無開獎紀錄</div>
       </div>
@@ -63,39 +71,63 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
 
 <style scoped lang="scss">
 .dlt-header {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
   gap: 1rem;
-  border: 4px solid var(--color-accent-700, #8c491a);
+  border: 2px solid #8c491a;
   border-radius: 0.5rem;
-  background: var(--color-neutral-100, #f9f4ed);
-  padding: 1rem 1.25rem;
+  background: linear-gradient(180deg, var(--color-accent-100, #fff2eb) 0%, var(--color-neutral-100, #f9f4ed) 100%);
+  box-shadow: var(--shadow-md);
+  padding: calc(1rem + 14px) 1.25rem calc(1rem + 14px);
+}
+
+.dlt-header::before,
+.dlt-header::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  height: 14px;
+  background: var(--color-accent-700, #8c491a);
+  background-image: radial-gradient(circle at 8px 7px, var(--color-bg, #f5ead8) 6px, transparent 6.5px);
+  background-size: 16px 16px;
+}
+
+.dlt-header::before {
+  inset-block-start: 0;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.dlt-header::after {
+  inset-block-end: 0;
+  border-radius: 0 0 0.5rem 0.5rem;
 }
 
 .dlt-header-left {
   flex: 1 1 220px;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 0.375rem;
 
   .dlt-brand {
     display: flex;
     align-items: center;
-    gap: 0.9rem;
+    gap: 1.05rem;
   }
 
   .dlt-title-badge {
     flex: none;
-    width: 66px;
-    height: 66px;
+    width: 76px;
+    height: 76px;
     display: grid;
     place-items: center;
     border-radius: 999px;
     background: var(--color-accent-500, #d67f48);
     font-family: var(--font-heading);
     font-weight: 900;
-    font-size: 38px;
+    font-size: 44px;
     color: var(--color-neutral-900, #2e2b25);
     box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18);
   }
@@ -107,7 +139,7 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
 
   .dlt-title {
     margin: 0;
-    font-size: 33px;
+    font-size: 38px;
     line-height: 1.1;
     font-weight: 900;
     font-family: var(--font-heading);
@@ -115,7 +147,7 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
   }
 
   .dlt-title-sub {
-    font-size: 12px;
+    font-size: 14px;
     letter-spacing: 0.22em;
     color: var(--color-accent-600, #b2622d);
   }
@@ -145,46 +177,84 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
   gap: 0.75rem;
   border: 1px solid var(--color-neutral-300, #dcd3c4);
   border-radius: 0.375rem;
+  background: #fffbf4;
   overflow: hidden;
 }
 
 .dlt-timer {
-  flex: 0 0 160px;
+  flex: 0 0 220px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  background: var(--color-accent-100, #fff2eb);
+  gap: 0.4rem;
   padding: 0.5rem;
+  background: #e2a884;
+}
+
+.dlt-timer-card {
+  border-radius: 0.375rem;
+  padding: 0.45rem 0.6rem;
   text-align: center;
 
-  .dlt-issue {
-    font-size: 12px;
-    color: var(--color-neutral-700, #645c50);
+  &.is-issue {
+    background: var(--color-neutral-900, #2e2b25);
   }
 
-  .dlt-status {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--color-accent-700, #8c491a);
-
-    &.is-pending {
-      color: #b45309;
-    }
+  &.is-status {
+    background: var(--color-accent-700, #8c491a);
   }
 
-  .dlt-countdown {
+  .dlt-timer-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+
+  .dlt-timer-value {
     white-space: nowrap;
     font-size: 22px;
     font-weight: 900;
-    color: var(--color-accent-700, #8c491a);
+    font-family: var(--font-heading);
+    color: var(--color-bg, #f5ead8);
+
+    &.dlt-timer-value-sm {
+      font-size: 14px;
+      font-family: inherit;
+      font-weight: 700;
+    }
 
     .dlt-countdown-suffix {
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 700;
     }
   }
+
+  &.is-issue .dlt-timer-label {
+    color: var(--color-accent-300, #ffc6a5);
+  }
+
+  &.is-status .dlt-timer-label {
+    color: var(--color-accent-200, #ffe1d0);
+  }
+}
+
+.dlt-timer-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-accent-2-400, #aebf92);
+  animation: dlt-timer-pulse 1.6s steps(1, end) infinite;
+
+  &.is-pending {
+    background: #f59e0b;
+  }
+}
+
+@keyframes dlt-timer-pulse {
+  0%, 60% { opacity: 1; }
+  61%, 100% { opacity: 0.25; }
 }
 
 .dlt-open {
@@ -194,12 +264,13 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 0.375rem;
+  gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   cursor: pointer;
 
   .dlt-open-title {
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--color-neutral-700, #645c50);
   }
 
@@ -207,17 +278,18 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.3rem;
+    gap: 0.45rem;
     flex-wrap: wrap;
   }
 
   .dlt-open-plus {
+    font-size: 18px;
     font-weight: 700;
     color: var(--color-neutral-700, #645c50);
   }
 
   .dlt-open-empty {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--color-neutral-700, #645c50);
   }
 }

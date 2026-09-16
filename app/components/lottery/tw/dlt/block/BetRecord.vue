@@ -157,10 +157,24 @@ const click = {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
   border: 1px solid #dcd3c4;
   border-radius: 0.5rem;
   background: var(--color-neutral-100, #f9f4ed);
-  padding: 0.75rem;
+  box-shadow: var(--shadow-sm);
+  padding: calc(0.75rem + 6px) 0.75rem 0.75rem;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 6px;
+    background: var(--color-accent-500);
+    background-image: repeating-linear-gradient(90deg,
+      var(--color-accent-2-500) 0 14px,
+      var(--color-accent-500) 14px 28px);
+  }
 
   .rp-head {
     flex: 0 0 auto;

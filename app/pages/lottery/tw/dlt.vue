@@ -83,6 +83,31 @@ onBeforeUnmount(() => {
 
       <section>
         <div class="play-warp">
+          <svg class="dlt-ticket-art" viewBox="0 0 160 100" aria-hidden="true">
+            <g transform="rotate(-4 80 50)">
+              <rect x="8" y="14" width="144" height="72" rx="10" fill="#fffdf8" stroke="#8c491a" stroke-width="2.5" />
+              <line x1="104" y1="14" x2="104" y2="86" stroke="#c0b6a5" stroke-width="2" stroke-dasharray="4 4" />
+              <circle cx="104" cy="14" r="7" fill="#fffbf4" />
+              <circle cx="104" cy="86" r="7" fill="#fffbf4" />
+
+              <circle cx="34" cy="40" r="12" fill="#fecf13" stroke="#38300d" stroke-width="1.5" />
+              <text x="34" y="44" font-weight="900" font-size="11" fill="#38300d" text-anchor="middle">05</text>
+              <circle cx="62" cy="40" r="12" fill="#fecf13" stroke="#38300d" stroke-width="1.5" />
+              <text x="62" y="44" font-weight="900" font-size="11" fill="#38300d" text-anchor="middle">12</text>
+              <circle cx="90" cy="40" r="12" fill="#dc2626" stroke="#7a1a1a" stroke-width="1.5" />
+              <text x="90" y="44" font-weight="900" font-size="11" fill="#fff" text-anchor="middle">23</text>
+
+              <text x="34" y="70" font-size="9" fill="#645c50">大樂透 · 注單</text>
+
+              <rect x="115" y="30" width="2" height="34" fill="#474238" />
+              <rect x="121" y="30" width="4" height="34" fill="#474238" />
+              <rect x="129" y="30" width="2" height="34" fill="#474238" />
+              <rect x="135" y="30" width="3" height="34" fill="#474238" />
+              <rect x="143" y="30" width="2" height="34" fill="#474238" />
+              <text x="129" y="76" font-size="9" fill="#645c50" text-anchor="middle">50 元</text>
+            </g>
+          </svg>
+
           <p v-if="!isOpen" class="closed-hint">目前非開盤時間，暫不受理投注</p>
           <div class="boards">
             <Board v-for="slot in slots" :key="slot.id" :slot="slot" :disabled="!isOpen" />
@@ -131,13 +156,28 @@ onBeforeUnmount(() => {
     height: 250px;
     display: flex;
     flex-direction: column;
+    position: relative;
+    overflow: hidden;
     border: 1px solid var(--color-accent-400, #f6a06b);
     border-radius: 6px;
     background: color-mix(in srgb, var(--color-accent-700, #8c491a) 6%, var(--color-neutral-100, #f9f4ed));
+    box-shadow: var(--shadow-sm);
     cursor: pointer;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 6px;
+      background: var(--color-accent-500);
+      background-image: repeating-linear-gradient(90deg,
+        var(--color-accent-2-500) 0 14px,
+        var(--color-accent-500) 14px 28px);
+    }
 
     .user-title {
       height: 44px;
+      margin-top: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -197,14 +237,39 @@ onBeforeUnmount(() => {
 }
 
 .play-warp {
+  position: relative;
   border: 1px solid #aebf92;
   border-radius: 0.5rem;
   background: var(--color-neutral-100, #f9f4ed);
-  padding: 0.75rem;
+  box-shadow: var(--shadow-sm);
+  padding: calc(0.75rem + 6px) 0.75rem 0.75rem;
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
   align-items: flex-start;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 6px;
+    border-radius: 0.5rem 0.5rem 0 0;
+    background: var(--color-accent-500);
+    background-image: repeating-linear-gradient(90deg,
+      var(--color-accent-2-500) 0 14px,
+      var(--color-accent-500) 14px 28px);
+  }
+
+  .dlt-ticket-art {
+    position: absolute;
+    top: -31px;
+    left: -20px;
+    width: 90px;
+    height: auto;
+    z-index: 1;
+    pointer-events: none;
+    filter: drop-shadow(0 4px 6px rgba(46, 43, 37, 0.18));
+  }
 
   .closed-hint {
     flex-basis: 100%;

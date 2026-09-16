@@ -142,6 +142,7 @@ const click = {
     background: #6c2424;
     border-color: #6c2424;
     color: #fff;
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.28);
   }
 
   &:disabled {

@@ -70,9 +70,18 @@ const click = {
 }
 
 .dlt-popular-rank {
-  flex: 0 0 16px;
-  font-weight: 700;
-  color: var(--color-accent-700, #8c491a);
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-accent-2-200, #e1eecc);
+  border: 1px solid var(--color-accent-2-400, #aebf92);
+  font-family: var(--font-heading);
+  font-weight: 900;
+  font-size: 11px;
+  color: var(--color-accent-2-800, #3d472b);
 }
 
 .dlt-popular-balls {
@@ -91,10 +100,13 @@ const click = {
   font-weight: 700;
   color: var(--color-accent-700, #8c491a);
   cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 
   &:hover {
     background: var(--color-accent-700, #8c491a);
     color: #fff;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
   }
 }
 </style>
