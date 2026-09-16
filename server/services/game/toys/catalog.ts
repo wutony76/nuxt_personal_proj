@@ -47,7 +47,7 @@ export const TOY_CATALOG: ToyCatalogItem[] = [
   { slug: 'big-pig', name: '大豬公', kind: '懷舊零嘴', mark: '豬', blurb: '跟大豬公比兩顆骰', status: 'open', path: '/toys/big-pig' },
   { slug: 'lucky-draw', name: '抽抽樂', kind: '懷舊零嘴', mark: '抽', blurb: '選一格，看看裡頭有沒有獎', status: 'open', path: '/toys/lucky-draw' },
   { slug: 'gummy', name: '橡皮糖', kind: '懷舊零嘴', mark: '糖', blurb: '猜下一顆是什麼顏色', status: 'open', path: '/toys/gummy' },
-  { slug: 'whistle-candy', name: '哨子糖', kind: '懷舊零嘴', mark: '哨', blurb: '短、中、長，看誰壓過誰', status: 'soon', path: null },
+  { slug: 'whistle-candy', name: '哨子糖', kind: '懷舊零嘴', mark: '哨', blurb: '短、中、長，看誰壓過誰', status: 'open', path: '/toys/whistle-candy' },
   { slug: 'pog', name: '尪仔標', kind: '古早玩具', mark: '標', blurb: '五張牌跟對方比一輪', status: 'soon', path: null },
   { slug: 'bamboo-copter', name: '竹蜻蜓', kind: '古早玩具', mark: '蜓', blurb: '猜它能飛多高', status: 'open', path: '/toys/bamboo-copter' },
   { slug: 'soda-whistle', name: '汽水笛', kind: '古早玩具', mark: '笛', blurb: '繼續吹，小心吹破', status: 'open', path: '/toys/soda-whistle' },

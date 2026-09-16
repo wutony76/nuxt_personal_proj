@@ -69,9 +69,9 @@
 
 ## 12. 哨子糖
 
-- [ ] 12.1 新增 `/toys/whistle-candy`。短勝長、長勝中、中勝短。倒數不重抽
-- [ ] 12.2 勝 ×1.9，相同退注。NPC 最近 8 次是實際抽出的選擇
-- [ ] 12.3 補 `scripts/test-toy-whistle-candy.mjs`
+- [x] 12.1 新增 `/toys/whistle-candy`。短勝長、長勝中、中勝短。倒數不重抽
+- [x] 12.2 勝 ×1.9，相同退注。NPC 最近 8 次是實際抽出的選擇
+- [x] 12.3 補 `scripts/test-toy-whistle-candy.mjs`
 
 ## 13. 尪仔標
 
