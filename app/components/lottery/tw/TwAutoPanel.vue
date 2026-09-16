@@ -81,6 +81,62 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
   }
 }
 
+/* 同一支 ChatPanel.vue 的整體配色（背景／文字／輸入框／送出鈕）也改成柑仔店暖色系，
+   一樣只在 .tw-auto-panel-warp.is-dlt 這個 DOM 範圍內覆寫，不動元件本體。 */
+.tw-auto-panel-warp.is-dlt .chat-panel {
+  background: #f5ead8;
+  border-color: #dcd3c4;
+}
+
+.tw-auto-panel-warp.is-dlt .chat-head {
+  border-bottom-color: #dcd3c4;
+  color: #645c50;
+}
+
+.tw-auto-panel-warp.is-dlt .chat-empty {
+  color: #82796a;
+}
+
+.tw-auto-panel-warp.is-dlt .chat-row {
+  .user {
+    color: #8c491a;
+  }
+
+  &.is-admin .user {
+    background: #8c491a;
+  }
+
+  .text {
+    color: #474238;
+  }
+
+  .time {
+    color: #82796a;
+  }
+}
+
+.tw-auto-panel-warp.is-dlt .chat-input {
+  border-top-color: #dcd3c4;
+
+  input {
+    background: #fffbf4;
+    border-color: #dcd3c4;
+    color: #474238;
+  }
+
+  button {
+    background: #8c491a;
+
+    &:disabled {
+      background: #dcd3c4;
+    }
+
+    &:hover:not(:disabled) {
+      background: #643312;
+    }
+  }
+}
+
 .tw-auto-panel-warp.is-dlt .tw-auto-panel-inner {
   /* 對齊 lottery-dlt 頁面 .main 的寬度（app/pages/lottery/tw/dlt.vue），而非全站預設的 --base-width */
   width: min(1360px, 97%);
