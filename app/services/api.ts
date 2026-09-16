@@ -1027,6 +1027,45 @@ export type AdminMemberBalanceChange = {
   note: string
 }
 
+export type ToyCatalogItem = {
+  slug: string
+  name: string
+  kind: string
+  mark: string
+  blurb: string
+  status: 'open' | 'soon'
+  path: string | null
+}
+
+export type ToyCatalogResponse = {
+  items: ToyCatalogItem[]
+  betChips: number[]
+  maxPotMultiplier: number
+  flipMs: number
+  luckyDraw: {
+    cells: number
+    rewards: Array<{ id: string; label: string; weight: number; multiplier: number }>
+  }
+}
+
+export type ToyLuckyDrawView = {
+  status: 'idle' | 'result'
+  result: { rewardId: string; label: string; multiplier: number; cellIndex: number } | null
+  unclaimed: number
+  reward: number
+  balance: number
+  claimed: boolean
+  canContinue: boolean
+  canClaim: boolean
+  gameKey: string | null
+}
+
+export type ToyLuckyDrawRollPayload = {
+  action: 'start' | 'continue' | 'claim'
+  bet?: number
+  cellIndex?: number
+}
+
 export const api = {
   system: {
     servTime: () => $fetch<{ serverTime: number }>('/api/servTime')
@@ -1350,6 +1389,12 @@ export const api = {
   games: {
     /** 目前登入者的角色被關閉的遊戲／盤口（見 add-role-game-perms） */
     access: () => $fetch<{ disabled: Array<{ category: GameCategory; key: string }> }>('/api/games/access'),
+    toys: {
+      catalog: () => $fetch<ToyCatalogResponse>('/api/games/toys/catalog'),
+      pool: () => $fetch<ToyLuckyDrawView>('/api/games/toys/pool'),
+      rollLuckyDraw: (payload: ToyLuckyDrawRollPayload) =>
+        $fetch<ToyLuckyDrawView>('/api/games/toys/lucky-draw/roll', { method: 'POST', body: payload })
+    },
     retro: {
       historySnake: () => $fetch<GameHistoryListResponse>('/api/games/retro/snake/history'),
       recordSnake: (payload: GameHistoryRecordPayload) =>

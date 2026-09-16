@@ -5,6 +5,8 @@ import { useAuth } from '../composables/useAuth'
 import { type TaiwanLotteryResult } from '~/services/api'
 import { TaiwanLotteryService } from '~/services/taiwanLotteryService'
 import TaiwanLotteryPrizeDialog from '~/components/TaiwanLotteryPrizeDialog.vue'
+import ShelfCard from '~/components/toys/ShelfCard.vue'
+import { api, type ToyCatalogItem } from '~/services/api'
 
 useHead({
   link: [
@@ -101,6 +103,11 @@ const state = reactive({
     gameCode: 0,
     gameName: '',
     period: ''
+  },
+  shelf: {
+    loading: false,
+    error: '',
+    items: [] as ToyCatalogItem[]
   }
 })
 
@@ -149,6 +156,19 @@ const _handlers = {
 }
 
 const _actions = {
+  loadShelf: async () => {
+    state.shelf.loading = true
+    state.shelf.error = ''
+    try {
+      const catalog = await api.games.toys.catalog()
+      state.shelf.items = catalog.items
+    } catch {
+      state.shelf.error = '櫥仔暫時讀不到，彩票卡片不受影響。'
+      state.shelf.items = []
+    } finally {
+      state.shelf.loading = false
+    }
+  },
   loadLastNumber: async () => {
     state.loading = true
     state.errorMessage = ''
@@ -191,6 +211,7 @@ onMounted(async () => {
     return
   }
   _actions.loadLastNumber()
+  void _actions.loadShelf()
 })
 </script>
 
@@ -245,7 +266,7 @@ onMounted(async () => {
       <div class="tw-hero">
         <div class="tw-hero-copy">
           <span class="tw-hero-tag">彩 運 來 · 彩 票 大 廳</span>
-          <h1 class="tw-hero-title">今仔日<br><span class="tw-hero-title-cross">開獎行情，好運報你知</span></h1>
+          <h1 class="tw-hero-title">今仔日<br><span class="tw-hero-title-cross">試手氣，好運叩叩來</span></h1>
           <p class="tw-hero-desc">大樂透、威力彩、今彩539 到賓果賓果，八款玩法一次看透透。開獎期數、獎號、明細寫甲清清楚楚，一眼就知影今仔日好運到未到。</p>
           <div class="tw-hero-actions">
             <a href="#tw-games" class="tw-btn tw-btn-primary">來一注 • 大樂透</a>
@@ -341,6 +362,18 @@ onMounted(async () => {
           </article>
         </div>
       </div>
+
+      <section id="tw-shelf" class="tw-shelf">
+        <div class="tw-shelf-head">
+          <h2>柑仔店櫥仔</h2>
+          <span>懷舊零嘴 · 古早玩具</span>
+        </div>
+        <p v-if="state.shelf.loading" class="tw-shelf-note">櫥仔準備中...</p>
+        <p v-else-if="state.shelf.error" class="tw-shelf-note">{{ state.shelf.error }}</p>
+        <div v-else class="tw-shelf-grid">
+          <ShelfCard v-for="item in state.shelf.items" :key="item.slug" :item="item" />
+        </div>
+      </section>
 
       <div class="tw-footer">
         <div class="tw-corrugated tw-corrugated-bottom" />
@@ -927,6 +960,54 @@ onMounted(async () => {
   margin-top: auto;
 }
 
+.tw-shelf {
+  max-width: 1400px;
+  margin: clamp(36px, 6vw, 72px) auto 0;
+  padding: 0 clamp(16px, 4vw, 48px);
+}
+
+.tw-shelf-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-accent-2-400);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: clamp(20px, 3vw, 34px) clamp(20px, 3vw, 34px) 8px;
+  background-image: radial-gradient(circle at 12px 12px, rgba(122, 138, 94, 0.16) 3px, transparent 3.5px);
+  background-size: 24px 24px;
+
+  h2 {
+    margin: 0;
+    font-size: clamp(24px, 3vw, 34px);
+    color: var(--color-accent-2-800);
+  }
+
+  span {
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: var(--color-neutral-600);
+  }
+}
+
+.tw-shelf-note,
+.tw-shelf-grid {
+  background: var(--color-surface);
+  border: 2px solid var(--color-accent-2-400);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding: 8px clamp(20px, 3vw, 34px) clamp(20px, 3vw, 34px);
+}
+
+.tw-shelf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px;
+}
+
 .tw-footer {
   margin-top: clamp(32px, 6vw, 64px);
   background: var(--color-neutral-900);
@@ -1003,6 +1084,7 @@ onMounted(async () => {
 }
 
 @keyframes twTwinkle {
+
   0%,
   100% {
     opacity: 0.15;
@@ -1037,6 +1119,7 @@ onMounted(async () => {
 }
 
 @keyframes twBlob {
+
   0%,
   100% {
     transform: scale(1);
@@ -1048,6 +1131,7 @@ onMounted(async () => {
 }
 
 @keyframes twNote {
+
   0%,
   100% {
     transform: rotate(4deg) translateY(0);
@@ -1059,6 +1143,7 @@ onMounted(async () => {
 }
 
 @keyframes twBadgePulse {
+
   0%,
   100% {
     transform: scale(1);
@@ -1105,6 +1190,7 @@ onMounted(async () => {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .tw-header,
   .tw-brand-badge,
   .tw-hero-tag,

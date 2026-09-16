@@ -25,7 +25,8 @@
     "test:kl8": "node scripts/test-kl8.mjs",
     "test:fc3d": "node scripts/test-fc3d.mjs",
     "test:pl3": "node scripts/test-pl3.mjs",
-    "test:retro": "node scripts/test-retro.mjs"
+    "test:retro": "node scripts/test-retro.mjs",
+    "test:toy-lucky-draw": "node scripts/test-toy-lucky-draw.mjs"
   },
   "dependencies": {
     "@nuxt/content": "^3.12.0",

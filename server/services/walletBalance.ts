@@ -1,7 +1,7 @@
 import { Storage } from './storage'
 
 /** 錢包層級異動類型（寫入 user.record.balanceChanges） */
-export type WalletBalanceChangeType = 'admin-topup' | 'admin-deduct' | 'game-reward'
+export type WalletBalanceChangeType = 'admin-topup' | 'admin-deduct' | 'game-reward' | 'toy-bet' | 'toy-reward'
 
 export type WalletBalanceChange = {
   id: string
