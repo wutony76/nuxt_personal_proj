@@ -1,5 +1,5 @@
 ---
-description: Git commit workflow preference - never auto-commit, only provide info
+description: Git commit 必須帶類別，且未明確授權不得代為 commit
 alwaysApply: true
 ---
 
@@ -12,3 +12,19 @@ alwaysApply: true
 - 使用者會自己手動執行 commit，不需要我代為執行
 
 只有當使用者明確說「幫我建立 commit」「你直接 commit」等**明確授權實際執行**的措辭時，才依照一般流程（git status/diff/log → git add → git commit）實際執行。
+
+# Commit 必須帶類別
+
+不論是草稿還是實際建立的 commit，訊息都必須是 `type(scope): 摘要`。**沒有類別就不得輸出或提交。**
+
+先讀 diff，再從下表選一個類別。禁止預設成 `fix`，也禁止省略 type。同一批變更若混了不相干的種類，先指出並詢問要不要拆開，不要硬塞進同一個 type。
+
+| type | 何時用 |
+| --- | --- |
+| `feat` | 新玩法、新頁面、新 API、新行為 |
+| `fix` | 修正既有功能的錯誤（算錯、顯示錯、流程壞掉） |
+| `style` | 只改外觀、配色、版面、動畫，行為不變 |
+| `docs` | 只改 OpenSpec／文件 |
+| `refactor` | 行為不變的結構整理 |
+| `test` | 只補或改測試 |
+| `chore` | 建置、腳本、與功能無關的雜項 |
