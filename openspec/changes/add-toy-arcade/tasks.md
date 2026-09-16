@@ -51,9 +51,9 @@
 
 ## 9. 竹蜻蜓
 
-- [ ] 9.1 新增 `/toys/bamboo-copter`。先抽高度，動畫播放同一個值
-- [ ] 9.2 達標才入帳，未達標不加帳。同一請求結清，不留未領金額
-- [ ] 9.3 補 `scripts/test-toy-bamboo-copter.mjs`
+- [x] 9.1 新增 `/toys/bamboo-copter`。先抽高度，動畫播放同一個值
+- [x] 9.2 達標才入帳，未達標不加帳。同一請求結清，不留未領金額
+- [x] 9.3 補 `scripts/test-toy-bamboo-copter.mjs`
 
 ## 10. 橡皮糖
 
