@@ -1,0 +1,119 @@
+/**
+ * 49樂合彩（M649）判定核心。
+ *
+ * ⚠️ 跟 DLT（大樂透）／D539（今彩539）一樣是「完全鏡射官方台彩」的玩法——本站不自建開獎、
+ *   不自建賠率：開獎號碼與 3 個「合數」（二合／三合／四合）的派彩金額完全鏡射官方
+ *   49樂合彩（gameCode 1121）即時資料（見 openspec/changes/add-tw-lottery-suite/design.md
+ *   Decision 1、3）。
+ *
+ * ── 與 DLT/D539 最大的規則差異：不是「選 N 個號碼、依對中幾個分獎項」──────────
+ *   49樂合彩是「玩家先選定要玩幾合（2/3/4），再從 01–49 選滿對應數量的號碼；開獎後檢查玩家
+ *   選的號碼是否**全部**被開獎號碼包含（全中才中獎，沒有部分對中的獎項）」。因此判定是二元的
+ *   中／不中（`isHit`），不需要 DLT 那種「對中幾個算第幾獎」的分級對照表；派彩金額＝該「合數」
+ *   對應的官方 perPrize（二合＝m649TwoAssign／三合＝m649ThreeAssign／四合＝m649FourAssign），
+ *   依玩家選的合數決定取哪個 tier，不是依對中幾個。
+ *
+ * ── 開獎號碼來源（經官方 gameCode 1121 API 實測確認）──────────────────────
+ *   官方 `49M6Result`／`LastNumber` 對 gameCode 1121 回傳的 `lotNumber` 是 6 個號碼
+ *   （＝當期大樂透 6 個主號，**不含特別號**），期別格式為民國年 3 碼＋該年度序號 6 碼
+ *   （例如 "115000088"，與大樂透同格式、同期號）。雖然規則描述是「跟隨大樂透開獎」，但官方
+ *   API 本身就分開提供 gameCode 1121 自己的開獎號，本站直接查 1121、**不依賴大樂透 service**
+ *   （見 design.md Decision 3）。
+ */
+
+export const M649_NUMBER_MIN = 1
+export const M649_NUMBER_MAX = 49
+/** 可選「幾合」：二合(2)／三合(3)／四合(4)，決定一注要選滿幾個號碼（全中才中獎） */
+export const M649_PICK_OPTIONS = [2, 3, 4] as const
+/** 一次送單最多可含幾組獨立注碼（比照 DLT/D539 的 A~E，每組各自選定合數與號碼） */
+export const M649_MAX_SLOTS = 5
+/** 每注固定金額（coin），比照官方每注 25 元定價，玩家不可調整（DLT/D539 是 50，此處不同） */
+export const M649_BET_AMOUNT = 25
+/**
+ * 開獎號碼數：跟隨大樂透 6 個主號、不含特別號（官方 gameCode 1121 的 lotNumber 實測即回傳 6 碼）。
+ * 結算判定「玩家選的號碼是否全部落在這 6 個號碼內」。
+ */
+export const M649_DRAW_COUNT = 6
+
+/** 官方開獎日：每週二、五（跟大樂透同期）。0=週日...2=週二、5=週五 */
+export const M649_DRAW_WEEKDAYS = [2, 5]
+/** 投注截止時間（開獎當日，24 小時制） */
+export const M649_CUTOFF_HOUR = 20
+export const M649_CUTOFF_MINUTE = 0
+/** 開獎時間（開獎當日，24 小時制） */
+export const M649_DRAW_HOUR = 20
+export const M649_DRAW_MINUTE = 30
+
+/** 上線初期尚無「上一次四合（最高獎項）金額」歷史紀錄時，單期額度上限的回退基準 */
+export const M649_QUOTA_FALLBACK_COIN = 2_000_000
+
+/**
+ * 3 個「合數」對應的官方獎項，`key`／`label` 直接沿用官方 `49M6Result` 的欄位命名
+ * （見 server/services/game/lottery/tw/taiwanLotteryApi.ts 的 GAME_DEFS[1121].tiers，
+ * 避免兩處各自定義同一份對照表）。`pick` 為該合數需選滿幾個號碼（全中才中獎）。
+ */
+export type M649TierKey = 'm649TwoAssign' | 'm649ThreeAssign' | 'm649FourAssign'
+
+export type M649TierDef = {
+  key: M649TierKey
+  label: string
+  pick: number
+}
+
+export const M649_TIERS: M649TierDef[] = [
+  { key: 'm649TwoAssign', label: '二合', pick: 2 },
+  { key: 'm649ThreeAssign', label: '三合', pick: 3 },
+  { key: 'm649FourAssign', label: '四合', pick: 4 }
+]
+
+/**
+ * 解析注碼字串成 2/3/4 個排序過的號碼（1~49、不重複），格式不符回傳 null。
+ * 這是伺端結算與 quota 驗證的唯一判定入口，不接受任何其他格式。
+ */
+function _parseBet(betCode: string | number | Array<string | number>): number[] | null {
+  const raw = Array.isArray(betCode)
+    ? betCode
+    : String(betCode ?? '').split(',')
+  const numbers = raw.map((n) => Number(String(n).trim())).filter((n) => Number.isFinite(n))
+  if (!(M649_PICK_OPTIONS as readonly number[]).includes(numbers.length)) return null
+  if (numbers.some((n) => !Number.isInteger(n) || n < M649_NUMBER_MIN || n > M649_NUMBER_MAX)) return null
+  const unique = new Set(numbers)
+  if (unique.size !== numbers.length) return null
+  return [...unique].sort((a, b) => a - b)
+}
+
+/**
+ * 樂合彩的判定核心：玩家選的號碼是否「全部」被開獎號碼包含（全中才中獎，見 design.md Decision 3）。
+ * 不是「對中幾個算第幾獎」，而是二元的中／不中。
+ * @param selected 玩家選的 2/3/4 個號碼
+ * @param drawn 官方當期開出的號碼（49樂合彩＝大樂透 6 個主號）
+ */
+export function isHit(selected: Array<number | string>, drawn: Array<number | string>): boolean {
+  if (!Array.isArray(selected) || !Array.isArray(drawn)) return false
+  if (selected.length === 0) return false
+  const drawnSet = new Set(drawn.map((n) => Number(n)))
+  return selected.every((n) => drawnSet.has(Number(n)))
+}
+
+/** 依「合數」（選幾個號碼）對應官方獎項 key：2→二合／3→三合／4→四合；非法合數回傳 null */
+export function m649TierKeyOf(pickCount: number): M649TierKey | null {
+  return M649_TIERS.find((t) => t.pick === Number(pickCount))?.key ?? null
+}
+
+/** 取注碼的合數（號碼個數，2/3/4）；格式不合法回傳 null */
+export function m649PickCountOf(betCode: string | number | Array<string | number>): number | null {
+  const bet = _parseBet(betCode)
+  return bet ? bet.length : null
+}
+
+/** 驗證注碼格式是否合法（2/3/4 個 1~49 不重複號碼），供 quota 驗證使用，不判斷是否中獎 */
+export function m649HasValidBetCode(betCode: string | number | Array<string | number>): boolean {
+  return _parseBet(betCode) !== null
+}
+
+/** 把驗證過的注碼正規化成統一的逗號分隔字串（例如 "07,22,39"），供下注與比對使用 */
+export function m649NormalizeBetCode(betCode: string | number | Array<string | number>): string | null {
+  const bet = _parseBet(betCode)
+  if (!bet) return null
+  return bet.map((n) => String(n).padStart(2, '0')).join(',')
+}

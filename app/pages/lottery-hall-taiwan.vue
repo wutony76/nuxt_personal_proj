@@ -23,7 +23,8 @@ const BINGO_GAME_CODE = 1102
 // 已有完整投注頁面的玩法，卡片按鈕直接跳轉過去；其餘玩法尚未實作投注頁，暫時維持開啟中獎明細彈窗。
 const GAME_ROUTES: Record<number, string> = {
   5118: '/lottery/tw/dlt',
-  1197: '/lottery/tw/d539'
+  1197: '/lottery/tw/d539',
+  1121: '/lottery/tw/m649'
 }
 
 const GAME_META: Record<number, { mark: string; tagline: string; drawTime: string; topPrize: string; rules: string[] }> = {
@@ -202,10 +203,10 @@ onMounted(async () => {
             開獎中
           </span>
           <span class="tw-tag">今仔日 {{ todayLabel }}</span>
-          <button type="button" class="tw-btn tw-btn-secondary" :disabled="state.loading"
+          <!-- <button type="button" class="tw-btn tw-btn-secondary" :disabled="state.loading"
             @click="_actions.loadLastNumber">
             {{ state.loading ? '更新中...' : '重新整理' }}
-          </button>
+          </button> -->
         </div>
       </div>
 
@@ -225,7 +226,7 @@ onMounted(async () => {
       <div class="tw-hero">
         <div class="tw-hero-copy">
           <span class="tw-hero-tag">彩 運 來 · 彩 票 大 廳</span>
-          <h1 class="tw-hero-title">今仔日<br>開獎行情，好運報你知</h1>
+          <h1 class="tw-hero-title">今仔日<br><span class="tw-hero-title-cross">開獎行情，好運報你知</span></h1>
           <p class="tw-hero-desc">大樂透、威力彩、今彩539 到賓果賓果，八款玩法一次看透透。開獎期數、獎號、明細寫甲清清楚楚，一眼就知影今仔日好運到未到。</p>
           <div class="tw-hero-actions">
             <a href="#tw-games" class="tw-btn tw-btn-primary">來一注 • 大樂透</a>
@@ -236,25 +237,7 @@ onMounted(async () => {
         <div class="tw-hero-art">
           <div class="tw-hero-blob"></div>
           <div class="tw-hero-blob-sm"></div>
-          <svg viewBox="0 0 320 300" class="tw-hero-svg" aria-label="大同電鍋與紅色郵筒插畫">
-            <ellipse cx="160" cy="270" rx="128" ry="15" fill="#2e2b25" opacity="0.1"></ellipse>
-            <rect x="228" y="120" width="58" height="146" rx="18" fill="#8c491a"></rect>
-            <rect x="228" y="120" width="58" height="146" rx="18" fill="none" stroke="#402310" stroke-width="3"></rect>
-            <path d="M222 122 q34 -26 70 0 z" fill="#402310"></path>
-            <rect x="242" y="150" width="30" height="8" rx="4" fill="#f5ead8" opacity="0.85"></rect>
-            <rect x="248" y="176" width="18" height="24" rx="4" fill="#f5ead8" opacity="0.35"></rect>
-            <rect x="252" y="266" width="10" height="16" fill="#645c50"></rect>
-            <path d="M52 250 q-14 0 -14 -16 v-72 q0 -58 66 -58 h44 q66 0 66 58 v72 q0 16 -16 16 z" fill="#dcd3c4">
-            </path>
-            <path d="M52 250 q-14 0 -14 -16 v-72 q0 -58 66 -58 h44 q66 0 66 58 v72 q0 16 -16 16 z" fill="none"
-              stroke="#474238" stroke-width="4"></path>
-            <path d="M44 168 h172" stroke="#474238" stroke-width="3" opacity="0.5"></path>
-            <ellipse cx="130" cy="104" rx="82" ry="20" fill="#eee7db" stroke="#474238" stroke-width="4"></ellipse>
-            <rect x="118" y="82" width="24" height="16" rx="7" fill="#8c491a" stroke="#402310" stroke-width="3"></rect>
-            <circle cx="130" cy="200" r="26" fill="#8fa073" stroke="#474238" stroke-width="4"></circle>
-            <path d="M130 182 v18 l13 8" stroke="#2e2b25" stroke-width="4" fill="none" stroke-linecap="round"></path>
-            <rect x="40" y="232" width="180" height="10" rx="5" fill="#c67139" opacity="0.75"></rect>
-          </svg>
+          <img src="/images/pig_treasure.png" class="tw-hero-img" alt="紅色存錢筒與彩球玩具堆疊插畫" />
           <div class="tw-hero-note">憨人有憨福</div>
         </div>
       </div>
@@ -471,17 +454,45 @@ onMounted(async () => {
 
 .tw-hero {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(24px, 4vw, 56px);
-  align-items: center;
+  align-items: end;
   max-width: 1400px;
   margin: 0 auto;
   padding: clamp(28px, 5vw, 64px) clamp(16px, 4vw, 48px) clamp(20px, 3vw, 40px);
 }
 
+@media (min-width: 760px) {
+  .tw-hero {
+    grid-template-columns: minmax(280px, 0.75fr) minmax(360px, 1.45fr);
+  }
+}
+
+.tw-hero-copy {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.tw-hero-title-cross {
+  display: inline;
+}
+
+@media (min-width: 760px) {
+  .tw-hero-title-cross {
+    position: relative;
+    z-index: 2;
+    display: inline-block;
+    white-space: nowrap;
+    padding: 0 0.12em;
+    background: color-mix(in srgb, var(--color-bg) 30%, transparent);
+    line-height: 1.15;
+  }
+}
+
 .tw-hero-tag {
   display: inline-block;
-  transform: rotate(-2.5deg);
+  transform: translateY(-30px) rotate(-2.5deg);
   background: var(--color-accent-200);
   color: var(--color-accent-800);
   border: 1px dashed var(--color-accent-500);
@@ -494,7 +505,7 @@ onMounted(async () => {
 
 .tw-hero-title {
   font-size: clamp(40px, 7vw, 76px);
-  line-height: 1.08;
+  line-height: 1.25;
   margin: 0 0 18px;
   color: var(--color-accent-800);
 }
@@ -526,7 +537,7 @@ onMounted(async () => {
 .tw-hero-art {
   position: relative;
   display: grid;
-  place-items: center;
+  place-items: end center;
   min-height: 320px;
 }
 
@@ -548,11 +559,10 @@ onMounted(async () => {
   background: var(--color-accent-200);
 }
 
-.tw-hero-svg {
+.tw-hero-img {
   position: relative;
-  width: min(94%, 420px);
+  width: 100%;
   height: auto;
-  filter: drop-shadow(0 10px 22px rgba(46, 43, 37, 0.18));
 }
 
 .tw-hero-note {

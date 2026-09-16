@@ -15,10 +15,11 @@ const BG_TEST_SCRIPTS = [
   'test-fc3d.mjs', 'test-pl3.mjs'
 ]
 
-/** 台彩系列（大樂透 DLT、今彩539 D539）的測試腳本 */
+/** 台彩系列（大樂透 DLT、今彩539 D539、49樂合彩 M649）的測試腳本 */
 const TW_TEST_SCRIPTS = [
   'test-dlt.mjs',
-  'test-d539.mjs'
+  'test-d539.mjs',
+  'test-m649.mjs'
 ]
 
 /** retro 遊戲中心（得分→coin 換算）的測試腳本 */

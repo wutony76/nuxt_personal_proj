@@ -72,6 +72,13 @@ export const LOTTERY = {
   // 與大樂透唯二差異：01–39 選 5、無特別號；每天開獎（週一至週六，週日不開獎）。
   // 只登記單一鍵值（無 sub 欄位），category: 'tw' 讓它不出現在 bg 大廳（有獨立的 /lottery-hall-taiwan 入口）。
   'D539':{ id: 11003, key: 'D539', name: '今彩539', sort: 13, category: 'tw' },
+
+  // 49樂合彩：第三款「完全鏡射官方台彩」的玩法（tw 分類）。玩法本質與 DLT/D539 不同——先選「幾合」
+  // （二合/三合/四合），再從 01–49 選滿對應數量的號碼，全中才中獎；開獎跟隨大樂透（每週二五），
+  // 開獎號與各合數派彩金額皆即時讀取官方 gameCode 1121 的 API，獨立於大樂透 service
+  // （見 openspec/changes/add-tw-lottery-suite/design.md Decision 3）。每注 25 元。
+  // 只登記單一鍵值（無 sub 欄位），category: 'tw' 讓它不出現在 bg 大廳（有獨立的 /lottery-hall-taiwan 入口）。
+  'M649':{ id: 11004, key: 'M649', name: '49樂合彩', sort: 14, category: 'tw' },
 }
 
 export const SORT = {
