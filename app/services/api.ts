@@ -1178,6 +1178,24 @@ export type ToyWhistleView = {
   blocked: boolean
 }
 
+export type ToyPogCard = { id: string; rank: number; kind: 'number' | 'king' | 'shield' | 'swap' | 'bomb' }
+
+export type ToyPogView = {
+  status: 'idle' | 'result'
+  hand: ToyPogCard[]
+  npcCount: number
+  last: { player: ToyPogCard; npc: ToyPogCard; result: 'player' | 'npc' | 'cancel' | 'tie' } | null
+  playerWins: number
+  npcWins: number
+  reward: number
+  multiplier: number
+  balance: number
+  settled: boolean
+  canPlay: boolean
+  gameKey: string | null
+  blocked: boolean
+}
+
 export const api = {
   system: {
     servTime: () => $fetch<{ serverTime: number }>('/api/servTime')
@@ -1523,7 +1541,10 @@ export const api = {
         $fetch<ToyBigPigView>('/api/games/toys/big-pig/roll', { method: 'POST', body: payload }),
       whistleState: () => $fetch<ToyWhistleView>('/api/games/toys/whistle-candy/state'),
       rollWhistle: (payload: { bet: number; choice: ToyWhistleChoice }) =>
-        $fetch<ToyWhistleView>('/api/games/toys/whistle-candy/roll', { method: 'POST', body: payload })
+        $fetch<ToyWhistleView>('/api/games/toys/whistle-candy/roll', { method: 'POST', body: payload }),
+      pogState: () => $fetch<ToyPogView>('/api/games/toys/pog/state'),
+      rollPog: (payload: { action: 'start' | 'play'; bet?: number; cardId?: string }) =>
+        $fetch<ToyPogView>('/api/games/toys/pog/roll', { method: 'POST', body: payload })
     },
     retro: {
       historySnake: () => $fetch<GameHistoryListResponse>('/api/games/retro/snake/history'),

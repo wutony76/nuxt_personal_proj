@@ -32,7 +32,8 @@
     "test:toy-bamboo-copter": "node scripts/test-toy-bamboo-copter.mjs",
     "test:toy-gummy": "node scripts/test-toy-gummy.mjs",
     "test:toy-big-pig": "node scripts/test-toy-big-pig.mjs",
-    "test:toy-whistle-candy": "node scripts/test-toy-whistle-candy.mjs"
+    "test:toy-whistle-candy": "node scripts/test-toy-whistle-candy.mjs",
+    "test:toy-pog": "node scripts/test-toy-pog.mjs"
   },
   "dependencies": {
     "@nuxt/content": "^3.12.0",
