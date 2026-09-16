@@ -140,7 +140,9 @@
 - [ ] 後台 `roleGamePerms`（`GameCatalogPanel.vue`/`RoleGamesPanel.vue`）能看到並可停用/啟用
       新增的 `tw` 玩法
 - [ ] `npm run dev` 正常啟動，無新增重大 console / runtime error
-- [ ] 各玩法建立對應的 `scripts/test-{key}.mjs` 對帳腳本（比照 `test-dlt.mjs` 的驗證涵蓋範圍：
-      下注拒單、獎項判定、多組互不影響、重複結算防護、真實開獎流程）
+- [ ] 各玩法建立對應的 `scripts/test-{key}.mjs` 對帳腳本，具體測試案例見
+      [test-plan.md](test-plan.md)（比照 `test-dlt.mjs` 的 6 大類結構：常數設定、下注拒單、
+      獎項判定、多組互不影響、重複結算防護、真實開獎流程，各玩法額外補上專屬風險案例——
+      樂合彩的獨立性驗證、3星彩對彩雙中、賓果賓果超級獎號順序判定與和局退款等）
 - [ ] 進入實作前，本檔案的每個 `[ ]` 在對應玩法完成後改為 `[x]`（比照 `add-dlt/tasks.md` 的
       既有慣例）
