@@ -29,6 +29,7 @@ import Kl8Class from './game/lottery/bg/kl8'
 import Fc3dClass from './game/lottery/bg/fc3d'
 import Pl3Class from './game/lottery/bg/pl3'
 import DltClass from './game/lottery/tw/dlt'
+import D539Class from './game/lottery/tw/d539'
 import RetroSnakeClass from './game/retro/snake'
 import RetroRacingClass from './game/retro/racing'
 import RetroTetriminosClass from './game/retro/tetriminos'
@@ -141,6 +142,9 @@ export class Storage {
       // 大樂透：唯一「完全鏡射官方台彩」的玩法（tw 分類，不屬於 bg），開獎號與 8 個獎項派彩金額
       // 皆即時讀取官方 API，不自建 RNG、不自建賠率、不做彩池（見 openspec/changes/add-dlt/design.md）
       new DltClass()
+      // 今彩539：第二款「完全鏡射官方台彩」玩法（tw 分類），01–39 選 5、無特別號、每天開獎，
+      // 開獎號與 4 個獎項派彩金額皆即時讀取官方 API（見 openspec/changes/add-tw-lottery-suite/design.md）
+      new D539Class()
       // console.log('games.init.success', Storage.games)
       console.log('SUCCESS ---BASE>games.init')
     },

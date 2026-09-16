@@ -9,6 +9,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test:dlt": "node scripts/test-dlt.mjs",
+    "test:d539": "node scripts/test-d539.mjs",
     "test:k3-cd": "node scripts/test-k3-cd.mjs",
     "test:k3-of": "node scripts/test-k3-of.mjs",
     "test:6hc-cd": "node scripts/test-6hc-cd.mjs",

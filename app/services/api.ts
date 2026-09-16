@@ -603,6 +603,50 @@ export type DltUserBetHistory = {
   winAmount: number
 }
 
+/**
+ * 今彩539（D539）當期資訊
+ * ⚠️ 與 DLT 同為「完全鏡射官方」的 tw 分類玩法（路由在 lottery-tw/d539）；`issue` 是對齊官方
+ * 的當期期別（民國年＋序號），`lastOpenCode` 為官方真實開獎號（今彩539一期 5 碼、無特別號）。
+ * 下注當下不顯示獎金（`tiers` 只有名稱／對中條件，沒有 `perPrize`——要等開獎結算後才知道）。
+ */
+export type D539Current = {
+  issue: string
+  currentStatus: string
+  cutoffAt: number
+  drawAt: number
+  countdown: string
+  quotaIssueMaxCoin: number
+  quotaIssueMaxBets: number
+  lastOpenCode: { issue: string; openCode: string[] } | null
+  popularNumbers: Array<{ betCode: number[]; count: number }>
+  tiers: Array<{ key: string; label: string; desc: string | null }>
+}
+
+/** 今彩539玩家紀錄 */
+export type D539UserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: D539UserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+}
+
+export type D539UserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  /** 一組 5 碼（逗號分隔已正規化，例如 "01,07,15,22,33"） */
+  betCode: string[]
+  /** 官方真實開獎號（結算前為空陣列，今彩539一期 5 碼、無特別號） */
+  openCode: string[]
+  /** 命中的官方獎項 key（d539JackpotAssign／d539SecondAssign…），未中或結算前為 null */
+  tierKey: string | null
+  /** 對應獎項中文名稱（頭獎／二獎…），未中或結算前為空字串 */
+  tierLabel: string
+  winStatus: 'pending' | 'win' | 'lose'
+  /** 派彩金額＝官方當期該獎項實際 perPrize，未結算前為 0 */
+  winAmount: number
+}
+
 /** 排列3玩家紀錄 */
 export type Pl3UserRecordResponse = {
   balanceChanges: LotteryUserBalanceChange[]
@@ -1140,6 +1184,8 @@ export const api = {
           return $fetch<Pl3Current>('/api/lottery/pl3/current')
         case LOTTERY.DLT.id:
           return $fetch<DltCurrent>('/api/lottery-tw/dlt/current')
+        case LOTTERY.D539.id:
+          return $fetch<D539Current>('/api/lottery-tw/d539/current')
         default:
           return null
       }
@@ -1281,6 +1327,12 @@ export const api = {
     userRecordDlt: () => $fetch<DltUserRecordResponse>('/api/lottery-tw/dlt/user-record'),
     claimOneIssueDlt: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/dlt/claim', { method: 'POST' }),
+    // ── 今彩539（D539，tw 分類、完全鏡射官方，路由在 lottery-tw/d539；一期 5 碼、無特別號）──
+    currentD539: () => $fetch<D539Current>('/api/lottery-tw/d539/current'),
+    openCodeHistoryD539: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery-tw/d539/opencode-history'),
+    userRecordD539: () => $fetch<D539UserRecordResponse>('/api/lottery-tw/d539/user-record'),
+    claimOneIssueD539: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/d539/claim', { method: 'POST' }),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),
     bet: (payload: LotteryBetPayload) =>

@@ -3,9 +3,9 @@ import { ref, readonly } from 'vue'
 /**
  * 複製自 useBgAutoActive.ts——bg／tw 兩個分類的自動下注面板刻意不共用同一份檔案
  * （見 openspec/changes/add-dlt/design.md Decision 0），改一邊不會牽動另一邊。
- * 目前只服務 'dlt' 一種玩法，未來若有更多 tw 系列玩法，直接在這個聯集型別加分支。
+ * 未來若有更多 tw 系列玩法，直接在這個聯集型別加分支（目前：大樂透 dlt、今彩539 d539）。
  */
-type LotteryType = 'dlt'
+type LotteryType = 'dlt' | 'd539'
 
 const _active = ref(false)
 const _lotteryType = ref<LotteryType | null>(null)

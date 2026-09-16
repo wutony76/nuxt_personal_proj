@@ -22,7 +22,8 @@ const BINGO_GAME_CODE = 1102
 
 // 已有完整投注頁面的玩法，卡片按鈕直接跳轉過去；其餘玩法尚未實作投注頁，暫時維持開啟中獎明細彈窗。
 const GAME_ROUTES: Record<number, string> = {
-  5118: '/lottery/tw/dlt'
+  5118: '/lottery/tw/dlt',
+  1197: '/lottery/tw/d539'
 }
 
 const GAME_META: Record<number, { mark: string; tagline: string; drawTime: string; topPrize: string; rules: string[] }> = {

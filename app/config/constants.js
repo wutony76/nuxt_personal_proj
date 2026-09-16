@@ -66,6 +66,12 @@ export const LOTTERY = {
   // 這裡跟其他 bg 系列共用同一份 LOTTERY 註冊表只是為了 id/key 查找方便，
   // 不代表它該出現在 bg 大廳的玩法清單裡（它有自己獨立的 /lottery-hall-taiwan 入口）。
   'DLT':{ id: 11001, key: 'DLT', name: '大樂透', sort: 11, category: 'tw' },
+
+  // 今彩539：第二款「完全鏡射官方台彩」的玩法（tw 分類，開獎號與 4 個獎項派彩金額皆即時讀取
+  // 官方 API，不自建 RNG／賠率公式／彩池，見 openspec/changes/add-tw-lottery-suite/design.md）。
+  // 與大樂透唯二差異：01–39 選 5、無特別號；每天開獎（週一至週六，週日不開獎）。
+  // 只登記單一鍵值（無 sub 欄位），category: 'tw' 讓它不出現在 bg 大廳（有獨立的 /lottery-hall-taiwan 入口）。
+  'D539':{ id: 11003, key: 'D539', name: '今彩539', sort: 13, category: 'tw' },
 }
 
 export const SORT = {

@@ -76,7 +76,8 @@ export const BG_GAMES = [
  * 下注時 `payload.lottery.key` 的值（DLT 沿用既有共用下注端點，不另開專屬路由）。
  */
 export const TW_GAMES = [
-  { key: 'DLT', pageSlug: 'dlt' }
+  { key: 'DLT', pageSlug: 'dlt' },
+  { key: 'D539', pageSlug: 'd539' }
 ]
 
 export function findRetroByApiSlug(slug) {
