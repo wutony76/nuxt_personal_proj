@@ -1066,6 +1066,31 @@ export type ToyLuckyDrawRollPayload = {
   cellIndex?: number
 }
 
+export type ToyCardsChoice = 'high' | 'low' | 'same'
+
+export type ToyCardsView = {
+  status: 'idle' | 'result'
+  rank: number | null
+  nextRank: number | null
+  choice: ToyCardsChoice | null
+  correct: boolean | null
+  multiplier: number
+  streak: number
+  unclaimed: number
+  reward: number
+  balance: number
+  claimed: boolean
+  canGuess: boolean
+  canClaim: boolean
+  gameKey: string | null
+}
+
+export type ToyCardsRollPayload = {
+  action: 'start' | 'guess' | 'claim'
+  bet?: number
+  choice?: ToyCardsChoice
+}
+
 export const api = {
   system: {
     servTime: () => $fetch<{ serverTime: number }>('/api/servTime')
@@ -1393,7 +1418,10 @@ export const api = {
       catalog: () => $fetch<ToyCatalogResponse>('/api/games/toys/catalog'),
       pool: () => $fetch<ToyLuckyDrawView>('/api/games/toys/pool'),
       rollLuckyDraw: (payload: ToyLuckyDrawRollPayload) =>
-        $fetch<ToyLuckyDrawView>('/api/games/toys/lucky-draw/roll', { method: 'POST', body: payload })
+        $fetch<ToyLuckyDrawView>('/api/games/toys/lucky-draw/roll', { method: 'POST', body: payload }),
+      cardsState: () => $fetch<ToyCardsView>('/api/games/toys/cards/state'),
+      rollCards: (payload: ToyCardsRollPayload) =>
+        $fetch<ToyCardsView>('/api/games/toys/cards/roll', { method: 'POST', body: payload })
     },
     retro: {
       historySnake: () => $fetch<GameHistoryListResponse>('/api/games/retro/snake/history'),

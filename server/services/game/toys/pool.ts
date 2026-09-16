@@ -4,6 +4,7 @@ export type ToyPoolRecord = {
   gameKey: string
   bet: number
   claimed: boolean
+  meta?: Record<string, unknown>
 }
 
 const records = new Map<string, ToyPoolRecord>()
@@ -37,6 +38,14 @@ export function clearPool(userId: string): void {
  */
 export function hasUnclaimed(userId: string): boolean {
   return (readPool(userId)?.unclaimed ?? 0) > 0
+}
+
+/**
+ * @param userId 帳號 id
+ * @returns 是否已有未結束的 toys 局
+ */
+export function hasOpenRound(userId: string): boolean {
+  return readPool(userId) != null
 }
 
 /**

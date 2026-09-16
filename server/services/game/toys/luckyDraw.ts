@@ -1,5 +1,5 @@
 import { LUCKY_DRAW_CELLS, LUCKY_DRAW_REWARDS, TOY_MAX_POT_MULTIPLIER } from './catalog.ts'
-import { acquireLock, clearPool, hasUnclaimed, readPool, releaseLock, writePool } from './pool.ts'
+import { acquireLock, clearPool, hasOpenRound, readPool, releaseLock, writePool } from './pool.ts'
 import { pickWeighted } from './random.ts'
 import { applyMultiplier, clampPot, isValidBet } from './reward.ts'
 
@@ -123,7 +123,7 @@ function _start(input: {
   if (!Number.isInteger(cellIndex) || cellIndex < 0 || cellIndex >= LUCKY_DRAW_CELLS) {
     throw new ToyPlayError(400, '請選一格。')
   }
-  if (hasUnclaimed(input.userId)) throw new ToyPlayError(400, '還有未領金額，不能另開一局。')
+  if (hasOpenRound(input.userId)) throw new ToyPlayError(400, '還有未結束的玩具，不能另開一局。')
 
   const reward = pickWeighted(LUCKY_DRAW_REWARDS, input.rng)
   const raw = applyMultiplier(bet, reward.multiplier)
