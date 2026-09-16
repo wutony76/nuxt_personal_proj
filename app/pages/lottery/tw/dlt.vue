@@ -77,11 +77,11 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
-      <section>
+      <section class="road-warp">
         <Road />
       </section>
 
-      <section>
+      <section class="play-section">
         <div class="play-warp">
           <svg class="dlt-ticket-art" viewBox="0 0 160 100" aria-hidden="true">
             <g transform="rotate(-4 80 50)">
@@ -142,6 +142,49 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+  }
+}
+
+/* 進場動畫：主要區塊依序淡入＋上移，數值對齊 Header.vue 自己那份 dlt-header-in */
+@keyframes dlt-section-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.info-warp,
+.road-warp,
+.play-section,
+.record-warp {
+  animation: dlt-section-in 0.5s ease-out both;
+}
+
+.road-warp {
+  animation-delay: 0.08s;
+}
+
+.play-section {
+  animation-delay: 0.16s;
+}
+
+.record-warp {
+  animation-delay: 0.24s;
+}
+
+/* 常置動畫：play-warp 左上角的注單插畫持續輕輕浮動，見下方 .dlt-ticket-art */
+@keyframes dlt-ticket-float {
+  0%, 100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+
+  50% {
+    transform: translateY(-5px) rotate(1deg);
   }
 }
 
@@ -269,6 +312,7 @@ onBeforeUnmount(() => {
     z-index: 1;
     pointer-events: none;
     filter: drop-shadow(0 4px 6px rgba(46, 43, 37, 0.18));
+    animation: dlt-ticket-float 3.2s ease-in-out infinite;
   }
 
   .closed-hint {

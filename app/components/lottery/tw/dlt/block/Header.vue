@@ -81,6 +81,30 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
   background: linear-gradient(180deg, var(--color-accent-100, #fff2eb) 0%, var(--color-neutral-100, #f9f4ed) 100%);
   box-shadow: var(--shadow-md);
   padding: calc(1rem + 14px) 1.25rem calc(1rem + 14px);
+  animation: dlt-header-in 0.5s ease-out both;
+}
+
+@keyframes dlt-header-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 常置動畫：徽章持續輕輕呼吸發光，跟 dlt-timer-dot 的呼吸燈是同一種語彙 */
+@keyframes dlt-badge-glow {
+  0%, 100% {
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18), 0 0 0 0 rgba(214, 127, 72, 0.5);
+  }
+
+  50% {
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18), 0 0 0 8px rgba(214, 127, 72, 0);
+  }
 }
 
 .dlt-header::before,
@@ -129,7 +153,7 @@ const lastSpecial = computed(() => lastOpenCode.value?.openCode?.[6] ?? null)
     font-weight: 900;
     font-size: 44px;
     color: var(--color-neutral-900, #2e2b25);
-    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18);
+    animation: dlt-badge-glow 2.4s ease-in-out infinite;
   }
 
   .dlt-brand-text {

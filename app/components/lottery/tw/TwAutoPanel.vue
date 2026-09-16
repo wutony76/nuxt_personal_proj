@@ -42,7 +42,7 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
   font-weight: 700;
   color: #fff;
   padding: 1rem 0;
-  animation: sec-in 0.55s ease both;
+  animation: dlt-sec-in 0.55s ease both;
   animation-delay: 0.48s;
 
   &.is-dlt {
@@ -144,11 +144,18 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
 }
 
 .tw-panel-enter-active {
-  animation: sec-in 0.55s ease both;
+  animation: dlt-sec-in 0.55s ease both;
 }
 
 .tw-panel-leave-active {
   animation: tw-sec-out 0.3s ease forwards;
+}
+
+@keyframes dlt-sec-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
 }
 
 @keyframes tw-sec-out {
