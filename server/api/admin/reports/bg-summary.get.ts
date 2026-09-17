@@ -266,14 +266,18 @@ export default defineEventHandler((event) => {
   const twTotalOrders = Object.values(twGameMap).reduce((a, b) => a + b.orders, 0)
   const twTotalSalesForRatio = twTotalSales || 1
   const twDailySales = days.map((day) => ({ day, sales: twDailyMap[day] ?? 0 }))
-  const twGameRanking = Object.entries(twGameMap)
-    .map(([key, v]) => ({
-      key,
-      name: TW_GAME_NAMES[key] ?? key,
-      sales: v.sales,
-      orders: v.orders,
-      ratio: Math.round((v.sales / twTotalSalesForRatio) * 10000) / 100,
-    }))
+  // 補齊所有已註冊的台彩玩法（含本月尚無下注紀錄的），不是只列出有資料的
+  const twGameRanking = Object.keys(TW_GAME_NAMES)
+    .map((key) => {
+      const v = twGameMap[key] ?? { sales: 0, orders: 0 }
+      return {
+        key,
+        name: TW_GAME_NAMES[key] ?? key,
+        sales: v.sales,
+        orders: v.orders,
+        ratio: Math.round((v.sales / twTotalSalesForRatio) * 10000) / 100,
+      }
+    })
     .sort((a, b) => b.sales - a.sales)
 
   return {
