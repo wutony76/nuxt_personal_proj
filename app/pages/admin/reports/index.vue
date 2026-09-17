@@ -14,7 +14,8 @@ const error = ref('')
 const summary = ref(null)
 
 // ─── 共用 chart options factory ───
-function makeLineOptions() {
+// xTicksLimit／yTicksLimit 越小，軸上標籤跨度越大（標籤數越少、間距越開）
+function makeLineOptions({ xTicksLimit = 8, yTicksLimit } = {}) {
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -28,13 +29,14 @@ function makeLineOptions() {
     },
     scales: {
       x: {
-        ticks: { font: { size: 10 }, color: '#888', maxTicksLimit: 15 },
+        ticks: { font: { size: 10 }, color: '#888', maxTicksLimit: xTicksLimit },
         grid: { color: 'rgba(28,28,34,0.06)' },
       },
       y: {
         ticks: {
           font: { size: 10 },
           color: '#888',
+          ...(yTicksLimit ? { maxTicksLimit: yTicksLimit } : {}),
           callback: (v) => `F${Number(v).toLocaleString('zh-TW')}`,
         },
         grid: { color: 'rgba(28,28,34,0.06)' },
@@ -89,8 +91,8 @@ const twLineChartData = computed(() => {
   }
 })
 
-const lineChartOptions = makeLineOptions()
-const twLineChartOptions = makeLineOptions()
+const lineChartOptions = makeLineOptions({ xTicksLimit: 8 })
+const twLineChartOptions = makeLineOptions({ xTicksLimit: 8, yTicksLimit: 6 })
 
 // ─── 最大銷售用於 ranking bar 寬度 ───
 const maxGameSales = computed(() => {
