@@ -10,6 +10,7 @@ const NAV = [
   { key: 'dashboard', label: '總覽', en: 'Overview', path: '/admin/reports' },
   { key: 'plays', label: '玩法', en: 'Plays', path: '/admin/reports/plays' },
   { key: 'settlement', label: '結算 / 月', en: 'Settlement', path: '/admin/reports/settlement' },
+  { key: 'members', label: '會員', en: 'Members', path: '/admin/reports/members' },
   { key: 'fcoin', label: '兌F幣', en: 'F Coin', path: '/admin/reports/fcoin' },
 ]
 </script>

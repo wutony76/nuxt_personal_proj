@@ -1300,6 +1300,26 @@ export type FcoinSummary = {
   dataNote: string
 }
 
+export type MemberRankItem = {
+  key: string
+  name: string
+  players: number
+  ratio: number
+}
+
+export type MemberCategorySummary = {
+  totalPlayers: number
+  gameRanking: MemberRankItem[]
+}
+
+export type MemberSummary = {
+  month: string
+  bg: MemberCategorySummary
+  tw: MemberCategorySummary
+  game: MemberCategorySummary
+  dataNote: string
+}
+
 export type ChatScheduleRepeat = 'daily' | 'once' | 'interval'
 
 export type ChatSchedule = {
@@ -1660,6 +1680,12 @@ export const api = {
         $fetch<BgReportSummary>('/api/admin/reports/bg-summary', { query: { month } }),
       fCoinSummary: (month: string) =>
         $fetch<FcoinSummary>('/api/admin/reports/fcoin-summary', { query: { month } }),
+      /**
+       * 會員月度玩法人數分佈（BG／TW／GAME 三分類，各玩法不重複人數排行）
+       * @param month YYYY-MM
+       */
+      memberSummary: (month: string) =>
+        $fetch<MemberSummary>('/api/admin/reports/members', { query: { month } }),
     },
     chat: {
       listSchedules: () => $fetch<{ schedules: ChatSchedule[] }>('/api/admin/chat/schedules'),
