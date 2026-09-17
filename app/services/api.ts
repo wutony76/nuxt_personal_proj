@@ -781,6 +781,53 @@ export type M539UserBetHistory = {
   winAmount: number
 }
 
+/**
+ * 3星彩（P3）當期資訊
+ * ⚠️ 與 M649/M539 同為「完全鏡射官方」的 tw 分類玩法（路由在 lottery-tw/p3），但玩法本質不同：
+ * 玩家選定下注方式（正彩／組彩／前二對彩／後二對彩）並填滿 3 位 0~9 數字（可重複），見
+ * shared/config/p3.ts 的 P3_BET_TYPES；tiers 只包含官方正彩/組彩 3 個獎項，對彩固定 750 元
+ * （P3_PAIR_PRIZE）不查官方 API、不在 tiers 內。
+ */
+export type P3Current = {
+  issue: string
+  currentStatus: string
+  cutoffAt: number
+  drawAt: number
+  countdown: string
+  quotaIssueMaxCoin: number
+  quotaIssueMaxBets: number
+  lastOpenCode: { issue: string; openCode: string[] } | null
+  popularNumbers: Array<{ betType: string; digits: number[]; count: number }>
+  tiers: Array<{ key: string; label: string; desc: string | null }>
+}
+
+/** 3星彩玩家紀錄 */
+export type P3UserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: P3UserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+}
+
+export type P3UserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  /** 下注方式：正彩(zhengcai)／組彩(zucai)／前二對彩(front-pair)／後二對彩(back-pair) */
+  betType: string
+  /** 3 位 0~9 數字組成的字串（例如 "123"），可重複 */
+  betCode: string[]
+  /** 官方真實開獎號（結算前為空陣列，3星彩一期 3 碼） */
+  openCode: string[]
+  /** 命中的結果 key（官方 lotto3DFirstAssign/SecondAssign/ThirdAssign，或對彩 front-pair/back-pair），未中或結算前為 null */
+  tierKey: string | null
+  /** 對應中文名稱（頭獎／二獎／三獎／前二對彩／後二對彩），未中或結算前為空字串 */
+  tierLabel: string
+  winStatus: 'pending' | 'win' | 'lose'
+  /** 派彩金額，未結算前為 0 */
+  winAmount: number
+}
+
 /** 排列3玩家紀錄 */
 export type Pl3UserRecordResponse = {
   balanceChanges: LotteryUserBalanceChange[]
@@ -895,8 +942,9 @@ export type LotteryBetPayload = {
    * tw 選號玩法用：A~E 最多 5 組各自獨立投注，不是複式。
    *   - 大樂透（DLT）／今彩539（D539）：每組 `{ numbers }`（單一號碼池）
    *   - 威力彩（SUPERLOTTO）：每組 `{ zoneA, zoneB }`（兩區選號，見 SuperlottoCurrent 註解）
+   *   - 3星彩（P3）：每組 `{ betType, digits }`（下注方式＋3 位 0~9 數字，見 P3Current 註解）
    */
-  slots?: Array<{ numbers?: number[]; zoneA?: number[]; zoneB?: number | null }>
+  slots?: Array<{ numbers?: number[]; zoneA?: number[]; zoneB?: number | null; betType?: string; digits?: number[] }>
 }
 
 export type LotteryBetOrder = {
@@ -1084,6 +1132,30 @@ export type BgPoolAuditResponse = {
   overpay: BgFloorOverpayEvent[]
   summary: BgPoolAuditSummary[]
   stats: { reseedCount: number; overpayCount: number; totalOverpay: number }
+}
+
+export type BgReportSummaryGameItem = {
+  key: string
+  name: string
+  sales: number
+  orders: number
+  ratio: number
+}
+
+export type BgReportSummaryDailyItem = {
+  day: string
+  sales: number
+}
+
+export type BgReportSummary = {
+  month: string
+  totalSales: number
+  totalOrders: number
+  commission: number
+  dailySales: BgReportSummaryDailyItem[]
+  gameRanking: BgReportSummaryGameItem[]
+  playRanking: BgReportSummaryGameItem[]
+  dataNote: string
 }
 
 export type ChatScheduleRepeat = 'daily' | 'once' | 'interval'
@@ -1437,6 +1509,14 @@ export const api = {
       poolAudit: (params?: { lotteryKey?: string; range?: '7d' | '30d' | 'all' }) =>
         $fetch<BgPoolAuditResponse>('/api/admin/bg-lottery/pool-audit', { query: params })
     },
+    reports: {
+      /**
+       * BG 彩票月度統計
+       * @param month YYYY-MM
+       */
+      bgSummary: (month: string) =>
+        $fetch<BgReportSummary>('/api/admin/reports/bg-summary', { query: { month } })
+    },
     chat: {
       listSchedules: () => $fetch<{ schedules: ChatSchedule[] }>('/api/admin/chat/schedules'),
       addSchedule: (payload: {
@@ -1499,6 +1579,8 @@ export const api = {
           return $fetch<M649Current>('/api/lottery-tw/m649/current')
         case LOTTERY.M539.id:
           return $fetch<M539Current>('/api/lottery-tw/m539/current')
+        case LOTTERY.P3.id:
+          return $fetch<P3Current>('/api/lottery-tw/p3/current')
         default:
           return null
       }
@@ -1667,6 +1749,13 @@ export const api = {
     userRecordM539: () => $fetch<M539UserRecordResponse>('/api/lottery-tw/m539/user-record'),
     claimOneIssueM539: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/m539/claim', { method: 'POST' }),
+    // ── 3星彩（P3，tw 分類、完全鏡射官方，路由在 lottery-tw/p3；正彩/組彩鏡射官方 gameCode 2108
+    //    API，前二/後二對彩為本站新增的固定獎金規則，不查官方，見 add-tw-lottery-suite/design.md Decision 5）──
+    currentP3: () => $fetch<P3Current>('/api/lottery-tw/p3/current'),
+    openCodeHistoryP3: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery-tw/p3/opencode-history'),
+    userRecordP3: () => $fetch<P3UserRecordResponse>('/api/lottery-tw/p3/user-record'),
+    claimOneIssueP3: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/p3/claim', { method: 'POST' }),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),
     bet: (payload: LotteryBetPayload) =>

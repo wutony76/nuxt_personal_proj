@@ -6,6 +6,7 @@ import { type TaiwanLotteryResult } from '~/services/api'
 import { TaiwanLotteryService } from '~/services/taiwanLotteryService'
 import TaiwanLotteryPrizeDialog from '~/components/TaiwanLotteryPrizeDialog.vue'
 import ShelfCard from '~/components/toys/ShelfCard.vue'
+import ToyPlayDialog from '~/components/toys/ToyPlayDialog.vue'
 import { api, type ToyCatalogItem } from '~/services/api'
 
 useHead({
@@ -28,7 +29,8 @@ const GAME_ROUTES: Record<number, string> = {
   5134: '/lottery/tw/superlotto',
   1197: '/lottery/tw/d539',
   1121: '/lottery/tw/m649',
-  5120: '/lottery/tw/m539'
+  5120: '/lottery/tw/m539',
+  2108: '/lottery/tw/p3'
 }
 
 const GAME_META: Record<number, { mark: string; tagline: string; drawTime: string; topPrize: string; rules: string[] }> = {
@@ -109,7 +111,8 @@ const state = reactive({
   shelf: {
     loading: false,
     error: '',
-    items: [] as ToyCatalogItem[]
+    items: [] as ToyCatalogItem[],
+    active: null as ToyCatalogItem | null
   }
 })
 
@@ -195,6 +198,13 @@ const click = {
   },
   closePrize: () => {
     state.dialog.visible = false
+  },
+  openToy: (item: ToyCatalogItem) => {
+    if (item.status !== 'open' || !item.path) return
+    state.shelf.active = item
+  },
+  closeToy: () => {
+    state.shelf.active = null
   },
   enterGame: (game: TaiwanLotteryResult) => {
     const route = GAME_ROUTES[game.gameCode]
@@ -373,7 +383,7 @@ onMounted(async () => {
         <p v-if="state.shelf.loading" class="tw-shelf-note">櫥仔準備中...</p>
         <p v-else-if="state.shelf.error" class="tw-shelf-note">{{ state.shelf.error }}</p>
         <div v-else class="tw-shelf-grid">
-          <ShelfCard v-for="item in state.shelf.items" :key="item.slug" :item="item" />
+          <ShelfCard v-for="item in state.shelf.items" :key="item.slug" :item="item" @open="click.openToy(item)" />
         </div>
       </section>
 
@@ -385,6 +395,7 @@ onMounted(async () => {
         </div>
       </div>
 
+      <ToyPlayDialog :item="state.shelf.active" @close="click.closeToy" />
       <TaiwanLotteryPrizeDialog :visible="state.dialog.visible" :game-code="state.dialog.gameCode"
         :game-name="state.dialog.gameName" :period="state.dialog.period" @close="click.closePrize" />
     </template>

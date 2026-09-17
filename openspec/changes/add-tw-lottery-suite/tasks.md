@@ -76,19 +76,19 @@
 
 ## 7. 3星彩（`P3`，重用 `pl3` 判定邏輯）
 
-- [ ] 對照 `pl3` 既有 `shared/config/` 判定函式，確認正彩／組彩演算法可直接複製
-- [ ] `shared/config/p3.ts`：複製 `pl3` 對應邏輯，開獎號碼改為讀
+- [x] 對照 `pl3` 既有 `shared/config/` 判定函式，確認正彩／組彩演算法可直接複製
+- [x] `shared/config/p3.ts`：複製 `pl3` 對應邏輯，開獎號碼改為讀
       `fetchTaiwanLotteryLastNumberOf(2108)`；新增對彩判定函式
       `isFrontPairMatch(bet, drawn)`／`isBackPairMatch(bet, drawn)`（`pl3` 無等價規則，
       需新增），兩者各自獨立判定、可同時中獎（各 750 元、25 元基本注，見 `design.md`
       Decision 5），結算時需分別累加派彩，不可只擇一計算
-- [ ] `server/services/game/lottery/tw/p3.ts`：繼承 `tw/base.ts`，期別 bootstrap 同今彩539
+- [x] `server/services/game/lottery/tw/p3.ts`：繼承 `tw/base.ts`，期別 bootstrap 同今彩539
       （每天週一至週六）
-- [ ] `app/composables/useP3.ts`、`app/components/lottery/tw/p3/**`（參考 `pl3` 既有數字選號
+- [x] `app/composables/useP3.ts`、`app/components/lottery/tw/p3/**`（參考 `pl3` 既有數字選號
       元件，改用柑仔店主題配色）
-- [ ] `app/pages/lottery/tw/p3.vue`
-- [ ] `server/services/storage.ts` 註冊
-- [ ] 功能驗證：正彩／組彩／前二對彩／後二對彩皆正確判定；前二＋後二同時中獎時
+- [x] `app/pages/lottery/tw/p3.vue`
+- [x] `server/services/storage.ts` 註冊
+- [x] 功能驗證：正彩／組彩／前二對彩／後二對彩皆正確判定；前二＋後二同時中獎時
       合計派彩 1,500 元（750+750），不因三碼全同只算一次
 
 ## 8. 4星彩（`P4`，重用 `fc3d` 判定邏輯）
