@@ -20,10 +20,10 @@ const status = ref('idle')
 const error = ref('')
 const summary = ref(null)
 
-// ─── Donut Chart data ───
+// ─── Donut Chart data（BG 彩種佔比，比照總覽頁的彩種排行，不是更細的玩法/playKey 分析）───
 const donutData = computed(() => {
-  if (!summary.value?.playRanking?.length) return null
-  const items = summary.value.playRanking.slice(0, 10)
+  if (!summary.value?.gameRanking?.length) return null
+  const items = summary.value.gameRanking.slice(0, 10)
   return {
     labels: items.map((p) => p.name),
     datasets: [
@@ -56,7 +56,7 @@ const donutOptions = {
     tooltip: {
       callbacks: {
         label: (ctx) => {
-          const item = summary.value.playRanking[ctx.dataIndex]
+          const item = summary.value.gameRanking[ctx.dataIndex]
           return ` F${Number(ctx.raw).toLocaleString('zh-TW')} (${item?.ratio ?? 0}%)`
         },
       },
@@ -141,7 +141,7 @@ onMounted(() => _actions.fetch())
 </script>
 
 <template>
-  <AdminShell active="reports" kicker="資料統計 / 玩法" title="玩法" desc="玩法佔比 Donut Chart 與統計表格。僅統計含玩法識別碼（playKey）的訂單。">
+  <AdminShell active="reports" kicker="資料統計 / 玩法" title="玩法" desc="BG 彩種佔比 Donut Chart 與統計表格，比照總覽頁的彩種排行（不是玩法識別碼 playKey 的更細分析）。">
     <AdminReportsNav active="plays" />
 
     <!-- 月份篩選器 -->
@@ -165,11 +165,11 @@ onMounted(() => _actions.fetch())
           <div class="admin-sechead">
             <div class="admin-sechead-left">
               <h2>分布圖</h2>
-              <span class="admin-meta admin-tag">BG · 玩法佔比</span>
+              <span class="admin-meta admin-tag">BG · 彩種佔比</span>
             </div>
             <span class="admin-meta">{{ summary.month }}</span>
           </div>
-          <div v-if="!summary.playRanking.length" class="admin-empty">本月無 BG 玩法資料</div>
+          <div v-if="!summary.gameRanking.length" class="admin-empty">本月無 BG 彩種資料</div>
           <div v-else class="arp-donut-wrap">
             <ClientOnly>
               <Doughnut v-if="donutData" :data="donutData" :options="donutOptions" />
@@ -200,32 +200,32 @@ onMounted(() => _actions.fetch())
       <!-- 玩法佔比／統計（BG）／台彩彩種 並列 -->
       <div class="arp-detail-row">
 
-        <!-- BG：統計表 -->
+        <!-- BG：彩種統計表（比照總覽頁的彩種排行） -->
         <div class="arp-detail-col">
           <div class="admin-sechead">
             <div class="admin-sechead-left">
-              <h2>玩法排行</h2>
-              <span class="admin-meta admin-tag">BG · 僅含 playKey 訂單</span>
+              <h2>彩種排行</h2>
+              <span class="admin-meta admin-tag">BG</span>
             </div>
             <span class="admin-meta">{{ summary.month }}</span>
           </div>
 
-          <div v-if="!summary.playRanking.length" class="admin-empty">
-            目前月份沒有含玩法識別碼的訂單。玩法識別碼由各玩法下注時自動帶入。
+          <div v-if="!summary.gameRanking.length" class="admin-empty">
+            目前月份沒有彩種銷售資料。
           </div>
 
           <template v-else>
             <table class="admin-table arp-table">
               <thead>
                 <tr>
-                  <th>玩法</th>
+                  <th>彩種</th>
                   <th class="admin-num" style="text-align:right">銷售額</th>
                   <th class="admin-num" style="text-align:right">注數</th>
                   <th class="admin-num" style="text-align:right">佔比</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(item, i) in summary.playRanking" :key="item.key">
+                <tr v-for="(item, i) in summary.gameRanking" :key="item.key">
                   <td>
                     <span class="arp-color-dot" :style="{ background: PALETTE[i % PALETTE.length] }" />
                     {{ item.name }}
@@ -272,7 +272,6 @@ onMounted(() => _actions.fetch())
                 </tr>
               </tbody>
             </table>
-            <p class="arp-tw-note">台彩訂單目前無 playKey，故不計入玩法佔比圖表。</p>
           </template>
         </div>
 
@@ -351,9 +350,4 @@ onMounted(() => _actions.fetch())
   flex-shrink: 0;
 }
 
-.arp-tw-note {
-  margin-top: 12px;
-  font-size: 11.5px;
-  color: var(--muted);
-}
 </style>
