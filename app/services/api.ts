@@ -647,6 +647,50 @@ export type D539UserBetHistory = {
   winAmount: number
 }
 
+/**
+ * 49樂合彩（M649）當期資訊
+ * ⚠️ 與 DLT/D539 同為「完全鏡射官方」的 tw 分類玩法（路由在 lottery-tw/m649），但玩法本質不同：
+ * 玩家選定「幾合」（2/3/4）並選滿對應數量的號碼，開獎號**全部**被開出才中獎（二元中/不中，
+ * 見 shared/config/m649.ts 的 isHit），沒有 DLT 那種依對中幾碼分級的獎項。
+ */
+export type M649Current = {
+  issue: string
+  currentStatus: string
+  cutoffAt: number
+  drawAt: number
+  countdown: string
+  quotaIssueMaxCoin: number
+  quotaIssueMaxBets: number
+  lastOpenCode: { issue: string; openCode: string[] } | null
+  popularNumbers: Array<{ betCode: number[]; count: number }>
+  tiers: Array<{ key: string; label: string; desc: string | null }>
+}
+
+/** 49樂合彩玩家紀錄 */
+export type M649UserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: M649UserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+}
+
+export type M649UserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  /** 一組 2~4 碼（逗號分隔已正規化，碼數＝玩家當初選的合數） */
+  betCode: string[]
+  /** 官方真實開獎號（結算前為空陣列，跟隨大樂透 6 碼） */
+  openCode: string[]
+  /** 命中的官方獎項 key（m649TwoAssign／m649ThreeAssign／m649FourAssign），未中或結算前為 null */
+  tierKey: string | null
+  /** 對應獎項中文名稱（二合／三合／四合），未中或結算前為空字串 */
+  tierLabel: string
+  winStatus: 'pending' | 'win' | 'lose'
+  /** 派彩金額＝官方當期該合數實際 perPrize，未結算前為 0 */
+  winAmount: number
+}
+
 /** 排列3玩家紀錄 */
 export type Pl3UserRecordResponse = {
   balanceChanges: LotteryUserBalanceChange[]
@@ -1355,6 +1399,8 @@ export const api = {
           return $fetch<DltCurrent>('/api/lottery-tw/dlt/current')
         case LOTTERY.D539.id:
           return $fetch<D539Current>('/api/lottery-tw/d539/current')
+        case LOTTERY.M649.id:
+          return $fetch<M649Current>('/api/lottery-tw/m649/current')
         default:
           return null
       }
@@ -1502,6 +1548,13 @@ export const api = {
     userRecordD539: () => $fetch<D539UserRecordResponse>('/api/lottery-tw/d539/user-record'),
     claimOneIssueD539: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/d539/claim', { method: 'POST' }),
+    // ── 49樂合彩（M649，tw 分類、完全鏡射官方，路由在 lottery-tw/m649；跟隨大樂透開獎號，
+    //    但獨立呼叫官方 API，不依賴 DLT 的 service 或內部狀態）──
+    currentM649: () => $fetch<M649Current>('/api/lottery-tw/m649/current'),
+    openCodeHistoryM649: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery-tw/m649/opencode-history'),
+    userRecordM649: () => $fetch<M649UserRecordResponse>('/api/lottery-tw/m649/user-record'),
+    claimOneIssueM649: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/m649/claim', { method: 'POST' }),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),
     bet: (payload: LotteryBetPayload) =>
