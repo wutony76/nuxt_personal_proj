@@ -1,0 +1,331 @@
+<script setup>
+import { ref, computed, watch, onMounted } from 'vue'
+import dayjs from 'dayjs'
+import { Doughnut, Line } from 'vue-chartjs'
+import { Chart, registerables } from 'chart.js'
+import { api } from '~/services/api'
+
+Chart.register(...registerables)
+
+// ─── 甜甜圈配色（黑白灰系列）───
+const PALETTE = [
+  '#1c1c22', '#3d3d48', '#5e5e6e', '#7f7f94',
+  '#a0a0ba', '#bdbdd0', '#d4d4e6', '#e8e8f2',
+  '#c0c0d0', '#909098',
+]
+
+// ─── State ───
+const month = ref(dayjs().format('YYYY-MM'))
+const status = ref('idle')
+const error = ref('')
+const summary = ref(null)
+
+// ─── Donut Chart data ───
+const donutData = computed(() => {
+  if (!summary.value?.playRanking?.length) return null
+  const items = summary.value.playRanking.slice(0, 10)
+  return {
+    labels: items.map((p) => p.name),
+    datasets: [
+      {
+        data: items.map((p) => p.sales),
+        backgroundColor: items.map((_, i) => PALETTE[i % PALETTE.length]),
+        borderColor: '#ffffff',
+        borderWidth: 2,
+        hoverOffset: 6,
+      },
+    ],
+  }
+})
+
+const donutOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  cutout: '62%',
+  plugins: {
+    legend: {
+      position: 'right',
+      labels: {
+        font: { size: 12 },
+        color: '#1c1c22',
+        padding: 14,
+        boxWidth: 12,
+        boxHeight: 12,
+      },
+    },
+    tooltip: {
+      callbacks: {
+        label: (ctx) => {
+          const item = summary.value.playRanking[ctx.dataIndex]
+          return ` F${Number(ctx.raw).toLocaleString('zh-TW')} (${item?.ratio ?? 0}%)`
+        },
+      },
+    },
+  },
+}
+
+// ─── Formatters ───
+const _fmt = {
+  coin: (v) => `F${Number(v).toLocaleString('zh-TW')}`,
+}
+
+// ─── TW 走勢圖 ───
+const twLineData = computed(() => {
+  if (!summary.value?.twTotal?.dailySales?.length) return null
+  const labels = summary.value.twTotal.dailySales.map((d) => {
+    const [, , day] = d.day.split('-')
+    return `${summary.value.month.slice(5)}/${day}`
+  })
+  return {
+    labels,
+    datasets: [{
+      label: '下注額',
+      data: summary.value.twTotal.dailySales.map((d) => d.sales),
+      borderColor: '#5e5e6e',
+      backgroundColor: 'rgba(94,94,110,0.06)',
+      borderWidth: 1.5,
+      pointRadius: 2,
+      pointHoverRadius: 4,
+      tension: 0.3,
+      fill: true,
+    }],
+  }
+})
+
+const twLineOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      callbacks: {
+        label: (ctx) => ` F${Number(ctx.raw).toLocaleString('zh-TW')}`,
+      },
+    },
+  },
+  scales: {
+    x: {
+      ticks: { font: { size: 10 }, color: '#888', maxTicksLimit: 15 },
+      grid: { color: 'rgba(28,28,34,0.06)' },
+    },
+    y: {
+      ticks: {
+        font: { size: 10 },
+        color: '#888',
+        callback: (v) => `F${Number(v).toLocaleString('zh-TW')}`,
+      },
+      grid: { color: 'rgba(28,28,34,0.06)' },
+    },
+  },
+}
+
+// ─── Actions ───
+const _actions = {
+  fetch: async () => {
+    if (status.value === 'loading') return
+    status.value = 'loading'
+    error.value = ''
+    summary.value = null
+    try {
+      summary.value = await api.admin.reports.bgSummary(month.value)
+      status.value = 'success'
+    } catch (e) {
+      error.value = e?.message ?? '載入失敗'
+      status.value = 'error'
+    }
+  },
+}
+
+watch(month, () => _actions.fetch())
+onMounted(() => _actions.fetch())
+</script>
+
+<template>
+  <AdminShell active="reports" kicker="資料統計 / 玩法" title="玩法" desc="玩法佔比 Donut Chart 與統計表格。僅統計含玩法識別碼（playKey）的訂單。">
+    <AdminReportsNav active="plays" />
+
+    <!-- 月份篩選器 -->
+    <div class="arp-toolbar">
+      <AdminMonthPicker v-model="month" />
+    </div>
+
+    <!-- Loading -->
+    <div v-if="status === 'loading'" class="admin-empty">載入中…</div>
+
+    <!-- Error -->
+    <div v-else-if="status === 'error'" class="admin-empty" style="color:#b91c1c">{{ error }}</div>
+
+    <!-- Success -->
+    <template v-else-if="status === 'success' && summary">
+
+      <!-- BG + TW 走勢圖（全寬，上下） -->
+      <div class="arp-section">
+        <div class="admin-sechead">
+          <h2>走勢圖 / 月</h2>
+          <span class="admin-meta admin-tag">BG · 玩法銷售</span>
+          <span class="admin-meta">{{ summary.month }}</span>
+        </div>
+        <div v-if="!summary.playRanking.length" class="admin-empty">本月無 BG 玩法資料</div>
+        <div v-else class="arp-chart-wrap">
+          <ClientOnly>
+            <Doughnut v-if="donutData" :data="donutData" :options="donutOptions" />
+            <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+          </ClientOnly>
+        </div>
+      </div>
+
+      <div class="arp-section">
+        <div class="admin-sechead">
+          <h2>走勢圖 / 月</h2>
+          <span class="admin-meta admin-tag">TW · 每日</span>
+          <span class="admin-meta">{{ summary.month }}</span>
+        </div>
+        <div v-if="!summary.twTotal.totalSales" class="admin-empty">本月無台彩投注紀錄</div>
+        <div v-else class="arp-line-wrap">
+          <ClientOnly>
+            <Line v-if="twLineData" :data="twLineData" :options="twLineOptions" />
+            <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+          </ClientOnly>
+        </div>
+      </div>
+
+      <!-- 玩法佔比／統計（BG）／台彩彩種 並列 -->
+      <div class="arp-detail-row">
+
+        <!-- BG：統計表 -->
+        <div class="arp-detail-col">
+          <div class="admin-sechead">
+            <div class="admin-sechead-left">
+              <h2>玩法排行</h2>
+              <span class="admin-meta admin-tag">BG · 僅含 playKey 訂單</span>
+            </div>
+            <span class="admin-meta">{{ summary.month }}</span>
+          </div>
+
+          <div v-if="!summary.playRanking.length" class="admin-empty">
+            目前月份沒有含玩法識別碼的訂單。玩法識別碼由各玩法下注時自動帶入。
+          </div>
+
+          <template v-else>
+            <table class="admin-table arp-table">
+              <thead>
+                <tr>
+                  <th>玩法</th>
+                  <th class="admin-num" style="text-align:right">銷售額</th>
+                  <th class="admin-num" style="text-align:right">注數</th>
+                  <th class="admin-num" style="text-align:right">佔比</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, i) in summary.playRanking" :key="item.key">
+                  <td>
+                    <span class="arp-color-dot" :style="{ background: PALETTE[i % PALETTE.length] }" />
+                    {{ item.name }}
+                  </td>
+                  <td class="admin-num" style="text-align:right">{{ _fmt.coin(item.sales) }}</td>
+                  <td class="admin-num" style="text-align:right">{{ item.orders.toLocaleString('zh-TW') }}</td>
+                  <td class="admin-num" style="text-align:right">{{ item.ratio }}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
+        </div>
+
+        <!-- 台彩彩種累計（不受月份篩選影響） -->
+        <div class="arp-detail-col">
+          <div class="admin-sechead">
+            <div class="admin-sechead-left">
+              <h2>台彩排行</h2>
+              <span class="admin-meta admin-tag">TW · {{ summary.month }}</span>
+            </div>
+          </div>
+          <div v-if="!summary.twTotal.totalSales" class="admin-empty">
+            本月無台彩投注紀錄。
+          </div>
+          <template v-else>
+            <table class="admin-table arp-table">
+              <thead>
+                <tr>
+                  <th>彩種</th>
+                  <th class="admin-num" style="text-align:right">累計銷售額</th>
+                  <th class="admin-num" style="text-align:right">累計注數</th>
+                  <th class="admin-num" style="text-align:right">佔比</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in summary.twTotal.gameRanking" :key="item.key">
+                  <td>
+                    <span class="arp-color-dot" style="background:#bdbdd0" />
+                    {{ item.name }}
+                  </td>
+                  <td class="admin-num" style="text-align:right">{{ _fmt.coin(item.sales) }}</td>
+                  <td class="admin-num" style="text-align:right">{{ item.orders.toLocaleString('zh-TW') }}</td>
+                  <td class="admin-num" style="text-align:right">{{ item.ratio }}%</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="arp-tw-note">台彩訂單目前無 playKey，故不計入玩法佔比圖表。</p>
+          </template>
+        </div>
+
+      </div>
+    </template>
+  </AdminShell>
+</template>
+
+<style scoped lang="scss">
+.arp-toolbar {
+  margin-bottom: 32px;
+}
+
+.arp-detail-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  align-items: flex-start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+    gap: 1px 0;
+  }
+}
+
+.arp-detail-col {
+  background: var(--paper);
+  padding: 24px 20px 20px;
+  min-width: 0;
+}
+
+.arp-donut-wrap {
+  height: 300px;
+  position: relative;
+  max-width: 700px;
+}
+
+.arp-line-wrap {
+  height: 220px;
+  position: relative;
+}
+
+.arp-table {
+  max-width: 580px;
+}
+
+.arp-color-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 8px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.arp-tw-note {
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+</style>

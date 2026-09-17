@@ -16,6 +16,8 @@ type OrderRow = {
   odds?: number
   /** 命中檔次表快照（若玩法一注有多種中法，賠率開獎後才確定，單一 odds 不夠用時使用） */
   tiers?: Array<Record<string, unknown>>
+  /** 下注時間戳（ms），供報表依月份篩選（TW issue 為民國年序號，不含日期，需額外儲存） */
+  createdAt?: number
 }
 
 type AddInput = Partial<OrderRow> & { issue: string; userId: string; coin: number }
@@ -51,6 +53,7 @@ export default class OrdersClass {
         tabId: Number.isFinite(tabId) && tabId > 0 ? tabId : 0,
         playKey: String(data.playKey ?? ''),
         odds: Number(data.odds ?? 0),
+        createdAt: Date.now(),
         ...(Array.isArray(data.tiers) && data.tiers.length > 0 ? { tiers: data.tiers } : {})
       }
 

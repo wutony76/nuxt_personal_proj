@@ -1260,6 +1260,7 @@ export type BgReportSummaryDailyItem = {
 export type BgReportSummaryTwTotal = {
   totalSales: number
   totalOrders: number
+  dailySales: BgReportSummaryDailyItem[]
   gameRanking: BgReportSummaryGameItem[]
 }
 
