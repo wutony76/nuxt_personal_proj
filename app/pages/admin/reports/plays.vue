@@ -135,7 +135,7 @@ onMounted(() => _actions.fetch())
 </script>
 
 <template>
-  <AdminShell active="reports" kicker="資料統計 / 玩法" title="玩法" desc="BG 彩種佔比 Donut Chart 與統計表格，比照總覽頁的彩種排行（不是玩法識別碼 playKey 的更細分析）。">
+  <AdminShell active="reports" kicker="資料統計 / 玩法" title="玩法" desc="BG.TW 彩種熱門佔比，比照總覽頁的排行.">
     <AdminReportsNav active="plays" />
 
     <!-- 月份篩選器 -->
@@ -167,7 +167,9 @@ onMounted(() => _actions.fetch())
           <div v-else class="arp-donut-wrap">
             <ClientOnly>
               <Doughnut v-if="donutData" :data="donutData" :options="donutOptions" />
-              <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+              <template #fallback>
+                <div class="admin-empty">圖表載入中…</div>
+              </template>
             </ClientOnly>
           </div>
         </div>
@@ -184,7 +186,9 @@ onMounted(() => _actions.fetch())
           <div v-else class="arp-donut-wrap">
             <ClientOnly>
               <Doughnut v-if="twDonutData" :data="twDonutData" :options="twDonutOptions" />
-              <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+              <template #fallback>
+                <div class="admin-empty">圖表載入中…</div>
+              </template>
             </ClientOnly>
           </div>
         </div>
@@ -337,5 +341,4 @@ onMounted(() => _actions.fetch())
   vertical-align: middle;
   flex-shrink: 0;
 }
-
 </style>

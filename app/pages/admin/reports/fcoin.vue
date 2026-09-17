@@ -97,7 +97,8 @@ onMounted(() => _actions.fetch())
 </script>
 
 <template>
-  <AdminShell active="reports" kicker="資料統計 / 兌 F幣" title="兌 F幣" desc="Game Center 各玩具換 F幣 月報。包含 toy-reward、game-reward 兩類流水。">
+  <AdminShell active="reports" kicker="資料統計 / 兌 F幣" title="兌 F幣"
+    desc="Game Center 各玩具換 F幣 月報。包含 toy-reward、game-reward 兩類流水。">
     <AdminReportsNav active="fcoin" />
 
     <!-- 月份篩選器 -->
@@ -132,13 +133,15 @@ onMounted(() => _actions.fetch())
         <!-- 每日流水 Chart -->
         <div class="afc-section">
           <div class="admin-sechead">
-            <h2>每日 F幣 流水</h2>
+            <h2> 兑幣/月</h2>
             <span class="admin-meta">{{ summary.month }}</span>
           </div>
           <div class="afc-chart-wrap">
             <ClientOnly>
               <Bar v-if="flowBarData" :data="flowBarData" :options="flowBarOptions" />
-              <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+              <template #fallback>
+                <div class="admin-empty">圖表載入中…</div>
+              </template>
             </ClientOnly>
           </div>
         </div>
@@ -167,7 +170,8 @@ onMounted(() => _actions.fetch())
             <tfoot>
               <tr class="afc-total-row">
                 <td><strong>合計</strong></td>
-                <td class="admin-num" style="text-align:right"><strong>{{ summary.totalReward.toLocaleString('zh-TW') }}</strong></td>
+                <td class="admin-num" style="text-align:right"><strong>{{ summary.totalReward.toLocaleString('zh-TW')
+                    }}</strong></td>
                 <td></td>
               </tr>
             </tfoot>

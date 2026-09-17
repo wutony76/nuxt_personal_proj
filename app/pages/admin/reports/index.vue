@@ -128,7 +128,7 @@ onMounted(() => _actions.fetch())
 </script>
 
 <template>
-  <AdminShell active="reports" kicker="資料統計" title="總覽" desc="依月份顯示 BG 彩票銷售 KPI、每日趨勢與彩種排行。資料為 in-memory，伺服器重啟後清空。">
+  <AdminShell active="reports" kicker="資料統計" title="總覽" desc="依月份顯示 BG.TW 彩票KPI、趨勢與排行.">
     <AdminReportsNav active="dashboard" />
 
     <!-- 月份篩選器 -->
@@ -215,7 +215,9 @@ onMounted(() => _actions.fetch())
           <div v-else class="ard-chart-wrap">
             <ClientOnly>
               <Line v-if="lineChartData" :data="lineChartData" :options="lineChartOptions" />
-              <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+              <template #fallback>
+                <div class="admin-empty">圖表載入中…</div>
+              </template>
             </ClientOnly>
           </div>
         </div>
@@ -233,7 +235,9 @@ onMounted(() => _actions.fetch())
           <div v-else class="ard-chart-wrap">
             <ClientOnly>
               <Line v-if="twLineChartData" :data="twLineChartData" :options="twLineChartOptions" />
-              <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+              <template #fallback>
+                <div class="admin-empty">圖表載入中…</div>
+              </template>
             </ClientOnly>
           </div>
         </div>
@@ -444,7 +448,10 @@ onMounted(() => _actions.fetch())
 
   @media (max-width: 600px) {
     grid-template-columns: 80px 1fr 70px;
-    .ard-rank-ratio { display: none; }
+
+    .ard-rank-ratio {
+      display: none;
+    }
   }
 }
 

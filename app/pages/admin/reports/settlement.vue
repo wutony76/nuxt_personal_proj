@@ -79,8 +79,8 @@ onMounted(() => _actions.fetch())
               <div class="admin-en">Commission (est.)</div>
               <div class="ase-card-num admin-num">{{ _fmt.coin(summary.commission) }}</div>
               <div class="ase-card-label">
-                估算佣金
-                <span class="ase-card-note">銷售額 × 7%，僅供參考</span>
+                估算佣金 (銷售額 × 7%，僅供參考)
+                <!-- <span class="ase-card-note">銷售額 × 7%，僅供參考</span> -->
               </div>
             </div>
             <div class="ase-card admin-panel">
@@ -140,7 +140,7 @@ onMounted(() => _actions.fetch())
         <div class="ase-detail-col">
           <div class="admin-sechead">
             <div class="admin-sechead-left">
-              <h2>銷售明細/日</h2>
+              <h2>總投注額/日</h2>
               <span class="admin-meta admin-tag">BG</span>
             </div>
             <span class="admin-meta">{{ summary.month }}</span>
@@ -183,7 +183,7 @@ onMounted(() => _actions.fetch())
         <div class="ase-detail-col">
           <div class="admin-sechead">
             <div class="admin-sechead-left">
-              <h2>銷售明細/日</h2>
+              <h2>總投注額/日</h2>
               <span class="admin-meta admin-tag">TW</span>
             </div>
             <span class="admin-meta">{{ summary.month }}</span>
@@ -211,7 +211,8 @@ onMounted(() => _actions.fetch())
             <tfoot>
               <tr class="ase-total-row">
                 <td><strong>合計</strong></td>
-                <td class="admin-num" style="text-align:right"><strong>{{ _fmt.coin(summary.twTotal.totalSales) }}</strong>
+                <td class="admin-num" style="text-align:right"><strong>{{ _fmt.coin(summary.twTotal.totalSales)
+                }}</strong>
                 </td>
               </tr>
             </tfoot>
@@ -226,7 +227,7 @@ onMounted(() => _actions.fetch())
         <div class="ase-detail-col">
           <div class="admin-sechead">
             <div class="admin-sechead-left">
-              <h2>彩種明細</h2>
+              <h2>明細</h2>
               <span class="admin-meta admin-tag">BG</span>
             </div>
             <span class="admin-meta">{{ summary.month }}</span>
@@ -267,7 +268,7 @@ onMounted(() => _actions.fetch())
         <div class="ase-detail-col">
           <div class="admin-sechead">
             <div class="admin-sechead-left">
-              <h2>彩種明細</h2>
+              <h2>明細</h2>
               <span class="admin-meta admin-tag">TW</span>
             </div>
             <span class="admin-meta">{{ summary.month }}</span>
@@ -296,7 +297,8 @@ onMounted(() => _actions.fetch())
             <tfoot>
               <tr class="ase-total-row">
                 <td><strong>合計</strong></td>
-                <td class="admin-num" style="text-align:right"><strong>{{ _fmt.coin(summary.twTotal.totalSales) }}</strong>
+                <td class="admin-num" style="text-align:right"><strong>{{ _fmt.coin(summary.twTotal.totalSales)
+                }}</strong>
                 </td>
                 <td class="admin-num" style="text-align:right">{{ _fmt.orders(summary.twTotal.totalOrders) }}</td>
                 <td class="admin-num ase-col-muted" style="text-align:right">100%</td>
