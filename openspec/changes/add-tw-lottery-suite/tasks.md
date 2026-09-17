@@ -33,50 +33,59 @@
 
 ## 3. 今彩539（`D539`，建議優先，最接近 DLT 架構）
 
-- [ ] `shared/config/d539.ts`：`D539_NUMBER_MIN/MAX`(1/39)、`D539_PICK_COUNT`(5)、
+補記：此節已完工並上線，僅補勾（先前 session 完成當下漏了回頭勾選這份清單），
+2026-09-17 重跑 `npm run test:d539` 39/39 通過，確認無誤後補勾。
+
+- [x] `shared/config/d539.ts`：`D539_NUMBER_MIN/MAX`(1/39)、`D539_PICK_COUNT`(5)、
       4 個獎項對中條件（比照 `Daily539Result` 的 `d539{Jackpot,Second,Third,Fourth}Assign`）
-- [ ] `server/services/game/lottery/tw/d539.ts`：繼承 `tw/base.ts`，期別 bootstrap 改用
+- [x] `server/services/game/lottery/tw/d539.ts`：繼承 `tw/base.ts`，期別 bootstrap 改用
       「每天（週一至週六）」參數
-- [ ] `app/composables/useD539.ts`、`app/components/lottery/tw/d539/**`（比照 DLT block 清單）
-- [ ] `app/pages/lottery/tw/d539.vue`
-- [ ] `server/services/storage.ts` 註冊
-- [ ] 功能驗證：選 5 個號碼下注、官方開獎後正確判定 4 個獎項
+- [x] `app/composables/useD539.ts`、`app/components/lottery/tw/d539/**`（比照 DLT block 清單）
+- [x] `app/pages/lottery/tw/d539.vue`
+- [x] `server/services/storage.ts` 註冊
+- [x] 功能驗證：選 5 個號碼下注、官方開獎後正確判定 4 個獎項
 
 ## 4. 49樂合彩（`M649`，依賴 DLT 已驗證的期別週期，判定邏輯簡單）
 
-- [ ] `shared/config/m649.ts`：`isHit(selected, drawn)` 全中判定（見 `design.md` Decision 3）
-- [ ] `server/services/game/lottery/tw/m649.ts`：獨立呼叫 `fetchTaiwanLotteryLastNumberOf(1121)`／
+補記：此節已完工並上線，僅補勾，2026-09-17 重跑 `npm run test:m649` 38/38 通過。
+
+- [x] `shared/config/m649.ts`：`isHit(selected, drawn)` 全中判定（見 `design.md` Decision 3）
+- [x] `server/services/game/lottery/tw/m649.ts`：獨立呼叫 `fetchTaiwanLotteryLastNumberOf(1121)`／
       `fetchTaiwanLotteryPrize(1121, period)`，**不 import DLT service**
-- [ ] `app/composables/useM649.ts`、`app/components/lottery/tw/m649/**`（選 2/3/4 個號碼的
+- [x] `app/composables/useM649.ts`、`app/components/lottery/tw/m649/**`（選 2/3/4 個號碼的
       「玩幾合」切換 UI，不是 DLT 式固定選 6 個）
-- [ ] `app/pages/lottery/tw/m649.vue`
-- [ ] `server/services/storage.ts` 註冊
-- [ ] 功能驗證：選定合數＋號碼下注、與 DLT 同期開獎後正確判定全中／不中
+- [x] `app/pages/lottery/tw/m649.vue`
+- [x] `server/services/storage.ts` 註冊
+- [x] 功能驗證：選定合數＋號碼下注、與 DLT 同期開獎後正確判定全中／不中
 
 ## 5. 39樂合彩（`M539`，同 49樂合彩模式，依賴今彩539的開獎週期參數）
 
-- [ ] `shared/config/m539.ts`：`isHit(selected, drawn)`（邏輯同 `m649.ts`，號碼池換成 1–39）
-- [ ] `server/services/game/lottery/tw/m539.ts`：獨立呼叫 `fetchTaiwanLotteryLastNumberOf(5120)`／
+補記：此節已完工並上線，僅補勾，2026-09-17 重跑 `npm run test:m539` 40/40 通過。
+
+- [x] `shared/config/m539.ts`：`isHit(selected, drawn)`（邏輯同 `m649.ts`，號碼池換成 1–39）
+- [x] `server/services/game/lottery/tw/m539.ts`：獨立呼叫 `fetchTaiwanLotteryLastNumberOf(5120)`／
       `fetchTaiwanLotteryPrize(5120, period)`，**不 import D539 service**
-- [ ] `app/composables/useM539.ts`、`app/components/lottery/tw/m539/**`
-- [ ] `app/pages/lottery/tw/m539.vue`
-- [ ] `server/services/storage.ts` 註冊
-- [ ] 功能驗證：同第 4 節，號碼池換成 1–39
+- [x] `app/composables/useM539.ts`、`app/components/lottery/tw/m539/**`
+- [x] `app/pages/lottery/tw/m539.vue`
+- [x] `server/services/storage.ts` 註冊
+- [x] 功能驗證：同第 4 節，號碼池換成 1–39
 
 ## 6. 威力彩（`SUPERLOTTO`，兩區選號，複雜度較高）
 
-- [ ] `shared/config/superlotto.ts`：`SUPERLOTTO_ZONE_A_{MIN,MAX,PICK}`(1/38/6)、
+補記：此節已完工並上線，僅補勾，2026-09-17 重跑 `npm run test:superlotto` 52/52 通過。
+
+- [x] `shared/config/superlotto.ts`：`SUPERLOTTO_ZONE_A_{MIN,MAX,PICK}`(1/38/6)、
       `SUPERLOTTO_ZONE_B_{MIN,MAX,PICK}`(1/8/1)、10 個獎項對中條件（比照
       `SuperLotto638Result` 的 `super638{...}Assign`）
-- [ ] `server/services/game/lottery/tw/superlotto.ts`：繼承 `tw/base.ts`，期別 bootstrap
+- [x] `server/services/game/lottery/tw/superlotto.ts`：繼承 `tw/base.ts`，期別 bootstrap
       沿用 DLT 每週 2 期參數（但改星期一、四），需實際呼叫官方 API 確認期別編碼格式
       是否與大樂透一致（`design.md` Decision 2 已標記此為待驗證項目，不可假設）
-- [ ] `app/composables/useSuperlotto.ts`：slot 結構 `{ zoneA: number[], zoneB: number|null }`
-- [ ] `app/components/lottery/tw/superlotto/base/Board.vue`：兩區選號網格（見 `design.md`
+- [x] `app/composables/useSuperlotto.ts`：slot 結構 `{ zoneA: number[], zoneB: number|null }`
+- [x] `app/components/lottery/tw/superlotto/base/Board.vue`：兩區選號網格（見 `design.md`
       Decision 4）；其餘 block 比照 DLT
-- [ ] `app/pages/lottery/tw/superlotto.vue`
-- [ ] `server/services/storage.ts` 註冊
-- [ ] 功能驗證：兩區各自選號、官方開獎後正確判定 10 個獎項
+- [x] `app/pages/lottery/tw/superlotto.vue`
+- [x] `server/services/storage.ts` 註冊
+- [x] 功能驗證：兩區各自選號、官方開獎後正確判定 10 個獎項
 
 ## 7. 3星彩（`P3`，重用 `pl3` 判定邏輯）
 
