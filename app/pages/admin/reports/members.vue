@@ -44,16 +44,12 @@ function makePieOptions(category) {
   return {
     responsive: true,
     maintainAspectRatio: false,
+    // 圖例關掉：下方排行表本身就有色點對照，且三張圖項目數差很多（BG 15 款、TW 5 款、
+    // GAME 最多 10 款），圖例會佔用不同高度導致圓餅本身大小不一致；關掉後三張圖
+    // 都用同一個固定高度的容器，圓餅大小才會一致。
     plugins: {
       legend: {
-        position: 'bottom',
-        labels: {
-          font: { size: 11 },
-          color: '#1c1c22',
-          padding: 10,
-          boxWidth: 10,
-          boxHeight: 10,
-        },
+        display: false,
       },
       tooltip: {
         callbacks: {
