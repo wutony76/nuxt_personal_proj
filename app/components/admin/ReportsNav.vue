@@ -8,7 +8,6 @@ const props = defineProps({
 
 const NAV = [
   { key: 'dashboard', label: '總覽', en: 'Overview', path: '/admin/reports' },
-  { key: 'sales', label: '銷售', en: 'Sales', path: '/admin/reports/sales' },
   { key: 'plays', label: '玩法', en: 'Plays', path: '/admin/reports/plays' },
   { key: 'settlement', label: '結算 / 月', en: 'Settlement', path: '/admin/reports/settlement' },
   { key: 'fcoin', label: '兌F幣', en: 'F Coin', path: '/admin/reports/fcoin' },

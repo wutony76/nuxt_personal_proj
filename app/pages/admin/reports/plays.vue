@@ -158,35 +158,43 @@ onMounted(() => _actions.fetch())
     <!-- Success -->
     <template v-else-if="status === 'success' && summary">
 
-      <!-- BG + TW 走勢圖（全寬，上下） -->
-      <div class="arp-section">
-        <div class="admin-sechead">
-          <h2>走勢圖 / 月</h2>
-          <span class="admin-meta admin-tag">BG · 玩法銷售</span>
-          <span class="admin-meta">{{ summary.month }}</span>
-        </div>
-        <div v-if="!summary.playRanking.length" class="admin-empty">本月無 BG 玩法資料</div>
-        <div v-else class="arp-chart-wrap">
-          <ClientOnly>
-            <Doughnut v-if="donutData" :data="donutData" :options="donutOptions" />
-            <template #fallback><div class="admin-empty">圖表載入中…</div></template>
-          </ClientOnly>
-        </div>
-      </div>
+      <!-- 分布圖：BG 玩法佔比／台彩每日走勢 並列 -->
+      <div class="arp-chart-split">
 
-      <div class="arp-section">
-        <div class="admin-sechead">
-          <h2>走勢圖 / 月</h2>
-          <span class="admin-meta admin-tag">TW · 每日</span>
-          <span class="admin-meta">{{ summary.month }}</span>
+        <div class="arp-chart-col">
+          <div class="admin-sechead">
+            <div class="admin-sechead-left">
+              <h2>分布圖</h2>
+              <span class="admin-meta admin-tag">BG · 玩法佔比</span>
+            </div>
+            <span class="admin-meta">{{ summary.month }}</span>
+          </div>
+          <div v-if="!summary.playRanking.length" class="admin-empty">本月無 BG 玩法資料</div>
+          <div v-else class="arp-donut-wrap">
+            <ClientOnly>
+              <Doughnut v-if="donutData" :data="donutData" :options="donutOptions" />
+              <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+            </ClientOnly>
+          </div>
         </div>
-        <div v-if="!summary.twTotal.totalSales" class="admin-empty">本月無台彩投注紀錄</div>
-        <div v-else class="arp-line-wrap">
-          <ClientOnly>
-            <Line v-if="twLineData" :data="twLineData" :options="twLineOptions" />
-            <template #fallback><div class="admin-empty">圖表載入中…</div></template>
-          </ClientOnly>
+
+        <div class="arp-chart-col">
+          <div class="admin-sechead">
+            <div class="admin-sechead-left">
+              <h2>分布圖</h2>
+              <span class="admin-meta admin-tag">TW · 每日走勢</span>
+            </div>
+            <span class="admin-meta">{{ summary.month }}</span>
+          </div>
+          <div v-if="!summary.twTotal.totalSales" class="admin-empty">本月無台彩投注紀錄</div>
+          <div v-else class="arp-line-wrap">
+            <ClientOnly>
+              <Line v-if="twLineData" :data="twLineData" :options="twLineOptions" />
+              <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+            </ClientOnly>
+          </div>
         </div>
+
       </div>
 
       <!-- 玩法佔比／統計（BG）／台彩彩種 並列 -->
@@ -276,6 +284,26 @@ onMounted(() => _actions.fetch())
 <style scoped lang="scss">
 .arp-toolbar {
   margin-bottom: 32px;
+}
+
+.arp-chart-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  margin-bottom: 44px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+    gap: 1px 0;
+  }
+}
+
+.arp-chart-col {
+  background: var(--paper);
+  padding: 20px 20px 20px;
+  min-width: 0;
 }
 
 .arp-detail-row {
