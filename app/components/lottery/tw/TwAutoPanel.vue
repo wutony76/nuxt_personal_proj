@@ -5,6 +5,7 @@
         <DltAuto v-if="lotteryType === 'dlt'" />
         <D539Auto v-if="lotteryType === 'd539'" />
         <M649Auto v-if="lotteryType === 'm649'" />
+        <M539Auto v-if="lotteryType === 'm539'" />
         <!-- Chat.vue 皆為薄 wrapper（<ChatPanel />），tw 系列玩法共用同一份 wrapper（沿用 DltChat），
              只要有啟用中的 tw 玩法就顯示同一個聊天室，不逐一玩法各自複製一份（見 design.md Decision 7）。 -->
         <DltChat v-if="lotteryType" />
@@ -29,6 +30,7 @@ const { active, lotteryType } = useTwAutoActive()
 const DltAuto = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/block/footer/Auto.vue'))
 const D539Auto = defineAsyncComponent(() => import('~/components/lottery/tw/d539/block/footer/Auto.vue'))
 const M649Auto = defineAsyncComponent(() => import('~/components/lottery/tw/m649/block/footer/Auto.vue'))
+const M539Auto = defineAsyncComponent(() => import('~/components/lottery/tw/m539/block/footer/Auto.vue'))
 const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/block/footer/Chat.vue'))
 </script>
 
@@ -55,7 +57,8 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
 
   &.is-dlt,
   &.is-d539,
-  &.is-m649 {
+  &.is-m649,
+  &.is-m539 {
     background: #dcd3c4;
   }
 }
@@ -93,31 +96,35 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
 
 /* 同一支 ChatPanel.vue 的整體配色（背景／文字／輸入框／送出鈕）也改成柑仔店暖色系，
    一樣只在 .tw-auto-panel-warp.is-dlt／.is-d539 這個 DOM 範圍內覆寫，不動元件本體。
-   dlt／d539／m649 同屬柑仔店主題、配色完全一致，用分組選擇器共用同一份規則
-   （不改動既有效果，只是再多帶一個 .is-m649 選擇器）。 */
+   dlt／d539／m649／m539 同屬柑仔店主題、配色完全一致，用分組選擇器共用同一份規則
+   （不改動既有效果，只是再多帶一個 .is-m539 選擇器）。 */
 .tw-auto-panel-warp.is-dlt .chat-panel,
 .tw-auto-panel-warp.is-d539 .chat-panel,
-.tw-auto-panel-warp.is-m649 .chat-panel {
+.tw-auto-panel-warp.is-m649 .chat-panel,
+.tw-auto-panel-warp.is-m539 .chat-panel {
   background: #f5ead8;
   border-color: #dcd3c4;
 }
 
 .tw-auto-panel-warp.is-dlt .chat-head,
 .tw-auto-panel-warp.is-d539 .chat-head,
-.tw-auto-panel-warp.is-m649 .chat-head {
+.tw-auto-panel-warp.is-m649 .chat-head,
+.tw-auto-panel-warp.is-m539 .chat-head {
   border-bottom-color: #dcd3c4;
   color: #645c50;
 }
 
 .tw-auto-panel-warp.is-dlt .chat-empty,
 .tw-auto-panel-warp.is-d539 .chat-empty,
-.tw-auto-panel-warp.is-m649 .chat-empty {
+.tw-auto-panel-warp.is-m649 .chat-empty,
+.tw-auto-panel-warp.is-m539 .chat-empty {
   color: #82796a;
 }
 
 .tw-auto-panel-warp.is-dlt .chat-row,
 .tw-auto-panel-warp.is-d539 .chat-row,
-.tw-auto-panel-warp.is-m649 .chat-row {
+.tw-auto-panel-warp.is-m649 .chat-row,
+.tw-auto-panel-warp.is-m539 .chat-row {
   .user {
     color: #8c491a;
   }
@@ -137,7 +144,8 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
 
 .tw-auto-panel-warp.is-dlt .chat-input,
 .tw-auto-panel-warp.is-d539 .chat-input,
-.tw-auto-panel-warp.is-m649 .chat-input {
+.tw-auto-panel-warp.is-m649 .chat-input,
+.tw-auto-panel-warp.is-m539 .chat-input {
   border-top-color: #dcd3c4;
 
   input {
@@ -161,8 +169,9 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
 
 .tw-auto-panel-warp.is-dlt .tw-auto-panel-inner,
 .tw-auto-panel-warp.is-d539 .tw-auto-panel-inner,
-.tw-auto-panel-warp.is-m649 .tw-auto-panel-inner {
-  /* 對齊 lottery-dlt／lottery-d539／lottery-m649 頁面 .main 的寬度，而非全站預設的 --base-width */
+.tw-auto-panel-warp.is-m649 .tw-auto-panel-inner,
+.tw-auto-panel-warp.is-m539 .tw-auto-panel-inner {
+  /* 對齊 lottery-dlt／lottery-d539／lottery-m649／lottery-m539 頁面 .main 的寬度，而非全站預設的 --base-width */
   width: min(1360px, 97%);
   max-width: none;
 }

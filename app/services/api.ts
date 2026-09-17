@@ -691,6 +691,50 @@ export type M649UserBetHistory = {
   winAmount: number
 }
 
+/**
+ * 39樂合彩（M539）當期資訊
+ * ⚠️ 與 M649 同為「合數全中才中獎」的 tw 分類玩法（路由在 lottery-tw/m539），差異只在號碼池
+ * （01–39 選 2/3/4）與依附主遊戲（跟隨今彩539、每天開獎、一期 5 碼）；獨立呼叫官方 gameCode 5120
+ * 的 API，不依賴今彩539／49樂合彩的 service（見 shared/config/m539.ts 的 isHit、design.md Decision 3）。
+ */
+export type M539Current = {
+  issue: string
+  currentStatus: string
+  cutoffAt: number
+  drawAt: number
+  countdown: string
+  quotaIssueMaxCoin: number
+  quotaIssueMaxBets: number
+  lastOpenCode: { issue: string; openCode: string[] } | null
+  popularNumbers: Array<{ betCode: number[]; count: number }>
+  tiers: Array<{ key: string; label: string; desc: string | null }>
+}
+
+/** 39樂合彩玩家紀錄 */
+export type M539UserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: M539UserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+}
+
+export type M539UserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  /** 一組 2~4 碼（逗號分隔已正規化，碼數＝玩家當初選的合數） */
+  betCode: string[]
+  /** 官方真實開獎號（結算前為空陣列，跟隨今彩539 5 碼） */
+  openCode: string[]
+  /** 命中的官方獎項 key（m539TwoAssign／m539ThreeAssign／m539FourAssign），未中或結算前為 null */
+  tierKey: string | null
+  /** 對應獎項中文名稱（二合／三合／四合），未中或結算前為空字串 */
+  tierLabel: string
+  winStatus: 'pending' | 'win' | 'lose'
+  /** 派彩金額＝官方當期該合數實際 perPrize，未結算前為 0 */
+  winAmount: number
+}
+
 /** 排列3玩家紀錄 */
 export type Pl3UserRecordResponse = {
   balanceChanges: LotteryUserBalanceChange[]
@@ -1401,6 +1445,8 @@ export const api = {
           return $fetch<D539Current>('/api/lottery-tw/d539/current')
         case LOTTERY.M649.id:
           return $fetch<M649Current>('/api/lottery-tw/m649/current')
+        case LOTTERY.M539.id:
+          return $fetch<M539Current>('/api/lottery-tw/m539/current')
         default:
           return null
       }
@@ -1555,6 +1601,13 @@ export const api = {
     userRecordM649: () => $fetch<M649UserRecordResponse>('/api/lottery-tw/m649/user-record'),
     claimOneIssueM649: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/m649/claim', { method: 'POST' }),
+    // ── 39樂合彩（M539，tw 分類、完全鏡射官方，路由在 lottery-tw/m539；跟隨今彩539開獎號，
+    //    但獨立呼叫官方 gameCode 5120 的 API，不依賴 D539／M649 的 service 或內部狀態）──
+    currentM539: () => $fetch<M539Current>('/api/lottery-tw/m539/current'),
+    openCodeHistoryM539: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery-tw/m539/opencode-history'),
+    userRecordM539: () => $fetch<M539UserRecordResponse>('/api/lottery-tw/m539/user-record'),
+    claimOneIssueM539: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/m539/claim', { method: 'POST' }),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),
     bet: (payload: LotteryBetPayload) =>

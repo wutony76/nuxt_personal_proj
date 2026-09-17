@@ -31,6 +31,7 @@ import Pl3Class from './game/lottery/bg/pl3'
 import DltClass from './game/lottery/tw/dlt'
 import D539Class from './game/lottery/tw/d539'
 import M649Class from './game/lottery/tw/m649'
+import M539Class from './game/lottery/tw/m539'
 import RetroSnakeClass from './game/retro/snake'
 import RetroRacingClass from './game/retro/racing'
 import RetroTetriminosClass from './game/retro/tetriminos'
@@ -149,6 +150,10 @@ export class Storage {
       // 49樂合彩：第三款「完全鏡射官方台彩」玩法（tw 分類），跟隨大樂透開獎號但獨立呼叫官方 API，
       // 不依賴 DltClass 或其內部狀態，選定合數（2/3/4）全中才算中獎（見 add-tw-lottery-suite/design.md）
       new M649Class()
+      // 39樂合彩：第四款「完全鏡射官方台彩」玩法（tw 分類），跟隨今彩539開獎號（每天、01–39 選 5）但
+      // 獨立呼叫官方 gameCode 5120 API，不依賴 D539Class／M649Class／DltClass 或其內部狀態，
+      // 選定合數（2/3/4）全中才算中獎（見 add-tw-lottery-suite/design.md Decision 3）
+      new M539Class()
       // console.log('games.init.success', Storage.games)
       console.log('SUCCESS ---BASE>games.init')
     },

@@ -26,7 +26,8 @@ const BINGO_GAME_CODE = 1102
 const GAME_ROUTES: Record<number, string> = {
   5118: '/lottery/tw/dlt',
   1197: '/lottery/tw/d539',
-  1121: '/lottery/tw/m649'
+  1121: '/lottery/tw/m649',
+  5120: '/lottery/tw/m539'
 }
 
 const GAME_META: Record<number, { mark: string; tagline: string; drawTime: string; topPrize: string; rules: string[] }> = {

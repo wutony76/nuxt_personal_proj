@@ -79,6 +79,13 @@ export const LOTTERY = {
   // （見 openspec/changes/add-tw-lottery-suite/design.md Decision 3）。每注 25 元。
   // 只登記單一鍵值（無 sub 欄位），category: 'tw' 讓它不出現在 bg 大廳（有獨立的 /lottery-hall-taiwan 入口）。
   'M649':{ id: 11004, key: 'M649', name: '49樂合彩', sort: 14, category: 'tw' },
+
+  // 39樂合彩：第四款「完全鏡射官方台彩」的玩法（tw 分類）。玩法本質與 M649 相同——先選「幾合」
+  // （二合/三合/四合），再從 01–39 選滿對應數量的號碼，全中才中獎；開獎跟隨今彩539（每天，週一至週六），
+  // 開獎號與各合數派彩金額皆即時讀取官方 gameCode 5120 的 API，獨立於今彩539/49樂合彩 service
+  // （見 openspec/changes/add-tw-lottery-suite/design.md Decision 3）。每注 25 元。
+  // 只登記單一鍵值（無 sub 欄位），category: 'tw' 讓它不出現在 bg 大廳（有獨立的 /lottery-hall-taiwan 入口）。
+  'M539':{ id: 11005, key: 'M539', name: '39樂合彩', sort: 15, category: 'tw' },
 }
 
 export const SORT = {
