@@ -15,17 +15,21 @@
 
 ## 2. 共用基礎設施（一次性調整，供 7 款玩法共用，需先完成才能開始個別玩法）
 
-- [ ] `shared/config/gameSlugs.js` 的 `TW_GAMES` 新增 7 個條目（key/pageSlug，見 `design.md`
-      Decision 0）
-- [ ] `app/config/constants.js` 的 `LOTTERY` 新增對應條目（皆帶 `category:'tw'`），確認 `id`
-      不與既有玩法衝突
+- [x] `shared/config/gameSlugs.js` 的 `TW_GAMES` 新增 7 個條目（key/pageSlug，見 `design.md`
+      Decision 0）——隨 SUPERLOTTO/D539/M649/M539/P3/P4/BINGO 各任務逐一新增，BINGO 完成後
+      7 個條目已全數到位
+- [x] `app/config/constants.js` 的 `LOTTERY` 新增對應條目（皆帶 `category:'tw'`），確認 `id`
+      不與既有玩法衝突——BINGO 新增前已 grep 確認 11008 未被占用
 - [ ] 抽出「開獎星期清單」參數化的期別 helper（`_nextOfficialPeriod`/`_prevOfficialPeriods`
       等，見 `design.md` Decision 2），DLT 改呼叫新 helper（行為不變，純重構）並跑
-      `npm run test:dlt` 確認 40/40 仍通過
-- [ ] `useTwAutoActive.ts` 的 `LotteryType` union 擴充
-- [ ] `TwAutoPanel.vue` 的 `v-if` 分支擴充：`Auto.vue` 各玩法一支獨立分支；`Chat.vue`
-      統一共用同一份 `ChatPanel.vue` wrapper（不逐一玩法各自 v-if）
-- [ ] 回歸驗證：`npm run test:dlt` 40/40 通過、`lottery-hall-taiwan.vue`／既有 `bg` 玩法不受影響
+      `npm run test:dlt` 確認 40/40 仍通過——本次未執行此重構，DLT 仍維持既有寫法
+- [x] `useTwAutoActive.ts` 的 `LotteryType` union 擴充——BINGO 完成後 union 已含 8 款玩法
+      （dlt/superlotto/d539/m649/m539/p3/p4/bingo）
+- [x] `TwAutoPanel.vue` 的 `v-if` 分支擴充：`Auto.vue` 各玩法一支獨立分支；`Chat.vue`
+      統一共用同一份 `ChatPanel.vue` wrapper（不逐一玩法各自 v-if）——BINGO 分支＋`.is-bingo`
+      CSS 已補上
+- [x] 回歸驗證：`npm run test:dlt` 40/40 通過（新增 BINGO 後重新確認一次）、
+      `lottery-hall-taiwan.vue`／既有 `bg` 玩法不受影響
 
 ## 3. 今彩539（`D539`，建議優先，最接近 DLT 架構）
 
@@ -107,33 +111,41 @@
 
 ## 9. 賓果賓果（`BINGO`，輪詢頻率與判定邏輯皆與其他玩法不同，排最後、需獨立驗證）
 
-- [ ] **第一步、優先於其他項目**：實際呼叫 `fetchTaiwanLotteryLastNumberOf(1102)`（或官方
+- [x] **第一步、優先於其他項目**：實際呼叫 `fetchTaiwanLotteryLastNumberOf(1102)`（或官方
       原始端點）確認回應內容——(a) 是否已有獨立的 `superNumber`／「超級獎號」欄位可直接
       讀取；(b) 若沒有，`lotNumber` 陣列順序是否確實等於原始開獎順序（而非排序後結果）。
       **(a) 存在則直接用官方欄位，不採用 (b) 的假設**；(a)、(b) 皆不可用則需回報無法支援
-      超級獎號玩法，不可硬猜陣列索引
-- [ ] `shared/config/bingo.ts`：
-      - `BET_UNIT = 25`；超級獎號為獨立加購項目（額外 +25 元／注，不併入基本玩法金額）
+      超級獎號玩法，不可硬猜陣列索引——**已由使用者實測驗證**：官方 `lotSpecial` 欄位存在
+      且精確等於 `lotNumber[19]`，採 (a)；`lotNumber` 陣列本身即原始開球順序，`order = index + 1`
+- [x] `shared/config/bingo.ts`：
+      - `BINGO_BET_UNIT = 25`；超級獎號為獨立加購項目（額外 +25 元／注，不併入基本玩法金額）
       - `BINGO_STAR_PAYOUT` 固定賠率表（1~10 星，見 `design.md` Decision 6）、
         `BINGO_SUPER_NUMBER_PRIZE`(1200)、`BINGO_BIG_SMALL_PRIZE`(150)、
         `BINGO_ODD_EVEN_PRIZE`(150)
       - 判定函式：`bingoStarPrize(star, hitCount)`／`bingoSuperNumberHit(picked, superNumber)`／
-        `bingoBigSmallResult(numbers)`／`bingoOddEvenResult(numbers)`（大小/單雙回傳含
-        `'push'`（和局）的三態結果）
-- [ ] `server/services/game/lottery/tw/bingo.ts`：繼承 `tw/base.ts`；開獎結果統一存成
-      `{ issue, numbers: [{ number, order }] }`，**一個期號只產生一份**，4 種投注類型
-      皆讀同一份、不得各自呼叫官方 API 或各自產生開獎結果；獨立設計每 5 分鐘輪詢與期別
-      bootstrap（不沿用 DLT/其他玩法的參數，見 `design.md` Decision 6）；結算時對「和局」
-      的大小/單雙注單需退款而非派彩 0；超級獎號與基本玩法/大小/單雙分開計費、分開判定
-- [ ] `app/composables/useBingo.ts`、`app/components/lottery/tw/bingo/**`：`Board.vue` 需同時
-      容納 4 種投注類型（星數選號／超級獎號／大小／單雙），參考本站既有 `kl8` 的多玩法面板
-      配置模式；下注金額顯示需明確區分「基本玩法 25 元」與「超級獎號加購 25 元」，避免
-      玩家誤以為選了超級獎號後基本玩法金額會變
-- [ ] `app/pages/lottery/tw/bingo.vue`
-- [ ] `server/services/storage.ts` 註冊
-- [ ] 功能驗證：4 種投注類型皆依固定賠率表正確派彩；大小/單雙的和局情境正確退款；
-      超級獎號判定使用官方開獎順序（非集合判定）；同時下基本玩法＋超級獎號時總金額為
-      50 元且兩者分開判定
+        `bingoJudgeBigSmall(pick, official)`／`bingoJudgeOddEven(pick, official)`（直接讀官方
+        `lotBigSmall`／`lotOddEven` 欄位比對，比自算 01-40/41-80 數量更可靠，見 design.md
+        Decision 6 更新說明；回傳含 `'push'`（和局）的三態結果，函式名稱與 tasks.md 草稿
+        `bingoBigSmallResult`/`bingoOddEvenResult` 不同，因改採「讀官方欄位」而非「自算數量」）
+- [x] `server/services/game/lottery/tw/bingo.ts`：繼承 `tw/base.ts`；開獎結果統一存成
+      `{ issue, numbers: [{ number, order }], lotBigSmall, lotOddEven }`，**一個期號只產生一份**，
+      4 種投注類型皆讀同一份、不得各自呼叫官方 API 或各自產生開獎結果；獨立設計每 5 分鐘輪詢
+      （`_nextFiveMinuteBoundary`，固定 12 秒輪詢間隔）與期別 bootstrap（`_nextOfficialPeriod`
+      僅依序號 +1、不依日曆反推民國年，不沿用 DLT/P3/M649 的參數，見 `design.md` Decision 6）；
+      無官方「查詢特定期別」端點，`_backfillHistory` 不提供（已於程式碼註解說明原因）；結算時
+      對「和局」的大小/單雙注單退款（走既有 claimableIssues／領取機制，不是即時自動退回餘額，
+      比照 bg 系列 k3-cd/k3-of 等「tie 退還本金」的既有慣例）；超級獎號與基本玩法/大小/單雙
+      分開計費、分開判定
+- [x] `app/composables/useBingo.ts`、`app/components/lottery/tw/bingo/**`：`Board.vue` 以 4 個
+      tab 容納 4 種投注類型（星數選號／超級獎號／大小／單雙），參考本站既有 `kl8` 的多玩法面板
+      配置模式；下注金額顯示明確區分「基本玩法／猜大小／猜單雙 25 元」與「超級獎號加購 25 元」
+      （Board.vue 分頁標籤直接標示金額）
+- [x] `app/pages/lottery/tw/bingo.vue`
+- [x] `server/services/storage.ts` 註冊
+- [x] 功能驗證：4 種投注類型皆依固定賠率表正確派彩；大小/單雙的和局情境正確退款（含真實
+      下注→開獎+結算→領取的淨額變動為 0 驗證）；超級獎號判定使用官方開獎順序（非集合判定，
+      已驗證「中其他 19 碼之一不派彩」地雷案例）；同時下基本玩法＋超級獎號時總金額為 50 元
+      且兩者分開判定；見 `scripts/test-bingo.mjs`（94 項全數通過）
 
 ## 10. 全站回歸與交付檢查
 

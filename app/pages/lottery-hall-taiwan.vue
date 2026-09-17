@@ -31,7 +31,8 @@ const GAME_ROUTES: Record<number, string> = {
   1121: '/lottery/tw/m649',
   5120: '/lottery/tw/m539',
   2108: '/lottery/tw/p3',
-  2109: '/lottery/tw/p4'
+  2109: '/lottery/tw/p4',
+  1102: '/lottery/tw/bingo'
 }
 
 const GAME_META: Record<number, { mark: string; tagline: string; drawTime: string; topPrize: string; rules: string[] }> = {
@@ -366,6 +367,9 @@ onMounted(async () => {
                 <span class="tw-tag">{{ game.lotBigSmall ?? '-' }}</span>
                 <span class="tw-tag">{{ game.lotOddEven ?? '-' }}</span>
               </div>
+              <button type="button" class="tw-btn tw-btn-primary tw-btn-block" @click="click.enterGame(game)">
+                來一注 • {{ game.gameName }}
+              </button>
             </template>
             <template v-else>
               <button type="button" class="tw-btn tw-btn-primary tw-btn-block" @click="click.enterGame(game)">

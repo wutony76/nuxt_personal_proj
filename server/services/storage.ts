@@ -35,6 +35,7 @@ import M649Class from './game/lottery/tw/m649'
 import M539Class from './game/lottery/tw/m539'
 import P3Class from './game/lottery/tw/p3'
 import P4Class from './game/lottery/tw/p4'
+import BingoClass from './game/lottery/tw/bingo'
 import RetroSnakeClass from './game/retro/snake'
 import RetroRacingClass from './game/retro/racing'
 import RetroTetriminosClass from './game/retro/tetriminos'
@@ -169,6 +170,12 @@ export class Storage {
       // （比照今彩539/3星彩每天版本），正彩/組彩派彩鏡射官方 gameCode 2109 API，沒有對彩（跟 3星彩
       // 不同，官方 4星彩規則本來就沒有對彩玩法，見 add-tw-lottery-suite/design.md Decision 5）
       new P4Class()
+      // 賓果賓果：第七款「完全鏡射官方台彩」玩法（tw 分類），01–80 選 20 開，每 5 分鐘連續開一期
+      // （不是「星期幾開獎」的日曆模式）。官方 gameCode 1102 沒有中獎明細端點，4 種投注類型（基本
+      // 玩法／超級獎號／猜大小／猜單雙）皆為官方公開固定賠率（見
+      // add-tw-lottery-suite/design.md Decision 6），期別 bootstrap／輪詢與回填邏輯皆與其餘
+      // 6 款玩法獨立設計，見 bingo.ts 檔頭說明
+      new BingoClass()
       // console.log('games.init.success', Storage.games)
       console.log('SUCCESS ---BASE>games.init')
     },

@@ -874,6 +874,59 @@ export type P4UserBetHistory = {
   winAmount: number
 }
 
+/**
+ * 賓果賓果（BINGO）當期資訊
+ * ⚠️ 架構跟其他 7 款玩法差異最大（tw 分類，路由在 lottery-tw/bingo）：每 5 分鐘連續開一期，
+ * 沒有「星期幾開獎」的日曆概念；4 種投注類型（基本玩法／超級獎號／猜大小／猜單雙）皆為官方
+ * 公開固定賠率（見 shared/config/bingo.ts），不像 P3/P4 有 tiers（官方沒有中獎明細端點）。
+ */
+export type BingoCurrent = {
+  issue: string
+  currentStatus: string
+  cutoffAt: number
+  drawAt: number
+  countdown: string
+  lastOpenCode: { issue: string; openCode: string[]; superNumber: string; lotBigSmall: string; lotOddEven: string } | null
+  betTypes: Array<{ key: string; label: string; desc: string }>
+}
+
+/** 賓果賓果玩家紀錄 */
+export type BingoUserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: BingoUserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+}
+
+export type BingoUserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  /** 下注類型：star（基本玩法）／super（超級獎號）／bigSmall（猜大小）／oddEven（猜單雙） */
+  betType: string
+  /** 顯示用注碼摘要（例如 "5 星｜03,12,44,60,77"／"42"／"大"／"單"） */
+  betLabel: string
+  /** 官方開出的 20 個號碼（依開球順序），結算前為空陣列 */
+  openCode: string[]
+  /** 官方超級獎號（第 20 個開出的號碼），結算前為空字串 */
+  superNumber: string
+  /** push＝和局退款（猜大小／猜單雙專屬），不算輸也不算贏 */
+  winStatus: 'pending' | 'win' | 'lose' | 'push'
+  /** 派彩金額或退款金額，未結算前為 0 */
+  winAmount: number
+}
+
+/** 賓果賓果開獎歷史單期資料，比通用的 `LotteryOpenCodeHistoryItem` 多帶超級獎號／大小/單雙欄位 */
+export type BingoOpenCodeHistoryItem = LotteryOpenCodeHistoryItem & {
+  superNumber: string
+  lotBigSmall: string
+  lotOddEven: string
+}
+
+export type BingoOpenCodeHistoryResponse = {
+  history: BingoOpenCodeHistoryItem[]
+}
+
 /** 排列3玩家紀錄 */
 export type Pl3UserRecordResponse = {
   balanceChanges: LotteryUserBalanceChange[]
@@ -989,8 +1042,19 @@ export type LotteryBetPayload = {
    *   - 大樂透（DLT）／今彩539（D539）：每組 `{ numbers }`（單一號碼池）
    *   - 威力彩（SUPERLOTTO）：每組 `{ zoneA, zoneB }`（兩區選號，見 SuperlottoCurrent 註解）
    *   - 3星彩（P3）：每組 `{ betType, digits }`（下注方式＋3 位 0~9 數字，見 P3Current 註解）
+   *   - 賓果賓果（BINGO）：每組 `{ betType, star?, numbers?, number?, pick? }`（4 種投注類型混合，
+   *     見 BingoCurrent 註解／shared/config/bingo.ts 的 BingoSlot）
    */
-  slots?: Array<{ numbers?: number[]; zoneA?: number[]; zoneB?: number | null; betType?: string; digits?: number[] }>
+  slots?: Array<{
+    numbers?: number[]
+    zoneA?: number[]
+    zoneB?: number | null
+    betType?: string
+    digits?: number[]
+    star?: number
+    number?: number
+    pick?: string
+  }>
 }
 
 export type LotteryBetOrder = {
@@ -1193,6 +1257,12 @@ export type BgReportSummaryDailyItem = {
   sales: number
 }
 
+export type BgReportSummaryTwTotal = {
+  totalSales: number
+  totalOrders: number
+  gameRanking: BgReportSummaryGameItem[]
+}
+
 export type BgReportSummary = {
   month: string
   totalSales: number
@@ -1201,6 +1271,31 @@ export type BgReportSummary = {
   dailySales: BgReportSummaryDailyItem[]
   gameRanking: BgReportSummaryGameItem[]
   playRanking: BgReportSummaryGameItem[]
+  twTotal: BgReportSummaryTwTotal
+  dataNote: string
+}
+
+export type FcoinSummaryDailyItem = {
+  day: string
+  bet: number
+  reward: number
+}
+
+export type FcoinSummaryGameItem = {
+  name: string
+  bet: number
+  reward: number
+  net: number
+  count: number
+}
+
+export type FcoinSummary = {
+  month: string
+  totalBet: number
+  totalReward: number
+  netFlow: number
+  dailyFlow: FcoinSummaryDailyItem[]
+  perGame: FcoinSummaryGameItem[]
   dataNote: string
 }
 
@@ -1561,7 +1656,9 @@ export const api = {
        * @param month YYYY-MM
        */
       bgSummary: (month: string) =>
-        $fetch<BgReportSummary>('/api/admin/reports/bg-summary', { query: { month } })
+        $fetch<BgReportSummary>('/api/admin/reports/bg-summary', { query: { month } }),
+      fCoinSummary: (month: string) =>
+        $fetch<FcoinSummary>('/api/admin/reports/fcoin-summary', { query: { month } }),
     },
     chat: {
       listSchedules: () => $fetch<{ schedules: ChatSchedule[] }>('/api/admin/chat/schedules'),
@@ -1629,6 +1726,8 @@ export const api = {
           return $fetch<P3Current>('/api/lottery-tw/p3/current')
         case LOTTERY.P4.id:
           return $fetch<P4Current>('/api/lottery-tw/p4/current')
+        case LOTTERY.BINGO.id:
+          return $fetch<BingoCurrent>('/api/lottery-tw/bingo/current')
         default:
           return null
       }
@@ -1811,6 +1910,14 @@ export const api = {
     userRecordP4: () => $fetch<P4UserRecordResponse>('/api/lottery-tw/p4/user-record'),
     claimOneIssueP4: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/p4/claim', { method: 'POST' }),
+    // ── 賓果賓果（BINGO，tw 分類、開獎號碼鏡射官方 gameCode 1102，賠率為官方公開固定金額，
+    //    見 add-tw-lottery-suite/design.md Decision 6；架構跟其餘 7 款玩法差異最大，每 5 分鐘
+    //    連續開一期）──
+    currentBingo: () => $fetch<BingoCurrent>('/api/lottery-tw/bingo/current'),
+    openCodeHistoryBingo: () => $fetch<BingoOpenCodeHistoryResponse>('/api/lottery-tw/bingo/opencode-history'),
+    userRecordBingo: () => $fetch<BingoUserRecordResponse>('/api/lottery-tw/bingo/user-record'),
+    claimOneIssueBingo: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/bingo/claim', { method: 'POST' }),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),
     bet: (payload: LotteryBetPayload) =>

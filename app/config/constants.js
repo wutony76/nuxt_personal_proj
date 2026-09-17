@@ -105,6 +105,14 @@ export const LOTTERY = {
   // （見 openspec/changes/add-tw-lottery-suite/design.md Decision 5）。每注 25 元。
   // 只登記單一鍵值（無 sub 欄位），category: 'tw' 讓它不出現在 bg 大廳（有獨立的 /lottery-hall-taiwan 入口）。
   'P4':{ id: 11007, key: 'P4', name: '4星彩', sort: 17, category: 'tw' },
+
+  // 賓果賓果：第七款「完全鏡射官方台彩」玩法（tw 分類），01–80 選 20 開，每 5 分鐘連續開一期，
+  // 沒有「星期幾開獎」的日曆概念。官方 gameCode 1102 沒有中獎明細端點，4 種投注類型（基本玩法／
+  // 超級獎號／猜大小／猜單雙）的賠率皆為官方公開固定金額（見
+  // openspec/changes/add-tw-lottery-suite/design.md Decision 6），不查官方賠率 API。每注 25 元
+  // （超級獎號為獨立加購，另收一份 25 元）。
+  // 只登記單一鍵值（無 sub 欄位），category: 'tw' 讓它不出現在 bg 大廳（有獨立的 /lottery-hall-taiwan 入口）。
+  'BINGO':{ id: 11008, key: 'BINGO', name: '賓果賓果', sort: 18, category: 'tw' },
 }
 
 export const SORT = {
