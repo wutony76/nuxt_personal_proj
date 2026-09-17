@@ -34,6 +34,7 @@ import D539Class from './game/lottery/tw/d539'
 import M649Class from './game/lottery/tw/m649'
 import M539Class from './game/lottery/tw/m539'
 import P3Class from './game/lottery/tw/p3'
+import P4Class from './game/lottery/tw/p4'
 import RetroSnakeClass from './game/retro/snake'
 import RetroRacingClass from './game/retro/racing'
 import RetroTetriminosClass from './game/retro/tetriminos'
@@ -164,6 +165,10 @@ export class Storage {
       // （比照今彩539/49樂合彩每天版本），正彩/組彩派彩鏡射官方 gameCode 2108 API，前二/後二對彩
       // 為本站新增的固定獎金規則（不查官方，見 add-tw-lottery-suite/design.md Decision 5）
       new P3Class()
+      // 4星彩：第六款「完全鏡射官方台彩」玩法（tw 分類），0000–9999 四位數字（可重複）、每天開獎
+      // （比照今彩539/3星彩每天版本），正彩/組彩派彩鏡射官方 gameCode 2109 API，沒有對彩（跟 3星彩
+      // 不同，官方 4星彩規則本來就沒有對彩玩法，見 add-tw-lottery-suite/design.md Decision 5）
+      new P4Class()
       // console.log('games.init.success', Storage.games)
       console.log('SUCCESS ---BASE>games.init')
     },

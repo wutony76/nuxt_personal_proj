@@ -81,7 +81,8 @@ export const TW_GAMES = [
   { key: 'D539', pageSlug: 'd539' },
   { key: 'M649', pageSlug: 'm649' },
   { key: 'M539', pageSlug: 'm539' },
-  { key: 'P3', pageSlug: 'p3' }
+  { key: 'P3', pageSlug: 'p3' },
+  { key: 'P4', pageSlug: 'p4' }
 ]
 
 export function findRetroByApiSlug(slug) {

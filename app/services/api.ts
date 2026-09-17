@@ -828,6 +828,52 @@ export type P3UserBetHistory = {
   winAmount: number
 }
 
+/**
+ * 4星彩（P4）當期資訊
+ * ⚠️ 與 P3 同為「完全鏡射官方」的 tw 分類玩法（路由在 lottery-tw/p4），玩家選定下注方式
+ * （正彩／組彩，官方沒有對彩）並填滿 4 位 0~9 數字（可重複），見 shared/config/p4.ts 的
+ * P4_BET_TYPES；tiers 只包含官方正彩/組彩 3 個獎項。
+ */
+export type P4Current = {
+  issue: string
+  currentStatus: string
+  cutoffAt: number
+  drawAt: number
+  countdown: string
+  quotaIssueMaxCoin: number
+  quotaIssueMaxBets: number
+  lastOpenCode: { issue: string; openCode: string[] } | null
+  popularNumbers: Array<{ betType: string; digits: number[]; count: number }>
+  tiers: Array<{ key: string; label: string; desc: string | null }>
+}
+
+/** 4星彩玩家紀錄 */
+export type P4UserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: P4UserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+}
+
+export type P4UserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  /** 下注方式：正彩(zhengcai)／組彩(zucai)，官方 4星彩沒有對彩 */
+  betType: string
+  /** 4 位 0~9 數字組成的字串（例如 "1234"），可重複 */
+  betCode: string[]
+  /** 官方真實開獎號（結算前為空陣列，4星彩一期 4 碼） */
+  openCode: string[]
+  /** 命中的結果 key（官方 lotto4DFirstAssign/SecondAssign/ThirdAssign），未中或結算前為 null */
+  tierKey: string | null
+  /** 對應中文名稱（頭獎／二獎／三獎），未中或結算前為空字串 */
+  tierLabel: string
+  winStatus: 'pending' | 'win' | 'lose'
+  /** 派彩金額，未結算前為 0 */
+  winAmount: number
+}
+
 /** 排列3玩家紀錄 */
 export type Pl3UserRecordResponse = {
   balanceChanges: LotteryUserBalanceChange[]
@@ -1581,6 +1627,8 @@ export const api = {
           return $fetch<M539Current>('/api/lottery-tw/m539/current')
         case LOTTERY.P3.id:
           return $fetch<P3Current>('/api/lottery-tw/p3/current')
+        case LOTTERY.P4.id:
+          return $fetch<P4Current>('/api/lottery-tw/p4/current')
         default:
           return null
       }
@@ -1756,6 +1804,13 @@ export const api = {
     userRecordP3: () => $fetch<P3UserRecordResponse>('/api/lottery-tw/p3/user-record'),
     claimOneIssueP3: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/p3/claim', { method: 'POST' }),
+    // ── 4星彩（P4，tw 分類、完全鏡射官方，路由在 lottery-tw/p4；正彩/組彩鏡射官方 gameCode 2109
+    //    API，官方沒有對彩玩法，見 add-tw-lottery-suite/design.md Decision 5）──
+    currentP4: () => $fetch<P4Current>('/api/lottery-tw/p4/current'),
+    openCodeHistoryP4: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery-tw/p4/opencode-history'),
+    userRecordP4: () => $fetch<P4UserRecordResponse>('/api/lottery-tw/p4/user-record'),
+    claimOneIssueP4: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/p4/claim', { method: 'POST' }),
     userInfo: (lottery?: string) =>
       $fetch<LotteryState>('/api/lottery/userInfo', lottery ? { query: { lottery } } : undefined),
     bet: (payload: LotteryBetPayload) =>

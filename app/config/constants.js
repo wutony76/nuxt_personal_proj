@@ -99,6 +99,12 @@ export const LOTTERY = {
   // （750 元，不查官方 API，見 openspec/changes/add-tw-lottery-suite/design.md Decision 5）。每注 25 元。
   // 只登記單一鍵值（無 sub 欄位），category: 'tw' 讓它不出現在 bg 大廳（有獨立的 /lottery-hall-taiwan 入口）。
   'P3':{ id: 11006, key: 'P3', name: '3星彩', sort: 16, category: 'tw' },
+
+  // 4星彩：第六款「完全鏡射官方台彩」玩法（tw 分類），0000–9999 四位數字（可重複），正彩／組彩
+  // 派彩金額即時讀取官方 gameCode 2109 的 API；官方沒有對彩玩法（跟 3星彩不同），只有正彩／組彩
+  // （見 openspec/changes/add-tw-lottery-suite/design.md Decision 5）。每注 25 元。
+  // 只登記單一鍵值（無 sub 欄位），category: 'tw' 讓它不出現在 bg 大廳（有獨立的 /lottery-hall-taiwan 入口）。
+  'P4':{ id: 11007, key: 'P4', name: '4星彩', sort: 17, category: 'tw' },
 }
 
 export const SORT = {

@@ -14,6 +14,7 @@
     "test:m649": "node scripts/test-m649.mjs",
     "test:m539": "node scripts/test-m539.mjs",
     "test:p3": "node scripts/test-p3.mjs",
+    "test:p4": "node scripts/test-p4.mjs",
     "test:k3-cd": "node scripts/test-k3-cd.mjs",
     "test:k3-of": "node scripts/test-k3-of.mjs",
     "test:6hc-cd": "node scripts/test-6hc-cd.mjs",

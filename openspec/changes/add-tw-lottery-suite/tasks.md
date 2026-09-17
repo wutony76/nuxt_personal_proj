@@ -93,15 +93,17 @@
 
 ## 8. 4星彩（`P4`，重用 `fc3d` 判定邏輯）
 
-- [ ] 對照 `fc3d` 既有 `shared/config/` 判定函式，確認正彩／組彩演算法可直接複製
-      （4星彩無對彩，範圍比 3星彩單純）
-- [ ] `shared/config/p4.ts`：複製 `fc3d` 對應邏輯，開獎號碼改為讀
+- [x] 對照 `fc3d` 既有 `shared/config/` 判定函式，確認正彩／組彩演算法可直接複製
+      （4星彩無對彩，範圍比 3星彩單純）——實作時改以剛完成的 P3 為 1:1 對照範本（架構完全一致），
+      組彩排列分級延伸 P3「投注數字是否有重複」的二元判定原則（4 碼互異→二獎；有任何重複→
+      三獎），此為延伸假設、非官方逐模式對應金額，見 shared/config/p4.ts 檔頭說明
+- [x] `shared/config/p4.ts`：複製 P3 對應邏輯，開獎號碼改為讀
       `fetchTaiwanLotteryLastNumberOf(2109)`
-- [ ] `server/services/game/lottery/tw/p4.ts`：繼承 `tw/base.ts`，期別 bootstrap 同今彩539
-- [ ] `app/composables/useP4.ts`、`app/components/lottery/tw/p4/**`（參考 `fc3d` 既有元件）
-- [ ] `app/pages/lottery/tw/p4.vue`
-- [ ] `server/services/storage.ts` 註冊
-- [ ] 功能驗證：正彩／組彩兩種模式皆正確判定
+- [x] `server/services/game/lottery/tw/p4.ts`：繼承 `tw/base.ts`，期別 bootstrap 同今彩539
+- [x] `app/composables/useP4.ts`、`app/components/lottery/tw/p4/**`（參考剛完成的 P3 既有元件）
+- [x] `app/pages/lottery/tw/p4.vue`
+- [x] `server/services/storage.ts` 註冊
+- [x] 功能驗證：正彩／組彩兩種模式皆正確判定（見 scripts/test-p4.mjs）
 
 ## 9. 賓果賓果（`BINGO`，輪詢頻率與判定邏輯皆與其他玩法不同，排最後、需獨立驗證）
 

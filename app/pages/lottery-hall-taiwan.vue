@@ -30,7 +30,8 @@ const GAME_ROUTES: Record<number, string> = {
   1197: '/lottery/tw/d539',
   1121: '/lottery/tw/m649',
   5120: '/lottery/tw/m539',
-  2108: '/lottery/tw/p3'
+  2108: '/lottery/tw/p3',
+  2109: '/lottery/tw/p4'
 }
 
 const GAME_META: Record<number, { mark: string; tagline: string; drawTime: string; topPrize: string; rules: string[] }> = {
