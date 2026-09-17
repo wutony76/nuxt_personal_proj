@@ -9,6 +9,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test:dlt": "node scripts/test-dlt.mjs",
+    "test:superlotto": "node scripts/test-superlotto.mjs",
     "test:d539": "node scripts/test-d539.mjs",
     "test:m649": "node scripts/test-m649.mjs",
     "test:m539": "node scripts/test-m539.mjs",

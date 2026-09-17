@@ -67,6 +67,13 @@ export const LOTTERY = {
   // 不代表它該出現在 bg 大廳的玩法清單裡（它有自己獨立的 /lottery-hall-taiwan 入口）。
   'DLT':{ id: 11001, key: 'DLT', name: '大樂透', sort: 11, category: 'tw' },
 
+  // 威力彩：第五款「完全鏡射官方台彩」的玩法（tw 分類），也是唯一「兩區選號」的玩法——
+  // 第一區 01–38 選 6＋第二區 01–08 選 1，兩區各自獨立；開獎號與 10 個獎項派彩金額皆即時讀取
+  // 官方 gameCode 5134 API，不自建 RNG／賠率公式／彩池（見 openspec/changes/add-tw-lottery-suite/design.md
+  // Decision 4）。每週一、四開獎、每注 100 元。只登記單一鍵值（無 sub 欄位），category: 'tw' 讓它
+  // 不出現在 bg 大廳（有獨立的 /lottery-hall-taiwan 入口）。id 11002 為既有 LOTTERY 未使用的值。
+  'SUPERLOTTO':{ id: 11002, key: 'SUPERLOTTO', name: '威力彩', sort: 12, category: 'tw' },
+
   // 今彩539：第二款「完全鏡射官方台彩」的玩法（tw 分類，開獎號與 4 個獎項派彩金額皆即時讀取
   // 官方 API，不自建 RNG／賠率公式／彩池，見 openspec/changes/add-tw-lottery-suite/design.md）。
   // 與大樂透唯二差異：01–39 選 5、無特別號；每天開獎（週一至週六，週日不開獎）。

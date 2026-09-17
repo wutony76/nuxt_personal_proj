@@ -1,0 +1,70 @@
+<script setup lang="ts">
+/** 對話框外殼：遮罩 + 標題 + 關閉鈕（複製自 dlt/block/DialogShell.vue，class 前綴改 superlotto-） */
+const props = defineProps<{ visible: boolean; title: string; width?: string }>()
+const emit = defineEmits<{ close: [] }>()
+</script>
+
+<template>
+  <div v-if="props.visible" class="superlotto-dialog-mask" @click.self="emit('close')">
+    <section class="superlotto-dialog taiwan-lottery-scrollbar" :style="props.width ? `width: ${props.width}` : undefined">
+      <header class="superlotto-dialog-header">
+        <h3>{{ props.title }}</h3>
+        <button type="button" class="close-btn" aria-label="關閉" @click="emit('close')">×</button>
+      </header>
+      <div class="superlotto-dialog-body">
+        <slot />
+      </div>
+    </section>
+  </div>
+</template>
+
+<style scoped lang="scss">
+.superlotto-dialog-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.superlotto-dialog {
+  width: min(1000px, 96vw);
+  max-height: 88vh;
+  overflow: auto;
+  border: 4px solid var(--color-accent-700, #8c491a);
+  border-radius: 8px;
+  background: var(--color-neutral-100, #f9f4ed);
+  padding: 0.75rem;
+
+  .superlotto-dialog-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-accent-700, #8c491a);
+
+    h3 { margin: 0; font-family: var(--font-heading); }
+
+    .close-btn {
+      position: absolute;
+      top: -3px;
+      right: 5px;
+      border: none;
+      background: none;
+      font-size: 25px;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--color-neutral-700, #645c50);
+      cursor: pointer;
+
+      &:hover { color: var(--color-accent-700, #8c491a); }
+    }
+  }
+}
+</style>

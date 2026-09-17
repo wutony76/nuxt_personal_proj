@@ -3,6 +3,7 @@
     <div v-if="active" class="tw-auto-panel-warp" :class="lotteryType ? `is-${lotteryType}` : ''">
       <div class="tw-auto-panel-inner">
         <DltAuto v-if="lotteryType === 'dlt'" />
+        <SuperlottoAuto v-if="lotteryType === 'superlotto'" />
         <D539Auto v-if="lotteryType === 'd539'" />
         <M649Auto v-if="lotteryType === 'm649'" />
         <M539Auto v-if="lotteryType === 'm539'" />
@@ -28,6 +29,7 @@ import { useTwAutoActive } from '~/composables/useTwAutoActive'
 const { active, lotteryType } = useTwAutoActive()
 
 const DltAuto = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/block/footer/Auto.vue'))
+const SuperlottoAuto = defineAsyncComponent(() => import('~/components/lottery/tw/superlotto/block/footer/Auto.vue'))
 const D539Auto = defineAsyncComponent(() => import('~/components/lottery/tw/d539/block/footer/Auto.vue'))
 const M649Auto = defineAsyncComponent(() => import('~/components/lottery/tw/m649/block/footer/Auto.vue'))
 const M539Auto = defineAsyncComponent(() => import('~/components/lottery/tw/m539/block/footer/Auto.vue'))
@@ -56,6 +58,7 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
   animation-delay: 0.48s;
 
   &.is-dlt,
+  &.is-superlotto,
   &.is-d539,
   &.is-m649,
   &.is-m539 {
@@ -99,6 +102,7 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
    dlt／d539／m649／m539 同屬柑仔店主題、配色完全一致，用分組選擇器共用同一份規則
    （不改動既有效果，只是再多帶一個 .is-m539 選擇器）。 */
 .tw-auto-panel-warp.is-dlt .chat-panel,
+.tw-auto-panel-warp.is-superlotto .chat-panel,
 .tw-auto-panel-warp.is-d539 .chat-panel,
 .tw-auto-panel-warp.is-m649 .chat-panel,
 .tw-auto-panel-warp.is-m539 .chat-panel {
@@ -107,6 +111,7 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
 }
 
 .tw-auto-panel-warp.is-dlt .chat-head,
+.tw-auto-panel-warp.is-superlotto .chat-head,
 .tw-auto-panel-warp.is-d539 .chat-head,
 .tw-auto-panel-warp.is-m649 .chat-head,
 .tw-auto-panel-warp.is-m539 .chat-head {
@@ -115,6 +120,7 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
 }
 
 .tw-auto-panel-warp.is-dlt .chat-empty,
+.tw-auto-panel-warp.is-superlotto .chat-empty,
 .tw-auto-panel-warp.is-d539 .chat-empty,
 .tw-auto-panel-warp.is-m649 .chat-empty,
 .tw-auto-panel-warp.is-m539 .chat-empty {
@@ -122,6 +128,7 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
 }
 
 .tw-auto-panel-warp.is-dlt .chat-row,
+.tw-auto-panel-warp.is-superlotto .chat-row,
 .tw-auto-panel-warp.is-d539 .chat-row,
 .tw-auto-panel-warp.is-m649 .chat-row,
 .tw-auto-panel-warp.is-m539 .chat-row {
@@ -143,6 +150,7 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
 }
 
 .tw-auto-panel-warp.is-dlt .chat-input,
+.tw-auto-panel-warp.is-superlotto .chat-input,
 .tw-auto-panel-warp.is-d539 .chat-input,
 .tw-auto-panel-warp.is-m649 .chat-input,
 .tw-auto-panel-warp.is-m539 .chat-input {
@@ -168,10 +176,11 @@ const DltChat = defineAsyncComponent(() => import('~/components/lottery/tw/dlt/b
 }
 
 .tw-auto-panel-warp.is-dlt .tw-auto-panel-inner,
+.tw-auto-panel-warp.is-superlotto .tw-auto-panel-inner,
 .tw-auto-panel-warp.is-d539 .tw-auto-panel-inner,
 .tw-auto-panel-warp.is-m649 .tw-auto-panel-inner,
 .tw-auto-panel-warp.is-m539 .tw-auto-panel-inner {
-  /* 對齊 lottery-dlt／lottery-d539／lottery-m649／lottery-m539 頁面 .main 的寬度，而非全站預設的 --base-width */
+  /* 對齊 lottery-dlt／lottery-superlotto／lottery-d539／lottery-m649／lottery-m539 頁面 .main 的寬度，而非全站預設的 --base-width */
   width: min(1360px, 97%);
   max-width: none;
 }

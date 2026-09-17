@@ -29,6 +29,7 @@ import Kl8Class from './game/lottery/bg/kl8'
 import Fc3dClass from './game/lottery/bg/fc3d'
 import Pl3Class from './game/lottery/bg/pl3'
 import DltClass from './game/lottery/tw/dlt'
+import SuperlottoClass from './game/lottery/tw/superlotto'
 import D539Class from './game/lottery/tw/d539'
 import M649Class from './game/lottery/tw/m649'
 import M539Class from './game/lottery/tw/m539'
@@ -144,6 +145,10 @@ export class Storage {
       // 大樂透：唯一「完全鏡射官方台彩」的玩法（tw 分類，不屬於 bg），開獎號與 8 個獎項派彩金額
       // 皆即時讀取官方 API，不自建 RNG、不自建賠率、不做彩池（見 openspec/changes/add-dlt/design.md）
       new DltClass()
+      // 威力彩：第五款「完全鏡射官方台彩」玩法（tw 分類），也是唯一「兩區選號」的玩法——第一區
+      // 01–38 選 6＋第二區 01–08 選 1，每週一、四開獎，開獎號與 10 個獎項派彩金額皆即時讀取官方
+      // gameCode 5134 API，不自建 RNG／賠率／彩池（見 openspec/changes/add-tw-lottery-suite/design.md Decision 4）
+      new SuperlottoClass()
       // 今彩539：第二款「完全鏡射官方台彩」玩法（tw 分類），01–39 選 5、無特別號、每天開獎，
       // 開獎號與 4 個獎項派彩金額皆即時讀取官方 API（見 openspec/changes/add-tw-lottery-suite/design.md）
       new D539Class()

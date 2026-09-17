@@ -604,6 +604,52 @@ export type DltUserBetHistory = {
 }
 
 /**
+ * 威力彩（SUPERLOTTO）當期資訊
+ * ⚠️ 與 DLT 同為「完全鏡射官方」的 tw 分類玩法（路由在 lottery-tw/superlotto），但本站唯一
+ * 「兩區選號」的玩法：第一區 01–38 選 6、第二區 01–08 選 1。`issue` 對齊官方期別（民國年＋序號、
+ * 與大樂透同格式，經官方 API 實測確認），`lastOpenCode` 為官方真實開獎號 7 碼（第一區排序後 6 碼
+ * ＋第二區 1 碼，第二區固定最後一碼）。下注當下不顯示獎金（`tiers` 只有名稱／對中條件）。
+ */
+export type SuperlottoCurrent = {
+  issue: string
+  currentStatus: string
+  cutoffAt: number
+  drawAt: number
+  countdown: string
+  quotaIssueMaxCoin: number
+  quotaIssueMaxBets: number
+  lastOpenCode: { issue: string; openCode: string[] } | null
+  /** 熱門選號：兩區結構（zoneA 6 碼＋zoneB 1 碼），本期無人下注時後端回傳隨機號碼 */
+  popularNumbers: Array<{ zoneA: number[]; zoneB: number; count: number }>
+  tiers: Array<{ key: string; label: string; desc: string | null }>
+}
+
+/** 威力彩玩家紀錄 */
+export type SuperlottoUserRecordResponse = {
+  balanceChanges: LotteryUserBalanceChange[]
+  betHistory: SuperlottoUserBetHistory[]
+  claimableIssues: LotteryClaimableIssue[]
+}
+
+export type SuperlottoUserBetHistory = {
+  orderId: string
+  issue: string
+  betTime: number
+  coin: number
+  /** 一注一個注碼字串（"第一區6碼|第二區1碼"，例如 "01,05,12,20,30,38|03"） */
+  betCode: string[]
+  /** 官方真實開獎號 7 碼（結算前為空陣列，第一區排序後 6 碼＋第二區 1 碼） */
+  openCode: string[]
+  /** 命中的官方獎項 key（super638JackpotAssign…super638NormalAssign），未中或結算前為 null */
+  tierKey: string | null
+  /** 對應獎項中文名稱（頭獎／二獎…普獎），未中或結算前為空字串 */
+  tierLabel: string
+  winStatus: 'pending' | 'win' | 'lose'
+  /** 派彩金額＝官方當期該獎項實際 perPrize，未結算前為 0 */
+  winAmount: number
+}
+
+/**
  * 今彩539（D539）當期資訊
  * ⚠️ 與 DLT 同為「完全鏡射官方」的 tw 分類玩法（路由在 lottery-tw/d539）；`issue` 是對齊官方
  * 的當期期別（民國年＋序號），`lastOpenCode` 為官方真實開獎號（今彩539一期 5 碼、無特別號）。
@@ -845,8 +891,12 @@ export type LotteryBetPayload = {
   gameId?: number
   betType?: string
   number?: string
-  /** 僅大樂透（DLT）使用：A~E 最多 5 組各自獨立的 6 碼投注，不是複式（見 DltCurrent 註解） */
-  slots?: Array<{ numbers: number[] }>
+  /**
+   * tw 選號玩法用：A~E 最多 5 組各自獨立投注，不是複式。
+   *   - 大樂透（DLT）／今彩539（D539）：每組 `{ numbers }`（單一號碼池）
+   *   - 威力彩（SUPERLOTTO）：每組 `{ zoneA, zoneB }`（兩區選號，見 SuperlottoCurrent 註解）
+   */
+  slots?: Array<{ numbers?: number[]; zoneA?: number[]; zoneB?: number | null }>
 }
 
 export type LotteryBetOrder = {
@@ -1441,6 +1491,8 @@ export const api = {
           return $fetch<Pl3Current>('/api/lottery/pl3/current')
         case LOTTERY.DLT.id:
           return $fetch<DltCurrent>('/api/lottery-tw/dlt/current')
+        case LOTTERY.SUPERLOTTO.id:
+          return $fetch<SuperlottoCurrent>('/api/lottery-tw/superlotto/current')
         case LOTTERY.D539.id:
           return $fetch<D539Current>('/api/lottery-tw/d539/current')
         case LOTTERY.M649.id:
@@ -1588,6 +1640,13 @@ export const api = {
     userRecordDlt: () => $fetch<DltUserRecordResponse>('/api/lottery-tw/dlt/user-record'),
     claimOneIssueDlt: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/dlt/claim', { method: 'POST' }),
+    // ── 威力彩（SUPERLOTTO，tw 分類、完全鏡射官方，路由在 lottery-tw/superlotto；兩區選號、
+    //    第一區 01–38 選 6＋第二區 01–08 選 1，開獎號 7 碼）──
+    currentSuperlotto: () => $fetch<SuperlottoCurrent>('/api/lottery-tw/superlotto/current'),
+    openCodeHistorySuperlotto: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery-tw/superlotto/opencode-history'),
+    userRecordSuperlotto: () => $fetch<SuperlottoUserRecordResponse>('/api/lottery-tw/superlotto/user-record'),
+    claimOneIssueSuperlotto: () =>
+      $fetch<LotteryClaimOneIssueResponse>('/api/lottery-tw/superlotto/claim', { method: 'POST' }),
     // ── 今彩539（D539，tw 分類、完全鏡射官方，路由在 lottery-tw/d539；一期 5 碼、無特別號）──
     currentD539: () => $fetch<D539Current>('/api/lottery-tw/d539/current'),
     openCodeHistoryD539: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery-tw/d539/opencode-history'),
