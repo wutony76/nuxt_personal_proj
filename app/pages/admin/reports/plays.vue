@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import dayjs from 'dayjs'
-import { Doughnut, Line } from 'vue-chartjs'
+import { Doughnut } from 'vue-chartjs'
 import { Chart, registerables } from 'chart.js'
 import { api } from '~/services/api'
 
@@ -69,52 +69,46 @@ const _fmt = {
   coin: (v) => `F${Number(v).toLocaleString('zh-TW')}`,
 }
 
-// ─── TW 走勢圖 ───
-const twLineData = computed(() => {
-  if (!summary.value?.twTotal?.dailySales?.length) return null
-  const labels = summary.value.twTotal.dailySales.map((d) => {
-    const [, , day] = d.day.split('-')
-    return `${summary.value.month.slice(5)}/${day}`
-  })
+// ─── Donut Chart data（台彩彩種佔比，跟 BG 側同一種圖表）───
+const twDonutData = computed(() => {
+  if (!summary.value?.twTotal?.gameRanking?.length) return null
+  const items = summary.value.twTotal.gameRanking.slice(0, 10)
   return {
-    labels,
-    datasets: [{
-      label: '下注額',
-      data: summary.value.twTotal.dailySales.map((d) => d.sales),
-      borderColor: '#5e5e6e',
-      backgroundColor: 'rgba(94,94,110,0.06)',
-      borderWidth: 1.5,
-      pointRadius: 2,
-      pointHoverRadius: 4,
-      tension: 0.3,
-      fill: true,
-    }],
+    labels: items.map((p) => p.name),
+    datasets: [
+      {
+        data: items.map((p) => p.sales),
+        backgroundColor: items.map((_, i) => PALETTE[i % PALETTE.length]),
+        borderColor: '#ffffff',
+        borderWidth: 2,
+        hoverOffset: 6,
+      },
+    ],
   }
 })
 
-const twLineOptions = {
+const twDonutOptions = {
   responsive: true,
   maintainAspectRatio: false,
+  cutout: '62%',
   plugins: {
-    legend: { display: false },
+    legend: {
+      position: 'right',
+      labels: {
+        font: { size: 12 },
+        color: '#1c1c22',
+        padding: 14,
+        boxWidth: 12,
+        boxHeight: 12,
+      },
+    },
     tooltip: {
       callbacks: {
-        label: (ctx) => ` F${Number(ctx.raw).toLocaleString('zh-TW')}`,
+        label: (ctx) => {
+          const item = summary.value.twTotal.gameRanking[ctx.dataIndex]
+          return ` F${Number(ctx.raw).toLocaleString('zh-TW')} (${item?.ratio ?? 0}%)`
+        },
       },
-    },
-  },
-  scales: {
-    x: {
-      ticks: { font: { size: 10 }, color: '#888', maxTicksLimit: 15 },
-      grid: { color: 'rgba(28,28,34,0.06)' },
-    },
-    y: {
-      ticks: {
-        font: { size: 10 },
-        color: '#888',
-        callback: (v) => `F${Number(v).toLocaleString('zh-TW')}`,
-      },
-      grid: { color: 'rgba(28,28,34,0.06)' },
     },
   },
 }
@@ -182,14 +176,14 @@ onMounted(() => _actions.fetch())
           <div class="admin-sechead">
             <div class="admin-sechead-left">
               <h2>分布圖</h2>
-              <span class="admin-meta admin-tag">TW · 每日走勢</span>
+              <span class="admin-meta admin-tag">TW · 彩種佔比</span>
             </div>
             <span class="admin-meta">{{ summary.month }}</span>
           </div>
           <div v-if="!summary.twTotal.totalSales" class="admin-empty">本月無台彩投注紀錄</div>
-          <div v-else class="arp-line-wrap">
+          <div v-else class="arp-donut-wrap">
             <ClientOnly>
-              <Line v-if="twLineData" :data="twLineData" :options="twLineOptions" />
+              <Doughnut v-if="twDonutData" :data="twDonutData" :options="twDonutOptions" />
               <template #fallback><div class="admin-empty">圖表載入中…</div></template>
             </ClientOnly>
           </div>
@@ -327,12 +321,6 @@ onMounted(() => _actions.fetch())
 
 .arp-donut-wrap {
   height: 300px;
-  position: relative;
-  max-width: 700px;
-}
-
-.arp-line-wrap {
-  height: 220px;
   position: relative;
 }
 
