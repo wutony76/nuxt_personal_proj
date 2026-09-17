@@ -197,32 +197,45 @@ onMounted(() => _actions.fetch())
 
       </div>
 
-      <!-- BG 走勢圖（全寬） -->
-      <div v-if="summary.totalSales > 0" class="ard-section">
-        <div class="admin-sechead">
-          <h2>走勢圖 / 月</h2>
-          <span class="admin-meta admin-tag">BG · {{ summary.month }}</span>
-        </div>
-        <div class="ard-chart-wrap">
-          <ClientOnly>
-            <Line v-if="lineChartData" :data="lineChartData" :options="lineChartOptions" />
-            <template #fallback><div class="admin-empty">圖表載入中…</div></template>
-          </ClientOnly>
-        </div>
-      </div>
+      <!-- 走勢圖：BG／台彩 並列 -->
+      <div class="ard-chart-split">
 
-      <!-- TW 走勢圖（全寬） -->
-      <div v-if="summary.twTotal.totalSales > 0" class="ard-section">
-        <div class="admin-sechead">
-          <h2>走勢圖 / 月</h2>
-          <span class="admin-meta admin-tag">TW · {{ summary.month }}</span>
+        <!-- BG 走勢圖 -->
+        <div class="ard-chart-col">
+          <div class="admin-sechead">
+            <div class="admin-sechead-left">
+              <h2>走勢圖 / 月</h2>
+              <span class="admin-meta admin-tag">BG</span>
+            </div>
+            <span class="admin-meta">{{ summary.month }}</span>
+          </div>
+          <div v-if="summary.totalSales === 0" class="admin-empty">本月無 BG 投注紀錄</div>
+          <div v-else class="ard-chart-wrap">
+            <ClientOnly>
+              <Line v-if="lineChartData" :data="lineChartData" :options="lineChartOptions" />
+              <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+            </ClientOnly>
+          </div>
         </div>
-        <div class="ard-chart-wrap">
-          <ClientOnly>
-            <Line v-if="twLineChartData" :data="twLineChartData" :options="twLineChartOptions" />
-            <template #fallback><div class="admin-empty">圖表載入中…</div></template>
-          </ClientOnly>
+
+        <!-- 台彩走勢圖 -->
+        <div class="ard-chart-col">
+          <div class="admin-sechead">
+            <div class="admin-sechead-left">
+              <h2>走勢圖 / 月</h2>
+              <span class="admin-meta admin-tag">TW</span>
+            </div>
+            <span class="admin-meta">{{ summary.month }}</span>
+          </div>
+          <div v-if="!summary.twTotal.totalSales" class="admin-empty">本月無台彩投注紀錄</div>
+          <div v-else class="ard-chart-wrap">
+            <ClientOnly>
+              <Line v-if="twLineChartData" :data="twLineChartData" :options="twLineChartOptions" />
+              <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+            </ClientOnly>
+          </div>
         </div>
+
       </div>
 
       <!-- 彩種排行：BG ／ 台彩 並列 -->
@@ -368,9 +381,25 @@ onMounted(() => _actions.fetch())
   color: color-mix(in srgb, #1c1c22 40%, #ffffff);
 }
 
-// ── 趨勢圖 ─────────────────────────────────────────────────────────────
-.ard-section {
+// ── 趨勢圖並列：BG ／ 台彩 ────────────────────────────────────────────
+.ard-chart-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
   margin-bottom: 40px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+    gap: 1px 0;
+  }
+}
+
+.ard-chart-col {
+  background: var(--paper);
+  padding: 20px 20px 20px;
+  min-width: 0;
 }
 
 .ard-chart-wrap {
