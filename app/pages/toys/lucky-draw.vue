@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, reactive, watchEffect } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, reactive, watch, watchEffect } from 'vue'
 import BetPanel from '~/components/toys/BetPanel.vue'
 import ResultModal from '~/components/toys/ResultModal.vue'
 import ToyGameHeader from '~/components/toys/ToyGameHeader.vue'
@@ -20,7 +20,30 @@ watchEffect(() => {
   setDialogSubtitle?.(`選格只翻面・連乘上限 ×${maxPotMultiplier.value}`)
 })
 
-const isLocked = computed(() => round.state.settling || round.state.status === 'playing')
+type MainTab = 'game' | 'rules'
+const ui = reactive({ mainTab: 'game' as MainTab, resultReady: false })
+
+/** 翻牌結果先讓玩家看 1 秒，才彈出領取／繼續抽的結果視窗；這段期間鎖住操作，避免翻牌到彈窗之間
+ *  的空檔被搶點（例如抽到空獎、彩池瞬間歸零時，若不鎖住格子會被誤判成可以立刻開新一注）。 */
+let resultDelayTimer: ReturnType<typeof setTimeout> | null = null
+watch(() => round.state.revealed, (revealed) => {
+  if (resultDelayTimer) {
+    clearTimeout(resultDelayTimer)
+    resultDelayTimer = null
+  }
+  if (revealed) {
+    resultDelayTimer = setTimeout(() => {
+      ui.resultReady = true
+      resultDelayTimer = null
+    }, 1000)
+  } else {
+    ui.resultReady = false
+  }
+}, { immediate: true })
+
+const isLocked = computed(() =>
+  round.state.settling || round.state.status === 'playing' || (round.state.revealed && !ui.resultReady)
+)
 /** 連乘倍率＝目前彩池 ÷ 這注原始注額（注額在同一注內固定不變，見 useToyRound chooseChip 的 pot>0 鎖定） */
 const multiplier = computed(() => (round.state.pot > 0 && round.state.bet > 0 ? round.state.pot / round.state.bet : 0))
 const capAmount = computed(() => round.state.bet * maxPotMultiplier.value)
@@ -108,7 +131,9 @@ const headlineTone = computed(() => {
   return ''
 })
 
-const modalVisible = computed(() => round.state.status === 'result' && round.state.revealed && !round.state.picking)
+const modalVisible = computed(() =>
+  round.state.status === 'result' && round.state.revealed && !round.state.picking && ui.resultReady
+)
 const modalTitle = computed(() => {
   if (round.state.claimed) return '已領取'
   if (round.state.result?.multiplier === 0) return '這格是空的'
@@ -122,9 +147,6 @@ const modalDetail = computed(() => {
   if (round.state.result) return `倍率 ×${round.state.result.multiplier}`
   return ''
 })
-
-type MainTab = 'game' | 'rules'
-const ui = reactive({ mainTab: 'game' as MainTab })
 
 const click = {
   pick: (index: number) => {
@@ -144,6 +166,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   round.stopReveal()
+  if (resultDelayTimer) clearTimeout(resultDelayTimer)
 })
 </script>
 

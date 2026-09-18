@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import BetPanel from '~/components/toys/BetPanel.vue'
 import ResultModal from '~/components/toys/ResultModal.vue'
 import { useToyGummy } from '~/composables/useToyGummy'
@@ -18,6 +18,31 @@ const colors: Array<{ id: ToyGummyColor; label: string }> = [
 const labelOf = (id: ToyGummyColor) => colors.find((item) => item.id === id)?.label ?? id
 
 const chips = computed(() => round.state.catalog?.betChips ?? [])
+
+type MainTab = 'game' | 'rules'
+const ui = reactive({ mainTab: 'game' as MainTab, resultReady: false })
+
+/** 猜色結果先讓玩家看 1 秒，才解鎖操作／彈出結果視窗，避免翻面到彈窗之間的空檔被搶點 */
+let resultDelayTimer: ReturnType<typeof setTimeout> | null = null
+watch(() => round.state.revealed, (revealed) => {
+  if (resultDelayTimer) {
+    clearTimeout(resultDelayTimer)
+    resultDelayTimer = null
+  }
+  if (revealed) {
+    resultDelayTimer = setTimeout(() => {
+      ui.resultReady = true
+      resultDelayTimer = null
+    }, 1000)
+  } else {
+    ui.resultReady = false
+  }
+}, { immediate: true })
+
+const isLocked = computed(() =>
+  round.state.settling || round.state.status === 'playing' || (round.state.revealed && !ui.resultReady)
+)
+
 const recent = computed(() => {
   const slots: Array<ToyGummyColor | null> = [null, null, null, null]
   round.state.history.slice(-4).forEach((color, index) => {
@@ -71,7 +96,12 @@ const headlineTone = computed(() => {
   return ''
 })
 
-const modalVisible = computed(() => round.state.revealed && round.state.correct != null && round.state.status !== 'playing')
+/** 猜對且還能繼續猜（canGuess）時不彈窗，讓玩家直接點下一個顏色；只有猜錯或連勝到頂
+ *  （被迫收下）才彈出結果視窗，比照 lucky-draw 的「顯示 1 秒才彈出」節奏 */
+const modalVisible = computed(() =>
+  round.state.revealed && round.state.correct != null && round.state.status !== 'playing'
+  && !round.state.canGuess && ui.resultReady
+)
 const modalTitle = computed(() => {
   if (round.state.claimed) return '已領取'
   if (round.state.correct === false) return '猜錯了'
@@ -84,8 +114,6 @@ const modalDetail = computed(() => {
   return `這一顆是${round.state.color ? labelOf(round.state.color) : ''}，倍率 ×${round.state.multiplier}`
 })
 
-type MainTab = 'game' | 'rules'
-const ui = reactive({ mainTab: 'game' as MainTab })
 const click = {
   setMainTab: (tab: MainTab) => { ui.mainTab = tab }
 }
@@ -95,6 +123,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   round.stopReveal()
+  if (resultDelayTimer) clearTimeout(resultDelayTimer)
 })
 </script>
 
@@ -131,7 +160,7 @@ onBeforeUnmount(() => {
       <div v-if="ui.mainTab === 'game'" class="lucky-panel">
         <div class="bet-row">
           <BetPanel :chips="chips" :bet="round.state.bet" :custom-bet="round.state.customBet"
-            :disabled="round.state.settling || round.state.canGuess || round.state.pot > 0"
+            :disabled="isLocked || round.state.canGuess || round.state.pot > 0"
             @choose="round.actions.chooseChip" @update:custom-bet="round.state.customBet = $event"
             @apply-custom="round.actions.applyCustom" />
         </div>
@@ -150,13 +179,13 @@ onBeforeUnmount(() => {
 
           <div class="choices">
             <button v-for="item in colors" :key="item.id" type="button" class="choice" :class="`is-${item.id}`"
-              :disabled="round.state.settling || !round.state.canGuess" @click="round.actions.guess(item.id)">
+              :disabled="isLocked || !round.state.canGuess" @click="round.actions.guess(item.id)">
               {{ item.label }}
             </button>
           </div>
 
           <button v-if="!round.state.canGuess && round.state.pot <= 0" type="button" class="deal"
-            :disabled="round.state.settling || round.state.blockedGameKey != null" @click="round.actions.start">
+            :disabled="isLocked || round.state.blockedGameKey != null" @click="round.actions.start">
             開始
           </button>
         </div>

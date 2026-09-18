@@ -11,7 +11,11 @@ const round = useToyCards()
 
 const chips = computed(() => round.state.catalog?.betChips ?? [])
 const face = computed(() => (round.state.revealed ? round.state.nextRank ?? round.state.rank : round.state.rank))
-const modalVisible = computed(() => round.state.revealed && round.state.correct != null && round.state.status !== 'playing')
+/** 猜對且還能繼續猜（canGuess）時不彈窗，改讓玩家直接翻下一張；只有猜錯或連勝到頂才彈出結果視窗
+ *  （ResultModal 現在是蓋滿全螢幕的浮動視窗，canGuess 時若還彈出會擋住牌面，沒辦法繼續猜） */
+const modalVisible = computed(() =>
+  round.state.revealed && round.state.correct != null && round.state.status !== 'playing' && !round.state.canGuess
+)
 const modalTitle = computed(() => {
   if (round.state.claimed) return '已領取'
   if (round.state.correct === false) return '猜錯了'

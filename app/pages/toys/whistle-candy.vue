@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import BetPanel from '~/components/toys/BetPanel.vue'
 import ResultModal from '~/components/toys/ResultModal.vue'
 import ToyGameHeader from '~/components/toys/ToyGameHeader.vue'
@@ -29,7 +29,29 @@ const outcomeLabel = computed(() => {
   return '輸'
 })
 
-const isLocked = computed(() => round.state.settling || round.state.status === 'playing')
+type MainTab = 'game' | 'rules'
+const ui = reactive({ mainTab: 'game' as MainTab, resultReady: false })
+
+/** 比一輪結果先讓玩家看 1 秒，才解鎖操作／彈出結果視窗，避免翻面到彈窗之間的空檔被搶點 */
+let resultDelayTimer: ReturnType<typeof setTimeout> | null = null
+watch(() => round.state.revealed, (revealed) => {
+  if (resultDelayTimer) {
+    clearTimeout(resultDelayTimer)
+    resultDelayTimer = null
+  }
+  if (revealed) {
+    resultDelayTimer = setTimeout(() => {
+      ui.resultReady = true
+      resultDelayTimer = null
+    }, 1000)
+  } else {
+    ui.resultReady = false
+  }
+}, { immediate: true })
+
+const isLocked = computed(() =>
+  round.state.settling || round.state.status === 'playing' || (round.state.revealed && !ui.resultReady)
+)
 
 const headline = computed(() => {
   const s = round.state
@@ -45,7 +67,7 @@ const headlineTone = computed(() => {
   return ''
 })
 
-const modalVisible = computed(() => round.state.revealed && round.state.outcome != null)
+const modalVisible = computed(() => round.state.revealed && round.state.outcome != null && ui.resultReady)
 const modalTitle = computed(() => {
   if (round.state.outcome === 'win') return '你贏了'
   if (round.state.outcome === 'tie') return '相同'
@@ -57,8 +79,6 @@ const modalDetail = computed(() => {
   return '這局不加帳。'
 })
 
-type MainTab = 'game' | 'rules'
-const ui = reactive({ mainTab: 'game' as MainTab })
 const click = {
   setMainTab: (tab: MainTab) => { ui.mainTab = tab }
 }
@@ -68,6 +88,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   round.stopReveal()
+  if (resultDelayTimer) clearTimeout(resultDelayTimer)
 })
 </script>
 
