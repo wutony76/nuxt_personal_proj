@@ -112,7 +112,8 @@ export function useToyCards() {
         api.games.toys.cardsState().catch(() => null),
         api.lottery.userInfo().catch(() => null)
       ])
-      if (user) state.balance = user.balance
+      if (view) state.balance = view.balance
+      else if (user) state.balance = Number(user.coin ?? 0)
       if (view?.gameKey === 'cards') _handlers.applyView(view, true)
       else if (view?.gameKey) state.blockedGameKey = view.gameKey
     },

@@ -106,7 +106,8 @@ export function useToyWhistle() {
         api.games.toys.whistleState().catch(() => null),
         api.lottery.userInfo().catch(() => null)
       ])
-      if (user) state.balance = user.balance
+      if (view) state.balance = view.balance
+      else if (user) state.balance = Number(user.coin ?? 0)
       if (view) state.history = view.history
       if (view?.blocked) state.blocked = true
     },
