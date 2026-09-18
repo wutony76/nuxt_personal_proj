@@ -367,7 +367,6 @@ onBeforeUnmount(() => {
 }
 
 .trick span,
-.hand button,
 .deal {
   border-radius: var(--radius-md, 16px);
   min-width: 64px;
@@ -381,12 +380,14 @@ onBeforeUnmount(() => {
   border: 2px solid var(--color-accent-400, #d99361);
 }
 
-.hand button,
 .deal {
   border: 0;
   background: var(--color-accent, #b2622d);
   color: var(--color-bg, #f5ead8);
   cursor: pointer;
+  align-self: flex-start;
+  font-size: 16px;
+  padding: 10px 18px;
 
   &:disabled {
     opacity: 0.45;
@@ -394,10 +395,38 @@ onBeforeUnmount(() => {
   }
 }
 
-.deal {
-  align-self: flex-start;
-  font-size: 16px;
-  padding: 10px 18px;
+/* 手牌改成真正的復古尪仔標紙牌造型：套用鋸齒圓弧邊緣的插畫當背景，
+   不用一般按鈕的圓角方框（素材見 public/images/toys/pog/pog_card.png） */
+.hand button {
+  width: 66px;
+  height: 66px;
+  padding: 0;
+  border: 0;
+  background: url('/images/toys/pog/pog_card.png') center / contain no-repeat;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-heading, serif);
+  font-size: 20px;
+  font-weight: 900;
+  color: #2e2b25;
+  cursor: pointer;
+  filter: drop-shadow(0 3px 0 #402310) drop-shadow(0 3px 4px rgba(46, 43, 37, 0.4));
+  transition: transform 0.12s ease, filter 0.12s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+    filter: drop-shadow(0 1px 0 #402310) drop-shadow(0 1px 2px rgba(46, 43, 37, 0.4));
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+    filter: grayscale(0.5) drop-shadow(0 2px 0 #402310);
+  }
 }
 
 .frame-progress {
