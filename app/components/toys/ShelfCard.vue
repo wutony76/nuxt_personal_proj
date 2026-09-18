@@ -4,14 +4,18 @@ import type { ToyCatalogItem } from '~/services/api'
 defineProps<{
   item: ToyCatalogItem
 }>()
+
+const emit = defineEmits<{
+  open: []
+}>()
 </script>
 
 <template>
-  <NuxtLink v-if="item.status === 'open' && item.path" :to="item.path" class="shelf-card is-open">
+  <button v-if="item.status === 'open' && item.path" type="button" class="shelf-card is-open" @click="emit('open')">
     <span class="shelf-mark">{{ item.mark }}</span>
     <span class="shelf-name">{{ item.name }}</span>
     <span class="shelf-kind">{{ item.kind }}</span>
-  </NuxtLink>
+  </button>
   <div v-else class="shelf-card is-soon" aria-disabled="true">
     <span class="shelf-mark">{{ item.mark }}</span>
     <span class="shelf-name">{{ item.name }}</span>
@@ -22,6 +26,9 @@ defineProps<{
 <style scoped lang="scss">
 .shelf-card {
   display: block;
+  width: 100%;
+  font: inherit;
+  cursor: pointer;
   background: var(--color-neutral-100);
   border: 1px solid var(--color-neutral-300);
   border-radius: var(--radius-md);
@@ -33,6 +40,7 @@ defineProps<{
 
   &.is-soon {
     opacity: 0.62;
+    cursor: default;
   }
 }
 

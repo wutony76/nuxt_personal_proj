@@ -1,14 +1,18 @@
 <script setup lang="ts">
+import { inject } from 'vue'
+
 defineProps<{
   balance: number
 }>()
 
+const closeToy = inject<(() => void) | null>('closeToyDialog', null)
 const formatted = (value: number) => Number(value).toLocaleString('zh-TW')
 </script>
 
 <template>
   <header class="toy-header">
-    <NuxtLink to="/lottery-hall-taiwan#tw-shelf" class="toy-back">轉去大廳</NuxtLink>
+    <button v-if="closeToy" type="button" class="toy-back" @click="closeToy()">關閉</button>
+    <NuxtLink v-else to="/lottery-hall-taiwan#tw-shelf" class="toy-back">轉去大廳</NuxtLink>
     <span class="toy-coin">F 幣 {{ formatted(balance) }}</span>
   </header>
 </template>
@@ -25,10 +29,14 @@ const formatted = (value: number) => Number(value).toLocaleString('zh-TW')
 }
 
 .toy-back {
+  border: 0;
+  padding: 0;
+  background: transparent;
   color: inherit;
   text-decoration: none;
   font-family: var(--font-heading, serif);
   font-weight: 900;
+  cursor: pointer;
 }
 
 .toy-coin {
