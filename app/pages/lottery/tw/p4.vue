@@ -4,7 +4,6 @@ import P4Header from '~/components/lottery/tw/p4/block/Header.vue'
 import Board from '~/components/lottery/tw/p4/base/Board.vue'
 import CurrItems from '~/components/lottery/tw/p4/block/CurrItems.vue'
 import Controls from '~/components/lottery/tw/p4/block/Controls.vue'
-import Report from '~/components/lottery/tw/p4/block/Report.vue'
 import History from '~/components/lottery/tw/p4/block/History.vue'
 import Road from '~/components/lottery/tw/p4/block/Road.vue'
 import PopularPicks from '~/components/lottery/tw/p4/block/PopularPicks.vue'
@@ -118,7 +117,6 @@ onBeforeUnmount(() => {
           <div class="side">
             <CurrItems />
             <Controls />
-            <Report />
           </div>
         </div>
       </section>

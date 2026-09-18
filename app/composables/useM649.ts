@@ -52,7 +52,7 @@ const current = reactive({
   runtime: null as M649Current | null
 })
 
-const slots = reactive<M649Slot[]>([_emptySlot('A')])
+const slots = reactive<M649Slot[]>([_emptySlot('A'), _emptySlot('B')])
 
 const wallet = reactive({ userName: '-', userId: '-', coin: 0, currentBets: 0, totalBets: 0 })
 
@@ -205,7 +205,7 @@ const _actions = {
     if (idx >= 0) slots.splice(idx, 1)
   },
   clearAll: () => {
-    slots.splice(0, slots.length, _emptySlot('A'))
+    slots.splice(0, slots.length, _emptySlot('A'), _emptySlot('B'))
   },
   /**
    * 把一組已知號碼套用到投注區（「近期開獎」「熱門選號」的「來一注」按鈕用）。合數依號碼數決定：

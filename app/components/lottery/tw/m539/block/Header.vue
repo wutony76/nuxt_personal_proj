@@ -22,7 +22,7 @@ const lastNumbers = computed(() => lastOpenCode.value?.openCode ?? [])
   <header class="m539-header">
     <div class="m539-header-left">
       <div class="m539-brand">
-        <span class="m539-title-badge">49</span>
+        <span class="m539-title-badge">39</span>
         <div class="m539-brand-text">
           <h1 class="m539-title">39樂合彩</h1>
           <div class="m539-title-sub">跟隨今彩539</div>

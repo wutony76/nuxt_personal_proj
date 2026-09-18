@@ -4,7 +4,6 @@ import SuperlottoHeader from '~/components/lottery/tw/superlotto/block/Header.vu
 import Board from '~/components/lottery/tw/superlotto/base/Board.vue'
 import CurrItems from '~/components/lottery/tw/superlotto/block/CurrItems.vue'
 import Controls from '~/components/lottery/tw/superlotto/block/Controls.vue'
-import Report from '~/components/lottery/tw/superlotto/block/Report.vue'
 import History from '~/components/lottery/tw/superlotto/block/History.vue'
 import Road from '~/components/lottery/tw/superlotto/block/Road.vue'
 import PopularPicks from '~/components/lottery/tw/superlotto/block/PopularPicks.vue'
@@ -115,7 +114,6 @@ onBeforeUnmount(() => {
           <div class="side">
             <CurrItems />
             <Controls />
-            <Report />
           </div>
         </div>
       </section>

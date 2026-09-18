@@ -4,7 +4,6 @@ import M649Header from '~/components/lottery/tw/m649/block/Header.vue'
 import Board from '~/components/lottery/tw/m649/base/Board.vue'
 import CurrItems from '~/components/lottery/tw/m649/block/CurrItems.vue'
 import Controls from '~/components/lottery/tw/m649/block/Controls.vue'
-import Report from '~/components/lottery/tw/m649/block/Report.vue'
 import History from '~/components/lottery/tw/m649/block/History.vue'
 import Road from '~/components/lottery/tw/m649/block/Road.vue'
 import PopularPicks from '~/components/lottery/tw/m649/block/PopularPicks.vue'
@@ -116,7 +115,6 @@ onBeforeUnmount(() => {
           <div class="side">
             <CurrItems />
             <Controls />
-            <Report />
           </div>
         </div>
       </section>
