@@ -20,7 +20,7 @@ import { useTwAutoActive } from '~/composables/useTwAutoActive'
  * openspec/changes/add-tw-lottery-suite/design.md Decision 4）。頁面骨架比照 dlt，但選號互動
  * 改用兩區獨立子網格（base/Board.vue，每組 A~E 各渲染一份），不顯示彩池／爆池。
  */
-const { slots, wallet: mxWallet, fetch: mxFetch, isOpen, userRecord } = useSuperlotto()
+const { slots, wallet: mxWallet, fetch: mxFetch, isOpen, isPendingSettlement, userRecord } = useSuperlotto()
 
 const router = useRouter()
 const { isLoggedIn, init: authInit } = useAuth()
@@ -107,7 +107,8 @@ onBeforeUnmount(() => {
             </g>
           </svg>
 
-          <p v-if="!isOpen" class="closed-hint">目前非開盤時間，暫不受理投注</p>
+          <p v-if="isPendingSettlement" class="closed-hint">本期已截止，等待台灣彩券官方公布開獎資料中，資料到位後會自動開下一期，請稍候</p>
+          <p v-else-if="!isOpen" class="closed-hint">目前非開盤時間，暫不受理投注</p>
           <div class="boards">
             <Board v-for="slot in slots" :key="slot.id" :slot="slot" :disabled="!isOpen" />
           </div>

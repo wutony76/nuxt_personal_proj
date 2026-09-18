@@ -21,7 +21,7 @@ import { useTwAutoActive } from '~/composables/useTwAutoActive'
  * 選號互動改用「先選下注方式（正彩/組彩，沒有對彩），再逐位填滿 4 位 0~9 數字」
  * （base/Board.vue，每組 A~E 各渲染一份、各自選定下注方式），不顯示彩池。
  */
-const { slots, wallet: p4Wallet, fetch: p4Fetch, isOpen, userRecord } = useP4()
+const { slots, wallet: p4Wallet, fetch: p4Fetch, isOpen, isPendingSettlement, userRecord } = useP4()
 
 const router = useRouter()
 const { isLoggedIn, init: authInit } = useAuth()
@@ -110,7 +110,8 @@ onBeforeUnmount(() => {
             </g>
           </svg>
 
-          <p v-if="!isOpen" class="closed-hint">目前非開盤時間，暫不受理投注</p>
+          <p v-if="isPendingSettlement" class="closed-hint">本期已截止，等待台灣彩券官方公布開獎資料中，資料到位後會自動開下一期，請稍候</p>
+          <p v-else-if="!isOpen" class="closed-hint">目前非開盤時間，暫不受理投注</p>
           <div class="boards">
             <Board v-for="slot in slots" :key="slot.id" :slot="slot" :disabled="!isOpen" />
           </div>

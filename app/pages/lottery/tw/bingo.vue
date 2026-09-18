@@ -19,7 +19,7 @@ import { useTwAutoActive } from '~/composables/useTwAutoActive'
  * 4 種投注類型（基本玩法／超級獎號／猜大小／猜單雙）在同一個 Board.vue 用 tab 切換
  * （見 openspec/changes/add-tw-lottery-suite/design.md Decision 6）。
  */
-const { slots, wallet: bingoWallet, fetch: bingoFetch, isOpen, userRecord } = useBingo()
+const { slots, wallet: bingoWallet, fetch: bingoFetch, isOpen, isPendingSettlement, userRecord } = useBingo()
 
 const router = useRouter()
 const { isLoggedIn, init: authInit } = useAuth()
@@ -77,7 +77,10 @@ onBeforeUnmount(() => {
 
       <section class="play-section">
         <div class="play-warp">
-          <p v-if="!isOpen" class="closed-hint">目前非開盤時間，暫不受理投注</p>
+          <p v-if="isPendingSettlement" class="closed-hint">
+            本期已封盤，等待台灣彩券官方公布開獎資料中，通常 1~2 分鐘內會自動開下一期，請稍候
+          </p>
+          <p v-else-if="!isOpen" class="closed-hint">目前非開盤時間，暫不受理投注</p>
           <div class="board-warp">
             <Board :disabled="!isOpen" />
           </div>
