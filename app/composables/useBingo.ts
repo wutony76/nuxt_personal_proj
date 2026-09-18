@@ -100,6 +100,8 @@ const isPendingSettlement = computed(() => String(current.runtime?.currentStatus
 const canSubmit = computed(() => isOpen.value && state.submitStatus !== 'loading' && slots.length > 0)
 const countdownLabel = computed(() => current.runtime?.countdown ?? '')
 const starDraftReady = computed(() => starDraft.numbers.length === starDraft.star)
+/** 熱門選號：本期已下注的「基本玩法」注碼依人數排序前 5 組；本期還沒人下注時，後端會改回傳 5 組隨機注碼 */
+const popularNumbers = computed(() => current.runtime?.popularNumbers ?? [])
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function _tickServerNow() {
@@ -185,7 +187,14 @@ const _actions = {
     const idx = slots.findIndex((s) => s.id === id)
     if (idx >= 0) slots.splice(idx, 1)
   },
-  clearAll: () => { slots.splice(0, slots.length) }
+  clearAll: () => { slots.splice(0, slots.length) },
+
+  /** 「熱門選號」的「來一注」：直接把一組完整的基本玩法注碼加入 slots */
+  applyStarPick: (star: number, numbers: number[]) => {
+    if (slots.length >= BINGO_MAX_SLOTS) return
+    state.activeTab = 'star'
+    slots.push({ id: _nextSlotId(), betType: 'star', star, numbers: [...numbers] })
+  }
 }
 
 // ── Fetch ──────────────────────────────────────────────────────────────────
@@ -331,6 +340,7 @@ export function useBingo() {
     canSubmit,
     countdownLabel,
     starDraftReady,
+    popularNumbers,
 
     actions: _actions,
     fetch

@@ -11,6 +11,7 @@ type BingoService = {
       drawAt: number
       countdown: string
       lastOpenCode: { issue: string; openCode: string[]; superNumber: string; lotBigSmall: string; lotOddEven: string } | null
+      popularNumbers: Array<{ star: number; numbers: number[]; count: number }>
     }
     betTypes: () => Array<{ key: string; label: string; desc: string }>
   }

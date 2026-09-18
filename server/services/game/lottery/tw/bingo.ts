@@ -6,6 +6,8 @@ import {
   BINGO_BET_UNIT,
   BINGO_MAX_SLOTS,
   BINGO_DRAWN_COUNT,
+  BINGO_NUMBER_MIN,
+  BINGO_NUMBER_MAX,
   BINGO_SUPER_NUMBER_PRIZE,
   BINGO_BIG_SMALL_PRIZE,
   BINGO_ODD_EVEN_PRIZE,
@@ -57,6 +59,22 @@ const FIVE_MIN_MS = 5 * 60 * 1000
 const POLL_INTERVAL_MS = 12_000
 /** 超過這麼久還沒等到新期別，記一次 warning（寬鬆容錯，不中斷輪詢） */
 const PENDING_WARN_THRESHOLD_MS = 2 * 60 * 1000
+/** 「熱門選號」固定顯示幾組（比照 M539 `_popularNumbers()`，只統計基本玩法／star 這個有「選號」概念的類型） */
+const POPULAR_PICKS_COUNT = 5
+/** 「熱門選號」固定只統計／墊底「3 星」注碼（使用者指定：其他星數不列入熱門選號） */
+const POPULAR_PICKS_STAR = 3
+
+/** 隨機產生一組合法的 3 星注碼（3 個不重複的 01~80 號碼），供「熱門選號」墊底用 */
+function _randomStarPick(): { star: number; numbers: number[] } {
+  const pool = Array.from({ length: BINGO_NUMBER_MAX - BINGO_NUMBER_MIN + 1 }, (_, i) => BINGO_NUMBER_MIN + i)
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const tmp = pool[i] as number
+    pool[i] = pool[j] as number
+    pool[j] = tmp
+  }
+  return { star: POPULAR_PICKS_STAR, numbers: pool.slice(0, POPULAR_PICKS_STAR).sort((a, b) => a - b) }
+}
 
 /** 對齊到「嚴格晚於 now」的下一個 5 分鐘整點（例：15:07:23→15:10:00；15:10:00 整點→15:15:00） */
 function _nextFiveMinuteBoundary(now: Date): Date {
@@ -190,6 +208,7 @@ export default class BingoClass extends LOTTERY_BASE {
       drawAt: number
       countdown: string
       lastOpenCode: { issue: string; openCode: string[]; superNumber: string; lotBigSmall: string; lotOddEven: string } | null
+      popularNumbers: Array<{ star: number; numbers: number[]; count: number }>
     }
     betTypes: () => typeof BINGO_BET_TYPES
   }
@@ -351,7 +370,8 @@ export default class BingoClass extends LOTTERY_BASE {
                 lotBigSmall: lastMeta?.lotBigSmall ?? '',
                 lotOddEven: lastMeta?.lotOddEven ?? ''
               }
-            : null
+            : null,
+          popularNumbers: this._popularNumbers()
         }
       },
       betTypes: () => BINGO_BET_TYPES
@@ -649,6 +669,45 @@ export default class BingoClass extends LOTTERY_BASE {
     })
 
     if (!isTest) this.issueSettledMap[internalIssue] = true
+  }
+
+  /**
+   * 「熱門選號」：統計本期（currentIssue）目前所有玩家已下注的「基本玩法（star）」注碼中固定「3 星」
+   * 的部分，依下注人數（注數）由多到少排序取前 5 組；不足 5 組（含完全沒人下注）時，用隨機 3 星注碼
+   * 墊到滿 5 組（使用者指定：熱門選號固定只用 3 星，其他星數／超級獎號／猜大小／猜單雙皆不列入）。
+   */
+  _popularNumbers(): Array<{ star: number; numbers: number[]; count: number }> {
+    const issueOrders = (this._get.orders().get.orders.currentIssue(this.currentIssue) ?? []) as Array<{
+      betCode: string[]
+      playKey?: string
+    }>
+
+    const freq = new Map<string, number>()
+    issueOrders.forEach((row) => {
+      if (row.playKey !== 'star') return
+      const code = (Array.isArray(row.betCode) ? row.betCode : [])[0]
+      if (code && code.startsWith(`${POPULAR_PICKS_STAR}|`)) freq.set(code, (freq.get(code) ?? 0) + 1)
+    })
+
+    const real = [...freq.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, POPULAR_PICKS_COUNT)
+      .map(([code, count]) => {
+        const decoded = bingoDecodeSlot('star', code)
+        return decoded?.betType === 'star' ? { star: decoded.star, numbers: decoded.numbers, count } : null
+      })
+      .filter((item): item is { star: number; numbers: number[]; count: number } => item !== null)
+
+    const usedKeys = new Set(real.map((r) => bingoEncodeSlot({ betType: 'star', star: r.star, numbers: r.numbers })))
+    const padded = [...real]
+    while (padded.length < POPULAR_PICKS_COUNT) {
+      const pick = _randomStarPick()
+      const key = bingoEncodeSlot({ betType: 'star', ...pick })
+      if (usedKeys.has(key)) continue
+      usedKeys.add(key)
+      padded.push({ ...pick, count: 0 })
+    }
+    return padded
   }
 
   playBets(payload: PlayBetsPayload, user: UserStoreLike) {

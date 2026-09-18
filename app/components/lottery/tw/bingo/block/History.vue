@@ -14,7 +14,7 @@ const rows = computed(() => realList.value.slice(0, 5))
 </script>
 
 <template>
-  <div class="bingo-history">
+  <div class="bingo-history taiwan-lottery-scrollbar">
     <h3 class="bingo-history-title">近五期開獎</h3>
     <p v-if="rows.length === 0" class="bingo-history-empty">
       {{ openCodeHistory.isLoading ? '載入中…' : '目前尚無開獎紀錄（本站上線後逐期累積，非錯誤）' }}

@@ -4,8 +4,8 @@ import BingoHeader from '~/components/lottery/tw/bingo/block/Header.vue'
 import Board from '~/components/lottery/tw/bingo/base/Board.vue'
 import CurrItems from '~/components/lottery/tw/bingo/block/CurrItems.vue'
 import Controls from '~/components/lottery/tw/bingo/block/Controls.vue'
-import Report from '~/components/lottery/tw/bingo/block/Report.vue'
 import History from '~/components/lottery/tw/bingo/block/History.vue'
+import PopularPicks from '~/components/lottery/tw/bingo/block/PopularPicks.vue'
 import BetRecord from '~/components/lottery/tw/bingo/block/BetRecord.vue'
 import DialogUser from '~/components/lottery/tw/bingo/block/DialogUser.vue'
 import DialogOpenCode from '~/components/lottery/tw/bingo/block/DialogOpenCode.vue'
@@ -71,6 +71,7 @@ onBeforeUnmount(() => {
         </aside>
         <div class="info-main">
           <History />
+          <PopularPicks />
         </div>
       </section>
 
@@ -83,7 +84,6 @@ onBeforeUnmount(() => {
           <div class="side">
             <CurrItems />
             <Controls />
-            <Report />
           </div>
         </div>
       </section>
@@ -219,6 +219,15 @@ onBeforeUnmount(() => {
     min-width: 0;
     display: flex;
     gap: 0.75rem;
+
+    >.bingo-history {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    >.bingo-popular {
+      flex: 0 0 auto;
+    }
   }
 }
 
