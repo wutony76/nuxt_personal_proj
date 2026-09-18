@@ -78,7 +78,7 @@ const lastOpenCode = computed(() => bingoCurrent.runtime?.lastOpenCode ?? null)
   border-radius: 0.5rem;
   background: linear-gradient(180deg, var(--color-accent-100, #fff2eb) 0%, var(--color-neutral-100, #f9f4ed) 100%);
   box-shadow: var(--shadow-md);
-  padding: 1rem 1.25rem;
+  padding: calc(1rem + 14px) 1.25rem calc(1rem + 14px);
   animation: bingo-header-in 0.5s ease-out both;
 }
 
@@ -92,6 +92,38 @@ const lastOpenCode = computed(() => bingoCurrent.runtime?.lastOpenCode ?? null)
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* 常置動畫：徽章持續輕輕呼吸發光，比照其他 tw 玩法 Header（P3/D539/M649…）同一套語彙 */
+@keyframes bingo-badge-glow {
+  0%, 100% {
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18), 0 0 0 0 rgba(214, 127, 72, 0.5);
+  }
+
+  50% {
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18), 0 0 0 8px rgba(214, 127, 72, 0);
+  }
+}
+
+.bingo-header::before,
+.bingo-header::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  height: 14px;
+  background: var(--color-accent-700, #8c491a);
+  background-image: radial-gradient(circle at 8px 7px, var(--color-bg, #f5ead8) 6px, transparent 6.5px);
+  background-size: 16px 16px;
+}
+
+.bingo-header::before {
+  inset-block-start: 0;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.bingo-header::after {
+  inset-block-end: 0;
+  border-radius: 0 0 0.5rem 0.5rem;
 }
 
 .bingo-header-left {
@@ -117,8 +149,9 @@ const lastOpenCode = computed(() => bingoCurrent.runtime?.lastOpenCode ?? null)
     background: var(--color-accent-500, #d67f48);
     font-family: var(--font-heading);
     font-weight: 900;
-    font-size: 32px;
+    font-size: 44px;
     color: var(--color-neutral-900, #2e2b25);
+    animation: bingo-badge-glow 2.4s ease-in-out infinite;
   }
 
   .bingo-brand-text {
@@ -128,7 +161,7 @@ const lastOpenCode = computed(() => bingoCurrent.runtime?.lastOpenCode ?? null)
 
   .bingo-title {
     margin: 0;
-    font-size: 34px;
+    font-size: 38px;
     line-height: 1.1;
     font-weight: 900;
     font-family: var(--font-heading);
@@ -137,7 +170,7 @@ const lastOpenCode = computed(() => bingoCurrent.runtime?.lastOpenCode ?? null)
 
   .bingo-title-sub {
     font-size: 13px;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.22em;
     color: var(--color-accent-600, #b2622d);
   }
 
@@ -149,7 +182,7 @@ const lastOpenCode = computed(() => bingoCurrent.runtime?.lastOpenCode ?? null)
 }
 
 .bingo-header-right {
-  flex: 2 1 460px;
+  flex: 2 1 420px;
   display: flex;
   gap: 0.75rem;
   border: 1px solid var(--color-neutral-300, #dcd3c4);
@@ -159,7 +192,7 @@ const lastOpenCode = computed(() => bingoCurrent.runtime?.lastOpenCode ?? null)
 }
 
 .bingo-timer {
-  flex: 0 0 200px;
+  flex: 0 0 220px;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -191,13 +224,12 @@ const lastOpenCode = computed(() => bingoCurrent.runtime?.lastOpenCode ?? null)
 
   .bingo-timer-value {
     white-space: nowrap;
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 900;
     font-family: var(--font-heading);
     color: var(--color-bg, #f5ead8);
 
     &.bingo-timer-value-sm {
-      font-size: 20px;
       font-variant-numeric: tabular-nums;
     }
   }
@@ -252,6 +284,35 @@ const lastOpenCode = computed(() => bingoCurrent.runtime?.lastOpenCode ?? null)
     gap: 0.3rem;
     flex-wrap: wrap;
     max-width: 100%;
+
+    /* 只在這裡的開獎球加金屬光澤，不動 Ball.vue 本體（其他地方共用同一支元件），比照 D539/M649 等玩法 */
+    :deep(.bingo-ball) {
+      position: relative;
+      overflow: hidden;
+      background-image:
+        radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 35%),
+        radial-gradient(circle at 75% 80%, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 45%),
+        linear-gradient(135deg,
+          rgba(255, 255, 255, 0.3) 0%,
+          rgba(88, 28, 135, 0.08) 45%,
+          rgba(76, 29, 149, 0.55) 100%);
+      box-shadow:
+        0 2px 4px rgba(76, 29, 149, 0.4),
+        inset 0 1px 2px rgba(255, 255, 255, 0.9),
+        inset 0 -3px 4px rgba(76, 29, 149, 0.5);
+    }
+
+    :deep(.bingo-ball)::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -60%;
+      width: 55%;
+      height: 200%;
+      background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+      transform: rotate(20deg);
+      animation: bingo-ball-shine 2.6s ease-in-out infinite;
+    }
   }
 
   .bingo-open-tags {
@@ -274,6 +335,16 @@ const lastOpenCode = computed(() => bingoCurrent.runtime?.lastOpenCode ?? null)
   .bingo-open-empty {
     font-size: 12px;
     color: var(--color-neutral-700, #645c50);
+  }
+}
+
+@keyframes bingo-ball-shine {
+  0% {
+    left: -60%;
+  }
+
+  50%, 100% {
+    left: 130%;
   }
 }
 </style>
