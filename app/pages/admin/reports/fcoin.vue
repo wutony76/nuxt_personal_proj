@@ -97,7 +97,7 @@ onMounted(() => _actions.fetch())
 </script>
 
 <template>
-  <AdminShell active="reports" kicker="資料統計 / 兌 F幣" title="兌F幣" desc="遊戲計分兌F幣狀況，依照情況對特定遊戲進行設定.">
+  <AdminShell active="reports" kicker="資料統計 / 兌F幣" title="兌F幣" desc="遊戲計分兌F幣狀況，依照情況對特定遊戲進行設定.">
     <AdminReportsNav active="fcoin" />
 
     <!-- 月份篩選器 -->
@@ -170,7 +170,7 @@ onMounted(() => _actions.fetch())
               <tr class="afc-total-row">
                 <td><strong>合計</strong></td>
                 <td class="admin-num" style="text-align:right"><strong>{{ summary.totalReward.toLocaleString('zh-TW')
-                }}</strong></td>
+                    }}</strong></td>
                 <td></td>
               </tr>
             </tfoot>
