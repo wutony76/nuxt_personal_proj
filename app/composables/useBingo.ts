@@ -98,7 +98,19 @@ const canAddSlot = computed(() => slots.length < BINGO_MAX_SLOTS)
 const isOpen = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.OPEN)
 const isPendingSettlement = computed(() => String(current.runtime?.currentStatus ?? '') === STATUS_TIME.PENDING_SETTLEMENT)
 const canSubmit = computed(() => isOpen.value && state.submitStatus !== 'loading' && slots.length > 0)
-const countdownLabel = computed(() => current.runtime?.countdown ?? '')
+/**
+ * 倒數字串改用 cutoffAt - time.nowMs 每秒現算（time.nowMs 由既有 1000ms clockTimer 驅動），
+ * 不直接顯示 current.runtime.countdown——那個字串只在 pollTimer（5000ms）打 API 時才會更新一次，
+ * 畫面看起來會卡在同一個數字 5 秒才跳動。非開盤中維持後端算好的 '00:00'。
+ */
+const countdownLabel = computed(() => {
+  const runtime = current.runtime
+  if (!runtime || runtime.currentStatus !== STATUS_TIME.OPEN) return runtime?.countdown ?? ''
+  const remainSec = Math.max(0, Math.floor((runtime.cutoffAt - time.nowMs) / 1000))
+  const mm = Math.floor(remainSec / 60)
+  const ss = remainSec % 60
+  return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+})
 const starDraftReady = computed(() => starDraft.numbers.length === starDraft.star)
 /** 熱門選號：本期已下注的「基本玩法」注碼依人數排序前 5 組；本期還沒人下注時，後端會改回傳 5 組隨機注碼 */
 const popularNumbers = computed(() => current.runtime?.popularNumbers ?? [])
