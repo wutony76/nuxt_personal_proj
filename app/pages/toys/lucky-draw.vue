@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, onMounted, reactive, watch, watchEffect } from 'vue'
 import BetPanel from '~/components/toys/BetPanel.vue'
+import BlockedModal from '~/components/toys/BlockedModal.vue'
 import ResultModal from '~/components/toys/ResultModal.vue'
 import ToyGameHeader from '~/components/toys/ToyGameHeader.vue'
 import { useToyRound } from '~/composables/useToyRound'
@@ -13,6 +14,9 @@ const cells = computed(() => round.state.catalog?.luckyDraw.cells ?? 12)
 const chips = computed(() => round.state.catalog?.betChips ?? [])
 const rewards = computed(() => round.state.catalog?.luckyDraw.rewards ?? [])
 const maxPotMultiplier = computed(() => round.state.catalog?.maxPotMultiplier ?? 0)
+const blockedItem = computed(() =>
+  round.state.catalog?.items.find((item) => item.slug === round.state.blockedGameKey) ?? null
+)
 
 /** 「選格只翻面・連乘上限 ×N」提示改放到 ToyPlayDialog 的標題列，見該元件的 setToyDialogSubtitle inject */
 const setDialogSubtitle = inject<((text: string) => void) | null>('setToyDialogSubtitle', null)
@@ -176,7 +180,7 @@ onBeforeUnmount(() => {
     <section class="lucky-body">
       <p v-if="round.state.catalogError" class="lucky-error">{{ round.state.catalogError }}</p>
       <p v-else-if="round.state.error" class="lucky-error">{{ round.state.error }}</p>
-      <p v-if="round.state.blockedGameKey" class="lucky-error">其他玩具還有未領金額，這一款先不能開。</p>
+      <BlockedModal :visible="!!round.state.blockedGameKey" :item="blockedItem" />
 
       <div class="lucky-stats">
         <div class="stat-card is-dark">

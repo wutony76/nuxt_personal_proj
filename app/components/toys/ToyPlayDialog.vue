@@ -28,6 +28,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
+  switch: [item: ToyCatalogItem]
 }>()
 
 const panel = computed(() => (props.item ? panels[props.item.slug] ?? null : null))
@@ -36,6 +37,9 @@ const panel = computed(() => (props.item ? panels[props.item.slug] ?? null : nul
 const subtitle = ref('')
 provide('setToyDialogSubtitle', (text: string) => { subtitle.value = text })
 provide('closeToyDialog', () => emit('close'))
+/** 「其他玩具還有未領金額」擋住時，讓玩家直接切去那一款（BlockedModal.vue 用），
+ *  不用先關閉這個彈窗再從櫥仔重新點一次 */
+provide('switchToyDialog', (item: ToyCatalogItem) => emit('switch', item))
 
 const close = () => emit('close')
 

@@ -400,7 +400,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <ToyPlayDialog :item="state.shelf.active" @close="click.closeToy" />
+      <ToyPlayDialog :item="state.shelf.active" @close="click.closeToy" @switch="click.openToy" />
       <TaiwanLotteryPrizeDialog :visible="state.dialog.visible" :game-code="state.dialog.gameCode"
         :game-name="state.dialog.gameName" :period="state.dialog.period" @close="click.closePrize" />
     </template>

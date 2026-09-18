@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import BetPanel from '~/components/toys/BetPanel.vue'
+import BlockedModal from '~/components/toys/BlockedModal.vue'
 import ResultModal from '~/components/toys/ResultModal.vue'
 import ToyGameHeader from '~/components/toys/ToyGameHeader.vue'
 import { useToySoda } from '~/composables/useToySoda'
@@ -16,9 +17,34 @@ const SODA_BUST_RATES = [0.02, 0.04, 0.07, 0.12, 0.2, 0.3] as const
 const STAGE_COUNT = SODA_PRIZES.length
 
 const chips = computed(() => round.state.catalog?.betChips ?? [])
+const blockedItem = computed(() =>
+  round.state.catalog?.items.find((item) => item.slug === round.state.blockedGameKey) ?? null
+)
 const height = computed(() => `${Math.min(100, 18 + round.state.step * 14)}%`)
 
-const isLocked = computed(() => round.state.settling || round.state.status === 'playing')
+type MainTab = 'game' | 'rules'
+const ui = reactive({ mainTab: 'game' as MainTab, resultReady: false })
+
+/** 吹氣結果先讓玩家看 1 秒，才彈出結果視窗；這段期間鎖住操作 */
+let resultDelayTimer: ReturnType<typeof setTimeout> | null = null
+watch(() => round.state.revealed, (revealed) => {
+  if (resultDelayTimer) {
+    clearTimeout(resultDelayTimer)
+    resultDelayTimer = null
+  }
+  if (revealed) {
+    resultDelayTimer = setTimeout(() => {
+      ui.resultReady = true
+      resultDelayTimer = null
+    }, 1000)
+  } else {
+    ui.resultReady = false
+  }
+}, { immediate: true })
+
+const isLocked = computed(() =>
+  round.state.settling || round.state.status === 'playing' || (round.state.revealed && !ui.resultReady)
+)
 /** 目前倍率＝未領彩池 ÷ 這注原始注額，跟 lucky-draw 的連乘倍率算法一致 */
 const multiplier = computed(() => (round.state.pot > 0 && round.state.bet > 0 ? round.state.pot / round.state.bet : 0))
 
@@ -66,7 +92,9 @@ const headlineTone = computed(() => {
   return ''
 })
 
-const modalVisible = computed(() => round.state.revealed && round.state.busted != null && round.state.status !== 'playing')
+const modalVisible = computed(() =>
+  round.state.revealed && round.state.busted != null && round.state.status !== 'playing' && ui.resultReady
+)
 const modalTitle = computed(() => {
   if (round.state.claimed) return '已領取'
   if (round.state.busted) return '吹破了'
@@ -78,9 +106,6 @@ const modalDetail = computed(() => {
   return `這一階 ${round.state.prize.toLocaleString('zh-TW')}`
 })
 
-type MainTab = 'game' | 'rules'
-const ui = reactive({ mainTab: 'game' as MainTab })
-
 const click = {
   setMainTab: (tab: MainTab) => { ui.mainTab = tab }
 }
@@ -90,6 +115,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   round.stopReveal()
+  if (resultDelayTimer) clearTimeout(resultDelayTimer)
 })
 </script>
 
@@ -99,7 +125,7 @@ onBeforeUnmount(() => {
     <section class="soda-body">
       <p v-if="round.state.catalogError" class="soda-error">{{ round.state.catalogError }}</p>
       <p v-else-if="round.state.error" class="soda-error">{{ round.state.error }}</p>
-      <p v-if="round.state.blockedGameKey" class="soda-error">其他玩具還有未領金額，這一款先不能開。</p>
+      <BlockedModal :visible="!!round.state.blockedGameKey" :item="blockedItem" />
 
       <div class="lucky-stats">
         <div class="stat-card is-dark">

@@ -16,6 +16,8 @@ type ToyBambooState = {
   error: string | null
   balance: number
   blocked: boolean
+  /** 卡住這一款的玩具 slug，來自共用彩池的 gameKey；只有 blocked 為真時才有值 */
+  blockedGameKey: string | null
   catalog: ToyCatalogResponse | null
   catalogError: string | null
 }
@@ -48,6 +50,7 @@ export function useToyBamboo() {
     error: null,
     balance: 0,
     blocked: false,
+    blockedGameKey: null,
     catalog: null,
     catalogError: null
   })
@@ -62,6 +65,7 @@ export function useToyBamboo() {
       state.multiplier = view.multiplier
       state.reward = view.reward
       state.blocked = view.blocked
+      state.blockedGameKey = view.blocked ? view.gameKey : null
       state.revealed = revealed
       state.status = revealed && view.height != null ? 'result' : 'idle'
     },
@@ -97,7 +101,10 @@ export function useToyBamboo() {
       ])
       if (view) state.balance = view.balance
       else if (user) state.balance = Number(user.coin ?? 0)
-      if (view?.blocked) state.blocked = true
+      if (view?.blocked) {
+        state.blocked = true
+        state.blockedGameKey = view.gameKey
+      }
     },
     launch: async () => {
       if (state.settling || state.status === 'playing' || state.blocked) return

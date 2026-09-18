@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import BetPanel from '~/components/toys/BetPanel.vue'
+import BlockedModal from '~/components/toys/BlockedModal.vue'
 import ResultModal from '~/components/toys/ResultModal.vue'
 import ToyGameHeader from '~/components/toys/ToyGameHeader.vue'
 import { useToyWhistle } from '~/composables/useToyWhistle'
@@ -18,6 +19,9 @@ const choices: Array<{ id: ToyWhistleChoice; label: string }> = [
 ]
 const labelOf = (id: ToyWhistleChoice | null) => choices.find((item) => item.id === id)?.label ?? '·'
 const chips = computed(() => round.state.catalog?.betChips ?? [])
+const blockedItem = computed(() =>
+  round.state.catalog?.items.find((item) => item.slug === round.state.blockedGameKey) ?? null
+)
 
 const money = (value: number) => Math.floor(value).toLocaleString('zh-TW')
 
@@ -98,7 +102,7 @@ onBeforeUnmount(() => {
     <section class="candy-body">
       <p v-if="round.state.catalogError" class="candy-error">{{ round.state.catalogError }}</p>
       <p v-else-if="round.state.error" class="candy-error">{{ round.state.error }}</p>
-      <p v-if="round.state.blocked" class="candy-error">其他玩具還沒結束，這一款先不能開。</p>
+      <BlockedModal :visible="round.state.blocked" :item="blockedItem" />
 
       <div class="lucky-stats">
         <div class="stat-card is-dark">

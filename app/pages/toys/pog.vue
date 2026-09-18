@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import BetPanel from '~/components/toys/BetPanel.vue'
+import BlockedModal from '~/components/toys/BlockedModal.vue'
 import ResultModal from '~/components/toys/ResultModal.vue'
 import ToyGameHeader from '~/components/toys/ToyGameHeader.vue'
 import { useToyPog } from '~/composables/useToyPog'
@@ -10,6 +11,9 @@ import type { ToyPogCard } from '~/services/api'
  *  出牌/發牌/結算行為維持 useToyPog 既有邏輯不變，這款五回合出牌定勝負，沒有連乘機制。 */
 const round = useToyPog()
 const chips = computed(() => round.state.catalog?.betChips ?? [])
+const blockedItem = computed(() =>
+  round.state.catalog?.items.find((item) => item.slug === round.state.blockedGameKey) ?? null
+)
 const face = (card: ToyPogCard | null | undefined) => {
   if (!card) return '標'
   if (card.kind === 'king') return '王'
@@ -18,7 +22,31 @@ const face = (card: ToyPogCard | null | undefined) => {
   if (card.kind === 'bomb') return '炸'
   return String(card.rank)
 }
-const modalVisible = computed(() => round.state.settled && round.state.revealed)
+type MainTab = 'game' | 'rules'
+const ui = reactive({ mainTab: 'game' as MainTab, resultReady: false })
+
+/** 每回合出牌結果先讓玩家看 1 秒，才解鎖操作／彈出結算視窗；這段期間鎖住手牌與發牌 */
+let resultDelayTimer: ReturnType<typeof setTimeout> | null = null
+watch(() => round.state.revealed, (revealed) => {
+  if (resultDelayTimer) {
+    clearTimeout(resultDelayTimer)
+    resultDelayTimer = null
+  }
+  if (revealed) {
+    resultDelayTimer = setTimeout(() => {
+      ui.resultReady = true
+      resultDelayTimer = null
+    }, 1000)
+  } else {
+    ui.resultReady = false
+  }
+}, { immediate: true })
+
+const isLocked = computed(() =>
+  round.state.settling || round.state.status === 'playing' || (round.state.revealed && !ui.resultReady)
+)
+
+const modalVisible = computed(() => round.state.settled && round.state.revealed && ui.resultReady)
 const modalTitle = computed(() => {
   if (round.state.playerWins > round.state.npcWins) return '你贏的回合比較多'
   if (round.state.playerWins === round.state.npcWins) return '回合數相同'
@@ -63,8 +91,6 @@ const headlineTone = computed(() => {
   return ''
 })
 
-type MainTab = 'game' | 'rules'
-const ui = reactive({ mainTab: 'game' as MainTab })
 const click = {
   setMainTab: (tab: MainTab) => { ui.mainTab = tab }
 }
@@ -74,6 +100,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   round.stopReveal()
+  if (resultDelayTimer) clearTimeout(resultDelayTimer)
 })
 </script>
 
@@ -83,7 +110,7 @@ onBeforeUnmount(() => {
     <section class="pog-body">
       <p v-if="round.state.catalogError" class="pog-error">{{ round.state.catalogError }}</p>
       <p v-else-if="round.state.error" class="pog-error">{{ round.state.error }}</p>
-      <p v-if="round.state.blocked" class="pog-error">其他玩具還有未結束，這一款先不能開。</p>
+      <BlockedModal :visible="round.state.blocked" :item="blockedItem" />
 
       <div class="lucky-stats">
         <div class="stat-card is-dark">
@@ -109,12 +136,11 @@ onBeforeUnmount(() => {
 
       <div v-if="ui.mainTab === 'game'" class="lucky-panel">
         <div v-if="!round.state.canPlay" class="bet-row">
-          <BetPanel :chips="chips" :bet="round.state.bet" :custom-bet="round.state.customBet"
-            :disabled="round.state.settling || round.state.status === 'playing'"
+          <BetPanel :chips="chips" :bet="round.state.bet" :custom-bet="round.state.customBet" :disabled="isLocked"
             @choose="round.actions.chooseChip" @update:custom-bet="round.state.customBet = $event"
             @apply-custom="round.actions.applyCustom" />
           <button v-if="!round.state.settled" type="button" class="deal"
-            :disabled="round.state.settling || round.state.blocked" @click="round.actions.start">
+            :disabled="isLocked || round.state.blocked" @click="round.actions.start">
             發牌
           </button>
         </div>
@@ -129,7 +155,7 @@ onBeforeUnmount(() => {
 
           <div class="hand">
             <button v-for="card in round.state.hand" :key="card.id" type="button"
-              :disabled="!round.state.canPlay || round.state.settling || round.state.status === 'playing'"
+              :disabled="!round.state.canPlay || isLocked"
               @click="round.actions.play(card.id)">
               {{ face(card) }}
             </button>

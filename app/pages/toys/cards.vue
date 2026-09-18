@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import BetPanel from '~/components/toys/BetPanel.vue'
+import BlockedModal from '~/components/toys/BlockedModal.vue'
 import ResultModal from '~/components/toys/ResultModal.vue'
 import ToyGameHeader from '~/components/toys/ToyGameHeader.vue'
 import { useToyCards } from '~/composables/useToyCards'
@@ -10,11 +11,39 @@ import { useToyCards } from '~/composables/useToyCards'
 const round = useToyCards()
 
 const chips = computed(() => round.state.catalog?.betChips ?? [])
+const blockedItem = computed(() =>
+  round.state.catalog?.items.find((item) => item.slug === round.state.blockedGameKey) ?? null
+)
 const face = computed(() => (round.state.revealed ? round.state.nextRank ?? round.state.rank : round.state.rank))
+type MainTab = 'game' | 'rules'
+const ui = reactive({ mainTab: 'game' as MainTab, resultReady: false })
+
+/** 翻牌結果先讓玩家看 1 秒，才解鎖操作／彈出結果視窗；這段期間鎖住翻牌與選擇按鈕 */
+let resultDelayTimer: ReturnType<typeof setTimeout> | null = null
+watch(() => round.state.revealed, (revealed) => {
+  if (resultDelayTimer) {
+    clearTimeout(resultDelayTimer)
+    resultDelayTimer = null
+  }
+  if (revealed) {
+    resultDelayTimer = setTimeout(() => {
+      ui.resultReady = true
+      resultDelayTimer = null
+    }, 1000)
+  } else {
+    ui.resultReady = false
+  }
+}, { immediate: true })
+
+const isLocked = computed(() =>
+  round.state.settling || round.state.status === 'playing' || (round.state.revealed && !ui.resultReady)
+)
+
 /** 猜對且還能繼續猜（canGuess）時不彈窗，改讓玩家直接翻下一張；只有猜錯或連勝到頂才彈出結果視窗
  *  （ResultModal 現在是蓋滿全螢幕的浮動視窗，canGuess 時若還彈出會擋住牌面，沒辦法繼續猜） */
 const modalVisible = computed(() =>
-  round.state.revealed && round.state.correct != null && round.state.status !== 'playing' && !round.state.canGuess
+  round.state.revealed && round.state.correct != null && round.state.status !== 'playing'
+  && !round.state.canGuess && ui.resultReady
 )
 const modalTitle = computed(() => {
   if (round.state.claimed) return '已領取'
@@ -74,9 +103,6 @@ const headlineTone = computed(() => {
   return ''
 })
 
-type MainTab = 'game' | 'rules'
-const ui = reactive({ mainTab: 'game' as MainTab })
-
 const click = {
   setMainTab: (tab: MainTab) => { ui.mainTab = tab }
 }
@@ -86,6 +112,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   round.stopReveal()
+  if (resultDelayTimer) clearTimeout(resultDelayTimer)
 })
 </script>
 
@@ -95,7 +122,7 @@ onBeforeUnmount(() => {
     <section class="cards-body">
       <p v-if="round.state.catalogError" class="cards-error">{{ round.state.catalogError }}</p>
       <p v-else-if="round.state.error" class="cards-error">{{ round.state.error }}</p>
-      <p v-if="round.state.blockedGameKey" class="cards-error">其他玩具還有未領金額，這一款先不能開。</p>
+      <BlockedModal :visible="!!round.state.blockedGameKey" :item="blockedItem" />
 
       <div class="lucky-stats">
         <div class="stat-card is-dark">
@@ -122,7 +149,7 @@ onBeforeUnmount(() => {
       <div v-if="ui.mainTab === 'game'" class="lucky-panel">
         <div class="bet-row">
           <BetPanel :chips="chips" :bet="round.state.bet" :custom-bet="round.state.customBet"
-            :disabled="round.state.settling || round.state.rank != null || round.state.status === 'playing'"
+            :disabled="isLocked || round.state.rank != null"
             @choose="round.actions.chooseChip" @update:custom-bet="round.state.customBet = $event"
             @apply-custom="round.actions.applyCustom" />
         </div>
@@ -135,15 +162,15 @@ onBeforeUnmount(() => {
           </article>
           <p v-if="round.state.streak > 0" class="cards-streak">連勝 {{ round.state.streak }}</p>
           <div class="choices">
-            <button type="button" :disabled="round.state.settling || !round.state.canGuess"
+            <button type="button" :disabled="isLocked || !round.state.canGuess"
               @click="round.actions.guess('high')">大</button>
-            <button type="button" :disabled="round.state.settling || !round.state.canGuess"
+            <button type="button" :disabled="isLocked || !round.state.canGuess"
               @click="round.actions.guess('low')">小</button>
-            <button type="button" :disabled="round.state.settling || !round.state.canGuess"
+            <button type="button" :disabled="isLocked || !round.state.canGuess"
               @click="round.actions.guess('same')">相同</button>
           </div>
           <button v-if="round.state.rank == null" type="button" class="deal"
-            :disabled="round.state.settling || round.state.blockedGameKey != null" @click="round.actions.start">
+            :disabled="isLocked || round.state.blockedGameKey != null" @click="round.actions.start">
             發牌
           </button>
         </div>

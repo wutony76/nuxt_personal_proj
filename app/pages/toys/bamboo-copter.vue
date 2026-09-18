@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import BetPanel from '~/components/toys/BetPanel.vue'
+import BlockedModal from '~/components/toys/BlockedModal.vue'
 import ResultModal from '~/components/toys/ResultModal.vue'
 import ToyGameHeader from '~/components/toys/ToyGameHeader.vue'
 import { useToyBamboo } from '~/composables/useToyBamboo'
@@ -28,15 +29,40 @@ const heightBands: Array<{ range: string; weight: number }> = [
 const heightBandTotal = heightBands.reduce((sum, band) => sum + band.weight, 0)
 
 const chips = computed(() => round.state.catalog?.betChips ?? [])
+const blockedItem = computed(() =>
+  round.state.catalog?.items.find((item) => item.slug === round.state.blockedGameKey) ?? null
+)
 /** .sky 從原本 220px 縮到 140px（配合彈窗不捲動），位移比例跟著等比縮小，飛行動畫視覺不變 */
 const lift = computed(() => `${Math.round((round.state.shownHeight / 69) * 115)}px`)
-const isLocked = computed(() => round.state.settling || round.state.status === 'playing')
+type MainTab = 'game' | 'rules'
+const ui = reactive({ mainTab: 'game' as MainTab, resultReady: false })
+
+/** 開牌結果先讓玩家看 1 秒，才彈出結果視窗；這段期間鎖住操作 */
+let resultDelayTimer: ReturnType<typeof setTimeout> | null = null
+watch(() => round.state.revealed, (revealed) => {
+  if (resultDelayTimer) {
+    clearTimeout(resultDelayTimer)
+    resultDelayTimer = null
+  }
+  if (revealed) {
+    resultDelayTimer = setTimeout(() => {
+      ui.resultReady = true
+      resultDelayTimer = null
+    }, 1000)
+  } else {
+    ui.resultReady = false
+  }
+}, { immediate: true })
+
+const isLocked = computed(() =>
+  round.state.settling || round.state.status === 'playing' || (round.state.revealed && !ui.resultReady)
+)
 const money = (value: number) => Math.floor(value).toLocaleString('zh-TW')
 const targetLabel = computed(() => targets.find(item => item.id === round.state.target)?.label ?? '—')
 /** 未開牌前顯示 —，開牌後才顯示本局實際高度（跟動畫用的 shownHeight 分開，不要混用） */
 const heightLabel = computed(() => (round.state.height != null ? `${round.state.height}m` : '—'))
 
-const modalVisible = computed(() => round.state.revealed && round.state.height != null)
+const modalVisible = computed(() => round.state.revealed && round.state.height != null && ui.resultReady)
 const modalTitle = computed(() => (round.state.hit ? `飛到 ${round.state.height}m` : `只到 ${round.state.height}m`))
 const modalDetail = computed(() => {
   if (round.state.hit) return `已寫入 F 幣 ${round.state.reward.toLocaleString('zh-TW')}（×${round.state.multiplier}）`
@@ -58,8 +84,6 @@ const headlineTone = computed(() => {
   return ''
 })
 
-type MainTab = 'game' | 'rules'
-const ui = reactive({ mainTab: 'game' as MainTab })
 const click = {
   setMainTab: (tab: MainTab) => { ui.mainTab = tab }
 }
@@ -69,6 +93,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   round.stopReveal()
+  if (resultDelayTimer) clearTimeout(resultDelayTimer)
 })
 </script>
 
@@ -78,7 +103,7 @@ onBeforeUnmount(() => {
     <section class="bamboo-body">
       <p v-if="round.state.catalogError" class="bamboo-error">{{ round.state.catalogError }}</p>
       <p v-else-if="round.state.error" class="bamboo-error">{{ round.state.error }}</p>
-      <p v-if="round.state.blocked" class="bamboo-error">其他玩具還有未領金額，這一款先不能開。</p>
+      <BlockedModal :visible="round.state.blocked" :item="blockedItem" />
 
       <div class="lucky-stats">
         <div class="stat-card is-dark">

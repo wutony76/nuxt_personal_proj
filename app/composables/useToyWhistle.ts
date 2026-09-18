@@ -18,6 +18,8 @@ type ToyWhistleState = {
   error: string | null
   balance: number
   blocked: boolean
+  /** 卡住這一款的玩具 slug，來自共用彩池的 gameKey；只有 blocked 為真時才有值 */
+  blockedGameKey: string | null
   catalog: ToyCatalogResponse | null
   catalogError: string | null
 }
@@ -52,6 +54,7 @@ export function useToyWhistle() {
     error: null,
     balance: 0,
     blocked: false,
+    blockedGameKey: null,
     catalog: null,
     catalogError: null
   })
@@ -68,6 +71,7 @@ export function useToyWhistle() {
       state.reward = view.reward
       state.history = view.history
       state.blocked = view.blocked
+      state.blockedGameKey = view.blocked ? view.gameKey : null
       state.revealed = true
       state.countdown = null
       state.status = view.npc ? 'result' : 'idle'
@@ -109,7 +113,10 @@ export function useToyWhistle() {
       if (view) state.balance = view.balance
       else if (user) state.balance = Number(user.coin ?? 0)
       if (view) state.history = view.history
-      if (view?.blocked) state.blocked = true
+      if (view?.blocked) {
+        state.blocked = true
+        state.blockedGameKey = view.gameKey
+      }
     },
     play: async () => {
       if (state.settling || state.status === 'playing' || state.blocked) return

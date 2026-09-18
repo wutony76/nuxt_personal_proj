@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import BetPanel from '~/components/toys/BetPanel.vue'
+import BlockedModal from '~/components/toys/BlockedModal.vue'
 import ResultModal from '~/components/toys/ResultModal.vue'
 import ToyGameHeader from '~/components/toys/ToyGameHeader.vue'
 import { useToyBigPig } from '~/composables/useToyBigPig'
@@ -9,6 +10,9 @@ import { useToyBigPig } from '~/composables/useToyBigPig'
  *  下注/擲骰/結算行為維持 useToyBigPig 既有邏輯不變，這款單注定輸贏，沒有連乘機制。 */
 const round = useToyBigPig()
 const chips = computed(() => round.state.catalog?.betChips ?? [])
+const blockedItem = computed(() =>
+  round.state.catalog?.items.find((item) => item.slug === round.state.blockedGameKey) ?? null
+)
 const faces = computed(() => round.state.revealed ? round.state.player : null)
 const npcFaces = computed(() => round.state.revealed ? round.state.npc : null)
 const sum = (pair: [number, number] | null) => (pair ? pair[0] + pair[1] : 0)
@@ -20,7 +24,27 @@ const titles: Record<string, string> = {
   tiny: '小豬',
   lose: '大豬公贏了'
 }
-const modalVisible = computed(() => round.state.revealed && round.state.kind != null)
+type MainTab = 'game' | 'rules'
+const ui = reactive({ mainTab: 'game' as MainTab, resultReady: false })
+
+/** 開牌結果先讓玩家看 1 秒，才彈出結果視窗；這段期間鎖住操作 */
+let resultDelayTimer: ReturnType<typeof setTimeout> | null = null
+watch(() => round.state.revealed, (revealed) => {
+  if (resultDelayTimer) {
+    clearTimeout(resultDelayTimer)
+    resultDelayTimer = null
+  }
+  if (revealed) {
+    resultDelayTimer = setTimeout(() => {
+      ui.resultReady = true
+      resultDelayTimer = null
+    }, 1000)
+  } else {
+    ui.resultReady = false
+  }
+}, { immediate: true })
+
+const modalVisible = computed(() => round.state.revealed && round.state.kind != null && ui.resultReady)
 const modalTitle = computed(() => titles[round.state.kind ?? ''] ?? '結果')
 const modalDetail = computed(() => {
   if (round.state.kind === 'tie') return `注額 ${round.state.reward.toLocaleString('zh-TW')} 已退回。`
@@ -28,7 +52,9 @@ const modalDetail = computed(() => {
   return '這局不加帳，注額也不退。'
 })
 
-const isLocked = computed(() => round.state.settling || round.state.status === 'playing')
+const isLocked = computed(() =>
+  round.state.settling || round.state.status === 'playing' || (round.state.revealed && !ui.resultReady)
+)
 const money = (value: number) => Math.floor(value).toLocaleString('zh-TW')
 /** 未開牌前顯示 —，開牌後顯示中文牌型（沒有 reward id，不套 tier-badge） */
 const resultLabel = computed(() => (round.state.revealed && round.state.kind ? titles[round.state.kind] ?? '—' : '—'))
@@ -49,8 +75,6 @@ const headlineTone = computed(() => {
   return ''
 })
 
-type MainTab = 'game' | 'rules'
-const ui = reactive({ mainTab: 'game' as MainTab })
 const click = {
   setMainTab: (tab: MainTab) => { ui.mainTab = tab }
 }
@@ -60,6 +84,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   round.stopReveal()
+  if (resultDelayTimer) clearTimeout(resultDelayTimer)
 })
 </script>
 
@@ -69,7 +94,7 @@ onBeforeUnmount(() => {
     <section class="pig-body">
       <p v-if="round.state.catalogError" class="pig-error">{{ round.state.catalogError }}</p>
       <p v-else-if="round.state.error" class="pig-error">{{ round.state.error }}</p>
-      <p v-if="round.state.blocked" class="pig-error">其他玩具還沒結束，這一款先不能開。</p>
+      <BlockedModal :visible="round.state.blocked" :item="blockedItem" />
 
       <div class="lucky-stats">
         <div class="stat-card is-dark">
