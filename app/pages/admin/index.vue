@@ -27,9 +27,9 @@ const CARDS = [
     no: '04',
     to: '/admin/reports',
     en: 'Reports',
-    label: '報表分析',
-    desc: '本次僅佔位。',
-    tag: 'Coming soon'
+    label: '資料統計',
+    desc: '總覽、玩法、結算/月、會員、兌F幣，共 5 個子頁的營運報表中心。',
+    tag: '5 sub-pages'
   }
 ]
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 所有 /admin/** 頁面共用的殼：權限判斷（未登入顯示登入按鈕、非管理員顯示 40003 拒絕畫面）、
- * 頂部導覽（總覽／角色權限／遊戲管理／報表分析）、in-memory 提示、頁首（kicker/title/desc）。
+ * 頂部導覽（總覽／角色權限／遊戲管理／資料統計）、in-memory 提示、頁首（kicker/title/desc）。
  * 各頁面把自己的內容放進預設 slot，只有 status 為 ok（已確認是管理員）才會渲染 slot。
  * 視覺風格見 app/assets/style/admin.scss，比照 SAMPLE/admin.design/main.dc.html。
  */
