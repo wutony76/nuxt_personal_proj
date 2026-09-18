@@ -92,8 +92,12 @@ const headlineTone = computed(() => {
   return ''
 })
 
+/** busted 在「重新整理/切換玩具後回來繼續」時，後端 snapshot 一律回傳 null（不是恢復當下那把的真實
+ *  結果），只看 busted!=null 會讓已經有未領彩池、可以領取/繼續吹的畫面永遠彈不出結果視窗；
+ *  用 canClaim/canContinue 一起判斷才能涵蓋「回來繼續」的情境 */
 const modalVisible = computed(() =>
-  round.state.revealed && round.state.busted != null && round.state.status !== 'playing' && ui.resultReady
+  round.state.revealed && round.state.status !== 'playing' && ui.resultReady
+  && (round.state.busted != null || round.state.canClaim || round.state.canContinue)
 )
 const modalTitle = computed(() => {
   if (round.state.claimed) return '已領取'

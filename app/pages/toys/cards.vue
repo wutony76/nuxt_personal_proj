@@ -40,10 +40,12 @@ const isLocked = computed(() =>
 )
 
 /** 猜對且還能繼續猜（canGuess）時不彈窗，改讓玩家直接翻下一張；只有猜錯或連勝到頂才彈出結果視窗
- *  （ResultModal 現在是蓋滿全螢幕的浮動視窗，canGuess 時若還彈出會擋住牌面，沒辦法繼續猜） */
+ *  （ResultModal 現在是蓋滿全螢幕的浮動視窗，canGuess 時若還彈出會擋住牌面，沒辦法繼續猜）。
+ *  correct 在「重新整理/切換玩具後回來繼續」時，後端 snapshot 一律回傳 null，只看
+ *  correct!=null 會讓已經有未領彩池、可以領取的畫面永遠彈不出來，要用 canClaim 一起判斷。 */
 const modalVisible = computed(() =>
-  round.state.revealed && round.state.correct != null && round.state.status !== 'playing'
-  && !round.state.canGuess && ui.resultReady
+  round.state.revealed && round.state.status !== 'playing' && !round.state.canGuess && ui.resultReady
+  && (round.state.correct != null || round.state.canClaim)
 )
 const modalTitle = computed(() => {
   if (round.state.claimed) return '已領取'

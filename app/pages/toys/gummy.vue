@@ -101,10 +101,12 @@ const headlineTone = computed(() => {
 })
 
 /** 猜對且還能繼續猜（canGuess）時不彈窗，讓玩家直接點下一個顏色；只有猜錯或連勝到頂
- *  （被迫收下）才彈出結果視窗，比照 lucky-draw 的「顯示 1 秒才彈出」節奏 */
+ *  （被迫收下）才彈出結果視窗，比照 lucky-draw 的「顯示 1 秒才彈出」節奏。
+ *  correct 在「重新整理/切換玩具後回來繼續」時，後端 snapshot 一律回傳 null，只看
+ *  correct!=null 會讓已經有未領彩池、可以領取的畫面永遠彈不出來，要用 canClaim 一起判斷。 */
 const modalVisible = computed(() =>
-  round.state.revealed && round.state.correct != null && round.state.status !== 'playing'
-  && !round.state.canGuess && ui.resultReady
+  round.state.revealed && round.state.status !== 'playing' && !round.state.canGuess && ui.resultReady
+  && (round.state.correct != null || round.state.canClaim)
 )
 const modalTitle = computed(() => {
   if (round.state.claimed) return '已領取'
