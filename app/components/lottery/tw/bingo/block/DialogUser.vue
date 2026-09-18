@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import DialogShell from '~/components/lottery/tw/bingo/block/DialogShell.vue'
+import Ball from '~/components/lottery/tw/bingo/base/Ball.vue'
 import { useBingo } from '~/composables/useBingo'
 import { BINGO_BET_TYPES } from '#shared/config/bingo'
 
@@ -12,6 +13,11 @@ const { userRecord, fetch } = useBingo()
 
 const BET_TYPE_LABEL: Record<string, string> = Object.fromEntries(BINGO_BET_TYPES.map((t) => [t.key, t.label]))
 const statusText = (status: string) => ({ win: '中獎', lose: '未中', pending: '待開獎', push: '和局退款' }[status] ?? status)
+
+/** row.numbers 只有 star／super 有值，openCode 結算前為空陣列，此時一律不算命中 */
+function isBallHit(num: number, openCode: string[]): boolean {
+  return openCode.some((c) => +c === num)
+}
 
 const REAL_ISSUE_PATTERN = /^\d{3}\d{6}$/
 const realBetHistory = computed(() => userRecord.betHistory.filter((row) => REAL_ISSUE_PATTERN.test(row.issue)))
@@ -162,7 +168,15 @@ function toggleSort(field: 'orderId' | 'winAmount') {
                   <td style="white-space: nowrap">{{ item.orderId }}</td>
                   <td>{{ item.issue }}</td>
                   <td>{{ BET_TYPE_LABEL[item.betType] ?? item.betType }}</td>
-                  <td>{{ item.betLabel }}</td>
+                  <td>
+                    <template v-if="item.numbers.length">
+                      <span v-if="item.betType === 'star'" class="star-tag">{{ item.numbers.length }}星</span>
+                      <span class="bet-balls">
+                        <Ball v-for="n in item.numbers" :key="n" :num="n" :hit="isBallHit(n, item.openCode)" size="xs" />
+                      </span>
+                    </template>
+                    <template v-else>{{ item.betLabel }}</template>
+                  </td>
                   <td>{{ money(item.coin) }}</td>
                   <td :class="item.winStatus === 'win' ? 'win-status' : ''">{{ statusText(item.winStatus) }}</td>
                   <td :class="item.winAmount > 0 ? 'win-amount' : ''">{{ item.winAmount > 0 ? money(item.winAmount) : '—' }}</td>
@@ -352,4 +366,20 @@ function toggleSort(field: 'orderId' | 'winAmount') {
 }
 
 .bets-table { table-layout: fixed; width: 100%; }
+
+.star-tag {
+  margin-right: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-accent-700, #8c491a);
+  white-space: nowrap;
+}
+
+.bet-balls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+}
 </style>

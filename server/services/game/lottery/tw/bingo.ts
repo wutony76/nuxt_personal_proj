@@ -134,6 +134,8 @@ type UserBetHistory = {
   betType: BingoBetType
   /** 顯示用注碼摘要（星數玩法："5 星｜03,12,44,60,77"；超級獎號："42"；大小/單雙：pick） */
   betLabel: string
+  /** 原始選號（星數玩法：選的 N 個號碼；超級獎號：長度 1 的陣列；大小/單雙無號碼，為空陣列）——供前端轉球樣式顯示 */
+  numbers: number[]
   /** 官方開出的 20 個號碼（依開球順序），結算前為空陣列 */
   openCode: string[]
   /** 官方超級獎號（第 20 個開出的號碼），結算前為空字串 */
@@ -190,6 +192,7 @@ export default class BingoClass extends LOTTERY_BASE {
     pushBalanceChange: (userId: string, payload: Omit<UserBalanceChange, 'id' | 'createdAt'>) => void
     appendBetHistory: (row: BetOrderRow) => void
     betLabelOf: (betType: BingoBetType, decoded: BingoSlot | null) => string
+    numbersOf: (decoded: BingoSlot | null) => number[]
     rejectBet: (message: string) => never
     validateSlots: (slots: BingoSlot[]) => Array<{ betType: BingoBetType; code: string }>
     pushClaimable: (userId: string, issue: string, amount: number, openCode: string[]) => void
@@ -263,6 +266,7 @@ export default class BingoClass extends LOTTERY_BASE {
           coin: Number(row.coin ?? 0),
           betType: row.bet_type,
           betLabel: this.handle.betLabelOf(row.bet_type, decoded),
+          numbers: this.handle.numbersOf(decoded),
           openCode: [],
           superNumber: '',
           winStatus: 'pending',
@@ -275,6 +279,12 @@ export default class BingoClass extends LOTTERY_BASE {
         if (decoded.betType === 'star') return `${decoded.star} 星｜${decoded.numbers.map((n) => String(n).padStart(2, '0')).join(',')}`
         if (decoded.betType === 'super') return String(decoded.number).padStart(2, '0')
         return decoded.pick
+      },
+      numbersOf: (decoded: BingoSlot | null): number[] => {
+        if (!decoded) return []
+        if (decoded.betType === 'star') return decoded.numbers
+        if (decoded.betType === 'super') return [decoded.number]
+        return []
       },
       rejectBet: (message: string): never => {
         throw createError({ statusCode: 400, message })

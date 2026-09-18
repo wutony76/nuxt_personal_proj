@@ -907,6 +907,8 @@ export type BingoUserBetHistory = {
   betType: string
   /** 顯示用注碼摘要（例如 "5 星｜03,12,44,60,77"／"42"／"大"／"單"） */
   betLabel: string
+  /** 原始選號（星數玩法：選的 N 個號碼；超級獎號：長度 1 的陣列；大小/單雙無號碼，為空陣列） */
+  numbers: number[]
   /** 官方開出的 20 個號碼（依開球順序），結算前為空陣列 */
   openCode: string[]
   /** 官方超級獎號（第 20 個開出的號碼），結算前為空字串 */

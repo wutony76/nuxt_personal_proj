@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, watch, type ComponentPublicInstance } from 'vue'
+import Ball from '~/components/lottery/tw/bingo/base/Ball.vue'
 import Pagination from '~/components/lottery/bg/6hc/cd/block/record/Pagination.vue'
 import { useBingo } from '~/composables/useBingo'
 import { BINGO_BET_TYPES } from '#shared/config/bingo'
@@ -21,6 +22,11 @@ const claimable = computed(() =>
   Number(realClaimableIssues.value.reduce((sum, item) => sum + Number(item.amount ?? 0), 0).toFixed(2))
 )
 const statusText = (status: string) => ({ win: '中獎', lose: '未中', pending: '待開獎', push: '和局退款' }[status] ?? status)
+
+/** row.numbers 只有 star／super 有值，openCode 結算前為空陣列，此時一律不算命中 */
+function isBallHit(num: number, openCode: string[]): boolean {
+  return openCode.some((c) => +c === num)
+}
 
 const state = reactive({
   page: 1,
@@ -104,7 +110,15 @@ const click = {
             <td class="t-order" :title="row.orderId">{{ row.orderId }}</td>
             <td class="t-issue">{{ row.issue }}</td>
             <td class="t-type">{{ BET_TYPE_LABEL[row.betType] ?? row.betType }}</td>
-            <td class="t-code">{{ row.betLabel }}</td>
+            <td class="t-code">
+              <template v-if="row.numbers.length">
+                <span v-if="row.betType === 'star'" class="star-tag">{{ row.numbers.length }}星</span>
+                <span class="bet-balls">
+                  <Ball v-for="n in row.numbers" :key="n" :num="n" :hit="isBallHit(n, row.openCode)" size="xs" />
+                </span>
+              </template>
+              <template v-else>{{ row.betLabel }}</template>
+            </td>
             <td class="t-status">{{ statusText(row.winStatus) }}</td>
             <td class="t-num t-payout">{{ row.winAmount > 0 ? money(row.winAmount) : '—' }}</td>
           </tr>
@@ -281,6 +295,22 @@ const click = {
 
     .is-pending .t-status {
       color: #b45309;
+    }
+
+    .star-tag {
+      margin-right: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--color-accent-700, #8c491a);
+      white-space: nowrap;
+    }
+
+    .bet-balls {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      align-items: center;
+      justify-content: center;
     }
 
     .no-records {
