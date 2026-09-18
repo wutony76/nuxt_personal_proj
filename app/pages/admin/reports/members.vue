@@ -97,8 +97,7 @@ onMounted(() => _actions.fetch())
 </script>
 
 <template>
-  <AdminShell active="reports" kicker="資料統計 / 會員" title="會員"
-    desc="BG／台彩／GAME 三分類，各玩法當月不重複人數佔比圓餅圖與排行。">
+  <AdminShell active="reports" kicker="資料統計 / 會員" title="會員" desc="BG／台彩／GAME 三分類，各玩法當月不重複人數佔比圓餅圖與排行。">
     <AdminReportsNav active="members" />
 
     <!-- 月份篩選器 -->
@@ -122,7 +121,7 @@ onMounted(() => _actions.fetch())
         <div class="amb-col">
           <div class="admin-sechead">
             <div class="admin-sechead-left">
-              <h2>最多人玩</h2>
+              <h2>熱門</h2>
               <span class="admin-meta admin-tag">BG</span>
             </div>
             <span class="admin-meta">{{ summary.month }}</span>
@@ -132,7 +131,9 @@ onMounted(() => _actions.fetch())
             <div class="amb-pie-wrap">
               <ClientOnly>
                 <Pie :data="bgPieData" :options="bgPieOptions" />
-                <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+                <template #fallback>
+                  <div class="admin-empty">圖表載入中…</div>
+                </template>
               </ClientOnly>
             </div>
             <table class="admin-table amb-table">
@@ -161,7 +162,7 @@ onMounted(() => _actions.fetch())
         <div class="amb-col">
           <div class="admin-sechead">
             <div class="admin-sechead-left">
-              <h2>最多人玩</h2>
+              <h2>熱門</h2>
               <span class="admin-meta admin-tag">TW</span>
             </div>
             <span class="admin-meta">{{ summary.month }}</span>
@@ -171,7 +172,9 @@ onMounted(() => _actions.fetch())
             <div class="amb-pie-wrap">
               <ClientOnly>
                 <Pie :data="twPieData" :options="twPieOptions" />
-                <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+                <template #fallback>
+                  <div class="admin-empty">圖表載入中…</div>
+                </template>
               </ClientOnly>
             </div>
             <table class="admin-table amb-table">
@@ -200,7 +203,7 @@ onMounted(() => _actions.fetch())
         <div class="amb-col">
           <div class="admin-sechead">
             <div class="admin-sechead-left">
-              <h2>最多人玩</h2>
+              <h2>熱門</h2>
               <span class="admin-meta admin-tag">GAME</span>
             </div>
             <span class="admin-meta">{{ summary.month }}</span>
@@ -210,7 +213,9 @@ onMounted(() => _actions.fetch())
             <div class="amb-pie-wrap">
               <ClientOnly>
                 <Pie :data="gamePieData" :options="gamePieOptions" />
-                <template #fallback><div class="admin-empty">圖表載入中…</div></template>
+                <template #fallback>
+                  <div class="admin-empty">圖表載入中…</div>
+                </template>
               </ClientOnly>
             </div>
             <table class="admin-table amb-table">
