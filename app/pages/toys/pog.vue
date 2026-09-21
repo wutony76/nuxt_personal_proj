@@ -91,6 +91,18 @@ const headlineTone = computed(() => {
   return ''
 })
 
+/** 雙方都出牌（revealed）後，顯示這回合誰贏＋目前戰績；cancel 是盾牌抵銷，不算輸贏 */
+const trickResult = computed(() => round.state.revealed ? round.state.last?.result ?? null : null)
+const trickResultLabel = computed(() => {
+  switch (trickResult.value) {
+    case 'player': return '你贏了這回合'
+    case 'npc': return '對方贏了這回合'
+    case 'cancel': return '盾牌抵銷，平手'
+    case 'tie': return '這回合平手'
+    default: return ''
+  }
+})
+
 const click = {
   setMainTab: (tab: MainTab) => { ui.mainTab = tab }
 }
@@ -139,8 +151,8 @@ onBeforeUnmount(() => {
           <BetPanel :chips="chips" :bet="round.state.bet" :custom-bet="round.state.customBet" :disabled="isLocked"
             @choose="round.actions.chooseChip" @update:custom-bet="round.state.customBet = $event"
             @apply-custom="round.actions.applyCustom" />
-          <button v-if="!round.state.settled" type="button" class="deal"
-            :disabled="isLocked || round.state.blocked" @click="round.actions.start">
+          <button v-if="!round.state.settled" type="button" class="deal" :disabled="isLocked || round.state.blocked"
+            @click="round.actions.start">
             發牌
           </button>
         </div>
@@ -149,14 +161,29 @@ onBeforeUnmount(() => {
 
         <div class="frame-border">
           <article class="trick" :class="{ 'is-open': round.state.revealed && round.state.last }">
-            <span>你 {{ face(round.state.revealed ? round.state.last?.player : null) }}</span>
-            <span>對方 {{ face(round.state.revealed ? round.state.last?.npc : null) }}</span>
+            <div class="trick-slot">
+              <span class="trick-label">你出</span>
+              <span class="trick-card">{{ face(round.state.revealed ? round.state.last?.player : null) }}</span>
+            </div>
+            <div class="trick-slot">
+              <span class="trick-label">對方出</span>
+              <span class="trick-card">{{ face(round.state.revealed ? round.state.last?.npc : null) }}</span>
+            </div>
+
+            <div v-if="trickResult" class="trick-result" :class="{
+              'is-win': trickResult === 'player',
+              'is-lose': trickResult === 'npc',
+              'is-tie': trickResult === 'tie' || trickResult === 'cancel'
+            }">
+              <span class="trick-result-headline">{{ trickResultLabel }}</span>
+              <span class="trick-result-score">目前戰績 你 {{ round.state.playerWins }} : {{ round.state.npcWins }} 對方</span>
+            </div>
           </article>
 
+          <span class="hand-label">手上的標</span>
           <div class="hand">
             <button v-for="card in round.state.hand" :key="card.id" type="button"
-              :disabled="!round.state.canPlay || isLocked"
-              @click="round.actions.play(card.id)">
+              :disabled="!round.state.canPlay || isLocked" @click="round.actions.play(card.id)">
               {{ face(card) }}
             </button>
           </div>
@@ -201,9 +228,9 @@ onBeforeUnmount(() => {
         </section>
       </div>
 
-      <ResultModal :visible="modalVisible" :title="modalTitle" :detail="modalDetail"
-        :can-claim="false" :can-continue="false" :can-replay="round.state.settled"
-        :busy="round.state.settling" @claim="() => {}" @continue="() => {}" @replay="round.actions.playAgain" />
+      <ResultModal :visible="modalVisible" :title="modalTitle" :detail="modalDetail" :can-claim="false"
+        :can-continue="false" :can-replay="round.state.settled" :busy="round.state.settling" @claim="() => { }"
+        @continue="() => { }" @replay="round.actions.playAgain" />
     </section>
   </main>
 </template>
@@ -366,28 +393,125 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
 }
 
-.trick span,
+.trick {
+  align-items: center;
+}
+
+.hand-label {
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--color-bg, #f5ead8);
+}
+
+.trick-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 120px;
+  margin-left: auto;
+  text-align: left;
+  animation: trick-reveal 0.25s ease;
+
+  .trick-result-headline {
+    font-family: var(--font-heading, serif);
+    font-weight: 900;
+    font-size: 15px;
+    color: var(--color-bg, #f5ead8);
+  }
+
+  .trick-result-score {
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--color-accent-300, #ffc6a5);
+  }
+
+  &.is-win .trick-result-headline {
+    color: var(--color-accent-2-300, #cfe3ad);
+  }
+
+  &.is-lose .trick-result-headline {
+    color: #ff6b5e;
+  }
+
+  &.is-tie .trick-result-headline {
+    color: var(--color-neutral-400, #c0b6a5);
+  }
+}
+
+.trick-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.trick-label {
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--color-bg, #f5ead8);
+  transition: opacity 0.15s ease;
+}
+
+.trick-card {
+  width: 66px;
+  height: 66px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-heading, serif);
+  font-weight: 900;
+  transition: opacity 0.15s ease;
+}
+
+/* 未出牌：只留虛位卡框，等這回合雙方出牌後才會亮起 */
+.trick:not(.is-open) {
+  .trick-label {
+    opacity: 0.5;
+  }
+
+  .trick-card {
+    border: 2px dashed var(--color-accent-400, #d99361);
+    border-radius: var(--radius-md, 16px);
+    background: rgba(245, 234, 216, 0.08);
+    color: var(--color-neutral-400, #c0b6a5);
+    font-size: 20px;
+    opacity: 0.6;
+  }
+}
+
+/* 已出牌：比照 .hand button 套用復古尪仔標插畫，字色轉為醒目紅並帶出場動畫 */
+.trick.is-open .trick-card {
+  background: url('/images/toys/pog/pog_card.png') center / contain no-repeat;
+  font-size: 32px;
+  color: #c12419;
+  filter: drop-shadow(0 3px 0 #402310) drop-shadow(0 3px 4px rgba(46, 43, 37, 0.4));
+  animation: trick-reveal 0.25s ease;
+}
+
+@keyframes trick-reveal {
+  from {
+    transform: scale(0.82);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .deal {
   border-radius: var(--radius-md, 16px);
   min-width: 64px;
-  padding: 14px;
+  padding: 10px 18px;
   font-family: var(--font-heading, serif);
-  font-size: 24px;
-}
-
-.trick span {
-  background: var(--color-neutral-100, #f9f4ed);
-  border: 2px solid var(--color-accent-400, #d99361);
-}
-
-.deal {
+  font-size: 16px;
   border: 0;
   background: var(--color-accent, #b2622d);
   color: var(--color-bg, #f5ead8);
   cursor: pointer;
   align-self: flex-start;
-  font-size: 16px;
-  padding: 10px 18px;
 
   &:disabled {
     opacity: 0.45;
@@ -406,9 +530,9 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   font-family: var(--font-heading, serif);
-  font-size: 20px;
+  font-size: 32px;
   font-weight: 900;
-  color: #2e2b25;
+  color: #c12419;
   cursor: pointer;
   filter: drop-shadow(0 3px 0 #402310) drop-shadow(0 3px 4px rgba(46, 43, 37, 0.4));
   transition: transform 0.12s ease, filter 0.12s ease;
