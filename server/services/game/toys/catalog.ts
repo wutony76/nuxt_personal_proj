@@ -19,7 +19,13 @@ export const TOY_BET_CHIPS = [10, 50, 100, 500] as const
 export const TOY_MAX_POT_MULTIPLIER = 500
 export const TOY_FLIP_MS = 600
 export const LUCKY_DRAW_CELLS = 12
-export const SODA_PRIZES = [100, 150, 250, 400, 700, 1200] as const
+/**
+ * 難度校準：原本的獎金表（100/150/250/400/700/1200，基點制，÷100 才是真正倍數）越吹越
+ * 貴，配合天然爆掉率算出來的期望值會衝到 200%~500%，遠超過「回饋率 ≈98%」的目標。改成
+ * 「無論吹到第幾階段就領，期望值都落在 ≈98%」：`prize[k] = 98 / 累積存活率[k]`，累積存活率
+ * 用 SODA_BUST_RATES（難度=1 時的天然機率）算出來（見 sodaWhistle.ts 的 `effectiveSurvival`）。
+ */
+export const SODA_PRIZES = [100, 104, 112, 127, 159, 227] as const
 export const SODA_BUST_RATES = [0.02, 0.04, 0.07, 0.12, 0.2, 0.3] as const
 export const BAMBOO_BANDS = [
   { min: 0, max: 9, weight: 1000 },
@@ -54,13 +60,19 @@ export const TOY_CATALOG: ToyCatalogItem[] = [
   { slug: 'cards', name: '紙牌', kind: '古早玩具', mark: '牌', blurb: '猜下一張大、小或相同', status: 'open', path: '/toys/cards' }
 ]
 
+/**
+ * 難度校準：中不中獎交給難度機制（見 difficulty.ts 的 `resolveFate`/`resolveWithFate`，
+ * 在 luckyDraw.ts 內套用），這裡只決定「中獎的話，抽到哪一級」的相對比例與倍數——把權重
+ * 大幅收斂到 small（幾乎都只拿回一點點甚至剛好本金），大獎留一點點機率保留刺激感，讓中獎
+ * 情況下的平均倍數落在 ≈1.09（配合難度=1 時 90% 中獎 → 回饋率 ≈98%）。
+ */
 export const LUCKY_DRAW_REWARDS: ToyReward[] = [
   { id: 'empty', label: '空', weight: 4500, multiplier: 0 },
-  { id: 'small', label: '小獎', weight: 3000, multiplier: 1.2 },
-  { id: 'mid', label: '中獎', weight: 1500, multiplier: 2 },
-  { id: 'big', label: '大獎', weight: 800, multiplier: 5 },
-  { id: 'special', label: '特獎', weight: 180, multiplier: 15 },
-  { id: 'super', label: '超級獎', weight: 20, multiplier: 50 }
+  { id: 'small', label: '小獎', weight: 5225, multiplier: 1 },
+  { id: 'mid', label: '中獎', weight: 231, multiplier: 2 },
+  { id: 'big', label: '大獎', weight: 39, multiplier: 5 },
+  { id: 'special', label: '特獎', weight: 4, multiplier: 15 },
+  { id: 'super', label: '超級獎', weight: 1, multiplier: 50 }
 ]
 
 /**

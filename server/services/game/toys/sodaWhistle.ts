@@ -3,6 +3,7 @@ import { SODA_BUST_RATES, SODA_PRIZES } from './catalog.ts'
 import { ToyPlayError, type ToyWalletPort } from './luckyDraw.ts'
 import { acquireLock, clearPool, readPool, releaseLock, writePool } from './pool.ts'
 import { clampPot, isValidBet } from './reward.ts'
+import { scaleWinProbability } from './difficulty.ts'
 
 const GAME_KEY = 'soda-whistle'
 
@@ -38,12 +39,14 @@ export function sodaPrize(bet: number, step: number): number {
 /**
  * @param step 即將吹的次數，從 0 起算
  * @param roll 0–1 的隨機值
+ * @param difficulty 後台設定的難度（預設 1 時完全還原 `SODA_BUST_RATES` 原本的機率）
  * @returns 是否爆掉。動畫不得改判
  */
-export function isSodaBust(step: number, roll: number): boolean {
+export function isSodaBust(step: number, roll: number, difficulty = 1): boolean {
   const rate = SODA_BUST_RATES[step]
   if (rate == null) return true
-  return roll < rate
+  const survival = scaleWinProbability(1 - rate, difficulty)
+  return roll >= survival
 }
 
 function readMeta(userId: string): SodaMeta | null {
@@ -88,6 +91,7 @@ export function playSoda(input: {
   balance: number
   rng: () => number
   wallet: ToyWalletPort
+  difficulty?: number
 }): SodaView {
   if (!acquireLock(input.userId)) throw new ToyPlayError(409, '這一局還在結算，請稍等。')
   try {
@@ -105,6 +109,7 @@ function _blow(input: {
   balance: number
   rng: () => number
   wallet: ToyWalletPort
+  difficulty?: number
 }, opening: boolean): SodaView {
   const pool = readPool(input.userId)
   if (opening) {
@@ -120,7 +125,7 @@ function _blow(input: {
   if (!opening && step >= SODA_PRIZES.length) throw new ToyPlayError(400, '已吹到最後一階，請先領取。')
 
   const roll = input.rng()
-  const busted = isSodaBust(step, roll)
+  const busted = isSodaBust(step, roll, input.difficulty ?? 1)
   let balance = input.balance
   let bet = opening ? Number(input.bet) : (pool?.bet ?? 0)
   if (opening) {

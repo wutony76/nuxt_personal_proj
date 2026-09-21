@@ -2,6 +2,7 @@ import { LUCKY_DRAW_CELLS, LUCKY_DRAW_REWARDS, TOY_MAX_POT_MULTIPLIER } from './
 import { acquireLock, clearPool, hasOpenRound, readPool, releaseLock, writePool } from './pool.ts'
 import { pickWeighted } from './random.ts'
 import { applyMultiplier, clampPot, isValidBet } from './reward.ts'
+import { resolveFate, resolveWithFate } from './difficulty.ts'
 
 export class ToyPlayError extends Error {
   statusCode: number
@@ -96,6 +97,7 @@ export function playLuckyDraw(input: {
   balance: number
   rng: () => number
   wallet: ToyWalletPort
+  difficulty?: number
 }): LuckyDrawView {
   if (!acquireLock(input.userId)) {
     throw new ToyPlayError(409, '這一局還在結算，請稍等。')
@@ -116,6 +118,7 @@ function _start(input: {
   balance: number
   rng: () => number
   wallet: ToyWalletPort
+  difficulty?: number
 }): LuckyDrawView {
   const bet = Number(input.bet)
   const cellIndex = Number(input.cellIndex)
@@ -125,7 +128,11 @@ function _start(input: {
   }
   if (hasOpenRound(input.userId)) throw new ToyPlayError(400, '還有未結束的玩具，不能另開一局。')
 
-  const reward = pickWeighted(LUCKY_DRAW_REWARDS, input.rng)
+  const targetWin = resolveFate(input.difficulty ?? 1, input.rng)
+  const reward = resolveWithFate(targetWin, () => {
+    const r = pickWeighted(LUCKY_DRAW_REWARDS, input.rng)
+    return { ...r, win: r.multiplier > 0 }
+  })
   const raw = applyMultiplier(bet, reward.multiplier)
   const clamped = clampPot(raw, bet, TOY_MAX_POT_MULTIPLIER)
   let balance = input.balance
@@ -176,6 +183,7 @@ function _continue(input: {
   balance: number
   rng: () => number
   wallet: ToyWalletPort
+  difficulty?: number
 }): LuckyDrawView {
   const pool = readPool(input.userId)
   const cellIndex = Number(input.cellIndex)
@@ -189,7 +197,11 @@ function _continue(input: {
   const cap = applyMultiplier(pool.bet, TOY_MAX_POT_MULTIPLIER)
   if (pool.unclaimed >= cap) throw new ToyPlayError(400, '彩池已到上限，請先領取。')
 
-  const reward = pickWeighted(LUCKY_DRAW_REWARDS, input.rng)
+  const targetWin = resolveFate(input.difficulty ?? 1, input.rng)
+  const reward = resolveWithFate(targetWin, () => {
+    const r = pickWeighted(LUCKY_DRAW_REWARDS, input.rng)
+    return { ...r, win: r.multiplier > 0 }
+  })
   if (reward.multiplier <= 0) {
     clearPool(input.userId)
     return {

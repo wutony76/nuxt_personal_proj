@@ -4,17 +4,40 @@ export type ToyShopOddsItem = {
   slug: string
   name: string
   multiplier: number
+  /** 難度倍數：預設 1（校準過的基準：10 次 9 次贏、回饋率 ≈98%），數字越大越難贏 */
+  difficulty: number
+  enabled: boolean
 }
 
 let _enabled = true
 const _odds: Record<string, number> = {}
-for (const t of TOY_CATALOG) _odds[t.slug] = 1
+const _difficulty: Record<string, number> = {}
+const _gameEnabled: Record<string, boolean> = {}
+for (const t of TOY_CATALOG) {
+  _odds[t.slug] = 1
+  _difficulty[t.slug] = 1
+  _gameEnabled[t.slug] = true
+}
+
+function _rowOf(slug: string, name: string): ToyShopOddsItem {
+  return {
+    slug,
+    name,
+    multiplier: _odds[slug] ?? 1,
+    difficulty: _difficulty[slug] ?? 0,
+    enabled: _gameEnabled[slug] ?? true
+  }
+}
 
 /**
- * 後台：柑仔店櫥仔全站開關與各玩法賠率倍數管理（in-memory，重啟後回復預設值，見
- * add-toy-shop-admin-controls/design.md）。
- * 賠率倍數套用在各玩法 roll 路由（server/api/games/toys 底下）的 wallet.credit 入帳金額上，
- * 不改各玩法內部機率／獎項判定，降低變更面。
+ * 後台：柑仔店櫥仔全站開關、單一玩法上下架、各玩法賠率倍數與難度管理（in-memory，重啟
+ * 後回復預設值，見 add-toy-shop-admin-controls/design.md）。
+ *   - 賠率倍數（multiplier）：玩法判定中獎後，實際入帳金額 = 原始派彩 × 倍數，套用在
+ *     各玩法 roll 路由（server/api/games/toys 底下）的 wallet.credit 入帳這一刻
+ *   - 難度（difficulty）：預設 1，數字越大越難贏。真的改變中獎機率本身，不是事後把中獎
+ *     敲成沒中——由各玩法自己的 service 檔（bigPig.ts／luckyDraw.ts…）在骰/抽的當下就
+ *     讀這個值去校準，見 server/services/game/toys/difficulty.ts
+ * 單一玩法下架時，公開 catalog 端點直接不回傳該玩法（前台不顯示），roll 路由也會擋單。
  */
 export const adminToyShopService = {
   isEnabled: (): boolean => _enabled,
@@ -27,18 +50,37 @@ export const adminToyShopService = {
   /** @param slug 玩法 slug，找不到時回退為 1（不阻擋派彩） */
   oddsOf: (slug: string): number => _odds[slug] ?? 1,
 
-  listOdds: (): ToyShopOddsItem[] =>
-    TOY_CATALOG.map((t) => ({ slug: t.slug, name: t.name, multiplier: _odds[t.slug] ?? 1 })),
+  /** @param slug 玩法 slug，找不到時回退為 1（維持校準基準） */
+  difficultyOf: (slug: string): number => _difficulty[slug] ?? 1,
 
-  setOdds: (slug: string, multiplier: number): ToyShopOddsItem => {
+  /** @param slug 玩法 slug，找不到時回退為 true（不阻擋派彩） */
+  isGameEnabled: (slug: string): boolean => _gameEnabled[slug] ?? true,
+
+  listOdds: (): ToyShopOddsItem[] => TOY_CATALOG.map((t) => _rowOf(t.slug, t.name)),
+
+  setOdds: (slug: string, input: { multiplier: number; difficulty: number }): ToyShopOddsItem => {
     const item = TOY_CATALOG.find((t) => t.slug === slug)
     if (!item) {
       throw createError({ statusCode: 404, message: `找不到玩法：${slug}` })
     }
+    const { multiplier, difficulty } = input
     if (!Number.isFinite(multiplier) || multiplier < 0) {
       throw createError({ statusCode: 400, message: '賠率必須是不小於 0 的數字。' })
     }
+    if (!Number.isFinite(difficulty) || difficulty <= 0) {
+      throw createError({ statusCode: 400, message: '難度必須是大於 0 的數字（預設 1）。' })
+    }
     _odds[slug] = multiplier
-    return { slug: item.slug, name: item.name, multiplier }
+    _difficulty[slug] = difficulty
+    return _rowOf(item.slug, item.name)
+  },
+
+  setGameEnabled: (slug: string, enabled: boolean): ToyShopOddsItem => {
+    const item = TOY_CATALOG.find((t) => t.slug === slug)
+    if (!item) {
+      throw createError({ statusCode: 404, message: `找不到玩法：${slug}` })
+    }
+    _gameEnabled[slug] = enabled
+    return _rowOf(item.slug, item.name)
   }
 }

@@ -2,10 +2,23 @@ import { acquireLock, clearPool, readPool, releaseLock, writePool } from './pool
 import { ToyPlayError, type ToyWalletPort } from './luckyDraw.ts'
 import { TOY_MAX_POT_MULTIPLIER } from './catalog.ts'
 import { applyMultiplier, clampPot, isValidBet } from './reward.ts'
+import { resolveWithFate, scaleWinProbability } from './difficulty.ts'
 
 export type CardChoice = 'high' | 'low' | 'same'
-export const CARD_STREAK = [1.8, 3, 5, 8, 15] as const
-export const CARD_SAME_MULTIPLIER = 10
+
+/**
+ * 難度校準：高/低猜對機率統一由難度機制控制（難度=1 時 90%），倍率跟著壓到平均 ≈1.09，
+ * 讓「90% 猜對 × 1.09 倍」≈98% 回饋率，同時保留一點連勝越後面拿越多的手感。這個表跟
+ * gummy.ts 共用（同一套「連勝壓注」機制、同一個難度目標）。
+ */
+export const CARD_STREAK = [1, 1, 1.05, 1.1, 1.3] as const
+/**
+ * 「相同」天然幾乎抽不到（見 `drawRank`：目前牌一開局就從牌堆移除，正常抽不會再抽到同一
+ * 張），所以獨立給一個較低的基準機率（0.15，難度=1 時），對應調降倍數到 ≈6.5，
+ * 讓「相同」維持「機率低、賭注大」的手感，同時整體期望值一樣落在 ≈98%。
+ */
+export const CARD_SAME_BASE_WIN_P = 0.15
+export const CARD_SAME_MULTIPLIER = 6.5
 const GAME_KEY = 'cards'
 
 export type CardsMeta = {
@@ -70,7 +83,7 @@ export function judgeCard(current: number, next: number, choice: CardChoice): bo
  */
 export function cardMultiplier(streak: number, choice: CardChoice): number {
   if (choice === 'same') return CARD_SAME_MULTIPLIER
-  return CARD_STREAK[Math.min(streak, CARD_STREAK.length - 1)] ?? 1.8
+  return CARD_STREAK[Math.min(streak, CARD_STREAK.length - 1)] ?? 1
 }
 
 function readMeta(userId: string): CardsMeta | null {
@@ -118,6 +131,7 @@ export function playCards(input: {
   balance: number
   rng: () => number
   wallet: ToyWalletPort
+  difficulty?: number
 }): CardsView {
   if (!acquireLock(input.userId)) throw new ToyPlayError(409, '這一局還在結算，請稍等。')
   try {
@@ -166,7 +180,13 @@ function _start(input: { userId: string; bet?: number; balance: number; rng: () 
   }
 }
 
-function _guess(input: { userId: string; choice?: CardChoice; balance: number; rng: () => number }): CardsView {
+function _guess(input: {
+  userId: string
+  choice?: CardChoice
+  balance: number
+  rng: () => number
+  difficulty?: number
+}): CardsView {
   const pool = readPool(input.userId)
   const meta = readMeta(input.userId)
   const choice = input.choice
@@ -177,8 +197,18 @@ function _guess(input: { userId: string; choice?: CardChoice; balance: number; r
   }
   if (choice !== 'high' && choice !== 'low' && choice !== 'same') throw new ToyPlayError(400, '請選大、小或相同。')
 
-  const dealt = drawRank(meta.deck, input.rng)
-  const correct = judgeCard(meta.rank, dealt.rank, choice)
+  const baseWinP = choice === 'same' ? CARD_SAME_BASE_WIN_P : undefined
+  const targetWin = input.rng() < scaleWinProbability(baseWinP ?? 0.9, input.difficulty ?? 1)
+  let dealt = resolveWithFate(targetWin, () => {
+    const d = drawRank(meta.deck, input.rng)
+    return { win: judgeCard(meta.rank, d.rank, choice), rank: d.rank, deck: d.deck }
+  })
+  if (choice === 'same' && targetWin && !dealt.win) {
+    // 「相同」的牌本來就不在剩餘牌堆裡（見 drawRank 註解），重骰重不出來，直接讓命中的
+    // 那張等於玩家手上這張，牌堆維持不變（沒有真的抽走一張）
+    dealt = { win: true, rank: meta.rank, deck: meta.deck }
+  }
+  const correct = dealt.win
   if (!correct) {
     clearPool(input.userId)
     return {

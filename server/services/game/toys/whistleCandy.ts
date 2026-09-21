@@ -1,6 +1,14 @@
 import { ToyPlayError, type ToyWalletPort } from './luckyDraw.ts'
 import { acquireLock, readPool, releaseLock } from './pool.ts'
 import { applyMultiplier, isValidBet } from './reward.ts'
+import { resolveFate, resolveWithFate } from './difficulty.ts'
+
+/**
+ * 難度校準：猜拳天然是 1/3 贏、1/3 平手、1/3 輸，「有拿回錢」（win+tie）天然就有 2/3，
+ * 難度=1 時再拉到 90%（見 `resolveWithFate`）。倍數把原本 1.9 壓到 1.18，讓
+ * 「0.5*1(tie) + 0.5*1.18(win)」平均 ≈1.09，配合 90% 拿回錢 → 回饋率 ≈98%。
+ */
+const CALIBRATED_WIN_MULTIPLIER = 1.18
 
 export const WHISTLE_CHOICES = ['short', 'mid', 'long'] as const
 export type WhistleChoice = (typeof WHISTLE_CHOICES)[number]
@@ -85,6 +93,7 @@ export function playWhistle(input: {
   balance: number
   rng: () => number
   wallet: ToyWalletPort
+  difficulty?: number
 }): WhistleView {
   if (!acquireLock(input.userId)) throw new ToyPlayError(409, '這一局還在結算，請稍等。')
   try {
@@ -93,8 +102,13 @@ export function playWhistle(input: {
     if (!isValidBet(bet)) throw new ToyPlayError(400, '注額必須是 1 以上的整數。')
     if (!WHISTLE_CHOICES.includes(player as WhistleChoice)) throw new ToyPlayError(400, '請選短、中或長。')
     if (readPool(input.userId)) throw new ToyPlayError(400, '還有未結束的玩具，不能另開一局。')
-    const npc = drawWhistle(input.rng)
-    const outcome = judgeWhistle(player as WhistleChoice, npc)
+
+    const targetWin = resolveFate(input.difficulty ?? 1, input.rng)
+    const { npc, outcome } = resolveWithFate(targetWin, () => {
+      const n = drawWhistle(input.rng)
+      const o = judgeWhistle(player as WhistleChoice, n)
+      return { win: o !== 'lose', npc: n, outcome: o }
+    })
     const history = remember(input.userId, npc)
     let balance = input.balance
     try {
@@ -103,7 +117,7 @@ export function playWhistle(input: {
       histories.set(input.userId, history.slice(0, -1))
       throw new ToyPlayError(400, '餘額不足，無法扣款。')
     }
-    const multiplier = outcome === 'win' ? 1.9 : 0
+    const multiplier = outcome === 'win' ? CALIBRATED_WIN_MULTIPLIER : 0
     const reward = outcome === 'tie' ? bet : applyMultiplier(bet, multiplier)
     if (reward > 0) balance = input.wallet.credit(input.userId, reward, `哨子糖結算 ${outcome}`)
     return {

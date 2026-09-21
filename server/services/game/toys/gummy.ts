@@ -4,6 +4,7 @@ import { ToyPlayError, type ToyWalletPort } from './luckyDraw.ts'
 import { acquireLock, clearPool, readPool, releaseLock, writePool } from './pool.ts'
 import { pickWeighted } from './random.ts'
 import { applyMultiplier, clampPot, isValidBet } from './reward.ts'
+import { resolveFate, resolveWithFate } from './difficulty.ts'
 
 const GAME_KEY = 'gummy'
 export type GummyColor = (typeof GUMMY_COLORS)[number]['id']
@@ -35,7 +36,7 @@ export type GummyView = {
  * @returns 紙牌同一張連勝倍率
  */
 export function gummyMultiplier(streak: number): number {
-  return CARD_STREAK[Math.min(streak, CARD_STREAK.length - 1)] ?? 1.8
+  return CARD_STREAK[Math.min(streak, CARD_STREAK.length - 1)] ?? 1
 }
 
 function readMeta(userId: string): GummyMeta | null {
@@ -87,6 +88,7 @@ export function playGummy(input: {
   balance: number
   rng: () => number
   wallet: ToyWalletPort
+  difficulty?: number
 }): GummyView {
   if (!acquireLock(input.userId)) throw new ToyPlayError(409, '這一局還在結算，請稍等。')
   try {
@@ -134,7 +136,13 @@ function _start(input: { userId: string; bet?: number; balance: number; wallet: 
   }
 }
 
-function _guess(input: { userId: string; guess?: GummyColor; balance: number; rng: () => number }): GummyView {
+function _guess(input: {
+  userId: string
+  guess?: GummyColor
+  balance: number
+  rng: () => number
+  difficulty?: number
+}): GummyView {
   const pool = readPool(input.userId)
   const meta = readMeta(input.userId)
   const guess = input.guess
@@ -142,9 +150,12 @@ function _guess(input: { userId: string; guess?: GummyColor; balance: number; rn
   if (meta.streak >= CARD_STREAK.length) throw new ToyPlayError(400, '已達連勝上限，請先領取。')
   if (!GUMMY_COLORS.some((item) => item.id === guess)) throw new ToyPlayError(400, '請選一個顏色。')
 
-  const drawn = pickWeighted([...GUMMY_COLORS], input.rng)
+  const targetWin = resolveFate(input.difficulty ?? 1, input.rng)
+  const { drawn, win: correct } = resolveWithFate(targetWin, () => {
+    const d = pickWeighted([...GUMMY_COLORS], input.rng)
+    return { win: d.id === guess, drawn: d }
+  })
   const history = recent([...meta.history, drawn.id])
-  const correct = drawn.id === guess
   if (!correct) {
     clearPool(input.userId)
     return {

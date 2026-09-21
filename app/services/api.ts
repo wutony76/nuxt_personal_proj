@@ -1454,6 +1454,9 @@ export type ToyShopOddsItem = {
   slug: string
   name: string
   multiplier: number
+  /** 額外未中獎機率（0~100 的百分比） */
+  difficulty: number
+  enabled: boolean
 }
 
 export type ToyShopSettings = {
@@ -1728,8 +1731,10 @@ export const api = {
       settings: () => $fetch<ToyShopSettings>('/api/admin/toy-shop/settings'),
       setEnabled: (enabled: boolean) =>
         $fetch<{ enabled: boolean }>('/api/admin/toy-shop/settings', { method: 'PATCH', body: { enabled } }),
-      setOdds: (slug: string, multiplier: number) =>
-        $fetch<ToyShopOddsItem>(`/api/admin/toy-shop/odds/${slug}`, { method: 'PUT', body: { multiplier } })
+      setOdds: (slug: string, input: { multiplier: number; difficulty: number }) =>
+        $fetch<ToyShopOddsItem>(`/api/admin/toy-shop/odds/${slug}`, { method: 'PUT', body: input }),
+      setGameEnabled: (slug: string, enabled: boolean) =>
+        $fetch<ToyShopOddsItem>(`/api/admin/toy-shop/games/${slug}`, { method: 'PATCH', body: { enabled } })
     },
     reports: {
       /**

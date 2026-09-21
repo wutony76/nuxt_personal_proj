@@ -16,8 +16,10 @@ const toyShop = reactive({
   enabled: true,
   odds: [],
   togglePending: false,
+  gameTogglePending: {},
   editingSlug: null,
   draftMultiplier: '',
+  draftDifficulty: '',
   editError: '',
 })
 
@@ -70,19 +72,38 @@ const _actions = {
   },
   saveOdds: async (row) => {
     const multiplier = Number(toyShop.draftMultiplier)
+    const difficulty = Number(toyShop.draftDifficulty)
     if (!Number.isFinite(multiplier) || multiplier < 0) {
       toyShop.editError = '賠率必須是不小於 0 的數字。'
       return
     }
+    if (!Number.isFinite(difficulty) || difficulty <= 0) {
+      toyShop.editError = '難度必須是大於 0 的數字（預設 1）。'
+      return
+    }
     try {
-      const updated = await api.admin.toyShop.setOdds(row.slug, multiplier)
+      const updated = await api.admin.toyShop.setOdds(row.slug, { multiplier, difficulty })
       toyShop.odds = toyShop.odds.map((o) => (o.slug === row.slug ? updated : o))
       toyShop.editingSlug = null
       toyShop.draftMultiplier = ''
+      toyShop.draftDifficulty = ''
       toyShop.editError = ''
     } catch (e) {
       const data = e?.data
       toyShop.editError = data?.message ?? '儲存失敗，請稍後再試。'
+    }
+  },
+  toggleGame: async (row) => {
+    if (toyShop.gameTogglePending[row.slug]) return
+    toyShop.gameTogglePending[row.slug] = true
+    try {
+      const updated = await api.admin.toyShop.setGameEnabled(row.slug, !row.enabled)
+      toyShop.odds = toyShop.odds.map((o) => (o.slug === row.slug ? updated : o))
+    } catch (e) {
+      const data = e?.data
+      toyShop.error = data?.message ?? '切換失敗，請稍後再試。'
+    } finally {
+      toyShop.gameTogglePending[row.slug] = false
     }
   },
 }
@@ -92,14 +113,17 @@ const click = {
   startEditOdds: (row) => {
     toyShop.editingSlug = row.slug
     toyShop.draftMultiplier = String(row.multiplier)
+    toyShop.draftDifficulty = String(row.difficulty)
     toyShop.editError = ''
   },
   cancelEditOdds: () => {
     toyShop.editingSlug = null
     toyShop.draftMultiplier = ''
+    toyShop.draftDifficulty = ''
     toyShop.editError = ''
   },
   saveOdds: (row) => _actions.saveOdds(row),
+  toggleGame: (row) => _actions.toggleGame(row),
 }
 
 watch(month, () => _actions.fetch())
@@ -122,7 +146,8 @@ onMounted(() => {
           </div>
 
           <div v-if="toyShop.status === 'loading'" class="admin-empty">載入中…</div>
-          <div v-else-if="toyShop.status === 'error'" class="admin-empty" style="color:#b91c1c">{{ toyShop.error }}</div>
+          <div v-else-if="toyShop.status === 'error'" class="admin-empty" style="color:#b91c1c">{{ toyShop.error }}
+          </div>
           <template v-else-if="toyShop.status === 'success'">
             <div class="atl-toyshop-toggle">
               <span class="atl-toyshop-status" :class="{ on: toyShop.enabled }">
@@ -134,132 +159,59 @@ onMounted(() => {
               </button>
             </div>
 
-            <table class="admin-table atl-table atl-table--odds">
-              <thead>
-                <tr>
-                  <th>玩法</th>
-                  <th class="admin-num" style="text-align:right">賠率倍數</th>
-                  <th style="width:26%;text-align:right">動作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in toyShop.odds" :key="row.slug">
-                  <td>{{ row.name }}</td>
-                  <td class="admin-num" style="text-align:right">
+            <div class="atl-odds-grid admin-grid1">
+              <div v-for="row in toyShop.odds" :key="row.slug" class="atl-odds-card admin-panel"
+                :class="{ 'atl-odds-card--on': row.enabled }">
+                <div class="admin-en">{{ row.slug }}</div>
+                <div class="atl-odds-name">{{ row.name }}</div>
+
+                <div class="atl-odds-row">
+                  <span class="admin-en atl-odds-label">狀態</span>
+                  <span class="atl-odds-toggle-status" :class="{ on: row.enabled }">
+                    {{ row.enabled ? '啟用中' : '已關閉' }}
+                  </span>
+                  <button type="button" class="admin-btn admin-btn-ghost atl-odds-toggle-btn"
+                    :disabled="toyShop.gameTogglePending[row.slug]" @click="click.toggleGame(row)">
+                    {{ row.enabled ? '點擊 [關閉]' : '點擊 [開啟]' }}
+                  </button>
+                </div>
+
+                <div class="atl-odds-row">
+                  <span class="admin-en atl-odds-label">賠率</span>
+                  <div class="atl-odds-value">
                     <input v-if="toyShop.editingSlug === row.slug" v-model="toyShop.draftMultiplier"
                       class="admin-input admin-num atl-edit-input">
-                    <span v-else class="admin-num">{{ row.multiplier }}</span>
-                  </td>
-                  <td style="text-align:right">
-                    <template v-if="toyShop.editingSlug === row.slug">
-                      <button type="button" class="admin-btn admin-btn-primary" @click="click.saveOdds(row)">儲存</button>
-                      <button type="button" class="admin-btn" @click="click.cancelEditOdds()">取消</button>
-                    </template>
-                    <button v-else type="button" class="admin-btn" @click="click.startEditOdds(row)">編輯</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <div v-if="toyShop.editError" class="admin-empty" style="color:#b91c1c;padding:8px 0">{{ toyShop.editError }}</div>
+                    <span v-else class="admin-num atl-odds-num">{{ row.multiplier }}</span>
+                    <span class="atl-odds-suffix">倍</span>
+                  </div>
+                </div>
+
+                <div class="atl-odds-row">
+                  <span class="admin-en atl-odds-label">難度</span>
+                  <div class="atl-odds-value">
+                    <input v-if="toyShop.editingSlug === row.slug" v-model="toyShop.draftDifficulty"
+                      class="admin-input admin-num atl-edit-input">
+                    <span v-else class="admin-num atl-odds-num">{{ row.difficulty }}</span>
+                    <span class="atl-odds-suffix">倍（預設 1，越大越難贏）</span>
+                  </div>
+                </div>
+
+                <div v-if="toyShop.editingSlug === row.slug && toyShop.editError" class="atl-odds-error">
+                  {{ toyShop.editError }}
+                </div>
+
+                <div class="atl-odds-actions">
+                  <template v-if="toyShop.editingSlug === row.slug">
+                    <button type="button" class="admin-btn admin-btn-primary" @click="click.saveOdds(row)">儲存</button>
+                    <button type="button" class="admin-btn admin-btn-ghost" @click="click.cancelEditOdds()">取消</button>
+                  </template>
+                  <button v-else type="button" class="admin-btn admin-btn-secondary"
+                    @click="click.startEditOdds(row)">編輯</button>
+                </div>
+              </div>
+            </div>
           </template>
         </div>
-
-        <!-- 月份篩選器 -->
-        <div class="atl-toolbar">
-          <AdminMonthPicker v-model="month" />
-        </div>
-
-        <!-- Loading -->
-        <div v-if="status === 'loading'" class="admin-empty">載入中…</div>
-
-        <!-- Error -->
-        <div v-else-if="status === 'error'" class="admin-empty" style="color:#b91c1c">{{ error }}</div>
-
-        <!-- Success -->
-        <template v-else-if="status === 'success' && summary">
-
-          <div v-if="!summary.totalPayout" class="admin-empty">
-            目前月份無中獎派彩紀錄，請先進行台彩鏡射玩法下注。
-          </div>
-
-          <template v-else>
-
-            <!-- KPI 卡片 -->
-            <div class="atl-kpi-grid admin-grid1">
-              <div class="atl-kpi admin-panel">
-                <div class="admin-en">Prize Payout</div>
-                <div class="atl-kpi-num admin-num">{{ _fmt.coin(summary.totalPayout) }}</div>
-                <div class="atl-kpi-label">中獎金額</div>
-              </div>
-              <div class="atl-kpi admin-panel">
-                <div class="admin-en">Winning Bets</div>
-                <div class="atl-kpi-num admin-num">{{ summary.totalCount.toLocaleString('zh-TW') }}</div>
-                <div class="atl-kpi-label">中獎筆數</div>
-              </div>
-            </div>
-
-            <!-- 各玩法明細表格 -->
-            <div class="atl-section">
-              <div class="admin-sechead">
-                <h2>玩法明細</h2>
-                <span class="admin-meta">{{ summary.month }}</span>
-              </div>
-              <table class="admin-table atl-table">
-                <thead>
-                  <tr>
-                    <th>玩法</th>
-                    <th class="admin-num" style="text-align:right">中獎金額</th>
-                    <th class="admin-num" style="text-align:right">中獎筆數</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in summary.perGame" :key="item.key">
-                    <td>{{ item.name }}</td>
-                    <td class="admin-num" style="text-align:right">{{ item.amount.toLocaleString('zh-TW') }}</td>
-                    <td class="admin-num" style="text-align:right">{{ item.count.toLocaleString('zh-TW') }}</td>
-                  </tr>
-                </tbody>
-                <tfoot>
-                  <tr class="atl-total-row">
-                    <td><strong>合計</strong></td>
-                    <td class="admin-num" style="text-align:right"><strong>{{ summary.totalPayout.toLocaleString('zh-TW')
-                        }}</strong></td>
-                    <td class="admin-num" style="text-align:right"><strong>{{ summary.totalCount.toLocaleString('zh-TW')
-                        }}</strong></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            <!-- 中獎明細（含期別） -->
-            <div class="atl-section">
-              <div class="admin-sechead">
-                <h2>中獎明細</h2>
-                <span class="admin-meta">{{ summary.month }}</span>
-              </div>
-              <table class="admin-table atl-table atl-table--records">
-                <thead>
-                  <tr>
-                    <th>時間</th>
-                    <th>玩法</th>
-                    <th>期別</th>
-                    <th class="admin-num" style="text-align:right">中獎金額</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in summary.records" :key="`${row.key}-${row.issue}-${row.time}`">
-                    <td class="admin-num">{{ row.timeStr }}</td>
-                    <td>{{ row.name }}</td>
-                    <td class="admin-num">{{ row.issue }}</td>
-                    <td class="admin-num" style="text-align:right">{{ row.amount.toLocaleString('zh-TW') }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-          </template>
-        </template>
-
       </div>
     </div>
   </AdminShell>
@@ -316,10 +268,6 @@ onMounted(() => {
   &--records {
     max-width: 780px;
   }
-
-  &--odds {
-    max-width: 560px;
-  }
 }
 
 .atl-toyshop-toggle {
@@ -339,9 +287,112 @@ onMounted(() => {
   }
 }
 
+.atl-odds-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  gap: 10px;
+  background: none;
+  border: none;
+
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.atl-odds-card {
+  border: 1px solid var(--line);
+  padding: 16px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.15s;
+
+  &--on {
+    border-color: #16a34a;
+  }
+}
+
+.atl-odds-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.atl-odds-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.atl-odds-label {
+  flex: none;
+  width: 62px;
+}
+
+.atl-odds-toggle-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    border: 1px solid var(--muted);
+    background: transparent;
+  }
+
+  &.on {
+    color: #16a34a;
+
+    &::before {
+      border-color: #16a34a;
+      background: #16a34a;
+    }
+  }
+}
+
+.atl-odds-toggle-btn {
+  height: 24px;
+  padding: 0 10px;
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.atl-odds-value {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.atl-odds-num {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.atl-odds-suffix {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.atl-odds-error {
+  font-size: 11px;
+  color: #b91c1c;
+}
+
+.atl-odds-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .atl-edit-input {
-  width: 90px;
-  text-align: right;
+  width: 70px;
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .atl-total-row td {

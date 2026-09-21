@@ -11,6 +11,9 @@ export default defineEventHandler(async (event) => {
   if (!Storage.manager.lotteryTw.toyShop.isEnabled()) {
     throw createError({ statusCode: 403, message: '柑仔店櫥仔目前暫停開放。' })
   }
+  if (!Storage.manager.lotteryTw.toyShop.isGameEnabled('big-pig')) {
+    throw createError({ statusCode: 403, message: '此玩法目前暫停開放。' })
+  }
   const body = await readBody<RollBody>(event)
   const user = Storage.get.user(login.id)
   try {
@@ -19,6 +22,7 @@ export default defineEventHandler(async (event) => {
       bet: body?.bet,
       balance: Number(user?.coin ?? 0),
       rng: Math.random,
+      difficulty: Storage.manager.lotteryTw.toyShop.difficultyOf('big-pig'),
       wallet: {
         debit: (userId, amount, note) => walletBalanceService.appendChange(userId, { type: 'toy-bet', amount: -amount, note }),
         credit: (userId, amount, note) => walletBalanceService.appendChange(userId, {

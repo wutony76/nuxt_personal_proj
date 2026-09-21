@@ -1,6 +1,17 @@
 import { ToyPlayError, type ToyWalletPort } from './luckyDraw.ts'
 import { acquireLock, clearPool, readPool, releaseLock, writePool } from './pool.ts'
 import { applyMultiplier, isValidBet } from './reward.ts'
+import { resolveWithFate, scaleWinProbability } from './difficulty.ts'
+
+/**
+ * 難度校準：整場勝負是 5 回合比大小的多數決（3 勝以上算贏），不是單次判定，所以「每回合」
+ * 的基準勝率不能直接套用其他玩法的 0.9——要讓「5 回合中至少 3 回合贏」整體發生機率落在
+ * ≈90%，反推每回合基準勝率 ≈0.75（二項分布 n=5,p=0.75 時 P(X≥3)≈89.6%）。倍數比照其他
+ * 玩法壓到平均 ≈1.09：一般贏 1.05 倍，出王牌獲勝額外賞 1.3 倍（原本 1.9／3.8 太高）。
+ */
+const PER_TRICK_BASE_WIN_P = 0.75
+const CALIBRATED_WIN_MULTIPLIER = 1.05
+const CALIBRATED_KING_MULTIPLIER = 1.3
 
 export type PogKind = 'number' | 'king' | 'shield' | 'swap' | 'bomb'
 export type PogCard = { id: string; rank: number; kind: PogKind }
@@ -164,6 +175,7 @@ export function playPog(input: {
   balance: number
   rng: () => number
   wallet: ToyWalletPort
+  difficulty?: number
 }): PogView {
   if (!acquireLock(input.userId)) throw new ToyPlayError(409, '這一局還在結算，請稍等。')
   try {
@@ -197,7 +209,14 @@ function _start(input: { userId: string; bet?: number; deck?: PogCard[]; balance
   return viewOf({ balance, meta, last: null, reward: 0, multiplier: 0, settled: false, gameKey: GAME_KEY, blocked: false })
 }
 
-function _play(input: { userId: string; cardId?: string; balance: number; rng: () => number; wallet: ToyWalletPort }): PogView {
+function _play(input: {
+  userId: string
+  cardId?: string
+  balance: number
+  rng: () => number
+  wallet: ToyWalletPort
+  difficulty?: number
+}): PogView {
   const pool = readPool(input.userId)
   const meta = readMeta(input.userId)
   if (!pool || !meta) throw new ToyPlayError(400, '請先開始尪仔標。')
@@ -215,22 +234,31 @@ function _play(input: { userId: string; cardId?: string; balance: number; rng: (
     remainder = redrawn.remainder
   }
 
-  const npcIndex = Math.min(meta.npc.length - 1, Math.floor(input.rng() * meta.npc.length))
-  let npcCard = meta.npc[npcIndex] as PogCard
-  let npcRest = meta.npc.filter((card) => card.id !== npcCard.id)
-  if (npcCard.kind === 'swap') {
-    const redrawn = redraw(npcCard, npcRest, remainder, input.rng)
-    npcCard = redrawn.card
-    npcRest = npcRest.filter((card) => card.id !== npcCard.id)
-    remainder = redrawn.remainder
-  }
-
-  const npcRank = rankOf(npcCard, meta.bombPending)
   const playerRank = playerCard.rank
-  let result: PogTrickResult = 'tie'
-  if (playerCard.kind === 'shield' && playerRank < npcRank) result = 'cancel'
-  else if (playerRank > npcRank) result = 'player'
-  else if (playerRank < npcRank) result = 'npc'
+  const targetWin = input.rng() < scaleWinProbability(PER_TRICK_BASE_WIN_P, input.difficulty ?? 1)
+  const picked_npc = resolveWithFate(targetWin, () => {
+    const npcIndex = Math.min(meta.npc.length - 1, Math.floor(input.rng() * meta.npc.length))
+    let card = meta.npc[npcIndex] as PogCard
+    let rest = meta.npc.filter((item) => item.id !== card.id)
+    let rem = remainder
+    if (card.kind === 'swap') {
+      const redrawn = redraw(card, rest, rem, input.rng)
+      card = redrawn.card
+      rest = rest.filter((item) => item.id !== card.id)
+      rem = redrawn.remainder
+    }
+    const rank = rankOf(card, meta.bombPending)
+    let res: PogTrickResult = 'tie'
+    if (playerCard.kind === 'shield' && playerRank < rank) res = 'cancel'
+    else if (playerRank > rank) res = 'player'
+    else if (playerRank < rank) res = 'npc'
+    return { win: res === 'player', card, rest, remainder: rem, rank, result: res }
+  })
+  const npcCard = picked_npc.card
+  const npcRest = picked_npc.rest
+  remainder = picked_npc.remainder
+  const npcRank = picked_npc.rank
+  const result = picked_npc.result
 
   const next: PogMeta = {
     player: playerRest,
@@ -250,8 +278,8 @@ function _play(input: { userId: string; cardId?: string; balance: number; rng: (
 
   const won = next.playerWins > next.npcWins
   const tied = next.playerWins === next.npcWins
-  const multiplier = won ? (next.kingUsed ? 3.8 : 1.9) : 0
-  const reward = tied ? pool.bet : (won ? applyMultiplier(applyMultiplier(pool.bet, 1.9), next.kingUsed ? 2 : 1) : 0)
+  const multiplier = won ? (next.kingUsed ? CALIBRATED_KING_MULTIPLIER : CALIBRATED_WIN_MULTIPLIER) : 0
+  const reward = tied ? pool.bet : (won ? applyMultiplier(pool.bet, multiplier) : 0)
   let balance = input.balance
   if (reward > 0) balance = input.wallet.credit(input.userId, reward, `尪仔標結算 ${reward}`)
   clearPool(input.userId)
