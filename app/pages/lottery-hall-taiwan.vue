@@ -991,7 +991,7 @@ onMounted(async () => {
 .tw-shelf {
   position: relative;
   max-width: 1400px;
-  margin: clamp(36px, 6vw, 72px) auto 0;
+  margin: 20px auto 0;
   padding: 0 clamp(16px, 4vw, 48px);
   border-radius: var(--radius-lg);
   overflow: hidden;
