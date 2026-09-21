@@ -101,10 +101,10 @@
 
     &.tw-btn-secondary {
       background: transparent;
-      border-color: var(--color-accent-400);
-      color: var(--color-accent-800);
+      border-color: #3d472b;
+      color: #3d472b;
 
-      &:hover { background: color-mix(in srgb, var(--color-accent-500) 12%, transparent); }
+      &:hover { background: color-mix(in srgb, #3d472b 12%, transparent); }
     }
   }
 
