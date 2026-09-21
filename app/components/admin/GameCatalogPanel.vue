@@ -74,8 +74,25 @@ onMounted(() => _actions.fetch())
         </div>
         <div class="gcp-grid">
           <button v-for="row in bgGames" :key="row.key" type="button" class="gcp-toggle"
-            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey"
-            :aria-pressed="row.enabled" @click="click.toggle(row)">
+            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey" :aria-pressed="row.enabled"
+            @click="click.toggle(row)">
+            <span class="gcp-toggle-name">{{ row.name }}</span>
+            <span class="gcp-toggle-state">{{ row.enabled ? '開啟' : '關閉' }}</span>
+          </button>
+        </div>
+      </section>
+
+
+
+      <section class="gcp-section">
+        <div class="gcp-section-head">
+          <span class="admin-en">TW Lottery</span>
+          <span class="gcp-section-title">彩運來</span>
+        </div>
+        <div class="gcp-grid">
+          <button v-for="row in twGames" :key="row.key" type="button" class="gcp-toggle"
+            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey" :aria-pressed="row.enabled"
+            @click="click.toggle(row)">
             <span class="gcp-toggle-name">{{ row.name }}</span>
             <span class="gcp-toggle-state">{{ row.enabled ? '開啟' : '關閉' }}</span>
           </button>
@@ -89,28 +106,14 @@ onMounted(() => _actions.fetch())
         </div>
         <div class="gcp-grid">
           <button v-for="row in retroGames" :key="row.key" type="button" class="gcp-toggle"
-            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey"
-            :aria-pressed="row.enabled" @click="click.toggle(row)">
+            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey" :aria-pressed="row.enabled"
+            @click="click.toggle(row)">
             <span class="gcp-toggle-name">{{ row.name }}</span>
             <span class="gcp-toggle-state">{{ row.enabled ? '開啟' : '關閉' }}</span>
           </button>
         </div>
       </section>
 
-      <section class="gcp-section">
-        <div class="gcp-section-head">
-          <span class="admin-en">TW Lottery</span>
-          <span class="gcp-section-title">台彩鏡射玩法</span>
-        </div>
-        <div class="gcp-grid">
-          <button v-for="row in twGames" :key="row.key" type="button" class="gcp-toggle"
-            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey"
-            :aria-pressed="row.enabled" @click="click.toggle(row)">
-            <span class="gcp-toggle-name">{{ row.name }}</span>
-            <span class="gcp-toggle-state">{{ row.enabled ? '開啟' : '關閉' }}</span>
-          </button>
-        </div>
-      </section>
 
       <p v-if="state.error" class="gcp-error">{{ state.error }}</p>
     </template>
