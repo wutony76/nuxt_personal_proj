@@ -11,11 +11,11 @@ import type { ToyBambooTarget } from '~/services/api'
  *  選門檻/轉出去/結算行為維持 useToyBamboo 既有邏輯不變，這款單注定輸贏，沒有連乘機制。 */
 const round = useToyBamboo()
 const targets: Array<{ id: ToyBambooTarget; label: string; odds: string }> = [
-  { id: 'm10', label: '≥10m', odds: '×1.1' },
-  { id: 'm20', label: '≥20m', odds: '×1.4' },
-  { id: 'm30', label: '≥30m', odds: '×2' },
-  { id: 'm40', label: '≥40m', odds: '×4' },
-  { id: 'm50', label: '≥50m', odds: '×15' }
+  { id: 'm10', label: '大於10米', odds: '×1.1' },
+  { id: 'm20', label: '大於20米', odds: '×1.4' },
+  { id: 'm30', label: '大於30米', odds: '×2' },
+  { id: 'm40', label: '大於40米', odds: '×4' },
+  { id: 'm50', label: '大於50米', odds: '×15' }
 ]
 /** 高度分布區段權重，對應後端 BAMBOO_BANDS（server/services/game/toys/catalog.ts），純顯示用 */
 const heightBands: Array<{ range: string; weight: number }> = [
@@ -35,7 +35,10 @@ const blockedItem = computed(() =>
 /** .sky 從原本 220px 縮到 140px（配合彈窗不捲動），位移比例跟著等比縮小，飛行動畫視覺不變 */
 const lift = computed(() => `${Math.round((round.state.shownHeight / 69) * 115)}px`)
 type MainTab = 'game' | 'rules'
-const ui = reactive({ mainTab: 'game' as MainTab, resultReady: false })
+const ui = reactive({ mainTab: 'game' as MainTab, resultReady: false, spinning: false })
+
+/** 點「開始轉」後讓 copter 播 3 秒左右飛的旋轉動畫，純視覺效果，跟後端 flipMs 的實際結算時間無關 */
+let spinTimer: ReturnType<typeof setTimeout> | null = null
 
 /** 開牌結果先讓玩家看 1 秒，才彈出結果視窗；這段期間鎖住操作 */
 let resultDelayTimer: ReturnType<typeof setTimeout> | null = null
@@ -85,7 +88,16 @@ const headlineTone = computed(() => {
 })
 
 const click = {
-  setMainTab: (tab: MainTab) => { ui.mainTab = tab }
+  setMainTab: (tab: MainTab) => { ui.mainTab = tab },
+  launch: () => {
+    ui.spinning = true
+    if (spinTimer) clearTimeout(spinTimer)
+    spinTimer = setTimeout(() => {
+      ui.spinning = false
+      spinTimer = null
+    }, 3000)
+    round.actions.launch()
+  }
 }
 
 onMounted(() => {
@@ -94,6 +106,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   round.stopReveal()
   if (resultDelayTimer) clearTimeout(resultDelayTimer)
+  if (spinTimer) clearTimeout(spinTimer)
 })
 </script>
 
@@ -129,8 +142,8 @@ onBeforeUnmount(() => {
 
       <div v-if="ui.mainTab === 'game'" class="lucky-panel">
         <div class="bet-row">
-          <BetPanel :chips="chips" :bet="round.state.bet" :custom-bet="round.state.customBet"
-            :disabled="isLocked" @choose="round.actions.chooseChip" @update:custom-bet="round.state.customBet = $event"
+          <BetPanel :chips="chips" :bet="round.state.bet" :custom-bet="round.state.customBet" :disabled="isLocked"
+            @choose="round.actions.chooseChip" @update:custom-bet="round.state.customBet = $event"
             @apply-custom="round.actions.applyCustom" />
         </div>
 
@@ -138,7 +151,11 @@ onBeforeUnmount(() => {
 
         <div class="frame-border">
           <div class="sky">
-            <span class="copter" :style="{ transform: `translateY(-${lift})` }">蜓</span>
+            <span class="copter-wrap" :style="{ transform: `translateY(-${lift})` }">
+              <img class="copter" :class="{ 'is-spinning': ui.spinning }"
+                :src="ui.spinning ? '/images/toys/firefly/firefly_fly.png' : '/images/toys/firefly/firefly.png'"
+                alt="竹蜻蜓">
+            </span>
             <strong v-if="round.state.shownHeight > 0">{{ round.state.shownHeight }}m</strong>
           </div>
         </div>
@@ -148,14 +165,19 @@ onBeforeUnmount(() => {
             :class="{ 'is-on': round.state.target === item.id }"
             :disabled="round.state.status === 'playing' || round.state.settling"
             @click="round.actions.chooseTarget(item.id)">
-            {{ item.label }} {{ item.odds }}
+            {{ item.label }} | {{ item.odds }}
           </button>
         </div>
 
-        <button type="button" class="launch" :disabled="isLocked || round.state.blocked"
-          @click="round.actions.launch">
-          轉出去
-        </button>
+        <div class="launch-row">
+          <button type="button" class="launch" :disabled="isLocked || round.state.blocked" @click="click.launch">
+            開始轉
+          </button>
+          <button v-if="round.state.status === 'result'" type="button" class="launch is-replay"
+            :disabled="isLocked || round.state.blocked" @click="round.actions.playAgain">
+            再玩一次
+          </button>
+        </div>
       </div>
 
       <div v-else class="lucky-rules">
@@ -164,7 +186,8 @@ onBeforeUnmount(() => {
           <ul class="band-list">
             <li v-for="band in heightBands" :key="band.range">
               <span class="band-range">{{ band.range }}</span>
-              <span class="band-bar"><span class="band-bar-fill" :style="{ width: `${(band.weight / heightBandTotal) * 100}%` }" /></span>
+              <span class="band-bar"><span class="band-bar-fill"
+                  :style="{ width: `${(band.weight / heightBandTotal) * 100}%` }" /></span>
               <span class="band-pct">{{ Math.round((band.weight / heightBandTotal) * 100) }}%</span>
             </li>
           </ul>
@@ -174,7 +197,7 @@ onBeforeUnmount(() => {
           <h3>門檻倍率</h3>
           <ul class="tier-list">
             <li v-for="item in targets" :key="item.id">
-              <span class="tier-badge">{{ item.label.replace('≥', '').replace('m', '') }}</span>
+              <span class="tier-badge">{{ item.id.replace('m', '') }}</span>
               <span class="tier-mult">{{ item.label }} 達標</span>
               <span class="tier-odds">{{ item.odds }}</span>
             </li>
@@ -187,9 +210,9 @@ onBeforeUnmount(() => {
         </section>
       </div>
 
-      <ResultModal :visible="modalVisible" :title="modalTitle" :detail="modalDetail"
-        :can-claim="false" :can-continue="false" :can-replay="round.state.status !== 'playing'"
-        :busy="round.state.settling" @claim="() => {}" @continue="() => {}" @replay="round.actions.playAgain" />
+      <ResultModal :visible="modalVisible" :title="modalTitle" :detail="modalDetail" :can-claim="false"
+        :can-continue="false" :can-replay="round.state.status !== 'playing'" :busy="round.state.settling"
+        @claim="() => { }" @continue="() => { }" @replay="round.actions.playAgain" />
     </section>
   </main>
 </template>
@@ -355,15 +378,50 @@ onBeforeUnmount(() => {
   }
 }
 
-.copter {
-  font-family: var(--font-heading);
-  font-size: 42px;
+.copter-wrap {
+  display: inline-block;
   transition: transform 0.6s ease;
+}
+
+.copter {
+  height: 48px;
+  object-fit: contain;
+
+  &.is-spinning {
+    animation: copterSpin 3s ease-in-out;
+  }
+}
+
+@keyframes copterSpin {
+  0% {
+    transform: translateX(0);
+  }
+
+  20% {
+    transform: translateX(-18px);
+  }
+
+  40% {
+    transform: translateX(16px);
+  }
+
+  60% {
+    transform: translateX(-14px);
+  }
+
+  80% {
+    transform: translateX(12px);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
 }
 
 .targets {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
   margin-top: 16px;
 
@@ -387,8 +445,15 @@ onBeforeUnmount(() => {
   }
 }
 
-.launch {
+.launch-row {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  gap: 10px;
   margin-top: 16px;
+}
+
+.launch {
   border: 0;
   border-radius: 999px;
   padding: 10px 18px;
@@ -396,6 +461,10 @@ onBeforeUnmount(() => {
   color: var(--color-bg);
   font-weight: 700;
   cursor: pointer;
+
+  &.is-replay {
+    background: var(--color-accent-2-700, #56633f);
+  }
 
   &:disabled {
     opacity: 0.45;
