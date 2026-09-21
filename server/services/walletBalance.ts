@@ -109,5 +109,19 @@ export const walletBalanceService = {
       merged.set(row.id, row)
     }
     return [...merged.values()].sort((a, b) => b.createdAt - a.createdAt)
+  },
+
+  /**
+   * 依類型篩選錢包層級異動，依時間新到舊（供柑仔店櫥仔玩具「遊戲紀錄」使用）
+   * @param userId 帳號 id
+   * @param types 要篩選的異動類型
+   * @returns 篩選後列表
+   */
+  listByTypes: (userId: string, types: string[]): WalletBalanceChange[] => {
+    const user = Storage.get.user(userId) as UserWalletLike
+    const typeSet = new Set(types)
+    return (user.record?.balanceChanges ?? [])
+      .filter((row) => typeSet.has(row.type))
+      .sort((a, b) => b.createdAt - a.createdAt)
   }
 }

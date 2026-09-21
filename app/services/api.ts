@@ -1553,6 +1553,18 @@ export type ToyWhistleView = {
   blocked: boolean
 }
 
+/** 柑仔店櫥仔（尪仔標、抽抽樂等玩具）自己的下注／結算紀錄，見 walletBalanceService.listByTypes */
+export type ToyHistoryRecord = {
+  id: string
+  issue: string
+  type: 'toy-bet' | 'toy-reward'
+  amount: number
+  before: number
+  after: number
+  createdAt: number
+  note: string
+}
+
 export type ToyPogCard = { id: string; rank: number; kind: 'number' | 'king' | 'shield' | 'swap' | 'bomb' }
 
 export type ToyPogView = {
@@ -1990,7 +2002,8 @@ export const api = {
         $fetch<ToyWhistleView>('/api/games/toys/whistle-candy/roll', { method: 'POST', body: payload }),
       pogState: () => $fetch<ToyPogView>('/api/games/toys/pog/state'),
       rollPog: (payload: { action: 'start' | 'play'; bet?: number; cardId?: string }) =>
-        $fetch<ToyPogView>('/api/games/toys/pog/roll', { method: 'POST', body: payload })
+        $fetch<ToyPogView>('/api/games/toys/pog/roll', { method: 'POST', body: payload }),
+      history: () => $fetch<{ records: ToyHistoryRecord[] }>('/api/games/toys/history')
     },
     retro: {
       historySnake: () => $fetch<GameHistoryListResponse>('/api/games/retro/snake/history'),

@@ -7,6 +7,7 @@ import { TaiwanLotteryService } from '~/services/taiwanLotteryService'
 import TaiwanLotteryPrizeDialog from '~/components/TaiwanLotteryPrizeDialog.vue'
 import ShelfCard from '~/components/toys/ShelfCard.vue'
 import ToyPlayDialog from '~/components/toys/ToyPlayDialog.vue'
+import ToyHistoryDialog from '~/components/toys/ToyHistoryDialog.vue'
 import { api, type ToyCatalogItem } from '~/services/api'
 
 useHead({
@@ -115,7 +116,8 @@ const state = reactive({
     error: '',
     items: [] as ToyCatalogItem[],
     active: null as ToyCatalogItem | null
-  }
+  },
+  historyOpen: false
 })
 
 /** 英雄插畫上的閃星；位置用百分比，避免跟著版面重排跑掉。 */
@@ -207,6 +209,12 @@ const click = {
   },
   closeToy: () => {
     state.shelf.active = null
+  },
+  openHistory: () => {
+    state.historyOpen = true
+  },
+  closeHistory: () => {
+    state.historyOpen = false
   },
   enterGame: (game: TaiwanLotteryResult) => {
     const route = GAME_ROUTES[game.gameCode]
@@ -384,6 +392,7 @@ onMounted(async () => {
         <div class="tw-shelf-head">
           <h2>柑仔店櫥仔</h2>
           <span>懷舊零嘴 · 古早玩具</span>
+          <button type="button" class="tw-btn tw-btn-secondary tw-shelf-history-btn" @click="click.openHistory">購買紀錄</button>
         </div>
         <p v-if="state.shelf.loading" class="tw-shelf-note">櫥仔準備中...</p>
         <p v-else-if="state.shelf.error" class="tw-shelf-note">{{ state.shelf.error }}</p>
@@ -401,6 +410,7 @@ onMounted(async () => {
       </div>
 
       <ToyPlayDialog :item="state.shelf.active" @close="click.closeToy" @switch="click.openToy" />
+      <ToyHistoryDialog :visible="state.historyOpen" @close="click.closeHistory" />
       <TaiwanLotteryPrizeDialog :visible="state.dialog.visible" :game-code="state.dialog.gameCode"
         :game-name="state.dialog.gameName" :period="state.dialog.period" @close="click.closePrize" />
     </template>
@@ -979,9 +989,36 @@ onMounted(async () => {
 }
 
 .tw-shelf {
+  position: relative;
   max-width: 1400px;
   margin: clamp(36px, 6vw, 72px) auto 0;
   padding: 0 clamp(16px, 4vw, 48px);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* 玻璃櫥窗固定反光，兩條 45 度斜帶（一粗一細），不做動畫，呼應「柑仔店櫥仔」的展示櫃質感 */
+.tw-shelf::before,
+.tw-shelf::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 160%;
+  background: rgba(255, 255, 255, 0.32);
+  transform: translate(-50%, -50%) rotate(45deg);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tw-shelf::before {
+  left: 26%;
+  height: 26px;
+}
+
+.tw-shelf::after {
+  left: 30%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .tw-shelf-head {
@@ -1009,6 +1046,13 @@ onMounted(async () => {
     font-size: 13px;
     color: var(--color-neutral-600);
   }
+}
+
+.tw-shelf-history-btn {
+  margin-left: auto;
+  margin-bottom: 5px;
+  padding: 8px 18px;
+  font-size: 13px;
 }
 
 .tw-shelf-note,
