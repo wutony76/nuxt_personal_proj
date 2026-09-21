@@ -115,7 +115,8 @@ const state = reactive({
     loading: false,
     error: '',
     items: [] as ToyCatalogItem[],
-    active: null as ToyCatalogItem | null
+    active: null as ToyCatalogItem | null,
+    enabled: true
   },
   historyOpen: false
 })
@@ -171,6 +172,7 @@ const _actions = {
     try {
       const catalog = await api.games.toys.catalog()
       state.shelf.items = catalog.items
+      state.shelf.enabled = catalog.enabled
     } catch {
       state.shelf.error = '櫥仔暫時讀不到，彩票卡片不受影響。'
       state.shelf.items = []
@@ -204,7 +206,7 @@ const click = {
     state.dialog.visible = false
   },
   openToy: (item: ToyCatalogItem) => {
-    if (item.status !== 'open' || !item.path) return
+    if (!state.shelf.enabled || item.status !== 'open' || !item.path) return
     state.shelf.active = item
   },
   closeToy: () => {
@@ -388,7 +390,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <section id="tw-shelf" class="tw-shelf">
+      <section v-if="state.shelf.loading || state.shelf.error || state.shelf.enabled" id="tw-shelf" class="tw-shelf">
         <div class="tw-shelf-head">
           <h2>柑仔店櫥仔</h2>
           <span>懷舊零嘴 · 古早玩具</span>

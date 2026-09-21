@@ -1304,6 +1304,31 @@ export type FcoinSummary = {
   dataNote: string
 }
 
+export type TwLotteryPayoutGameItem = {
+  key: string
+  name: string
+  amount: number
+  count: number
+}
+
+export type TwLotteryPayoutRecordItem = {
+  time: number
+  timeStr: string
+  issue: string
+  key: string
+  name: string
+  amount: number
+}
+
+export type TwLotteryPayoutSummary = {
+  month: string
+  totalPayout: number
+  totalCount: number
+  perGame: TwLotteryPayoutGameItem[]
+  records: TwLotteryPayoutRecordItem[]
+  dataNote: string
+}
+
 export type MemberRankItem = {
   key: string
   name: string
@@ -1422,6 +1447,18 @@ export type ToyCatalogResponse = {
     cells: number
     rewards: Array<{ id: string; label: string; weight: number; multiplier: number }>
   }
+  enabled: boolean
+}
+
+export type ToyShopOddsItem = {
+  slug: string
+  name: string
+  multiplier: number
+}
+
+export type ToyShopSettings = {
+  enabled: boolean
+  odds: ToyShopOddsItem[]
 }
 
 export type ToyLuckyDrawView = {
@@ -1687,6 +1724,13 @@ export const api = {
       poolAudit: (params?: { lotteryKey?: string; range?: '7d' | '30d' | 'all' }) =>
         $fetch<BgPoolAuditResponse>('/api/admin/bg-lottery/pool-audit', { query: params })
     },
+    toyShop: {
+      settings: () => $fetch<ToyShopSettings>('/api/admin/toy-shop/settings'),
+      setEnabled: (enabled: boolean) =>
+        $fetch<{ enabled: boolean }>('/api/admin/toy-shop/settings', { method: 'PATCH', body: { enabled } }),
+      setOdds: (slug: string, multiplier: number) =>
+        $fetch<ToyShopOddsItem>(`/api/admin/toy-shop/odds/${slug}`, { method: 'PUT', body: { multiplier } })
+    },
     reports: {
       /**
        * BG 彩票月度統計
@@ -1696,6 +1740,12 @@ export const api = {
         $fetch<BgReportSummary>('/api/admin/reports/bg-summary', { query: { month } }),
       fCoinSummary: (month: string) =>
         $fetch<FcoinSummary>('/api/admin/reports/fcoin-summary', { query: { month } }),
+      /**
+       * 台彩鏡射玩法（彩運來）中獎派彩月報
+       * @param month YYYY-MM
+       */
+      twLotteryPayout: (month: string) =>
+        $fetch<TwLotteryPayoutSummary>('/api/admin/reports/tw-lottery-payout', { query: { month } }),
       /**
        * 會員月度玩法人數分佈（BG／TW／GAME 三分類，各玩法不重複人數排行）
        * @param month YYYY-MM

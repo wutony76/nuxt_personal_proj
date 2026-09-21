@@ -11,6 +11,9 @@ type RollBody = {
 
 export default defineEventHandler(async (event) => {
   const login = sessionController.require(event)
+  if (!Storage.manager.lotteryTw.toyShop.isEnabled()) {
+    throw createError({ statusCode: 403, message: '柑仔店櫥仔目前暫停開放。' })
+  }
   const body = await readBody<RollBody>(event)
   const user = Storage.get.user(login.id)
   const action = body?.action
@@ -34,7 +37,7 @@ export default defineEventHandler(async (event) => {
         }),
         credit: (userId, amount, note) => walletBalanceService.appendChange(userId, {
           type: 'toy-reward',
-          amount,
+          amount: Math.round(amount * Storage.manager.lotteryTw.toyShop.oddsOf('lucky-draw') * 100) / 100,
           note
         })
       }
