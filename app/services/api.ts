@@ -1287,6 +1287,7 @@ export type FcoinSummaryDailyItem = {
 
 export type FcoinSummaryGameItem = {
   name: string
+  category: 'toys' | 'retro'
   bet: number
   reward: number
   net: number

@@ -1,5 +1,13 @@
 import { sessionController } from 'serv/services/auth'
 import { Storage } from 'serv/services/storage'
+import { TOY_CATALOG } from 'serv/services/game/toys/catalog'
+
+const TOY_NAMES = new Set(TOY_CATALOG.map((t) => t.name))
+
+/** 依遊戲名稱判斷屬於柑仔店玩具（toys）還是遊戲中心小遊戲（retro） */
+function categorize(gameName: string): 'toys' | 'retro' {
+  return TOY_NAMES.has(gameName) ? 'toys' : 'retro'
+}
 
 /** 從 note 字串前綴抽取玩具遊戲名稱 */
 function extractGameName(note: string): string {
@@ -104,6 +112,7 @@ export default defineEventHandler((event) => {
   const perGame = Object.entries(gameMap)
     .map(([name, v]) => ({
       name,
+      category: categorize(name),
       bet: v.bet,
       reward: v.reward,
       net: Math.round((v.reward - v.bet) * 100) / 100,

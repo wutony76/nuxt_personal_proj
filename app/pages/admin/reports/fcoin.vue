@@ -75,6 +75,15 @@ const _fmt = {
   coin: (v) => `${Number(v).toLocaleString('zh-TW')} F幣`,
 }
 
+// ─── 遊戲明細分組 ───
+const retroGames = computed(() => summary.value?.perGame?.filter((g) => g.category === 'retro') ?? [])
+const toyGames = computed(() => summary.value?.perGame?.filter((g) => g.category === 'toys') ?? [])
+const toyTotals = computed(() => ({
+  bet: toyGames.value.reduce((sum, g) => sum + g.bet, 0),
+  reward: toyGames.value.reduce((sum, g) => sum + g.reward, 0),
+  count: toyGames.value.reduce((sum, g) => sum + g.count, 0),
+}))
+
 // ─── Actions ───
 const _actions = {
   fetch: async () => {
@@ -145,36 +154,75 @@ onMounted(() => _actions.fetch())
           </div>
         </div>
 
-        <!-- 遊戲明細表格 -->
-        <div class="afc-section">
-          <div class="admin-sechead">
-            <h2>遊戲明細</h2>
-            <span class="admin-meta">{{ summary.month }}</span>
+        <!-- 遊戲明細表格：遊戲中心／柑仔店併列 -->
+        <div class="afc-section afc-section-row">
+          <div v-if="retroGames.length" class="afc-section-col">
+            <div class="admin-sechead">
+              <h2>明細 · 遊戲中心</h2>
+              <span class="admin-meta">{{ summary.month }}</span>
+            </div>
+            <table class="admin-table afc-table">
+              <thead>
+                <tr>
+                  <th>遊戲</th>
+                  <th class="admin-num" style="text-align:right">換 F幣</th>
+                  <th class="admin-num" style="text-align:right">筆數</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in retroGames" :key="item.name">
+                  <td>{{ item.name }}</td>
+                  <td class="admin-num" style="text-align:right">{{ item.reward.toLocaleString('zh-TW') }}</td>
+                  <td class="admin-num" style="text-align:right">{{ item.count.toLocaleString('zh-TW') }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="afc-total-row">
+                  <td><strong>合計</strong></td>
+                  <td class="admin-num" style="text-align:right">
+                    <strong>{{retroGames.reduce((sum, g) => sum + g.reward, 0).toLocaleString('zh-TW')}}</strong>
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
-          <table class="admin-table afc-table">
-            <thead>
-              <tr>
-                <th>遊戲</th>
-                <th class="admin-num" style="text-align:right">換 F幣</th>
-                <th class="admin-num" style="text-align:right">筆數</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in summary.perGame" :key="item.name">
-                <td>{{ item.name }}</td>
-                <td class="admin-num" style="text-align:right">{{ item.reward.toLocaleString('zh-TW') }}</td>
-                <td class="admin-num" style="text-align:right">{{ item.count.toLocaleString('zh-TW') }}</td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr class="afc-total-row">
-                <td><strong>合計</strong></td>
-                <td class="admin-num" style="text-align:right"><strong>{{ summary.totalReward.toLocaleString('zh-TW')
-                    }}</strong></td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
+
+          <div v-if="toyGames.length" class="afc-section-col">
+            <div class="admin-sechead">
+              <h2>明細 · 柑仔店</h2>
+              <span class="admin-meta">{{ summary.month }}</span>
+            </div>
+            <table class="admin-table afc-table afc-table--toys">
+              <thead>
+                <tr>
+                  <th>遊戲</th>
+                  <th class="admin-num" style="text-align:right">花了多少</th>
+                  <th class="admin-num" style="text-align:right">換了多少</th>
+                  <th class="admin-num" style="text-align:right">筆數</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in toyGames" :key="item.name">
+                  <td>{{ item.name }}</td>
+                  <td class="admin-num" style="text-align:right">{{ item.bet.toLocaleString('zh-TW') }}</td>
+                  <td class="admin-num" style="text-align:right">{{ item.reward.toLocaleString('zh-TW') }}</td>
+                  <td class="admin-num" style="text-align:right">{{ item.count.toLocaleString('zh-TW') }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="afc-total-row">
+                  <td><strong>合計</strong></td>
+                  <td class="admin-num" style="text-align:right"><strong>{{ toyTotals.bet.toLocaleString('zh-TW')
+                      }}</strong></td>
+                  <td class="admin-num" style="text-align:right"><strong>{{ toyTotals.reward.toLocaleString('zh-TW')
+                      }}</strong></td>
+                  <td class="admin-num" style="text-align:right"><strong>{{ toyTotals.count.toLocaleString('zh-TW')
+                      }}</strong></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
 
       </template>
@@ -217,13 +265,27 @@ onMounted(() => _actions.fetch())
   margin-bottom: 44px;
 }
 
+.afc-section-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.afc-section-col {
+  min-width: 0;
+}
+
 .afc-chart-wrap {
   height: 240px;
   position: relative;
 }
 
 .afc-table {
-  max-width: 680px;
+  width: 100%;
 }
 
 .afc-total-row td {
