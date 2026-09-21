@@ -15,8 +15,7 @@
 <style scoped lang="scss">
 .ags-layout {
   display: flex;
-  gap: 44px;
-  align-items: flex-start;
+  flex-direction: column;
 }
 
 .ags-content {

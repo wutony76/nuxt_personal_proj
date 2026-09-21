@@ -401,8 +401,7 @@ onMounted(() => {
 <style scoped lang="scss">
 .agm-layout {
   display: flex;
-  gap: 44px;
-  align-items: flex-start;
+  flex-direction: column;
 }
 
 .agm-content {

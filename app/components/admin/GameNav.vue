@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 「遊戲管理」大項底下的常駐左側次導覽：BG彩票／彩運來／經典遊戲／遊戲試算 */
+/** 「遊戲管理」大項底下的常駐橫向次導覽：BG彩票／彩運來／經典遊戲／遊戲試算 */
 defineProps<{
   active: 'bg' | 'taiwan' | 'games' | 'simulator'
 }>()
@@ -13,64 +13,54 @@ const SUBNAV = [
 </script>
 
 <template>
-  <aside class="agn-aside">
-    <div class="admin-en" style="padding:11px 14px 10px">Sub-pages</div>
-    <nav class="agn-nav">
-      <NuxtLink v-for="item in SUBNAV" :key="item.key" :to="item.path" class="agn-item"
-        :class="{ active: item.key === active }">
-        <span class="agn-label">{{ item.label }}</span>
-        <span class="admin-num agn-path">{{ item.path }}</span>
-      </NuxtLink>
-    </nav>
-  </aside>
+  <div class="agn-tabs">
+    <NuxtLink v-for="item in SUBNAV" :key="item.key" :to="item.path" class="agn-tab"
+      :class="{ active: item.key === active }">
+      <span>{{ item.label }}</span>
+      <span class="admin-en agn-tab-en">{{ item.en }}</span>
+    </NuxtLink>
+  </div>
 </template>
 
 <style scoped lang="scss">
-.agn-aside {
-  width: 214px;
-  flex: none;
-  border-top: 1px solid var(--ink);
-  position: sticky;
-  top: 20px;
+.agn-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 32px;
+  flex-wrap: wrap;
 }
 
-.agn-nav {
+.agn-tab {
   display: flex;
-  flex-direction: column;
-}
-
-.agn-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: 100%;
-  padding: 12px 14px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  height: 40px;
+  font-size: 13px;
   border: 0;
-  border-left: 2px solid transparent;
-  cursor: pointer;
-  text-align: left;
   background: transparent;
   color: var(--muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  margin-bottom: -1px;
+  text-decoration: none;
+  white-space: nowrap;
 
   &:hover {
-    background: var(--wash);
     color: var(--ink);
+    background: var(--wash);
     text-decoration: none;
   }
 
   &.active {
-    border-left-color: var(--ink);
-    background: var(--wash);
     color: var(--ink);
+    border-bottom-color: var(--ink);
   }
 }
 
-.agn-label {
-  font-size: 13.5px;
-}
-
-.agn-path {
-  font-size: 10px;
-  opacity: 0.65;
+.agn-tab-en {
+  font-size: 8px;
+  opacity: 0.5;
 }
 </style>

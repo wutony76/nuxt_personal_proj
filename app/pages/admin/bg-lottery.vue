@@ -81,7 +81,7 @@ onMounted(() => _actions.fetch())
 </script>
 
 <template>
-  <AdminShell active="gamemgmt" kicker="BG Lottery" title="BG彩票" desc="彩池補貼追蹤：池底重骰事件與保底超付事件兩類記錄，數值為 in-memory，重啟後清空。見 design.md Decision 3。">
+  <AdminShell active="gamemgmt" kicker="BG Lottery" title="BG彩票" desc="彩池補貼追蹤：池底重骰事件與保底超付事件兩類記錄.">
     <div class="abl-layout">
       <AdminGameNav active="bg" />
       <div class="abl-main">
@@ -131,15 +131,18 @@ onMounted(() => _actions.fetch())
 
           <!-- Tab switcher -->
           <div class="abl-tabs">
-            <button type="button" class="abl-tab" :class="{ active: state.activeTab === 'overpay' }" @click="click.setTab('overpay')">
+            <button type="button" class="abl-tab" :class="{ active: state.activeTab === 'overpay' }"
+              @click="click.setTab('overpay')">
               <span>保底超付事件</span>
               <span class="admin-num abl-tab-count">{{ state.overpay.length }}</span>
             </button>
-            <button type="button" class="abl-tab" :class="{ active: state.activeTab === 'reseed' }" @click="click.setTab('reseed')">
+            <button type="button" class="abl-tab" :class="{ active: state.activeTab === 'reseed' }"
+              @click="click.setTab('reseed')">
               <span>池底重骰事件</span>
               <span class="admin-num abl-tab-count">{{ state.reseed.length }}</span>
             </button>
-            <button type="button" class="abl-tab" :class="{ active: state.activeTab === 'summary' }" @click="click.setTab('summary')">
+            <button type="button" class="abl-tab" :class="{ active: state.activeTab === 'summary' }"
+              @click="click.setTab('summary')">
               <span>各彩種摘要</span>
               <span class="admin-num abl-tab-count">{{ state.summary.length }}</span>
             </button>
@@ -247,8 +250,7 @@ onMounted(() => _actions.fetch())
 <style scoped lang="scss">
 .abl-layout {
   display: flex;
-  gap: 40px;
-  align-items: flex-start;
+  flex-direction: column;
 }
 
 .abl-main {

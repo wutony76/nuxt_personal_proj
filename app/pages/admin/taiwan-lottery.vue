@@ -15,8 +15,7 @@
 <style scoped lang="scss">
 .atl-layout {
   display: flex;
-  gap: 44px;
-  align-items: flex-start;
+  flex-direction: column;
 }
 
 .atl-content {
