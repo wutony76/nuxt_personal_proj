@@ -15,6 +15,7 @@ import {
   type NpcGamePreset,
   type NpcMemberRow,
   type NpcSchedule,
+  type NpcTestPlayResultItem,
   type NpcTimeSlot
 } from '~/services/api'
 import { balanceChangeTypeLabel } from '~/utils/balanceChangeLabel'
@@ -37,7 +38,7 @@ const state = reactive({
     retroScoreMaxPct: 40,
     bgWeight: 75,
     retroWeight: 10,
-    twWeight: 10,
+    twWeight: 80,
     toysWeight: 5,
     bgBetAmountMin: 10,
     bgBetAmountMax: 150
@@ -102,7 +103,11 @@ const state = reactive({
   logCursor: null as string | null,
   logHasMore: false,
   logFilterMemberId: '',
-  logFilterType: 'all' as 'all' | 'game-reward' | 'admin-topup' | 'admin-deduct' | 'other'
+  logFilterType: 'all' as 'all' | 'game-reward' | 'admin-topup' | 'admin-deduct' | 'other',
+  // 測試執行
+  testPlayStatus: 'idle' as AsyncStatus,
+  testPlayError: '',
+  testPlayResults: [] as NpcTestPlayResultItem[]
 })
 
 const SCHEDULE_FIELDS: Array<{ key: keyof NpcSchedule; label: string; suffix: string }> = [
@@ -110,8 +115,8 @@ const SCHEDULE_FIELDS: Array<{ key: keyof NpcSchedule; label: string; suffix: st
   { key: 'retroScoreMinPct', label: '經典遊戲模擬分數下限（全域預設）', suffix: '% of max' },
   { key: 'retroScoreMaxPct', label: '經典遊戲模擬分數上限（全域預設）', suffix: '% of max' },
   { key: 'bgWeight', label: 'BG 彩票權重（全域預設）', suffix: '' },
-  { key: 'retroWeight', label: '經典遊戲權重（全域預設）', suffix: '' },
   { key: 'twWeight', label: '彩運來權重（全域預設）', suffix: '' },
+  { key: 'retroWeight', label: '經典遊戲權重（全域預設）', suffix: '' },
   { key: 'toysWeight', label: '柑仔店櫥仔權重（全域預設）', suffix: '' },
   { key: 'bgBetAmountMin', label: 'BG 單注金額下限（全域預設）', suffix: 'coin' },
   { key: 'bgBetAmountMax', label: 'BG 單注金額上限（全域預設）', suffix: 'coin' }
@@ -563,6 +568,26 @@ const _actions = {
       state.logError = (e as { message?: string })?.message ?? '載入日誌失敗'
       state.logStatus = 'error'
     }
+  },
+
+  /**
+   * 對選取 NPC 的全部勾選遊戲各測試執行一局
+   */
+  testPlayAll: async () => {
+    const userId = state.selectedId
+    if (!userId) return
+    if (state.testPlayStatus === 'loading') return
+    state.testPlayStatus = 'loading'
+    state.testPlayError = ''
+    state.testPlayResults = []
+    try {
+      const res = await api.admin.npc.testPlayAll(userId)
+      state.testPlayResults = res.results
+      state.testPlayStatus = 'success'
+    } catch (e: unknown) {
+      state.testPlayError = (e as { message?: string })?.message ?? '測試執行失敗'
+      state.testPlayStatus = 'error'
+    }
   }
 }
 
@@ -584,6 +609,9 @@ const click = {
     state.memberError = ''
     state.presetError = ''
     state.presetNameDraft = ''
+    state.testPlayStatus = 'idle'
+    state.testPlayResults = []
+    state.testPlayError = ''
   },
   setDetailTab: (tab: 'info' | 'settings' | 'games') => {
     state.detailTab = tab
@@ -625,7 +653,8 @@ const click = {
   setLogFilterType: (t: typeof state.logFilterType) => {
     state.logFilterType = t
     _actions.fetchActivityLog(true)
-  }
+  },
+  testPlayAll: () => _actions.testPlayAll()
 }
 
 const LOG_TYPE_TABS = [
@@ -893,6 +922,46 @@ watch(
                 <span class="np-detail-k">自動儲值</span>
                 <span class="admin-num">{{ selectedMember.topUpAmount.toLocaleString('zh-TW') }}</span>
               </div>
+              <div class="np-test-row">
+                <button
+                  type="button"
+                  class="admin-btn np-test-btn"
+                  :disabled="state.testPlayStatus === 'loading'"
+                  @click="click.testPlayAll()"
+                >
+                  <span v-if="state.testPlayStatus === 'loading'">執行中…</span>
+                  <span v-else>測試</span>
+                </button>
+                <span class="np-test-hint">對此 NPC 的所有勾選遊戲各跑一局，不受排程與每日上限限制</span>
+              </div>
+
+              <!-- 測試結果 -->
+              <div v-if="state.testPlayStatus === 'success'" class="np-test-result">
+                <div class="np-test-result-head">
+                  <span class="np-test-done">✓ 測試完成</span>
+                  <span class="np-test-count">共 {{ state.testPlayResults.length }} 款遊戲</span>
+                </div>
+                <ul class="np-test-list">
+                  <li
+                    v-for="item in state.testPlayResults"
+                    :key="item.compositeKey"
+                    class="np-test-item"
+                    :class="`is-${item.status}`"
+                  >
+                    <span class="np-test-cat admin-en">{{ item.category }}</span>
+                    <span class="np-test-name">{{ item.name }}</span>
+                    <span class="np-test-note admin-en">{{ item.note }}</span>
+                    <span class="np-test-status">
+                      <span v-if="item.status === 'ok'">✓</span>
+                      <span v-else-if="item.status === 'skipped'">–</span>
+                      <span v-else>✗</span>
+                    </span>
+                  </li>
+                </ul>
+              </div>
+              <div v-if="state.testPlayStatus === 'error'" class="np-test-error admin-error">
+                {{ state.testPlayError }}
+              </div>
             </div>
 
             <nav class="np-tabs" aria-label="NPC 會員功能分頁">
@@ -922,8 +991,12 @@ watch(
               <div class="np-overview-list">
                 <span class="np-detail-k">BG 彩票權重</span>
                 <span class="admin-num">{{ selectedMember.bgWeight.toLocaleString('zh-TW') }}</span>
+                <span class="np-detail-k">彩運來權重</span>
+                <span class="admin-num">{{ selectedMember.twWeight.toLocaleString('zh-TW') }}</span>
                 <span class="np-detail-k">經典遊戲權重</span>
                 <span class="admin-num">{{ selectedMember.retroWeight.toLocaleString('zh-TW') }}</span>
+                <span class="np-detail-k">柑仔店櫥仔權重</span>
+                <span class="admin-num">{{ selectedMember.toysWeight.toLocaleString('zh-TW') }}</span>
                 <span class="np-detail-k">BG 單注金額下限</span>
                 <span class="admin-num">{{ selectedMember.bgBetAmountMin.toLocaleString('zh-TW') }}</span>
                 <span class="np-detail-k">BG 單注金額上限</span>
@@ -1094,7 +1167,7 @@ watch(
                 <p v-else class="np-hint">還沒有保存過的遊戲勾選範本。</p>
               </div>
 
-              <div v-for="cat in (['bg', 'retro', 'tw', 'toys'] as const)" :key="cat" class="np-game-section">
+              <div v-for="cat in (['bg', 'tw', 'retro', 'toys'] as const)" :key="cat" class="np-game-section">
                 <div class="np-game-section-head">
                   <span class="np-game-section-title">{{ CATEGORY_LABEL[cat] }}</span>
                   <span v-if="!gamesByCategory[cat]?.some((g) => g.supported)" class="np-game-badge">即將支援</span>
@@ -1332,6 +1405,132 @@ watch(
   gap: 10px;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--line);
+}
+
+.np-test-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.np-test-btn {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 4px 12px;
+  height: 28px;
+  background: #111;
+  color: #fff;
+  border-color: #111;
+
+  &:hover:not(:disabled) {
+    background: #333;
+    border-color: #333;
+  }
+
+  &:disabled {
+    background: #666;
+    border-color: #666;
+    color: #ccc;
+    cursor: not-allowed;
+  }
+}
+
+.np-test-hint {
+  font-size: 11px;
+  color: var(--text-sub, #888);
+  line-height: 1.4;
+}
+
+.np-test-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.np-test-result-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.np-test-done {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--success, #2e7d32);
+}
+
+.np-test-count {
+  font-size: 11px;
+  color: var(--text-sub, #888);
+}
+
+.np-test-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.np-test-item {
+  display: grid;
+  grid-template-columns: 56px 1fr 1fr 20px;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--paper-2, #f5f5f5);
+
+  &.is-ok {
+    .np-test-status { color: var(--success, #2e7d32); }
+  }
+
+  &.is-skipped {
+    opacity: 0.55;
+    .np-test-status { color: var(--text-sub, #888); }
+  }
+
+  &.is-error {
+    background: color-mix(in srgb, var(--danger, #c62828) 8%, transparent);
+    .np-test-status { color: var(--danger, #c62828); }
+  }
+}
+
+.np-test-cat {
+  font-size: 10px;
+  color: var(--text-sub, #888);
+  text-transform: uppercase;
+}
+
+.np-test-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.np-test-note {
+  font-size: 10px;
+  color: var(--text-sub, #888);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.np-test-status {
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.np-test-error {
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 4px;
 }
 
 .np-detail-grid {

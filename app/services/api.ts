@@ -1494,6 +1494,16 @@ export type NpcMemberRow = {
   allowedGames: string[]
 }
 
+/** NPC 測試執行 — 單款遊戲結果 */
+export type NpcTestPlayResultItem = {
+  compositeKey: string
+  category: NpcGameCategory
+  key: string
+  name: string
+  status: 'ok' | 'skipped' | 'error'
+  note: string
+}
+
 /** NPC 活動日誌單筆紀錄 */
 export type NpcActivityLogEntry = {
   id: string
@@ -1917,6 +1927,13 @@ export const api = {
        * @param params.cursor 分頁 cursor（可選）
        * @returns { entries: NpcActivityLogEntry[], nextCursor: string | null }
        */
+      /**
+       * 對指定 NPC 的全部勾選遊戲各測試執行一局
+       * @param userId NPC 會員 id
+       * @returns { results: NpcTestPlayResultItem[] }
+       */
+      testPlayAll: (userId: string) =>
+        $fetch<{ results: NpcTestPlayResultItem[] }>(`/api/admin/npc/members/${userId}/test-play`, { method: 'POST' }),
       listActivityLog: (params?: { memberId?: string; types?: string; cursor?: string }) => {
         const query = new URLSearchParams()
         if (params?.memberId) query.set('memberId', params.memberId)

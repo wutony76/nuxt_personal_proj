@@ -120,7 +120,7 @@ const DEFAULT_SCHEDULE: NpcSchedule = {
   retroScoreMaxPct: 40,
   bgWeight: 75,
   retroWeight: 10,
-  twWeight: 10,
+  twWeight: 80,
   toysWeight: 5,
   bgBetAmountMin: 10,
   bgBetAmountMax: 150
@@ -825,6 +825,106 @@ function _playRandomTw(userId: string): void {
   if (!game) return
   game.playBets(payload, user)
   _addSpent(userId, betAmount)
+}
+
+export type TestPlayResultItem = {
+  compositeKey: string
+  category: NpcGameCategory
+  key: string
+  name: string
+  status: 'ok' | 'skipped' | 'error'
+  note: string
+}
+
+/**
+ * 測試執行：對指定 NPC 的全部勾選遊戲各跑一局，回傳每款結果。
+ * 不受總開關、時段、每日上限、行動節流限制（純測試用途）。
+ * @param userId NPC 會員 id
+ * @returns 每款遊戲的執行結果列表
+ */
+export function testPlayAll(userId: string): TestPlayResultItem[] {
+  const allowed = [..._allowedGamesOf(userId)]
+  const catalog = _fullCatalog()
+  const setting = _memberSettingOf(userId)
+  const results: TestPlayResultItem[] = []
+
+  for (const compositeKey of allowed) {
+    const [cat, key] = compositeKey.split(':') as [NpcGameCategory, string]
+    const meta = catalog.find((g) => g.category === cat && g.key === key)
+    const name = meta?.name ?? key
+
+    try {
+      if (cat === 'retro') {
+        const game = (Storage.retroGames.instances as Record<string, {
+          maxReasonableScore: () => number
+          actions: { record: (userId: string, input: { score: number }) => unknown }
+        } | undefined>)[key]
+        if (!game) {
+          results.push({ compositeKey, category: cat, key, name, status: 'skipped', note: '遊戲未載入' })
+          continue
+        }
+        const pct = setting.retroScoreMinPct + Math.random() * (setting.retroScoreMaxPct - setting.retroScoreMinPct)
+        const score = Math.floor(game.maxReasonableScore() * (pct / 100))
+        game.actions.record(userId, { score })
+        results.push({ compositeKey, category: cat, key, name, status: 'ok', note: `score: ${score}` })
+
+      } else if (cat === 'bg') {
+        const amount = setting.bgBetAmountMin + Math.floor(Math.random() * (setting.bgBetAmountMax - setting.bgBetAmountMin + 1))
+        const payload = buildBgBetPayload(key, amount)
+        if (!payload) {
+          results.push({ compositeKey, category: cat, key, name, status: 'skipped', note: '尚未支援自動 payload' })
+          continue
+        }
+        _topUpIfNeeded(userId, amount, setting)
+        const user = Storage.get.user(userId) as { coin?: number }
+        const game = (Storage.games as Record<string, { playBets: (payload: unknown, user: unknown) => unknown } | undefined>)[key]
+        if (!game) {
+          results.push({ compositeKey, category: cat, key, name, status: 'skipped', note: '遊戲未載入' })
+          continue
+        }
+        game.playBets(payload, user)
+        _addSpent(userId, amount)
+        results.push({ compositeKey, category: cat, key, name, status: 'ok', note: `bet: ${amount} coin` })
+
+      } else if (cat === 'tw') {
+        const built = buildTwBetPayload(key)
+        if (!built) {
+          results.push({ compositeKey, category: cat, key, name, status: 'skipped', note: '尚未支援自動 payload' })
+          continue
+        }
+        _topUpIfNeeded(userId, built.betAmount, setting)
+        const user = Storage.get.user(userId) as { coin?: number }
+        const game = (Storage.games as Record<string, { playBets: (payload: unknown, user: unknown) => unknown } | undefined>)[key]
+        if (!game) {
+          results.push({ compositeKey, category: cat, key, name, status: 'skipped', note: '遊戲未載入或未開盤' })
+          continue
+        }
+        game.playBets(built.payload, user)
+        _addSpent(userId, built.betAmount)
+        results.push({ compositeKey, category: cat, key, name, status: 'ok', note: `bet: ${built.betAmount} coin` })
+
+      } else if (cat === 'toys') {
+        const toyKeys = _allowedKeysOf(userId, 'toys')
+        const minBet = Math.min(...TOY_BET_CHIPS)
+        _topUpIfNeeded(userId, minBet, setting)
+        const spent = playRandomToy(userId, [key])
+        if (spent === null) {
+          results.push({ compositeKey, category: cat, key, name, status: 'skipped', note: '玩法未開放或餘額不足' })
+        } else {
+          _addSpent(userId, spent)
+          results.push({ compositeKey, category: cat, key, name, status: 'ok', note: `bet: ${spent} coin` })
+        }
+        void toyKeys // satisfy linter
+      } else {
+        results.push({ compositeKey, category: cat, key, name, status: 'skipped', note: '未知分類' })
+      }
+    } catch (e: unknown) {
+      const msg = (e as { message?: string })?.message ?? '執行失敗'
+      results.push({ compositeKey, category: cat, key, name, status: 'error', note: msg })
+    }
+  }
+
+  return results
 }
 
 function _playRandomToys(userId: string): void {
