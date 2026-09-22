@@ -50,66 +50,40 @@ type UserLike = {
   }
 }
 
-/**
- * 後台：Game Center F幣 兌換月報
- * @returns 月 KPI + 每日流水 + 每款玩具明細
- */
-export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+type Bucket = {
+  dailyBet: Record<string, number>
+  dailyReward: Record<string, number>
+  gameMap: Record<string, { bet: number; reward: number; count: number }>
+}
 
-  const query = getQuery(event)
-  const month = String(query.month ?? '').trim()
+function _emptyBucket(): Bucket {
+  return { dailyBet: {}, dailyReward: {}, gameMap: {} }
+}
 
-  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
-    throw createError({ statusCode: 400, message: 'month 參數為必填，格式須為 YYYY-MM' })
+function _accumulate(bucket: Bucket, gameName: string, dateStr: string, type: string, amt: number): void {
+  if (!bucket.gameMap[gameName]) bucket.gameMap[gameName] = { bet: 0, reward: 0, count: 0 }
+  bucket.gameMap[gameName].count += 1
+
+  if (type === 'toy-bet') {
+    const spent = Math.abs(amt)
+    bucket.dailyBet[dateStr] = (bucket.dailyBet[dateStr] ?? 0) + spent
+    bucket.gameMap[gameName].bet += spent
+  } else {
+    bucket.dailyReward[dateStr] = (bucket.dailyReward[dateStr] ?? 0) + amt
+    bucket.gameMap[gameName].reward += amt
   }
+}
 
-  // 每日 F幣 流水
-  const dailyBet: Record<string, number> = {}
-  const dailyReward: Record<string, number> = {}
-
-  // 每款遊戲統計
-  const gameMap: Record<string, { bet: number; reward: number; count: number }> = {}
-
-  const users = Storage.users as Record<string, UserLike>
-
-  for (const user of Object.values(users)) {
-    const changes = user?.record?.balanceChanges ?? []
-    for (const ch of changes) {
-      if (ch.type !== 'toy-bet' && ch.type !== 'toy-reward' && ch.type !== 'game-reward') continue
-      const dateStr = tsToDate(ch.createdAt)
-      if (!dateStr.startsWith(month)) continue
-
-      const amt = Number(ch.amount ?? 0)
-      const gameName = extractGameName(ch.note ?? '')
-
-      if (!gameMap[gameName]) gameMap[gameName] = { bet: 0, reward: 0, count: 0 }
-      gameMap[gameName].count += 1
-
-      if (ch.type === 'toy-bet') {
-        // toy-bet 的 amount 是負數（扣除）
-        const spent = Math.abs(amt)
-        dailyBet[dateStr] = (dailyBet[dateStr] ?? 0) + spent
-        gameMap[gameName].bet += spent
-      } else {
-        // toy-reward / game-reward 是正數（獲得）
-        dailyReward[dateStr] = (dailyReward[dateStr] ?? 0) + amt
-        gameMap[gameName].reward += amt
-      }
-    }
-  }
-
-  const totalBet = Object.values(dailyBet).reduce((a, b) => a + b, 0)
-  const totalReward = Object.values(dailyReward).reduce((a, b) => a + b, 0)
-
+function _summarize(bucket: Bucket, month: string) {
+  const totalBet = Object.values(bucket.dailyBet).reduce((a, b) => a + b, 0)
+  const totalReward = Object.values(bucket.dailyReward).reduce((a, b) => a + b, 0)
   const days = getDaysInMonth(month)
   const dailyFlow = days.map((day) => ({
     day,
-    bet: dailyBet[day] ?? 0,
-    reward: dailyReward[day] ?? 0,
+    bet: bucket.dailyBet[day] ?? 0,
+    reward: bucket.dailyReward[day] ?? 0,
   }))
-
-  const perGame = Object.entries(gameMap)
+  const perGame = Object.entries(bucket.gameMap)
     .map(([name, v]) => ({
       name,
       category: categorize(name),
@@ -121,12 +95,58 @@ export default defineEventHandler((event) => {
     .sort((a, b) => b.bet - a.bet)
 
   return {
-    month,
     totalBet: Math.round(totalBet * 100) / 100,
     totalReward: Math.round(totalReward * 100) / 100,
     netFlow: Math.round((totalReward - totalBet) * 100) / 100,
     dailyFlow,
     perGame,
-    dataNote: '資料為 in-memory，伺服器重啟後清空。統計 toy-bet、toy-reward、game-reward 三類 F幣 流水。',
+  }
+}
+
+/**
+ * 後台：Game Center F幣 兌換月報
+ * @returns 月 KPI + 每日流水 + 每款玩具明細（含 npc 子物件：僅 NPC 角色會員的同形狀統計）
+ */
+export default defineEventHandler((event) => {
+  sessionController.requireAdmin(event)
+
+  const query = getQuery(event)
+  const month = String(query.month ?? '').trim()
+
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    throw createError({ statusCode: 400, message: 'month 參數為必填，格式須為 YYYY-MM' })
+  }
+
+  const allBucket = _emptyBucket()
+  const npcBucket = _emptyBucket()
+
+  const users = Storage.users as Record<string, UserLike>
+  const access = Storage.manager.admin.access
+
+  for (const [userId, user] of Object.entries(users)) {
+    const isNpc = access.roleOf(userId) === 'npc'
+    const changes = user?.record?.balanceChanges ?? []
+    for (const ch of changes) {
+      if (ch.type !== 'toy-bet' && ch.type !== 'toy-reward' && ch.type !== 'game-reward') continue
+      const dateStr = tsToDate(ch.createdAt)
+      if (!dateStr.startsWith(month)) continue
+
+      const amt = Number(ch.amount ?? 0)
+      const gameName = extractGameName(ch.note ?? '')
+
+      _accumulate(allBucket, gameName, dateStr, ch.type, amt)
+      if (isNpc) _accumulate(npcBucket, gameName, dateStr, ch.type, amt)
+    }
+  }
+
+  const all = _summarize(allBucket, month)
+  const npc = _summarize(npcBucket, month)
+
+  return {
+    month,
+    ...all,
+    npc,
+    dataNote: '資料為 in-memory，伺服器重啟後清空。統計 toy-bet、toy-reward、game-reward 三類 F幣 流水；'
+      + '以上數字為全部會員（含 NPC）合計，npc 欄位是其中 NPC 角色會員的部分。',
   }
 })

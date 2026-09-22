@@ -5,6 +5,7 @@ import { adminAccessService } from './modules/adminAccess'
 import { memberBalanceHistoryService } from './modules/memberBalanceHistory'
 import { roleDefsService } from './modules/roleDefs'
 import { roleGamePermsService } from './modules/roleGamePerms'
+import { npcAutoPlayService } from './modules/npcAutoPlay'
 
 /**
  * 後台會員／權限／聊天室管理入口：不分遊戲類別的後台功能掛在這裡。
@@ -21,6 +22,7 @@ export default class HFYYManage {
   readonly balanceHistory = memberBalanceHistoryService
   readonly loginHistory = loginHistoryService
   readonly chatSchedule = chatScheduleService
+  readonly npcAutoPlay = npcAutoPlayService
 
   constructor() {
     // 改由 Storage.init() 明確呼叫 init()，建構子不自己呼叫，避免重複執行
@@ -33,6 +35,7 @@ export default class HFYYManage {
   }
   circle() {
     this.chatSchedule.tick()
+    this.npcAutoPlay.tick()
   }
 
   setStartData() {

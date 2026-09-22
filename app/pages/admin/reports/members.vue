@@ -124,7 +124,7 @@ onMounted(() => _actions.fetch())
               <h2>熱門</h2>
               <span class="admin-meta admin-tag">BG</span>
             </div>
-            <span class="admin-meta">{{ summary.month }}</span>
+            <span class="admin-meta">{{ summary.month }}（其中 NPC {{ summary.npc.bg.totalPlayers }} 人）</span>
           </div>
           <div v-if="!summary.bg.gameRanking.length" class="admin-empty">本月無 BG 會員遊玩紀錄</div>
           <template v-else>
@@ -165,7 +165,7 @@ onMounted(() => _actions.fetch())
               <h2>熱門</h2>
               <span class="admin-meta admin-tag">TW</span>
             </div>
-            <span class="admin-meta">{{ summary.month }}</span>
+            <span class="admin-meta">{{ summary.month }}（其中 NPC {{ summary.npc.tw.totalPlayers }} 人）</span>
           </div>
           <div v-if="!summary.tw.gameRanking.length" class="admin-empty">本月無台彩會員遊玩紀錄</div>
           <template v-else>
@@ -206,7 +206,7 @@ onMounted(() => _actions.fetch())
               <h2>熱門</h2>
               <span class="admin-meta admin-tag">GAME</span>
             </div>
-            <span class="admin-meta">{{ summary.month }}</span>
+            <span class="admin-meta">{{ summary.month }}（其中 NPC {{ summary.npc.game.totalPlayers }} 人）</span>
           </div>
           <div v-if="!summary.game.gameRanking.length" class="admin-empty">本月無小遊戲遊玩紀錄</div>
           <template v-else>

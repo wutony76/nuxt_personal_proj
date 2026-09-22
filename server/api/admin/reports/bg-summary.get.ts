@@ -6,7 +6,7 @@ import { Storage } from 'serv/services/storage'
  * GET /api/admin/reports/bg-summary?month=YYYY-MM
  *
  * @param month 月份字串，格式 YYYY-MM（必填）
- * @returns 月度 KPI、每日銷售、彩種排行、玩法排行
+ * @returns 月度 KPI、每日銷售、彩種排行、玩法排行（含 npc 子物件：僅 NPC 角色會員的同形狀統計）
  */
 
 /** 彩種 key → 顯示名稱對照表 */
@@ -155,91 +155,29 @@ function getDaysInMonth(month: string): string[] {
   return days
 }
 
-export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+type OrderRow = { issue: string; userId?: string; coin: number; playKey?: string; createdAt?: number }
 
-  const query = getQuery(event)
-  const month = String(query.month ?? '').trim()
+type Bucket = {
+  dailyMap: Record<string, number>
+  gameMap: Record<string, { sales: number; orders: number }>
+  playMap: Record<string, { sales: number; orders: number }>
+  twDailyMap: Record<string, number>
+  twGameMap: Record<string, { sales: number; orders: number }>
+}
 
-  // 驗證 month 格式
-  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
-    throw createError({ statusCode: 400, message: 'month 參數為必填，格式須為 YYYY-MM' })
-  }
+function _emptyBucket(): Bucket {
+  return { dailyMap: {}, gameMap: {}, playMap: {}, twDailyMap: {}, twGameMap: {} }
+}
 
-  const ordersMap = Storage.lottery.orders as Record<string, { orders: Record<string, Array<{ issue: string; coin: number; playKey?: string; createdAt?: number }>> }>
-
-  // ── 輔助：毫秒 ts → YYYY-MM-DD ──────────────────────────────────────
-  function tsToDate(ts: number): string {
-    const d = new Date(ts)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }
-
-  // 按日期聚合（BG 彩票，issue 帶日期可按月篩選）
-  const dailyMap: Record<string, number> = {}
-  const gameMap: Record<string, { sales: number; orders: number }> = {}
-  const playMap: Record<string, { sales: number; orders: number }> = {}
-
-  // 台彩（用 createdAt 按月篩選）
-  const twDailyMap: Record<string, number> = {}
-  const twGameMap: Record<string, { sales: number; orders: number }> = {}
-
-  for (const [gameKey, instance] of Object.entries(ordersMap)) {
-    if (!instance || typeof instance.orders !== 'object') continue
-    const isTw = TW_LOTTERY_KEYS.has(gameKey)
-    for (const [_issue, orderRows] of Object.entries(instance.orders)) {
-      if (!Array.isArray(orderRows)) continue
-      for (const row of orderRows) {
-        const coin = Number(row.coin ?? 0)
-        if (!Number.isFinite(coin) || coin <= 0) continue
-
-        // ── 台彩：使用 createdAt 篩月份 ──
-        if (isTw) {
-          const ts = Number(row.createdAt ?? 0)
-          if (!ts) continue
-          const dateStr = tsToDate(ts)
-          if (!dateStr.startsWith(month)) continue
-          twDailyMap[dateStr] = (twDailyMap[dateStr] ?? 0) + coin
-          if (!twGameMap[gameKey]) twGameMap[gameKey] = { sales: 0, orders: 0 }
-          twGameMap[gameKey].sales += coin
-          twGameMap[gameKey].orders += 1
-          continue
-        }
-
-        // ── BG 彩票：使用 issue 前 8 碼篩月份 ──
-        const dateStr = parseIssueDate(row.issue ?? _issue)
-        if (!dateStr) continue
-        if (!dateStr.startsWith(month)) continue
-
-        // 每日銷售
-        dailyMap[dateStr] = (dailyMap[dateStr] ?? 0) + coin
-
-        // 彩種排行
-        if (!gameMap[gameKey]) gameMap[gameKey] = { sales: 0, orders: 0 }
-        gameMap[gameKey].sales += coin
-        gameMap[gameKey].orders += 1
-
-        // 玩法排行（只統計有 playKey 的）
-        const pk = String(row.playKey ?? '').trim()
-        if (pk) {
-          if (!playMap[pk]) playMap[pk] = { sales: 0, orders: 0 }
-          playMap[pk].sales += coin
-          playMap[pk].orders += 1
-        }
-      }
-    }
-  }
-
-  const totalSales = Object.values(dailyMap).reduce((a, b) => a + b, 0)
-  const totalOrders = Object.values(gameMap).reduce((a, b) => a + b.orders, 0)
+function _summarize(bucket: Bucket, month: string, days: string[]) {
+  const totalSales = Object.values(bucket.dailyMap).reduce((a, b) => a + b, 0)
+  const totalOrders = Object.values(bucket.gameMap).reduce((a, b) => a + b.orders, 0)
   const commission = Math.round(totalSales * 0.07)
 
-  // 當月每日銷售（所有日期都要，無資料的補 0）
-  const days = getDaysInMonth(month)
-  const dailySales = days.map((day) => ({ day, sales: dailyMap[day] ?? 0 }))
+  const dailySales = days.map((day) => ({ day, sales: bucket.dailyMap[day] ?? 0 }))
 
-  // 彩種排行
   const totalSalesForRatio = totalSales || 1
-  const gameRanking = Object.entries(gameMap)
+  const gameRanking = Object.entries(bucket.gameMap)
     .map(([key, v]) => ({
       key,
       name: GAME_NAMES[key] ?? key,
@@ -249,9 +187,8 @@ export default defineEventHandler((event) => {
     }))
     .sort((a, b) => b.sales - a.sales)
 
-  // 玩法排行
-  const totalPlaySales = Object.values(playMap).reduce((a, b) => a + b.sales, 0) || 1
-  const playRanking = Object.entries(playMap)
+  const totalPlaySales = Object.values(bucket.playMap).reduce((a, b) => a + b.sales, 0) || 1
+  const playRanking = Object.entries(bucket.playMap)
     .map(([key, v]) => ({
       key,
       name: PLAY_NAMES[key] ?? key,
@@ -261,15 +198,13 @@ export default defineEventHandler((event) => {
     }))
     .sort((a, b) => b.sales - a.sales)
 
-  // 台彩月排行
-  const twTotalSales = Object.values(twGameMap).reduce((a, b) => a + b.sales, 0)
-  const twTotalOrders = Object.values(twGameMap).reduce((a, b) => a + b.orders, 0)
+  const twTotalSales = Object.values(bucket.twGameMap).reduce((a, b) => a + b.sales, 0)
+  const twTotalOrders = Object.values(bucket.twGameMap).reduce((a, b) => a + b.orders, 0)
   const twTotalSalesForRatio = twTotalSales || 1
-  const twDailySales = days.map((day) => ({ day, sales: twDailyMap[day] ?? 0 }))
-  // 補齊所有已註冊的台彩玩法（含本月尚無下注紀錄的），不是只列出有資料的
+  const twDailySales = days.map((day) => ({ day, sales: bucket.twDailyMap[day] ?? 0 }))
   const twGameRanking = Object.keys(TW_GAME_NAMES)
     .map((key) => {
-      const v = twGameMap[key] ?? { sales: 0, orders: 0 }
+      const v = bucket.twGameMap[key] ?? { sales: 0, orders: 0 }
       return {
         key,
         name: TW_GAME_NAMES[key] ?? key,
@@ -281,7 +216,6 @@ export default defineEventHandler((event) => {
     .sort((a, b) => b.sales - a.sales)
 
   return {
-    month,
     totalSales,
     totalOrders,
     commission,
@@ -294,6 +228,86 @@ export default defineEventHandler((event) => {
       dailySales: twDailySales,
       gameRanking: twGameRanking,
     },
-    dataNote: '資料為 in-memory，伺服器重啟後清空。BG 彩票依 issue 日期篩選；台彩依下注時間（createdAt）篩選。',
+  }
+}
+
+export default defineEventHandler((event) => {
+  sessionController.requireAdmin(event)
+
+  const query = getQuery(event)
+  const month = String(query.month ?? '').trim()
+
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    throw createError({ statusCode: 400, message: 'month 參數為必填，格式須為 YYYY-MM' })
+  }
+
+  const ordersMap = Storage.lottery.orders as Record<string, { orders: Record<string, OrderRow[]> }>
+  const access = Storage.manager.admin.access
+
+  function tsToDate(ts: number): string {
+    const d = new Date(ts)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
+  const allBucket = _emptyBucket()
+  const npcBucket = _emptyBucket()
+
+  for (const [gameKey, instance] of Object.entries(ordersMap)) {
+    if (!instance || typeof instance.orders !== 'object') continue
+    const isTw = TW_LOTTERY_KEYS.has(gameKey)
+    for (const [_issue, orderRows] of Object.entries(instance.orders)) {
+      if (!Array.isArray(orderRows)) continue
+      for (const row of orderRows) {
+        const coin = Number(row.coin ?? 0)
+        if (!Number.isFinite(coin) || coin <= 0) continue
+        const isNpc = access.roleOf(String(row.userId ?? '')) === 'npc'
+        const targets = isNpc ? [allBucket, npcBucket] : [allBucket]
+
+        if (isTw) {
+          const ts = Number(row.createdAt ?? 0)
+          if (!ts) continue
+          const dateStr = tsToDate(ts)
+          if (!dateStr.startsWith(month)) continue
+          for (const bucket of targets) {
+            bucket.twDailyMap[dateStr] = (bucket.twDailyMap[dateStr] ?? 0) + coin
+            if (!bucket.twGameMap[gameKey]) bucket.twGameMap[gameKey] = { sales: 0, orders: 0 }
+            bucket.twGameMap[gameKey].sales += coin
+            bucket.twGameMap[gameKey].orders += 1
+          }
+          continue
+        }
+
+        const dateStr = parseIssueDate(row.issue ?? _issue)
+        if (!dateStr) continue
+        if (!dateStr.startsWith(month)) continue
+
+        for (const bucket of targets) {
+          bucket.dailyMap[dateStr] = (bucket.dailyMap[dateStr] ?? 0) + coin
+
+          if (!bucket.gameMap[gameKey]) bucket.gameMap[gameKey] = { sales: 0, orders: 0 }
+          bucket.gameMap[gameKey].sales += coin
+          bucket.gameMap[gameKey].orders += 1
+
+          const pk = String(row.playKey ?? '').trim()
+          if (pk) {
+            if (!bucket.playMap[pk]) bucket.playMap[pk] = { sales: 0, orders: 0 }
+            bucket.playMap[pk].sales += coin
+            bucket.playMap[pk].orders += 1
+          }
+        }
+      }
+    }
+  }
+
+  const days = getDaysInMonth(month)
+  const all = _summarize(allBucket, month, days)
+  const npc = _summarize(npcBucket, month, days)
+
+  return {
+    month,
+    ...all,
+    npc,
+    dataNote: '資料為 in-memory，伺服器重啟後清空。BG 彩票依 issue 日期篩選；台彩依下注時間'
+      + '（createdAt）篩選。以上數字為全部會員（含 NPC）合計，npc 欄位是其中 NPC 角色會員的部分。',
   }
 })

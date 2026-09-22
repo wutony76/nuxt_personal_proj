@@ -13,7 +13,7 @@ import { useAdminAuth } from '~/composables/useAdminAuth'
 const { $dialog } = useNuxtApp()
 
 const props = defineProps<{
-  active: 'overview' | 'roles' | 'gamemgmt' | 'reports'
+  active: 'overview' | 'roles' | 'gamemgmt' | 'npc' | 'reports'
   kicker: string
   title: string
   desc: string
@@ -43,6 +43,7 @@ const NAV = [
   { key: 'overview' as const, label: '總覽', en: 'Overview', path: '/admin' },
   { key: 'roles' as const, label: '角色 / 權限', en: 'Roles', path: '/admin/roles' },
   { key: 'gamemgmt' as const, label: '遊戲設定', en: 'Games', path: '/admin/bg-lottery' },
+  { key: 'npc' as const, label: 'NPC', en: 'NPC', path: '/admin/npc' },
   { key: 'reports' as const, label: '資料統計', en: 'Reports', path: '/admin/reports' }
 ]
 

@@ -134,7 +134,12 @@ onMounted(() => _actions.fetch())
           <div class="afc-kpi admin-panel">
             <div class="admin-en">F Coin Exchanged</div>
             <div class="afc-kpi-num admin-num">{{ _fmt.coin(summary.totalReward) }}</div>
-            <div class="afc-kpi-label">換 F幣</div>
+            <div class="afc-kpi-label">換 F幣（含 NPC）</div>
+          </div>
+          <div class="afc-kpi admin-panel">
+            <div class="admin-en">NPC F Coin Exchanged</div>
+            <div class="afc-kpi-num admin-num">{{ _fmt.coin(summary.npc.totalReward) }}</div>
+            <div class="afc-kpi-label">其中 NPC 換 F幣</div>
           </div>
         </div>
 
@@ -236,8 +241,8 @@ onMounted(() => _actions.fetch())
 }
 
 .afc-kpi-grid {
-  grid-template-columns: 1fr;
-  max-width: 320px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 480px;
   margin-bottom: 40px;
 }
 

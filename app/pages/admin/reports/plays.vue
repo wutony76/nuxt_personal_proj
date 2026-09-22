@@ -205,7 +205,7 @@ onMounted(() => _actions.fetch())
               <h2>彩種排行</h2>
               <span class="admin-meta admin-tag">BG</span>
             </div>
-            <span class="admin-meta">{{ summary.month }}</span>
+            <span class="admin-meta">{{ summary.month }}（其中 NPC 銷售額 {{ _fmt.coin(summary.npc.totalSales) }}）</span>
           </div>
 
           <div v-if="!summary.gameRanking.length" class="admin-empty">

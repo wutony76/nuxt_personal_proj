@@ -1267,8 +1267,7 @@ export type BgReportSummaryTwTotal = {
   gameRanking: BgReportSummaryGameItem[]
 }
 
-export type BgReportSummary = {
-  month: string
+export type BgReportSummaryBucket = {
   totalSales: number
   totalOrders: number
   commission: number
@@ -1276,6 +1275,12 @@ export type BgReportSummary = {
   gameRanking: BgReportSummaryGameItem[]
   playRanking: BgReportSummaryGameItem[]
   twTotal: BgReportSummaryTwTotal
+}
+
+export type BgReportSummary = BgReportSummaryBucket & {
+  month: string
+  /** 僅 NPC 角色會員的同形狀統計；上方欄位是全部會員（含 NPC）合計 */
+  npc: BgReportSummaryBucket
   dataNote: string
 }
 
@@ -1294,13 +1299,18 @@ export type FcoinSummaryGameItem = {
   count: number
 }
 
-export type FcoinSummary = {
-  month: string
+export type FcoinSummaryBucket = {
   totalBet: number
   totalReward: number
   netFlow: number
   dailyFlow: FcoinSummaryDailyItem[]
   perGame: FcoinSummaryGameItem[]
+}
+
+export type FcoinSummary = FcoinSummaryBucket & {
+  month: string
+  /** 僅 NPC 角色會員的同形狀統計；上方欄位是全部會員（含 NPC）合計 */
+  npc: FcoinSummaryBucket
   dataNote: string
 }
 
@@ -1318,6 +1328,13 @@ export type TwLotteryPayoutRecordItem = {
   key: string
   name: string
   amount: number
+  isNpc: boolean
+}
+
+export type TwLotteryPayoutNpcBucket = {
+  totalPayout: number
+  totalCount: number
+  perGame: TwLotteryPayoutGameItem[]
 }
 
 export type TwLotteryPayoutSummary = {
@@ -1326,6 +1343,8 @@ export type TwLotteryPayoutSummary = {
   totalCount: number
   perGame: TwLotteryPayoutGameItem[]
   records: TwLotteryPayoutRecordItem[]
+  /** 僅 NPC 角色會員的同形狀統計；上方欄位是全部會員（含 NPC）合計 */
+  npc: TwLotteryPayoutNpcBucket
   dataNote: string
 }
 
@@ -1346,6 +1365,12 @@ export type MemberSummary = {
   bg: MemberCategorySummary
   tw: MemberCategorySummary
   game: MemberCategorySummary
+  /** 僅 NPC 角色會員的同形狀統計；上方欄位是全部會員（含 NPC）合計 */
+  npc: {
+    bg: MemberCategorySummary
+    tw: MemberCategorySummary
+    game: MemberCategorySummary
+  }
   dataNote: string
 }
 
@@ -1402,6 +1427,85 @@ export type RoleGamePerm = {
   key: string
   name: string
   enabled: boolean
+}
+
+/** NPC 自動遊玩四分類：'bg'／'retro' 已支援，'tw'／'toys' 標記即將支援 */
+export type NpcGameCategory = GameCategory | 'toys'
+
+/** NPC 自動遊玩可勾選的遊戲項目（全站共用清單，實際勾選狀態是每個 NPC 會員各自的，見 NpcMemberRow.allowedGames） */
+export type NpcGameItem = {
+  category: NpcGameCategory
+  key: string
+  name: string
+  supported: boolean
+}
+
+/**
+ * NPC 自動遊玩全域排程參數（排程間隔、經典遊戲模擬分數區間、玩法權重與 BG 單注金額
+ * 區間的全域預設值）。玩法權重／單注金額：NPC 會員沒自訂過就套用這裡的全域值，
+ * 自訂過就固定用自己的值（見 NpcMemberRow）。
+ */
+export type NpcSchedule = {
+  tickIntervalSec: number
+  retroScoreMinPct: number
+  retroScoreMaxPct: number
+  bgWeight: number
+  retroWeight: number
+  bgBetAmountMin: number
+  bgBetAmountMax: number
+}
+
+/** NPC 自動遊玩時段（24 小時分 5 段），每個 NPC 可複選允許遊玩的時段 */
+export type NpcTimeSlot = {
+  id: string
+  label: string
+  startHour: number
+  endHour: number
+}
+
+/** NPC 會員列表列（每日花費上限/自動儲值/經典遊戲模擬分數區間/玩法權重/BG 單注金額區間/允許遊玩時段/遊戲頻率與隨機延遲/今日已花費/這個 NPC 自己勾選的遊戲，皆各自獨立） */
+export type NpcMemberRow = {
+  id: string
+  name: string
+  email: string
+  coin: number
+  dailyMaxSpend: number
+  topUpAmount: number
+  retroScoreMinPct: number
+  retroScoreMaxPct: number
+  bgWeight: number
+  retroWeight: number
+  bgBetAmountMin: number
+  bgBetAmountMax: number
+  /** NpcTimeSlot.id 陣列 */
+  activeTimeSlots: string[]
+  /** 遊戲頻率：兩次行動至少間隔幾秒 */
+  actionIntervalSec: number
+  /** 間隔到了之後，幾 % 機率再加一段隨機延遲 */
+  actionJitterChancePct: number
+  /** 隨機延遲的秒數上限 */
+  actionJitterMaxSec: number
+  spentToday: number
+  /** composite key `${category}:${key}` */
+  allowedGames: string[]
+}
+
+/** 保存下來的「遊戲勾選」範本，可套用到任一 NPC（快選） */
+export type NpcGamePreset = {
+  id: string
+  name: string
+  /** composite key `${category}:${key}` 陣列 */
+  allowedGames: string[]
+  createdAt: number
+}
+
+export type NpcSettings = {
+  enabled: boolean
+  schedule: NpcSchedule
+  games: NpcGameItem[]
+  timeSlots: NpcTimeSlot[]
+  gamePresets: NpcGamePreset[]
+  members: NpcMemberRow[]
 }
 
 /** 後台會員登入紀錄 */
@@ -1735,6 +1839,49 @@ export const api = {
         $fetch<ToyShopOddsItem>(`/api/admin/toy-shop/odds/${slug}`, { method: 'PUT', body: input }),
       setGameEnabled: (slug: string, enabled: boolean) =>
         $fetch<ToyShopOddsItem>(`/api/admin/toy-shop/games/${slug}`, { method: 'PATCH', body: { enabled } })
+    },
+    npc: {
+      settings: () => $fetch<NpcSettings>('/api/admin/npc/settings'),
+      updateSettings: (input: { enabled?: boolean; schedule?: Partial<NpcSchedule> }) =>
+        $fetch<{ enabled: boolean; schedule: NpcSchedule }>('/api/admin/npc/settings', { method: 'PATCH', body: input }),
+      setMemberSetting: (userId: string, input: {
+        dailyMaxSpend?: number
+        topUpAmount?: number
+        retroScoreMinPct?: number
+        retroScoreMaxPct?: number
+        bgWeight?: number
+        retroWeight?: number
+        bgBetAmountMin?: number
+        bgBetAmountMax?: number
+        activeTimeSlots?: string[]
+        actionIntervalSec?: number
+        actionJitterChancePct?: number
+        actionJitterMaxSec?: number
+      }) =>
+        $fetch<{
+          dailyMaxSpend: number
+          topUpAmount: number
+          retroScoreMinPct: number
+          retroScoreMaxPct: number
+          bgWeight: number
+          retroWeight: number
+          bgBetAmountMin: number
+          bgBetAmountMax: number
+          activeTimeSlots: string[]
+          actionIntervalSec: number
+          actionJitterChancePct: number
+          actionJitterMaxSec: number
+        }>(`/api/admin/npc/members/${userId}/settings`, { method: 'PATCH', body: input }),
+      setMemberGameAllowed: (userId: string, category: NpcGameCategory, key: string, allowed: boolean) =>
+        $fetch<{ allowedGames: string[] }>(`/api/admin/npc/members/${userId}/games/${category}/${key}`, { method: 'PUT', body: { allowed } }),
+      setMemberGamesBulk: (userId: string, category: NpcGameCategory, allowed: boolean) =>
+        $fetch<{ allowedGames: string[] }>(`/api/admin/npc/members/${userId}/games/bulk`, { method: 'PUT', body: { category, allowed } }),
+      saveGamePreset: (name: string, allowedGames: string[]) =>
+        $fetch<NpcGamePreset>('/api/admin/npc/game-presets', { method: 'POST', body: { name, allowedGames } }),
+      deleteGamePreset: (id: string) =>
+        $fetch<{ ok: boolean }>(`/api/admin/npc/game-presets/${id}`, { method: 'DELETE' }),
+      applyGamePreset: (userId: string, presetId: string) =>
+        $fetch<{ allowedGames: string[] }>(`/api/admin/npc/members/${userId}/games/apply-preset`, { method: 'PUT', body: { presetId } })
     },
     reports: {
       /**

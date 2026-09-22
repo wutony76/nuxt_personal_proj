@@ -8,6 +8,7 @@ import { Storage } from 'serv/services/storage'
  * 統計「當月至少玩過一次的不重複會員數」（依 userId 去重，同一人玩多次也只算一次），
  * 分 BG（彩票）／TW（台彩）／GAME（game-hall 像素小遊戲）三類，各自算出每款玩法的人數排行。
  * 跟 bg-summary.get.ts 的「銷售額排行」是不同維度（那邊看金額，這邊看人數）。
+ * `npc` 子物件是僅 NPC 角色會員的同形狀統計，上方欄位是全部會員（含 NPC）合計。
  *
  * @param month 月份字串，格式 YYYY-MM（必填）
  */
@@ -87,6 +88,17 @@ function buildRanking(playerSets: Record<string, Set<string>>, nameOf: (key: str
   return { totalPlayers: allPlayers.size, gameRanking }
 }
 
+/** 從「每款玩法 → 不重複 userId 集合」篩出僅 NPC 角色會員的子集合 */
+function filterNpc(playerSets: Record<string, Set<string>>, isNpc: (userId: string) => boolean): Record<string, Set<string>> {
+  const out: Record<string, Set<string>> = {}
+  for (const [key, set] of Object.entries(playerSets)) {
+    const npcSet = new Set<string>()
+    set.forEach((userId) => { if (isNpc(userId)) npcSet.add(userId) })
+    out[key] = npcSet
+  }
+  return out
+}
+
 export default defineEventHandler((event) => {
   sessionController.requireAdmin(event)
 
@@ -95,6 +107,9 @@ export default defineEventHandler((event) => {
   if (!month || !/^\d{4}-\d{2}$/.test(month)) {
     throw createError({ statusCode: 400, message: 'month 參數為必填，格式須為 YYYY-MM' })
   }
+
+  const access = Storage.manager.admin.access
+  const isNpc = (userId: string) => access.roleOf(userId) === 'npc'
 
   // ── BG／TW：從彩票訂單去重 userId ──────────────────────────────────────
   const ordersMap = Storage.lottery.orders as Record<
@@ -151,6 +166,11 @@ export default defineEventHandler((event) => {
     bg: buildRanking(bgPlayers, (key) => GAME_NAMES[key] ?? key),
     tw: buildRanking(twPlayers, (key) => TW_GAME_NAMES[key] ?? key),
     game: buildRanking(gamePlayers, (key) => instancesMap[key]?.name ?? key),
-    dataNote: '資料為 in-memory，伺服器重啟後清空。「人數」為當月至少玩過一次的不重複會員數（依 userId 去重，同一人玩多次也只算一次；同一人玩多款玩法會分別計入各款，故加總可能大於當類別總人數）。BG 依 issue 日期篩選；台彩依下注時間（createdAt）篩選；GAME 依遊玩時間（playedAt）篩選。',
+    npc: {
+      bg: buildRanking(filterNpc(bgPlayers, isNpc), (key) => GAME_NAMES[key] ?? key),
+      tw: buildRanking(filterNpc(twPlayers, isNpc), (key) => TW_GAME_NAMES[key] ?? key),
+      game: buildRanking(filterNpc(gamePlayers, isNpc), (key) => instancesMap[key]?.name ?? key),
+    },
+    dataNote: '資料為 in-memory，伺服器重啟後清空。「人數」為當月至少玩過一次的不重複會員數（依 userId 去重，同一人玩多次也只算一次；同一人玩多款玩法會分別計入各款，故加總可能大於當類別總人數）。BG 依 issue 日期篩選；台彩依下注時間（createdAt）篩選；GAME 依遊玩時間（playedAt）篩選。以上數字為全部會員（含 NPC）合計，npc 欄位是其中 NPC 角色會員的部分。',
   }
 })

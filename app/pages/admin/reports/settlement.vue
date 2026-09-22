@@ -96,6 +96,11 @@ onMounted(() => _actions.fetch())
                 <span class="ase-card-note">目前資料不支援月度兌獎彙整，詳見各彩票玩法頁的玩家紀錄</span>
               </div>
             </div>
+            <div class="ase-card admin-panel">
+              <div class="admin-en">NPC Sales Revenue</div>
+              <div class="ase-card-num admin-num">{{ _fmt.coin(summary.npc.totalSales) }}</div>
+              <div class="ase-card-label">其中 NPC 銷售收入</div>
+            </div>
           </div>
         </div>
 
