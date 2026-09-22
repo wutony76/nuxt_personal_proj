@@ -1490,6 +1490,20 @@ export type NpcMemberRow = {
   allowedGames: string[]
 }
 
+/** NPC 活動日誌單筆紀錄 */
+export type NpcActivityLogEntry = {
+  id: string
+  memberId: string
+  memberName: string
+  type: string
+  amount: number
+  before: number
+  after: number
+  note: string
+  issue: string
+  createdAt: number
+}
+
 /** 保存下來的「遊戲勾選」範本，可套用到任一 NPC（快選） */
 export type NpcGamePreset = {
   id: string
@@ -1887,7 +1901,24 @@ export const api = {
       setNameWords: (words: string[]) =>
         $fetch<{ nameWords: string[] }>('/api/admin/npc/name-words', { method: 'PATCH', body: { words } }),
       autoCreateMember: () =>
-        $fetch<{ user: AdminAccessUser }>('/api/admin/npc/members/auto-create', { method: 'POST' })
+        $fetch<{ user: AdminAccessUser }>('/api/admin/npc/members/auto-create', { method: 'POST' }),
+      /**
+       * 查詢所有 NPC 活動日誌
+       * @param params.memberId 篩選特定 NPC（可選）
+       * @param params.types 逗號分隔的異動類型（可選）
+       * @param params.cursor 分頁 cursor（可選）
+       * @returns { entries: NpcActivityLogEntry[], nextCursor: string | null }
+       */
+      listActivityLog: (params?: { memberId?: string; types?: string; cursor?: string }) => {
+        const query = new URLSearchParams()
+        if (params?.memberId) query.set('memberId', params.memberId)
+        if (params?.types) query.set('types', params.types)
+        if (params?.cursor) query.set('cursor', params.cursor)
+        const qs = query.toString()
+        return $fetch<{ entries: NpcActivityLogEntry[]; nextCursor: string | null }>(
+          `/api/admin/npc/activity-log${qs ? `?${qs}` : ''}`
+        )
+      }
     },
     reports: {
       /**

@@ -110,8 +110,8 @@ const DEFAULT_SCHEDULE: NpcSchedule = {
   tickIntervalSec: 30,
   retroScoreMinPct: 10,
   retroScoreMaxPct: 40,
-  bgWeight: 50,
-  retroWeight: 50,
+  bgWeight: 75,
+  retroWeight: 10,
   bgBetAmountMin: 10,
   bgBetAmountMax: 150
 }

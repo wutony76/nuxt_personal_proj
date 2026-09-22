@@ -9,6 +9,7 @@ import {
   api,
   type AdminMemberBalanceChange,
   type AdminMemberLoginRecord,
+  type NpcActivityLogEntry,
   type NpcGameCategory,
   type NpcGameItem,
   type NpcGamePreset,
@@ -89,7 +90,15 @@ const state = reactive({
   presetSaving: false,
   presetError: '',
   presetApplyingId: null as string | null,
-  presetDeletingId: null as string | null
+  presetDeletingId: null as string | null,
+  // 活動日誌
+  logStatus: 'idle' as AsyncStatus,
+  logError: '',
+  logEntries: [] as NpcActivityLogEntry[],
+  logCursor: null as string | null,
+  logHasMore: false,
+  logFilterMemberId: '',
+  logFilterType: 'all' as 'all' | 'game-reward' | 'admin-topup' | 'admin-deduct' | 'other'
 })
 
 const SCHEDULE_FIELDS: Array<{ key: keyof NpcSchedule; label: string; suffix: string }> = [
@@ -473,6 +482,40 @@ const _actions = {
       state.loginError = (e as { message?: string })?.message ?? '載入登入紀錄失敗'
       state.loginStatus = 'error'
     }
+  },
+
+  /**
+   * 載入（或追加）NPC 活動日誌
+   * @param reset true 時清空重載，false/undefined 時追加（載入更多）
+   */
+  fetchActivityLog: async (reset?: boolean) => {
+    if (state.logStatus === 'loading') return
+    if (reset) {
+      state.logEntries = []
+      state.logCursor = null
+      state.logHasMore = false
+    }
+    state.logStatus = 'loading'
+    state.logError = ''
+    try {
+      const typesParam = state.logFilterType === 'all'
+        ? undefined
+        : state.logFilterType === 'other'
+          ? 'toy-bet,toy-reward,bg-bet'
+          : state.logFilterType
+      const res = await api.admin.npc.listActivityLog({
+        memberId: state.logFilterMemberId || undefined,
+        types: typesParam,
+        cursor: reset ? undefined : (state.logCursor ?? undefined)
+      })
+      state.logEntries = reset ? res.entries : [...state.logEntries, ...res.entries]
+      state.logCursor = res.nextCursor
+      state.logHasMore = res.nextCursor !== null
+      state.logStatus = 'success'
+    } catch (e: unknown) {
+      state.logError = (e as { message?: string })?.message ?? '載入日誌失敗'
+      state.logStatus = 'error'
+    }
   }
 }
 
@@ -526,10 +569,54 @@ const click = {
     state.nameWordsError = ''
   },
   addNameWord: () => _actions.addNameWord(),
-  removeNameWord: (word: string) => _actions.removeNameWord(word)
+  removeNameWord: (word: string) => _actions.removeNameWord(word),
+  fetchActivityLog: (reset?: boolean) => _actions.fetchActivityLog(reset),
+  setLogFilterMember: (id: string) => {
+    state.logFilterMemberId = id
+    _actions.fetchActivityLog(true)
+  },
+  setLogFilterType: (t: typeof state.logFilterType) => {
+    state.logFilterType = t
+    _actions.fetchActivityLog(true)
+  }
 }
 
-onMounted(() => _actions.fetch())
+const LOG_TYPE_TABS = [
+  { value: 'all', label: '全部' },
+  { value: 'game-reward', label: '遊戲結算' },
+  { value: 'admin-topup', label: '自動儲值' },
+  { value: 'admin-deduct', label: '手動調整' },
+  { value: 'other', label: '其他' }
+] as const
+
+/** 異動類型中文標籤 */
+function logTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    'game-reward': '遊戲結算',
+    'admin-topup': '儲值',
+    'admin-deduct': '扣款',
+    'toy-bet': '玩具下注',
+    'toy-reward': '玩具獎勵',
+    'bg-bet': 'BG 下注'
+  }
+  return map[type] ?? type
+}
+
+/** 格式化日誌時間 */
+function formatLogTime(ms: number): string {
+  const d = new Date(ms)
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  const ss = String(d.getSeconds()).padStart(2, '0')
+  return `${mm}/${dd} ${hh}:${min}:${ss}`
+}
+
+onMounted(() => {
+  _actions.fetch()
+  _actions.fetchActivityLog(true)
+})
 
 watch(
   () => [state.selectedId, state.detailTab, state.ledgerTab] as const,
@@ -555,6 +642,73 @@ watch(
           @click="click.toggleEnabled()">
           {{ state.togglePending ? '處理中…' : (state.enabled ? '關閉 NPC 自動遊玩' : '開啟 NPC 自動遊玩') }}
         </button>
+      </div>
+
+      <!-- 活動日誌 -->
+      <div id="np-activity-log" class="np-section">
+        <div class="admin-sechead">
+          <div class="admin-sechead-left">
+            <span class="admin-en">Activity Log</span>
+            <h2>活動日誌</h2>
+          </div>
+          <button type="button" class="admin-btn" @click="click.fetchActivityLog(true)">重新整理</button>
+        </div>
+
+        <!-- 篩選列 -->
+        <div class="np-log-filters">
+          <select class="admin-input np-log-select" :value="state.logFilterMemberId"
+            @change="click.setLogFilterMember(($event.target as HTMLSelectElement).value)">
+            <option value="">全部 NPC</option>
+            <option v-for="m in state.members" :key="m.id" :value="m.id">{{ m.name }}</option>
+          </select>
+          <div class="np-log-type-tabs">
+            <button v-for="t in LOG_TYPE_TABS" :key="t.value" type="button" class="np-log-type-tab"
+              :class="{ 'is-active': state.logFilterType === t.value }"
+              @click="click.setLogFilterType(t.value as typeof state.logFilterType)">
+              {{ t.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 狀態 -->
+        <p v-if="state.logStatus === 'loading' && state.logEntries.length === 0" class="np-log-hint">載入中…</p>
+        <p v-else-if="state.logStatus === 'error'" class="np-error">{{ state.logError }}</p>
+        <p v-else-if="state.logEntries.length === 0" class="np-log-hint">目前沒有紀錄</p>
+
+        <!-- 日誌表格 -->
+        <div v-else class="np-log-wrap">
+          <table class="admin-table np-log-table">
+            <thead>
+              <tr>
+                <th>時間</th>
+                <th>NPC</th>
+                <th>類型</th>
+                <th class="admin-num">金額</th>
+                <th class="admin-num">餘額</th>
+                <th>備註</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="entry in state.logEntries" :key="entry.id">
+                <td class="np-log-time">{{ formatLogTime(entry.createdAt) }}</td>
+                <td class="np-log-member">{{ entry.memberName }}</td>
+                <td><span class="np-log-type-tag" :class="`np-log-type--${entry.type}`">{{ logTypeLabel(entry.type)
+                }}</span></td>
+                <td class="admin-num np-log-amount" :class="entry.amount >= 0 ? 'is-pos' : 'is-neg'">
+                  {{ entry.amount >= 0 ? '+' : '' }}{{ entry.amount.toLocaleString() }}
+                </td>
+                <td class="admin-num np-log-after">{{ entry.after.toLocaleString() }}</td>
+                <td class="np-log-note">{{ entry.note }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="state.logHasMore" class="np-log-more">
+            <button type="button" class="admin-btn" :disabled="state.logStatus === 'loading'"
+              @click="click.fetchActivityLog(false)">
+              {{ state.logStatus === 'loading' ? '載入中…' : '載入更多' }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- 全域設定 -->
@@ -588,7 +742,7 @@ watch(
       <div id="np-members" class="np-section">
         <div class="admin-sechead">
           <div class="admin-sechead-left"><span class="admin-en">Members</span>
-            <h2>NPC 會員</h2>
+            <h2>NPC</h2>
           </div>
           <span class="admin-meta">共 {{ state.members.length }} 位</span>
         </div>
@@ -637,7 +791,7 @@ watch(
           </span>
           <span v-else-if="state.autoCreateError" class="np-error">{{ state.autoCreateError }}</span>
         </div>
-        <p class="np-hint np-hint-right">點擊「自動新增」會從下面的單字庫隨機挑 2 個單字組成名稱建立一個 NPC 會員；如果組出來的名稱已經存在，後面會直接加上數字避免重複。</p>
+        <p class="np-hint np-hint-right">點擊「直接新增.NPC」會從下面的單字庫隨機挑 2 個單字組成名稱建立一個NPC會員；如果組出來的名稱已經存在，後面會直接加上數字避免重複。</p>
 
         <div v-if="state.nameWordsOpen" class="np-preset-panel">
           <form class="np-preset-save-form" @submit.prevent="click.addNameWord()">
@@ -762,7 +916,7 @@ watch(
               <template v-if="state.ledgerTab === 'balance'">
                 <div v-if="state.balanceStatus === 'loading'" class="admin-empty np-ledger-empty">載入中…</div>
                 <div v-else-if="state.balanceStatus === 'error'" class="np-error np-ledger-empty">{{ state.balanceError
-                  }}</div>
+                }}</div>
                 <div v-else-if="state.balanceRows.length === 0" class="admin-empty np-ledger-empty">尚無變動紀錄</div>
                 <div v-else class="np-ledger-table-wrap">
                   <table class="np-ledger-table">
@@ -1029,7 +1183,7 @@ watch(
   gap: 0 1px;
   background: var(--line);
   border: 1px solid var(--line);
-  align-items: flex-start;
+  align-items: stretch;
   min-height: 420px;
 
   @media (max-width: 860px) {
@@ -1043,10 +1197,11 @@ watch(
   display: flex;
   flex-direction: column;
   min-height: 0;
-  max-height: 640px;
+  height: 100%;
   overflow: hidden;
 
   @media (max-width: 860px) {
+    height: auto;
     max-height: 220px;
   }
 }
@@ -1593,5 +1748,147 @@ watch(
   margin: 0;
   color: #b91c1c;
   font-size: 11px;
+}
+
+.np-log-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.np-log-select {
+  width: 160px;
+  font-size: 12px;
+}
+
+.np-log-type-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.np-log-type-tab {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11.5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &.is-active {
+    background: var(--accent, #2563eb);
+    color: #fff;
+    border-color: transparent;
+  }
+}
+
+.np-log-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.np-log-wrap {
+  overflow-x: auto;
+  height: 300px;
+  overflow-y: auto;
+}
+
+.np-log-table {
+  width: 100%;
+  font-size: 12px;
+
+  th,
+  td {
+    white-space: nowrap;
+  }
+
+  th {
+    position: sticky;
+    top: 0;
+    background: var(--wash, #f8f8f8);
+    z-index: 1;
+  }
+}
+
+.np-log-time {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.np-log-member {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.np-log-type-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: var(--wash);
+  color: var(--muted);
+
+  &.np-log-type--game-reward {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  &.np-log-type--admin-topup {
+    background: #dbeafe;
+    color: #1e3a8a;
+  }
+
+  &.np-log-type--admin-deduct {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  &.np-log-type--toy-bet,
+  &.np-log-type--toy-reward {
+    background: #fef9c3;
+    color: #854d0e;
+  }
+
+  &.np-log-type--bg-bet {
+    background: #ede9fe;
+    color: #4c1d95;
+  }
+}
+
+.np-log-amount {
+  font-weight: 700;
+
+  &.is-pos {
+    color: #16a34a;
+  }
+
+  &.is-neg {
+    color: #dc2626;
+  }
+}
+
+.np-log-after {
+  color: var(--muted);
+}
+
+.np-log-note {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.np-log-more {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
 }
 </style>

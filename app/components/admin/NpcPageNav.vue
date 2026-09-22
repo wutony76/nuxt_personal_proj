@@ -10,6 +10,7 @@ type NavItem = {
 
 const ITEMS: NavItem[] = [
   // { id: 'np-overview', en: 'Overview', label: '總覽' },
+  { id: 'np-activity-log', en: 'Activity', label: '活動日誌' },
   { id: 'np-global-settings', en: 'Global', label: '全域設定' },
   { id: 'np-members', en: 'Members', label: 'NPC' }
 ]
