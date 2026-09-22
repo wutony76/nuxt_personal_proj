@@ -988,31 +988,39 @@ watch(
                   <h2>總覽</h2>
                 </div>
               </div>
-              <div class="np-overview-list">
-                <span class="np-detail-k">BG 彩票權重</span>
-                <span class="admin-num">{{ selectedMember.bgWeight.toLocaleString('zh-TW') }}</span>
-                <span class="np-detail-k">彩運來權重</span>
-                <span class="admin-num">{{ selectedMember.twWeight.toLocaleString('zh-TW') }}</span>
-                <span class="np-detail-k">經典遊戲權重</span>
-                <span class="admin-num">{{ selectedMember.retroWeight.toLocaleString('zh-TW') }}</span>
-                <span class="np-detail-k">柑仔店櫥仔權重</span>
-                <span class="admin-num">{{ selectedMember.toysWeight.toLocaleString('zh-TW') }}</span>
-                <span class="np-detail-k">BG 單注金額下限</span>
-                <span class="admin-num">{{ selectedMember.bgBetAmountMin.toLocaleString('zh-TW') }}</span>
-                <span class="np-detail-k">BG 單注金額上限</span>
-                <span class="admin-num">{{ selectedMember.bgBetAmountMax.toLocaleString('zh-TW') }}</span>
-                <span class="np-detail-k">經典遊戲模擬分數下限</span>
-                <span class="admin-num">{{ selectedMember.retroScoreMinPct.toLocaleString('zh-TW') }}%</span>
-                <span class="np-detail-k">經典遊戲模擬分數上限</span>
-                <span class="admin-num">{{ selectedMember.retroScoreMaxPct.toLocaleString('zh-TW') }}%</span>
-                <span class="np-detail-k">遊戲時段</span>
-                <span>{{ timeSlotLabelsOf(selectedMember) }}</span>
-                <span class="np-detail-k">遊戲頻率</span>
-                <span class="admin-num">{{ selectedMember.actionIntervalSec.toLocaleString('zh-TW') }} 秒</span>
-                <span class="np-detail-k">隨機延遲機率</span>
-                <span class="admin-num">{{ selectedMember.actionJitterChancePct.toLocaleString('zh-TW') }}%</span>
-                <span class="np-detail-k">隨機延遲上限</span>
-                <span class="admin-num">{{ selectedMember.actionJitterMaxSec.toLocaleString('zh-TW') }} 秒</span>
+              <div class="np-overview-cols">
+                <div class="np-overview-col">
+                  <div class="np-overview-list">
+                    <span class="np-detail-k">BG 彩票權重</span>
+                    <span class="admin-num">{{ selectedMember.bgWeight.toLocaleString('zh-TW') }}</span>
+                    <span class="np-detail-k">彩運來權重</span>
+                    <span class="admin-num">{{ selectedMember.twWeight.toLocaleString('zh-TW') }}</span>
+                    <span class="np-detail-k">經典遊戲權重</span>
+                    <span class="admin-num">{{ selectedMember.retroWeight.toLocaleString('zh-TW') }}</span>
+                    <span class="np-detail-k">柑仔店櫥仔權重</span>
+                    <span class="admin-num">{{ selectedMember.toysWeight.toLocaleString('zh-TW') }}</span>
+                    <span class="np-detail-k">BG 單注金額下限</span>
+                    <span class="admin-num">{{ selectedMember.bgBetAmountMin.toLocaleString('zh-TW') }}</span>
+                    <span class="np-detail-k">BG 單注金額上限</span>
+                    <span class="admin-num">{{ selectedMember.bgBetAmountMax.toLocaleString('zh-TW') }}</span>
+                    <span class="np-detail-k">經典遊戲分數下限</span>
+                    <span class="admin-num">{{ selectedMember.retroScoreMinPct.toLocaleString('zh-TW') }}%</span>
+                    <span class="np-detail-k">經典遊戲分數上限</span>
+                    <span class="admin-num">{{ selectedMember.retroScoreMaxPct.toLocaleString('zh-TW') }}%</span>
+                  </div>
+                </div>
+                <div class="np-overview-col">
+                  <div class="np-overview-list">
+                    <span class="np-detail-k">遊戲時段</span>
+                    <span>{{ timeSlotLabelsOf(selectedMember) }}</span>
+                    <span class="np-detail-k">遊戲頻率</span>
+                    <span class="admin-num">{{ selectedMember.actionIntervalSec.toLocaleString('zh-TW') }} 秒</span>
+                    <span class="np-detail-k">隨機延遲機率</span>
+                    <span class="admin-num">{{ selectedMember.actionJitterChancePct.toLocaleString('zh-TW') }}%</span>
+                    <span class="np-detail-k">隨機延遲上限</span>
+                    <span class="admin-num">{{ selectedMember.actionJitterMaxSec.toLocaleString('zh-TW') }} 秒</span>
+                  </div>
+                </div>
               </div>
 
               <div class="admin-sechead np-ledger-sechead">
@@ -1552,6 +1560,17 @@ watch(
   >* {
     flex-shrink: 0;
   }
+}
+
+.np-overview-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+  align-items: start;
+}
+
+.np-overview-col {
+  min-width: 0;
 }
 
 .np-overview-list {
