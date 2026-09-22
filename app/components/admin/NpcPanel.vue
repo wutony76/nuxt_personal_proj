@@ -1316,7 +1316,7 @@ watch(
   background: var(--line);
   border: 1px solid var(--line);
   align-items: stretch;
-  height: 1100px;
+  height: 1300px;
   overflow: hidden;
 
   @media (max-width: 860px) {
@@ -1330,7 +1330,7 @@ watch(
   display: flex;
   flex-direction: column;
   min-height: 0;
-  height: 1100px;
+  height: 1300px;
   overflow: hidden;
 
   @media (max-width: 860px) {
@@ -1625,7 +1625,8 @@ watch(
 }
 
 .np-ledger-table-wrap {
-  max-height: 320px;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
   border: 1px solid var(--line);
