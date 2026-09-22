@@ -1505,6 +1505,8 @@ export type NpcSettings = {
   games: NpcGameItem[]
   timeSlots: NpcTimeSlot[]
   gamePresets: NpcGamePreset[]
+  /** 「自動新增 NPC 會員」用的單字庫 */
+  nameWords: string[]
   members: NpcMemberRow[]
 }
 
@@ -1881,7 +1883,11 @@ export const api = {
       deleteGamePreset: (id: string) =>
         $fetch<{ ok: boolean }>(`/api/admin/npc/game-presets/${id}`, { method: 'DELETE' }),
       applyGamePreset: (userId: string, presetId: string) =>
-        $fetch<{ allowedGames: string[] }>(`/api/admin/npc/members/${userId}/games/apply-preset`, { method: 'PUT', body: { presetId } })
+        $fetch<{ allowedGames: string[] }>(`/api/admin/npc/members/${userId}/games/apply-preset`, { method: 'PUT', body: { presetId } }),
+      setNameWords: (words: string[]) =>
+        $fetch<{ nameWords: string[] }>('/api/admin/npc/name-words', { method: 'PATCH', body: { words } }),
+      autoCreateMember: () =>
+        $fetch<{ user: AdminAccessUser }>('/api/admin/npc/members/auto-create', { method: 'POST' })
     },
     reports: {
       /**

@@ -73,6 +73,14 @@ const state = reactive({
   createStatus: 'idle' as AsyncStatus,
   createError: '',
   createSuccessId: '',
+  autoCreateStatus: 'idle' as AsyncStatus,
+  autoCreateError: '',
+  autoCreateSuccessName: '',
+  nameWords: [] as string[],
+  nameWordsOpen: false,
+  nameWordDraft: '',
+  nameWordsSaving: false,
+  nameWordsError: '',
   games: [] as NpcGameItem[],
   gameTogglePending: {} as Record<string, boolean>,
   gameBulkPending: {} as Record<string, boolean>,
@@ -180,6 +188,7 @@ const _actions = {
       state.games = res.games
       state.timeSlots = res.timeSlots
       state.gamePresets = res.gamePresets
+      state.nameWords = res.nameWords
       if (!state.selectedId || !state.members.some((m) => m.id === state.selectedId)) {
         state.selectedId = state.members[0]?.id ?? null
       }
@@ -343,6 +352,53 @@ const _actions = {
       state.createStatus = 'error'
     }
   },
+  autoCreateMember: async () => {
+    if (state.autoCreateStatus === 'loading') return
+    state.autoCreateStatus = 'loading'
+    state.autoCreateError = ''
+    state.autoCreateSuccessName = ''
+    try {
+      const res = await api.admin.npc.autoCreateMember()
+      state.autoCreateSuccessName = res.user.name
+      state.autoCreateStatus = 'success'
+      state.selectedId = res.user.id
+      await _actions.fetch()
+    } catch (e: unknown) {
+      state.autoCreateError = (e as { data?: { message?: string }; message?: string })?.data?.message
+        ?? (e as { message?: string })?.message ?? '自動新增失敗'
+      state.autoCreateStatus = 'error'
+    }
+  },
+  addNameWord: async () => {
+    const word = state.nameWordDraft.trim()
+    if (!word) return
+    if (state.nameWords.includes(word)) {
+      state.nameWordsError = '這個單字已經在單字庫裡了。'
+      return
+    }
+    await _actions.saveNameWords([word, ...state.nameWords])
+    if (!state.nameWordsError) state.nameWordDraft = ''
+  },
+  removeNameWord: async (word: string) => {
+    await _actions.saveNameWords(state.nameWords.filter((w) => w !== word))
+  },
+  saveNameWords: async (words: string[]) => {
+    if (state.nameWordsSaving) return
+    if (words.length < 2) {
+      state.nameWordsError = '單字庫至少需要 2 個單字才能組合出名稱。'
+      return
+    }
+    state.nameWordsSaving = true
+    state.nameWordsError = ''
+    try {
+      const res = await api.admin.npc.setNameWords(words)
+      state.nameWords = res.nameWords
+    } catch (e: unknown) {
+      state.nameWordsError = (e as { data?: { message?: string } })?.data?.message ?? '儲存失敗，請稍後再試。'
+    } finally {
+      state.nameWordsSaving = false
+    }
+  },
   saveMember: async () => {
     const row = selectedMember.value
     if (!row) return
@@ -463,7 +519,14 @@ const click = {
   },
   setLedgerTab: (tab: LedgerTab) => {
     state.ledgerTab = tab
-  }
+  },
+  autoCreateMember: () => _actions.autoCreateMember(),
+  toggleNameWordsOpen: () => {
+    state.nameWordsOpen = !state.nameWordsOpen
+    state.nameWordsError = ''
+  },
+  addNameWord: () => _actions.addNameWord(),
+  removeNameWord: (word: string) => _actions.removeNameWord(word)
 }
 
 onMounted(() => _actions.fetch())
@@ -560,6 +623,39 @@ watch(
         <p v-else-if="state.createStatus === 'success'" class="np-ok">
           已建立 <span class="admin-num">{{ state.createSuccessId }}</span>（in-memory，重啟後消失）
         </p>
+
+        <div class="np-autocreate-row">
+          <button type="button" class="admin-btn admin-btn-secondary" :disabled="state.autoCreateStatus === 'loading'"
+            @click="click.autoCreateMember()">
+            {{ state.autoCreateStatus === 'loading' ? '新增中…' : '直接新增.NPC' }}
+          </button>
+          <button type="button" class="np-game-quick-btn" @click="click.toggleNameWordsOpen()">
+            {{ state.nameWordsOpen ? '收合單字庫設定' : '單字庫設定' }}
+          </button>
+          <span v-if="state.autoCreateStatus === 'success'" class="np-ok">
+            已自動建立 <span class="admin-num">{{ state.autoCreateSuccessName }}</span>
+          </span>
+          <span v-else-if="state.autoCreateError" class="np-error">{{ state.autoCreateError }}</span>
+        </div>
+        <p class="np-hint np-hint-right">點擊「自動新增」會從下面的單字庫隨機挑 2 個單字組成名稱建立一個 NPC 會員；如果組出來的名稱已經存在，後面會直接加上數字避免重複。</p>
+
+        <div v-if="state.nameWordsOpen" class="np-preset-panel">
+          <form class="np-preset-save-form" @submit.prevent="click.addNameWord()">
+            <input v-model="state.nameWordDraft" type="text" class="admin-input np-preset-name-input" maxlength="20"
+              placeholder="輸入單字加入單字庫" autocomplete="off">
+            <button type="submit" class="admin-btn admin-btn-secondary" :disabled="state.nameWordsSaving">
+              {{ state.nameWordsSaving ? '儲存中…' : '新增單字' }}
+            </button>
+          </form>
+          <p v-if="state.nameWordsError" class="np-error">{{ state.nameWordsError }}</p>
+          <div class="np-nameword-list">
+            <span v-for="word in state.nameWords" :key="word" class="np-nameword-tag">
+              {{ word }}
+              <button type="button" class="np-nameword-remove" :disabled="state.nameWordsSaving"
+                @click="click.removeNameWord(word)">×</button>
+            </span>
+          </div>
+        </div>
 
         <div v-if="!state.members.length" class="admin-empty">目前沒有角色為 NPC 的會員</div>
         <div v-else class="np-grid">
@@ -666,7 +762,7 @@ watch(
               <template v-if="state.ledgerTab === 'balance'">
                 <div v-if="state.balanceStatus === 'loading'" class="admin-empty np-ledger-empty">載入中…</div>
                 <div v-else-if="state.balanceStatus === 'error'" class="np-error np-ledger-empty">{{ state.balanceError
-                }}</div>
+                  }}</div>
                 <div v-else-if="state.balanceRows.length === 0" class="admin-empty np-ledger-empty">尚無變動紀錄</div>
                 <div v-else class="np-ledger-table-wrap">
                   <table class="np-ledger-table">
@@ -1291,6 +1387,10 @@ watch(
   color: var(--muted);
 }
 
+.np-hint-right {
+  text-align: right;
+}
+
 .np-game-section {
   margin-bottom: 20px;
 }
@@ -1315,6 +1415,8 @@ watch(
   padding: 14px;
   background: var(--wash);
   border: 1px solid var(--line);
+  height: 230px;
+  overflow-y: auto;
   border-radius: 2px;
 }
 
@@ -1355,6 +1457,51 @@ watch(
   font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
+}
+
+.np-autocreate-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.np-nameword-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.np-nameword-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--paper);
+  font-size: 11.5px;
+}
+
+.np-nameword-remove {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    color: #b91c1c;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .np-game-quick-btn {

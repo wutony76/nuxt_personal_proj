@@ -246,6 +246,25 @@
   - 已用 curl 端對端驗證：NPC A 只留 `bg/LHC-CD` 一款並保存成範本「只玩六合彩」；
     NPC B（原本 0 款）套用該範本後 `allowedGames` 剛好變成 `["bg:LHC-CD"]`；空名稱
     正確回 400；刪除範本後清單正確清空。驗證後已把測試帳號的遊戲勾選還原
+- **「新增 NPC 會員」下方新增「自動新增」：不用手動填表單，點一下就用單字庫隨機組合出
+  名稱建立一位 NPC**：新功能。已完成：
+  - `npcAutoPlay.ts`：新增單字庫 `_nameWords`（預設 20 個英文單字，可整份取代）、
+    `_generateUniqueMemberName()`（隨機挑 2 個不同單字組合成候選名稱，跟
+    `adminAccessService.listUsers()` 現有名稱比對，重複的話後面直接加遞增數字
+    2、3、4…直到不重複）、`listNameWords()`／`setNameWords(words)`（至少要 2 個單字
+    才能組合，否則 400）、`autoCreateMember()`（產生名稱、依名稱推導
+    `${name}@npc.hfyy.cc` 當 email，直接呼叫既有 `adminAccessService.createMember()`
+    建立角色為 npc 的新會員，因為是同步呼叫、生成名稱與建立帳號中間不會被其他請求
+    插入，天然沒有重複的競爭風險）
+  - 新增 API：`PATCH /api/admin/npc/name-words`（整份取代單字庫）、
+    `POST /api/admin/npc/members/auto-create`（自動新增，不需要 body）；
+    `GET /api/admin/npc/settings` 回應加上 `nameWords`
+  - 前端「NPC 會員」區塊的手動新增表單下方，加上「自動新增」按鈕＋「單字庫設定」
+    收合面板（面板內可新增/刪除單字，即時透過 API 保存）
+  - 已用 curl 端對端驗證：預設單字庫（20 字）正常自動建立；把單字庫縮到只剩 2 個字
+    （Alpha／Beta）連續呼叫 4 次，前 2 次分別產生 `AlphaBeta`／`BetaAlpha`（2 種可能
+    組合都不重複），第 3、4 次都再骰到 `AlphaBeta` 時正確變成 `AlphaBeta2`／
+    `AlphaBeta3`；單字庫縮到只剩 1 個字時正確回 400。驗證後已把單字庫還原成預設值
 - **`taiwan-lottery.vue` 未補上 NPC 分流顯示**：後端 `tw-lottery-payout.get.ts` 已經
   補上 `npc` 欄位，但這份報表的整個前端渲染區塊，在本次 NPC 功能開發之前，已被使用者
   在其他工作中移除（非本次變更所為，先前對話已確認「這樣是正確的」）。目前沒有任何

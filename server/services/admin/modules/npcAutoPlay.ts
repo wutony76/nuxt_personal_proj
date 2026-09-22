@@ -1,7 +1,7 @@
 import { Storage } from 'serv/services/storage'
 import { walletBalanceService } from 'serv/services/walletBalance'
 import { TOY_CATALOG } from 'serv/services/game/toys/catalog'
-import { adminAccessService } from './adminAccess'
+import { adminAccessService, type AdminAccessUser } from './adminAccess'
 import { roleGamePermsService, type GameCategory } from './roleGamePerms'
 import { buildBgBetPayload } from './npcBgPayload'
 
@@ -121,9 +121,88 @@ const DEFAULT_MEMBER_TOPUP_AMOUNT = 2_000
 const DEFAULT_ACTION_INTERVAL_SEC = 20
 const DEFAULT_ACTION_JITTER_CHANCE_PCT = 60
 const DEFAULT_ACTION_JITTER_MAX_SEC = 30
+const AUTO_CREATE_PASSWORD = '222222'
+const NPC_EMAIL_DOMAIN = '@npc.hfyy.cc'
+
+/** 自動新增 NPC 會員時，隨機挑 2 個單字組合成名稱的預設單字庫（管理員可在後台調整） */
+const DEFAULT_NAME_WORDS = [
+  // 原始詞庫
+  'Swift', 'Lucky', 'Golden', 'Silver', 'Brave', 'Clever', 'Happy', 'Mighty', 'Rapid', 'Steady',
+  'Fox', 'Wolf', 'Tiger', 'Eagle', 'Falcon', 'Panda', 'Dragon', 'Phoenix', 'Raven', 'Shadow',
+  // 男性名
+  'Abram', 'Adrian', 'Aiden', 'Alan', 'Albert', 'Albie', 'Alby', 'Alden', 'Alexander', 'Alfie',
+  'Alonzo', 'Alvin', 'Amir', 'Anthony', 'Archer', 'Aries', 'Arjun', 'Arlo', 'Art', 'Asher',
+  'Ashton', 'Atlas', 'Atreus', 'Atticus', 'Aubrey', 'August', 'Avi', 'Axel', 'Axl', 'Azariah',
+  'Azrael', 'Bane', 'Banks', 'Barnaby', 'Barrett', 'Bartholomew', 'Bastian', 'Bax', 'Baxter', 'Beau',
+  'Beckham', 'Beckett', 'Benicio', 'Benjamin', 'Benji', 'Bennett', 'Benson', 'Benton', 'Bera', 'Billy',
+  'Bjorn', 'Blaine', 'Blaise', 'Blake', 'Bobby', 'Boden', 'Bodhi', 'Boone', 'Bora', 'Bowie',
+  'Boyd', 'Brad', 'Braden', 'Bradley', 'Brady', 'Braeden', 'Braxton', 'Brayan', 'Brayden', 'Braylen',
+  'Braylon', 'Brecken', 'Brennan', 'Brennen', 'Brent', 'Brentley', 'Brett', 'Brexton', 'Brian', 'Brice',
+  'Bridger', 'Briggs', 'Brighton', 'Brion', 'Brock', 'Broderick', 'Brodie', 'Brooks', 'Bronson', 'Brooke',
+  'Browning', 'Bruce', 'Bryan', 'Brycen', 'Bryer', 'Bryson', 'Buck', 'Caden', 'Caleb', 'Calvin',
+  'Charles', 'Christopher', 'Cole', 'Colin', 'Colton', 'Corey', 'Dante', 'David', 'Dean', 'Declan',
+  'Dennis', 'Derrick', 'Desmond', 'Devin', 'Donald', 'Douglas', 'Dustin', 'Dylan', 'Elijah', 'Elliot',
+  'Emmett', 'Enzo', 'Ethan', 'Eugene', 'Ezra', 'Felix', 'Finley', 'Franklin', 'Gage', 'Garett',
+  'Gary', 'Gavin', 'Gideon', 'Gregory', 'Griffin', 'Hector', 'Henry', 'Holden', 'Hudson', 'Isaac',
+  'Isaiah', 'Jack', 'Jackson', 'James', 'Jasper', 'Jaxon', 'Jesse', 'Jimmy', 'Joel', 'John',
+  'Josue', 'Jude', 'Julian', 'Justin', 'Kaden', 'Kai', 'Kenneth', 'Keith', 'Kian', 'Knox',
+  'Lane', 'Lawrence', 'Leo', 'Leon', 'Levi', 'Liam', 'Lincoln', 'Louis', 'Luca', 'Lucas',
+  'Luke', 'Luka', 'Lukas', 'Malachi', 'Malie', 'Malik', 'Marco', 'Marcus', 'Mason', 'Mateo',
+  'Maverick', 'Max', 'Micah', 'Michael', 'Miles', 'Milo', 'Nathan', 'Nelson', 'Noah', 'Omar',
+  'Owen', 'Paul', 'Peter', 'Philip', 'Pierce', 'Preston', 'Quinn', 'Rafael', 'Raymond', 'Reid',
+  'Roman', 'Rowan', 'Roy', 'Russell', 'Ryan', 'Samuel', 'Scott', 'Sean', 'Sebastian', 'Seth',
+  'Shane', 'Silas', 'Simon', 'Stefan', 'Stephen', 'Theodore', 'Thomas', 'Timothy', 'Travis', 'Tristan',
+  'Tyson', 'Victor', 'Walter', 'Warren', 'Waylon', 'Wayne', 'William', 'Wyatt', 'Xander', 'Xavier',
+  'Zachary', 'Zane', 'Zion',
+  // 女性名
+  'Abigail', 'Adalaide', 'Adalee', 'Adaline', 'Adalyn', 'Adalynn', 'Addilyn', 'Addison', 'Addyson', 'Adelaide',
+  'Adelay', 'Adele', 'Adelina', 'Adeline', 'Adelyn', 'Adelynn', 'Adira', 'Adley', 'Adriana', 'Adrianna',
+  'Adrienne', 'Agatha', 'Agnes', 'Aila', 'Ailani', 'Aileen', 'Ailsa', 'Ainhoa', 'Ainsley', 'Aisha',
+  'Aislinn', 'Aitana', 'Aiya', 'Alaina', 'Alana', 'Alani', 'Alanna', 'Alannah', 'Alaya', 'Alayah',
+  'Alba', 'Alberte', 'Albertina', 'Aleah', 'Aleena', 'Alejandra', 'Alena', 'Alessandra', 'Alessia', 'Alexa',
+  'Alexandra', 'Alexandria', 'Alexia', 'Aleyna', 'Alia', 'Aliana', 'Alianna', 'Alina', 'Alisa', 'Alisha',
+  'Alison', 'Alissa', 'Alivia', 'Aliya', 'Aliyah', 'Aliza', 'Alizée', 'Amanda', 'Amara', 'Amelia',
+  'Amia', 'Amber', 'Amy', 'Anastasia', 'Angela', 'Ann', 'Anna', 'Anya', 'Aria', 'Aurora',
+  'Audrey', 'Aurelia', 'Ava', 'Avery', 'Barbara', 'Beatrice', 'Betty', 'Beverly', 'Blanche', 'Brenda',
+  'Brianna', 'Brittany', 'Camila', 'Camille', 'Carol', 'Carolyn', 'Catherine', 'Cecelia', 'Cecilia', 'Celine',
+  'Charlotte', 'Cheryl', 'Chloe', 'Christina', 'Christine', 'Cindy', 'Clara', 'Colette', 'Cora', 'Courtney',
+  'Cynthia', 'Daphne', 'Danelle', 'Danielle', 'Debra', 'Delilah', 'Denise', 'Destiny', 'Diana', 'Diane',
+  'Donna', 'Dorothy', 'Edith', 'Elena', 'Eleanor', 'Eliana', 'Elise', 'Elizabeth', 'Ella', 'Emily',
+  'Emilia', 'Emma', 'Erin', 'Eva', 'Evangeline', 'Evelyn', 'Faye', 'Fiona', 'Flora', 'Frances',
+  'Freya', 'Genevieve', 'Gemma', 'Gianna', 'Giselle', 'Gloria', 'Grace', 'Hannah', 'Harper', 'Hazel',
+  'Heather', 'Helen', 'Helena', 'Iris', 'Isabella', 'Isla', 'Ivy', 'Jane', 'Janet', 'Jasmine',
+  'Jean', 'Jennifer', 'Jessica', 'Joan', 'Joyce', 'Judy', 'Juliana', 'Julie', 'Kayla', 'Karen',
+  'Katherine', 'Kathleen', 'Kimberly', 'Kylie', 'Laura', 'Lauren', 'Leila', 'Leona', 'Lily', 'Linda',
+  'Lisa', 'Lori', 'Lucy', 'Luna', 'Lydia', 'Madelyn', 'Maeve', 'Margaret', 'Maya', 'Mary',
+  'Matilda', 'Melissa', 'Megan', 'Mia', 'Michelle', 'Mila', 'Mira', 'Morgan', 'Nicole', 'Naomi',
+  'Natalie', 'Nadia', 'Nancy', 'Nova', 'Noelle', 'Ophelia', 'Olivia', 'Paula', 'Pamela', 'Patricia',
+  'Pearl', 'Penelope', 'Peyton', 'Phoebe', 'Rachel', 'Rebecca', 'Reese', 'Riley', 'Rosalie', 'Rose',
+  'Ruth', 'Samantha', 'Sarah', 'Savannah', 'Scarlett', 'Seraphina', 'Sharon', 'Shirley', 'Shilo', 'Sofia',
+  'Sophia', 'Stephanie', 'Stella', 'Susan', 'Sydney', 'Sylvia', 'Talia', 'Tammy', 'Taylor', 'Thea',
+  'Theresa', 'Tiffany', 'Valerie', 'Vanessa', 'Vera', 'Victoria', 'Violet', 'Virginia', 'Vivian', 'Willa',
+  'Winter', 'Zoe', 'Zoey',
+  // 中性名
+  'Alex', 'Alexis', 'Alistair', 'Alva', 'Amari', 'Andie', 'Angel', 'Annan', 'Arden', 'Arian',
+  'Ariel', 'Arin', 'Arrow', 'Artie', 'Asa', 'Ash', 'Aspen', 'Aston', 'Audie', 'Augustine',
+  'Autumn', 'Avon', 'Axil', 'Bailey', 'Bay', 'Bellamy', 'Bennie', 'Bentley', 'Bertie', 'Billi',
+  'Billie', 'Blair', 'Blue', 'Bobbie', 'Braelyn', 'Breeze', 'Bria', 'Briar', 'Bright', 'Bryn',
+  'Brynn', 'Caelan', 'Callahan', 'Callaway', 'Callen', 'Cameron', 'Campbell', 'Carey', 'Carlin', 'Carlyle',
+  'Carmel', 'Carrington', 'Carroll', 'Carsen', 'Carson', 'Carter', 'Cary', 'Casey', 'Channing', 'Charlee',
+  'Charlie', 'Chesney', 'Cheyenne', 'Chris', 'Christian', 'Claude', 'Clemente', 'Cleo', 'Clover', 'Codi',
+  'Collis', 'Connie', 'Cordell', 'Cortney', 'Cosmo', 'Courtland', 'Crosby', 'Cruz', 'Cyan', 'Cypress',
+  'Dakota', 'Dale', 'Dallin', 'Dallas', 'Dana', 'Darian', 'Darrel', 'Daryl', 'Daryn', 'Daveney',
+  'Dawson', 'Dayton', 'Denver', 'Eden', 'Ellis', 'Emerson', 'Frankie', 'Francis', 'Frank', 'Gerry',
+  'Harlow', 'Hayden', 'Hollis', 'Jamie', 'Jan', 'Jackie', 'Jo', 'Jordan', 'Jules', 'Justice',
+  'Kelly', 'Kendall', 'Kerry', 'Kim', 'Legacy', 'Lee', 'Lennon', 'Leslie', 'Logan', 'Lyric',
+  'Lynn', 'Marley', 'Mel', 'Milan', 'Monroe', 'Oakley', 'Ocean', 'Ollie', 'Parker', 'Pat',
+  'Ray', 'Remi', 'Remington', 'Remy', 'River', 'Robin', 'Rory', 'Sage', 'Sam', 'Sawyer',
+  'Scout', 'Shannon', 'Shiloh', 'Sky', 'Skyler', 'Sutton', 'Stevie', 'Teagan', 'Terry', 'Tracy'
+]
 
 let _enabled = false
 let _schedule: NpcSchedule = { ...DEFAULT_SCHEDULE }
+/** 自動新增名稱用的單字庫，見 `generateMemberName()`／`autoCreateMember()` */
+let _nameWords: string[] = [...DEFAULT_NAME_WORDS]
 /** 每個 NPC 會員各自勾選的遊戲，composite key `${category}:${key}` */
 const _allowedGamesByUser = new Map<string, Set<string>>()
 const _memberSettings = new Map<string, NpcMemberSetting>()
@@ -138,6 +217,24 @@ let _lastTickAt = 0
 
 function _compositeKey(category: string, key: string): string {
   return `${category}:${key}`
+}
+
+/**
+ * 隨機挑單字庫裡 2 個不同的單字組合成候選名稱；如果跟現有帳號名稱重複，
+ * 後面直接加上遞增數字（2、3、4…）直到不重複為止。
+ */
+function _generateUniqueMemberName(): string {
+  const a = _nameWords[Math.floor(Math.random() * _nameWords.length)] as string
+  let b = a
+  for (let guard = 0; guard < 20 && b === a && _nameWords.length > 1; guard++) {
+    b = _nameWords[Math.floor(Math.random() * _nameWords.length)] as string
+  }
+  const base = `${a}${b}`
+  const existingNames = new Set(adminAccessService.listUsers().map((u) => u.name))
+  if (!existingNames.has(base)) return base
+  let suffix = 2
+  while (existingNames.has(`${base}${suffix}`)) suffix += 1
+  return `${base}${suffix}`
 }
 
 /**
@@ -306,6 +403,34 @@ export const npcAutoPlayService = {
     })),
 
   listTimeSlots: (): NpcTimeSlot[] => [...NPC_TIME_SLOTS],
+
+  listNameWords: (): string[] => [..._nameWords],
+
+  /** 設定「自動新增」用的單字庫（整份取代），至少要 2 個單字才能組合出名稱 */
+  setNameWords: (words: string[]): string[] => {
+    if (!Array.isArray(words)) {
+      throw createError({ statusCode: 400, message: '單字清單格式不正確。' })
+    }
+    const cleaned = [...new Set(words.map((w) => String(w).trim()).filter(Boolean))]
+    if (cleaned.length < 2) {
+      throw createError({ statusCode: 400, message: '單字庫至少需要 2 個單字才能組合出名稱。' })
+    }
+    _nameWords = cleaned
+    return [..._nameWords]
+  },
+
+  /**
+   * 自動新增：從單字庫隨機組合出一個不重複的名稱、依同一組合推導 email
+   * （`${名稱}@npc.hfyy.cc`），直接建立一個角色為 NPC 的新會員
+   */
+  autoCreateMember: (): AdminAccessUser => {
+    if (_nameWords.length < 2) {
+      throw createError({ statusCode: 400, message: '單字庫至少需要 2 個單字才能自動新增，請先到單字庫設定新增。' })
+    }
+    const name = _generateUniqueMemberName()
+    const email = `${name}${NPC_EMAIL_DOMAIN}`
+    return adminAccessService.createMember({ name, email, password: AUTO_CREATE_PASSWORD, role: 'npc' })
+  },
 
   setMemberGameAllowed: (userId: string, category: NpcGameCategory, key: string, allowed: boolean): string[] => {
     if (adminAccessService.roleOf(userId) !== 'npc') {
