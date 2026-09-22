@@ -1,9 +1,11 @@
 import { Storage } from 'serv/services/storage'
 import { walletBalanceService } from 'serv/services/walletBalance'
-import { TOY_CATALOG } from 'serv/services/game/toys/catalog'
+import { TOY_BET_CHIPS, TOY_CATALOG } from 'serv/services/game/toys/catalog'
 import { adminAccessService, type AdminAccessUser } from './adminAccess'
 import { roleGamePermsService, type GameCategory } from './roleGamePerms'
 import { buildBgBetPayload } from './npcBgPayload'
+import { buildTwBetPayload } from './npcTwPayload'
+import { playRandomToy } from './npcToyPlay'
 
 export type NpcGameCategory = GameCategory | 'toys'
 
@@ -11,7 +13,7 @@ export type NpcGameItem = {
   category: NpcGameCategory
   key: string
   name: string
-  /** 目前是否已支援 NPC 自動遊玩（第一階段僅 bg／retro） */
+  /** 目前是否已支援 NPC 自動遊玩 */
   supported: boolean
 }
 
@@ -47,6 +49,8 @@ export type NpcSchedule = {
   retroScoreMaxPct: number
   bgWeight: number
   retroWeight: number
+  twWeight: number
+  toysWeight: number
   bgBetAmountMin: number
   bgBetAmountMax: number
 }
@@ -62,6 +66,8 @@ export type NpcMemberSetting = {
   retroScoreMaxPct: number
   bgWeight: number
   retroWeight: number
+  twWeight: number
+  toysWeight: number
   bgBetAmountMin: number
   bgBetAmountMax: number
   /** 這個 NPC 允許自動遊玩的時段，NpcTimeSlot.id 陣列；預設全選（不限時段） */
@@ -93,6 +99,8 @@ export type NpcMemberRow = {
   retroScoreMaxPct: number
   bgWeight: number
   retroWeight: number
+  twWeight: number
+  toysWeight: number
   bgBetAmountMin: number
   bgBetAmountMax: number
   activeTimeSlots: string[]
@@ -104,7 +112,7 @@ export type NpcMemberRow = {
   allowedGames: string[]
 }
 
-const SUPPORTED_CATEGORIES = new Set<NpcGameCategory>(['bg', 'retro'])
+const SUPPORTED_CATEGORIES = new Set<NpcGameCategory>(['bg', 'retro', 'tw', 'toys'])
 
 const DEFAULT_SCHEDULE: NpcSchedule = {
   tickIntervalSec: 30,
@@ -112,6 +120,8 @@ const DEFAULT_SCHEDULE: NpcSchedule = {
   retroScoreMaxPct: 40,
   bgWeight: 75,
   retroWeight: 10,
+  twWeight: 10,
+  toysWeight: 5,
   bgBetAmountMin: 10,
   bgBetAmountMax: 150
 }
@@ -288,7 +298,13 @@ function _addSpent(userId: string, amount: number): void {
  */
 function _memberSettingOf(userId: string): NpcMemberSetting {
   const stored = _memberSettings.get(userId)
-  if (stored) return stored
+  if (stored) {
+    return {
+      ...stored,
+      twWeight: stored.twWeight ?? _schedule.twWeight,
+      toysWeight: stored.toysWeight ?? _schedule.toysWeight
+    }
+  }
   return {
     dailyMaxSpend: DEFAULT_MEMBER_DAILY_MAX_SPEND,
     topUpAmount: DEFAULT_MEMBER_TOPUP_AMOUNT,
@@ -296,6 +312,8 @@ function _memberSettingOf(userId: string): NpcMemberSetting {
     retroScoreMaxPct: _schedule.retroScoreMaxPct,
     bgWeight: _schedule.bgWeight,
     retroWeight: _schedule.retroWeight,
+    twWeight: _schedule.twWeight,
+    toysWeight: _schedule.toysWeight,
     bgBetAmountMin: _schedule.bgBetAmountMin,
     bgBetAmountMax: _schedule.bgBetAmountMax,
     activeTimeSlots: [...ALL_TIME_SLOT_IDS],
@@ -331,6 +349,20 @@ function _npcUserIds(): string[] {
   return adminAccessService.listUsers()
     .filter((u) => u.role === 'npc')
     .map((u) => u.id)
+}
+
+/**
+ * 四類玩法權重加總必須 > 0，否則 `_pickPlayKind()` 永遠選不到分類。
+ * @param weights 各分類權重
+ */
+function _assertPlayWeights(weights: Pick<NpcMemberSetting, 'bgWeight' | 'retroWeight' | 'twWeight' | 'toysWeight'>): void {
+  const total = weights.bgWeight + weights.retroWeight + weights.twWeight + weights.toysWeight
+  if (total <= 0) {
+    throw createError({
+      statusCode: 400,
+      message: 'BG 彩票、經典遊戲、彩運來、柑仔店櫥仔的權重加總至少要大於 0。'
+    })
+  }
 }
 
 function _allowedKeysOf(userId: string, category: NpcGameCategory): string[] {
@@ -392,6 +424,7 @@ export const npcAutoPlayService = {
     if (next.bgBetAmountMin > next.bgBetAmountMax) {
       throw createError({ statusCode: 400, message: 'BG 彩票單注金額下限不可高於上限。' })
     }
+    _assertPlayWeights(next)
     _schedule = next
     return { ..._schedule }
   },
@@ -520,6 +553,8 @@ export const npcAutoPlayService = {
           retroScoreMaxPct: setting.retroScoreMaxPct,
           bgWeight: setting.bgWeight,
           retroWeight: setting.retroWeight,
+          twWeight: setting.twWeight,
+          toysWeight: setting.toysWeight,
           bgBetAmountMin: setting.bgBetAmountMin,
           bgBetAmountMax: setting.bgBetAmountMax,
           activeTimeSlots: [...setting.activeTimeSlots],
@@ -538,6 +573,8 @@ export const npcAutoPlayService = {
     retroScoreMaxPct?: number
     bgWeight?: number
     retroWeight?: number
+    twWeight?: number
+    toysWeight?: number
     bgBetAmountMin?: number
     bgBetAmountMax?: number
     activeTimeSlots?: string[]
@@ -585,6 +622,18 @@ export const npcAutoPlayService = {
       }
       current.retroWeight = patch.retroWeight
     }
+    if (patch.twWeight !== undefined) {
+      if (!Number.isFinite(patch.twWeight) || patch.twWeight < 0) {
+        throw createError({ statusCode: 400, message: '彩運來權重必須是不小於 0 的數字。' })
+      }
+      current.twWeight = patch.twWeight
+    }
+    if (patch.toysWeight !== undefined) {
+      if (!Number.isFinite(patch.toysWeight) || patch.toysWeight < 0) {
+        throw createError({ statusCode: 400, message: '柑仔店櫥仔權重必須是不小於 0 的數字。' })
+      }
+      current.toysWeight = patch.toysWeight
+    }
     if (patch.bgBetAmountMin !== undefined) {
       if (!Number.isFinite(patch.bgBetAmountMin) || patch.bgBetAmountMin < 0) {
         throw createError({ statusCode: 400, message: 'BG 單注金額下限必須是不小於 0 的數字。' })
@@ -627,6 +676,7 @@ export const npcAutoPlayService = {
       }
       current.actionJitterMaxSec = patch.actionJitterMaxSec
     }
+    _assertPlayWeights(current)
     _memberSettings.set(userId, current)
     return { ...current }
   },
@@ -654,13 +704,67 @@ export const npcAutoPlayService = {
   }
 }
 
+type NpcPlayKind = 'bg' | 'retro' | 'tw' | 'toys'
+
+/**
+ * 依權重與已勾選遊戲，隨機挑一種本次要玩的分類。
+ * @param userId NPC 會員 id
+ * @param setting 會員設定（含各分類權重）
+ * @returns 分類 id，或無可玩項目時 null
+ */
+function _pickPlayKind(userId: string, setting: NpcMemberSetting): NpcPlayKind | null {
+  const candidates: Array<{ kind: NpcPlayKind; weight: number }> = []
+  if (setting.bgWeight > 0 && _allowedKeysOf(userId, 'bg').length > 0) {
+    candidates.push({ kind: 'bg', weight: setting.bgWeight })
+  }
+  if (setting.retroWeight > 0 && _allowedKeysOf(userId, 'retro').length > 0) {
+    candidates.push({ kind: 'retro', weight: setting.retroWeight })
+  }
+  if (setting.twWeight > 0 && _allowedKeysOf(userId, 'tw').length > 0) {
+    candidates.push({ kind: 'tw', weight: setting.twWeight })
+  }
+  if (setting.toysWeight > 0 && _allowedKeysOf(userId, 'toys').length > 0) {
+    candidates.push({ kind: 'toys', weight: setting.toysWeight })
+  }
+  if (candidates.length === 0) return null
+  const total = candidates.reduce((sum, c) => sum + c.weight, 0)
+  let roll = Math.random() * total
+  for (const c of candidates) {
+    roll -= c.weight
+    if (roll < 0) return c.kind
+  }
+  return candidates[candidates.length - 1]!.kind
+}
+
 function _actOnce(userId: string): void {
   const setting = _memberSettingOf(userId)
-  const totalWeight = setting.bgWeight + setting.retroWeight
-  if (totalWeight <= 0) return
-  const playBg = Math.random() * totalWeight < setting.bgWeight
-  if (playBg) _playRandomBg(userId)
-  else _playRandomRetro(userId)
+  const kind = _pickPlayKind(userId, setting)
+  if (!kind) return
+  switch (kind) {
+    case 'bg':
+      _playRandomBg(userId)
+      break
+    case 'retro':
+      _playRandomRetro(userId)
+      break
+    case 'tw':
+      _playRandomTw(userId)
+      break
+    case 'toys':
+      _playRandomToys(userId)
+      break
+  }
+}
+
+/** 餘額不足時依會員設定自動儲值一筆 */
+function _topUpIfNeeded(userId: string, needAmount: number, setting: NpcMemberSetting): void {
+  const user = Storage.get.user(userId) as { coin?: number }
+  if (Number(user.coin ?? 0) >= needAmount) return
+  walletBalanceService.appendChange(userId, {
+    type: 'admin-topup',
+    amount: setting.topUpAmount,
+    note: 'NPC 自動儲值'
+  })
 }
 
 function _playRandomRetro(userId: string): void {
@@ -690,14 +794,8 @@ function _playRandomBg(userId: string): void {
   const amount = setting.bgBetAmountMin +
     Math.floor(Math.random() * (setting.bgBetAmountMax - setting.bgBetAmountMin + 1))
 
+  _topUpIfNeeded(userId, amount, setting)
   const user = Storage.get.user(userId) as { coin?: number }
-  if (Number(user.coin ?? 0) < amount) {
-    walletBalanceService.appendChange(userId, {
-      type: 'admin-topup',
-      amount: setting.topUpAmount,
-      note: 'NPC 自動儲值'
-    })
-  }
 
   const payload = buildBgBetPayload(key, amount)
   if (!payload) return // 該盤口尚未支援自動下注 payload，暫時跳過
@@ -706,4 +804,39 @@ function _playRandomBg(userId: string): void {
   if (!game) return
   game.playBets(payload, user)
   _addSpent(userId, amount)
+}
+
+function _playRandomTw(userId: string): void {
+  const keys = _allowedKeysOf(userId, 'tw')
+  if (keys.length === 0) return
+  const key = keys[Math.floor(Math.random() * keys.length)] as string
+
+  const setting = _memberSettingOf(userId)
+  if (_spentToday(userId) >= setting.dailyMaxSpend) return
+
+  const built = buildTwBetPayload(key)
+  if (!built) return
+  const { payload, betAmount } = built
+
+  _topUpIfNeeded(userId, betAmount, setting)
+  const user = Storage.get.user(userId) as { coin?: number }
+
+  const game = (Storage.games as Record<string, { playBets: (payload: unknown, user: unknown) => unknown } | undefined>)[key]
+  if (!game) return
+  game.playBets(payload, user)
+  _addSpent(userId, betAmount)
+}
+
+function _playRandomToys(userId: string): void {
+  const keys = _allowedKeysOf(userId, 'toys')
+  if (keys.length === 0) return
+
+  const setting = _memberSettingOf(userId)
+  if (_spentToday(userId) >= setting.dailyMaxSpend) return
+
+  const minBet = Math.min(...TOY_BET_CHIPS)
+  _topUpIfNeeded(userId, minBet, setting)
+
+  const spent = playRandomToy(userId, keys)
+  if (spent !== null && spent > 0) _addSpent(userId, spent)
 }

@@ -1429,7 +1429,7 @@ export type RoleGamePerm = {
   enabled: boolean
 }
 
-/** NPC 自動遊玩四分類：'bg'／'retro' 已支援，'tw'／'toys' 標記即將支援 */
+/** NPC 自動遊玩四分類：bg／retro／tw／toys 皆已支援 */
 export type NpcGameCategory = GameCategory | 'toys'
 
 /** NPC 自動遊玩可勾選的遊戲項目（全站共用清單，實際勾選狀態是每個 NPC 會員各自的，見 NpcMemberRow.allowedGames） */
@@ -1451,6 +1451,8 @@ export type NpcSchedule = {
   retroScoreMaxPct: number
   bgWeight: number
   retroWeight: number
+  twWeight: number
+  toysWeight: number
   bgBetAmountMin: number
   bgBetAmountMax: number
 }
@@ -1475,6 +1477,8 @@ export type NpcMemberRow = {
   retroScoreMaxPct: number
   bgWeight: number
   retroWeight: number
+  twWeight: number
+  toysWeight: number
   bgBetAmountMin: number
   bgBetAmountMax: number
   /** NpcTimeSlot.id 陣列 */
@@ -1867,6 +1871,8 @@ export const api = {
         retroScoreMaxPct?: number
         bgWeight?: number
         retroWeight?: number
+        twWeight?: number
+        toysWeight?: number
         bgBetAmountMin?: number
         bgBetAmountMax?: number
         activeTimeSlots?: string[]
@@ -1881,6 +1887,8 @@ export const api = {
           retroScoreMaxPct: number
           bgWeight: number
           retroWeight: number
+          twWeight: number
+          toysWeight: number
           bgBetAmountMin: number
           bgBetAmountMax: number
           activeTimeSlots: string[]

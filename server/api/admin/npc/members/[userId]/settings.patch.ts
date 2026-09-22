@@ -8,6 +8,8 @@ type Body = {
   retroScoreMaxPct?: unknown
   bgWeight?: unknown
   retroWeight?: unknown
+  twWeight?: unknown
+  toysWeight?: unknown
   bgBetAmountMin?: unknown
   bgBetAmountMax?: unknown
   activeTimeSlots?: unknown
@@ -33,6 +35,8 @@ export default defineEventHandler(async (event) => {
     retroScoreMaxPct: body?.retroScoreMaxPct !== undefined ? Number(body.retroScoreMaxPct) : undefined,
     bgWeight: body?.bgWeight !== undefined ? Number(body.bgWeight) : undefined,
     retroWeight: body?.retroWeight !== undefined ? Number(body.retroWeight) : undefined,
+    twWeight: body?.twWeight !== undefined ? Number(body.twWeight) : undefined,
+    toysWeight: body?.toysWeight !== undefined ? Number(body.toysWeight) : undefined,
     bgBetAmountMin: body?.bgBetAmountMin !== undefined ? Number(body.bgBetAmountMin) : undefined,
     bgBetAmountMax: body?.bgBetAmountMax !== undefined ? Number(body.bgBetAmountMax) : undefined,
     activeTimeSlots: Array.isArray(body?.activeTimeSlots) ? body.activeTimeSlots.map(String) : undefined,

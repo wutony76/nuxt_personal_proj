@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * NPC 自動遊玩設定：總開關、排程參數、NPC 會員清單（含每日花費上限/自動儲值編輯）、
- * 每個 NPC 各自勾選的遊戲清單（第一階段僅 BG 彩票／經典遊戲，台彩鏡射玩法／柑仔店櫥仔
- * 標記即將支援），並提供分類快捷全選/清空。見 openspec/changes/add-npc-auto-play。
+ * 每個 NPC 各自勾選的遊戲清單（BG 彩票／經典遊戲／彩運來／柑仔店櫥仔），
+ * 並提供分類快捷全選/清空。見 openspec/changes/add-npc-auto-play。
  */
 import { computed, onMounted, reactive, watch } from 'vue'
 import {
@@ -35,8 +35,10 @@ const state = reactive({
     tickIntervalSec: 30,
     retroScoreMinPct: 10,
     retroScoreMaxPct: 40,
-    bgWeight: 50,
-    retroWeight: 50,
+    bgWeight: 75,
+    retroWeight: 10,
+    twWeight: 10,
+    toysWeight: 5,
     bgBetAmountMin: 10,
     bgBetAmountMax: 150
   } as NpcSchedule,
@@ -53,6 +55,8 @@ const state = reactive({
     retroScoreMaxPct: '',
     bgWeight: '',
     retroWeight: '',
+    twWeight: '',
+    toysWeight: '',
     bgBetAmountMin: '',
     bgBetAmountMax: '',
     actionIntervalSec: '',
@@ -107,6 +111,8 @@ const SCHEDULE_FIELDS: Array<{ key: keyof NpcSchedule; label: string; suffix: st
   { key: 'retroScoreMaxPct', label: '經典遊戲模擬分數上限（全域預設）', suffix: '% of max' },
   { key: 'bgWeight', label: 'BG 彩票權重（全域預設）', suffix: '' },
   { key: 'retroWeight', label: '經典遊戲權重（全域預設）', suffix: '' },
+  { key: 'twWeight', label: '彩運來權重（全域預設）', suffix: '' },
+  { key: 'toysWeight', label: '柑仔店櫥仔權重（全域預設）', suffix: '' },
   { key: 'bgBetAmountMin', label: 'BG 單注金額下限（全域預設）', suffix: 'coin' },
   { key: 'bgBetAmountMax', label: 'BG 單注金額上限（全域預設）', suffix: 'coin' }
 ]
@@ -116,7 +122,7 @@ const SCHEDULE_FIELDS: Array<{ key: keyof NpcSchedule; label: string; suffix: st
  * 上面「排程參數」的全域預設值，一旦存過（按下「儲存」）就固定用自己的值。
  */
 const MEMBER_NUMBER_FIELDS: Array<{
-  key: 'dailyMaxSpend' | 'topUpAmount' | 'retroScoreMinPct' | 'retroScoreMaxPct' | 'bgWeight' | 'retroWeight' | 'bgBetAmountMin' | 'bgBetAmountMax'
+  key: 'dailyMaxSpend' | 'topUpAmount' | 'retroScoreMinPct' | 'retroScoreMaxPct' | 'bgWeight' | 'retroWeight' | 'twWeight' | 'toysWeight' | 'bgBetAmountMin' | 'bgBetAmountMax'
   | 'actionIntervalSec' | 'actionJitterChancePct' | 'actionJitterMaxSec'
   label: string
 }> = [
@@ -126,6 +132,8 @@ const MEMBER_NUMBER_FIELDS: Array<{
     { key: 'retroScoreMaxPct', label: '經典遊戲模擬分數上限（%）' },
     { key: 'bgWeight', label: 'BG 彩票權重' },
     { key: 'retroWeight', label: '經典遊戲權重' },
+    { key: 'twWeight', label: '彩運來權重' },
+    { key: 'toysWeight', label: '柑仔店櫥仔權重' },
     { key: 'bgBetAmountMin', label: 'BG 單注金額下限' },
     { key: 'bgBetAmountMax', label: 'BG 單注金額上限' },
     { key: 'actionIntervalSec', label: '遊戲頻率（秒）' },
@@ -134,10 +142,25 @@ const MEMBER_NUMBER_FIELDS: Array<{
   ]
 
 const CATEGORY_LABEL: Record<NpcGameCategory, string> = {
-  bg: 'BG 彩票',
+  bg: 'BG彩票',
+  tw: '彩運來',
   retro: '經典遊戲',
-  tw: '台彩鏡射玩法',
   toys: '柑仔店櫥仔'
+}
+
+const PLAY_WEIGHT_ERROR = 'BG 彩票、經典遊戲、彩運來、柑仔店櫥仔的權重加總至少要大於 0。'
+
+/**
+ * @param weights 四類玩法權重
+ * @returns 加總
+ */
+function _playWeightTotal(weights: {
+  bgWeight: number
+  retroWeight: number
+  twWeight: number
+  toysWeight: number
+}): number {
+  return weights.bgWeight + weights.retroWeight + weights.twWeight + weights.toysWeight
 }
 
 const _handlers = {
@@ -177,6 +200,8 @@ function _draftOf(row: NpcMemberRow) {
     retroScoreMaxPct: String(row.retroScoreMaxPct),
     bgWeight: String(row.bgWeight),
     retroWeight: String(row.retroWeight),
+    twWeight: String(row.twWeight),
+    toysWeight: String(row.toysWeight),
     bgBetAmountMin: String(row.bgBetAmountMin),
     bgBetAmountMax: String(row.bgBetAmountMax),
     actionIntervalSec: String(row.actionIntervalSec),
@@ -237,6 +262,19 @@ const _actions = {
         return
       }
       patch[field.key] = num
+    }
+    const scheduleNext = { ...state.schedule, ...patch }
+    if (_playWeightTotal(scheduleNext) <= 0) {
+      state.scheduleError = PLAY_WEIGHT_ERROR
+      return
+    }
+    if (scheduleNext.retroScoreMinPct > scheduleNext.retroScoreMaxPct) {
+      state.scheduleError = '經典遊戲模擬分數下限不可高於上限。'
+      return
+    }
+    if (scheduleNext.bgBetAmountMin > scheduleNext.bgBetAmountMax) {
+      state.scheduleError = 'BG 單注金額下限不可高於上限。'
+      return
     }
     state.scheduleSaving = true
     state.scheduleError = ''
@@ -419,6 +457,15 @@ const _actions = {
         return
       }
       patch[field.key] = num
+    }
+    if (_playWeightTotal({
+      bgWeight: patch.bgWeight!,
+      retroWeight: patch.retroWeight!,
+      twWeight: patch.twWeight!,
+      toysWeight: patch.toysWeight!
+    }) <= 0) {
+      state.memberError = PLAY_WEIGHT_ERROR
+      return
     }
     if (patch.bgBetAmountMin! > patch.bgBetAmountMax!) {
       state.memberError = 'BG 單注金額下限不可高於上限。'
@@ -1019,7 +1066,7 @@ watch(
             <section v-else-if="state.detailTab === 'games'" class="np-detail-games">
               <p class="np-hint">
                 勾選 <strong>{{ selectedMember.name }}</strong> 可以自動遊玩的遊戲。每個 NPC 各自獨立設定，
-                設定後即時保存。台彩鏡射玩法、柑仔店櫥仔尚未支援 NPC 自動遊玩，先列出清單。
+                設定後即時保存。彩運來、柑仔店櫥仔會計入每日花費上限。
               </p>
 
               <div class="np-preset-panel">
@@ -1050,7 +1097,7 @@ watch(
               <div v-for="cat in (['bg', 'retro', 'tw', 'toys'] as const)" :key="cat" class="np-game-section">
                 <div class="np-game-section-head">
                   <span class="np-game-section-title">{{ CATEGORY_LABEL[cat] }}</span>
-                  <span v-if="!['bg', 'retro'].includes(cat)" class="np-game-badge">即將支援</span>
+                  <span v-if="!gamesByCategory[cat]?.some((g) => g.supported)" class="np-game-badge">即將支援</span>
                   <div v-else class="np-game-quick-actions">
                     <button type="button" class="np-game-quick-btn"
                       :disabled="!!state.gameBulkPending[`${selectedMember.id}:${cat}`]"
@@ -1303,7 +1350,7 @@ watch(
   flex: 1;
   min-height: 0;
 
-  > * {
+  >* {
     flex-shrink: 0;
   }
 }
@@ -1491,7 +1538,7 @@ watch(
   min-height: 0;
   overflow-y: auto;
 
-  > * {
+  >* {
     flex-shrink: 0;
   }
 }
@@ -1558,7 +1605,7 @@ watch(
   min-height: 0;
   overflow-y: auto;
 
-  > * {
+  >* {
     flex-shrink: 0;
   }
 }
@@ -1600,9 +1647,10 @@ watch(
   height: 230px;
   overflow-y: auto;
 
-  > * {
+  >* {
     flex-shrink: 0;
   }
+
   border-radius: 2px;
 }
 
