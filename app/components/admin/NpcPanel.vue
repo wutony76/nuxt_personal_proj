@@ -994,17 +994,21 @@ watch(
                 </div>
               </div>
               <p class="np-hint">
+              <div>
                 BG 彩票權重／經典遊戲權重決定這個 NPC 每次行動選哪一類玩法（比例關係，不需加總為 100）。
                 經典遊戲模擬分數、權重、單注金額這幾個欄位，在這個 NPC 沒存過設定前會顯示
                 「排程參數」的全域預設值；按下「儲存」後就固定用這裡填的值，不再跟著全域預設變動。
                 每日上限／自動儲值／遊戲頻率／隨機延遲機率／隨機延遲上限這幾個欄位沒有全域預設，
                 固定套用系統內建預設值。
-              </p>
-              <p class="np-hint">
+              </div>
+              <div>
                 遊戲頻率：這個 NPC 兩次行動間至少間隔幾秒；間隔到了之後，有機率（隨機延遲機率）
                 再額外隨機延遲 0～隨機延遲上限秒，避免每次都固定間隔、行為太規律像機器人。
+              </div>
+              <div>
+                遊戲時段：複選這個 NPC 允許自動遊玩的時段，只有落在勾選時段內才會行動；未勾選任何時段代表這個 NPC 暫停行動。
+              </div>
               </p>
-              <p class="np-hint">遊戲時段：複選這個 NPC 允許自動遊玩的時段，只有落在勾選時段內才會行動；未勾選任何時段代表這個 NPC 暫停行動。</p>
 
               <div class="np-detail-edit-actions">
                 <button type="button" class="admin-btn admin-btn-primary" @click="click.saveMember()">儲存</button>
@@ -1184,7 +1188,8 @@ watch(
   background: var(--line);
   border: 1px solid var(--line);
   align-items: stretch;
-  min-height: 420px;
+  height: 1100px;
+  overflow: hidden;
 
   @media (max-width: 860px) {
     grid-template-columns: 1fr;
@@ -1197,7 +1202,7 @@ watch(
   display: flex;
   flex-direction: column;
   min-height: 0;
-  height: 100%;
+  height: 1100px;
   overflow: hidden;
 
   @media (max-width: 860px) {
@@ -1264,11 +1269,14 @@ watch(
 
 .np-detail {
   background: var(--paper);
-  padding: 18px 20px 24px;
+  padding: 12px;
+  box-sizing: border-box;
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .np-detail-card {
@@ -1292,7 +1300,12 @@ watch(
   flex-direction: column;
   gap: 10px;
   padding-top: 6px;
+  flex: 1;
   min-height: 0;
+
+  > * {
+    flex-shrink: 0;
+  }
 }
 
 .np-overview-list {
@@ -1347,7 +1360,7 @@ watch(
 }
 
 .np-ledger-table-wrap {
-  max-height: 360px;
+  max-height: 320px;
   overflow-y: auto;
   scrollbar-gutter: stable;
   border: 1px solid var(--line);
@@ -1474,6 +1487,13 @@ watch(
   flex-direction: column;
   gap: 10px;
   padding-top: 6px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+
+  > * {
+    flex-shrink: 0;
+  }
 }
 
 .np-detail-name {
@@ -1534,6 +1554,13 @@ watch(
   flex-direction: column;
   gap: 14px;
   padding-top: 6px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+
+  > * {
+    flex-shrink: 0;
+  }
 }
 
 .np-hint {
@@ -1572,6 +1599,10 @@ watch(
   border: 1px solid var(--line);
   height: 230px;
   overflow-y: auto;
+
+  > * {
+    flex-shrink: 0;
+  }
   border-radius: 2px;
 }
 
@@ -1771,7 +1802,7 @@ watch(
 .np-log-type-tab {
   padding: 3px 10px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 3px;
   font-size: 11.5px;
   background: transparent;
   color: var(--muted);
@@ -1779,7 +1810,7 @@ watch(
   transition: background 0.15s, color 0.15s;
 
   &.is-active {
-    background: var(--accent, #2563eb);
+    background: #000;
     color: #fff;
     border-color: transparent;
   }

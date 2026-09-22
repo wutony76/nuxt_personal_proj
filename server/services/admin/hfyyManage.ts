@@ -60,5 +60,17 @@ export default class HFYYManage {
         password: '123456'
       })
     })
+
+    // 初始 NPC：啟動時自動建立 20 個 NPC 會員（從單字庫隨機組名）
+    for (let i = 0; i < 20; i++) {
+      try {
+        this.npcAutoPlay.autoCreateMember()
+      } catch {
+        // 名稱重複加後綴已由 autoCreateMember 處理，其餘例外略過
+      }
+    }
+
+    // NPC 自動遊玩：預設開啟
+    this.npcAutoPlay.setEnabled(true)
   }
 }
