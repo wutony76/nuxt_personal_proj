@@ -22,14 +22,14 @@ export type ArchitectureNode = {
   detail?: string
 }
 
-export type ArchitectureEdge = {
-  from: string
-  to: string
+/** 一層架構（由上而下堆疊），同一層內的 nodes 是平行關係（例如四個 domain services） */
+export type ArchitectureLayer = {
+  label: string
+  nodes: ArchitectureNode[]
 }
 
 export type ArchitectureContent = {
-  nodes: ArchitectureNode[]
-  edges: ArchitectureEdge[]
+  layers: ArchitectureLayer[]
   notes: string[]
 }
 

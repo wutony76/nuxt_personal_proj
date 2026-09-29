@@ -101,6 +101,72 @@
   `/project/happyfatyoyo-platform-know-how`）皆回 200，`grep -o "HAPPYFATYOYO WORLD"` 在三頁皆命中，
   全站重新確認「HappyFatYoYo 彩票遊戲平台」舊名稱零殘留
 
+## 第六輪：加強 05 Architecture 架構圖
+
+原本的架構圖只是一列 5 個方塊橫排（Browser → app/ → server/api → server/services → Storage），
+使用者要求補上更完整的架構圖，改成由上而下堆疊的分層方塊圖，並真實反映路由命名空間與 domain
+services 的分支結構：
+
+- `app/types/project.ts`：`ArchitectureContent` 從 `{ nodes, edges, notes }`（單一線性鏈）改成
+  `{ layers: ArchitectureLayer[], notes }`，`ArchitectureLayer = { label, nodes }`——同一層內可以有
+  多個平行 node，不必再靠 `edges` 反推排序
+- `app/config/projects/happyfatyoyoPlatform.ts`：架構圖改成 5 層——Client（Browser）→ Nuxt App（
+  `app/`）→ Nitro API（`server/api/`，依實際存在的 4 個路由命名空間分支：`/lottery`、`/lottery-tw`、
+  `/games`、`/admin`，皆已用 `find server/api -maxdepth 1 -type d` 核對過真的存在）→ Domain Services
+  （`server/services/`，依 `game/lottery/bg`、`game/lottery/tw`、`game/retro`、`game/toys`、`admin`
+  五個實際目錄分支，同樣核對過 `server/services/game` 底下的真實子目錄）→ Storage（記憶體）
+- `app/components/project/section/ArchitectureDiagram.vue`：改成渲染 `layers`，每層一個 label + 一列
+  平行 node，層與層之間用 `↓` 連接，不再需要依 `edges` 自動排序
+- `app/assets/style/project.scss`：`.np-proj-arch-diagram`/`.np-proj-arch-arrow` 換成
+  `.np-proj-arch`/`.np-proj-arch-layer(-label)`/`.np-proj-arch-row`/`.np-proj-arch-down`，
+  `.np-proj-arch-node` 沿用
+- 驗證：`curl http://localhost:6100/project/happyfatyoyo-platform`（`200`），`grep` 確認 5 層 label
+  與所有 node 皆正確渲染（含 API 4 個路由分支、Service 5 個 domain 分支）；`nuxi typecheck` 對
+  `app/types/project`／`app/config/projects`／`app/components/project` 零新增錯誤
+
+## 第七輪：調整列表頁排序
+
+使用者要求把「HAPPYFATYOYO WORLD」排到第一個。調整 `app/pages/project/index.vue` 的 `PROJECTS`
+陣列順序與 `no` 欄位：`happyfatyoyo-platform` 變成 `no: '01'`（陣列第一筆），`happy-fish-3D` 變成
+`no: '02'`（陣列第二筆）。驗證：`curl http://localhost:6100/project` 回 `200`，HTML 裡
+`href="/project/happyfatyoyo-platform"` 的卡片先於 `href="/project/happy-fish-3D"` 出現，
+且兩張卡片的 `.np-card-index` 分別渲染為 `01`／`02`。
+
+## 第八輪：擴充列表順序，新增 8 個佔位專案
+
+使用者給了完整的 10 項專案排序清單，其中 8 項（搶頭香（宮廟）、HOT虛擬攝影棚、ACE女神娛樂城、超激
+對決娛樂城、PARTY GAME、彩票綜合包網、MT4 GAC、礦機平台）目前站內尚無任何內容，僅有名稱。為了讓
+列表頁排序能完整對上、且不出現點擊 404 的卡片，新增這 8 個佔位詳細頁（比照 `happy-fish-3D.vue` 的
+簡易 3 段結構：簡介／項目重點／技術棧，內容皆標示「待補」，不臆測任何具體規格）：
+
+- `app/pages/project/index.vue`：`PROJECTS` 陣列補上 8 筆 `ProjectSummary`（`no: '03'`~`'10'`），
+  `tagline` 僅依專案名稱本身透露的資訊寫一句話（例如 `MT4 GAC` 沿用名稱裡「行情資料串接與投資試算」），
+  沒有任何額外杜撰的具體功能或數字；`techStack` 一律 `['待補']`
+- 新增 8 個詳細頁（`app/pages/project/{qiang-tou-xiang,hot-virtual-studio,ace-goddess-casino,
+  extreme-showdown-casino,party-game,lottery-white-label,mt4-gac,mining-platform}.vue`），統一用
+  `ProjectBackLink`／`ProjectStatusBadge`／`ProjectTagList` + `.project-scope` 共用樣式（比第一輪的
+  `happy-fish-3D.vue` 更乾淨，不再各自複製 `<style scoped>`）
+- `app/assets/style/project.scss`：把原本重複寫在 `happy-fish-3D.vue`／`happyfatyoyo-platform.vue`
+  裡的 `.np-proj-detail-head` 提升為共用 class，新增 `.np-proj-simple-section`（簡易版 3 段式的區塊
+  間距），供這 8 個新頁面共用
+- 驗證：10 個路由（`/project` + 9 個詳細頁）皆回 `200`；`curl http://localhost:6100/project` 解析
+  `href` 順序確認 10 張卡片排序與使用者要求的清單完全一致；`nuxi typecheck` 對
+  `app/pages/project`／`app/components/project` 零新增錯誤
+- 已知限制：這 8 個新專案除了名稱與（若名稱本身帶說明）一句話 tagline 之外，完全沒有真實內容，
+  年份／技術棧／簡介皆為「待補」，等待使用者提供實際資料後再依 `happyfatyoyo-platform` 或
+  `happy-fish-3D` 的模式擴寫
+
+## 第九輪：新增「2D.3D美術」專案
+
+使用者要求再加入一項 2D/3D 美術相關專案（呼應使用者手動改過的列表頁副標題，副標題已提到
+「結合 2D／3D 美術與遊戲開發經驗」）。卡片名稱最終由使用者手動調整為「2D.3D美術」（我原本寫的是
+「2D／3D 美術」），已同步把詳細頁標題改成一致的「2D.3D美術」：
+
+- `app/pages/project/index.vue`：`PROJECTS` 補上第 11 筆（`no: '11'`，`slug: '2d-3d-art'`），比照
+  前一輪 8 個佔位專案的做法，`tagline`／`techStack`／`year` 皆標示待補
+- 新增 `app/pages/project/2d-3d-art.vue`：同一套簡易 3 段佔位詳細頁模板
+- 驗證：`/project` 與 `/project/2d-3d-art` 皆回 `200`，列表頁 `href` 順序確認新卡片排在第 11（最後）
+
 ## 結論
 
 - 是否通過：通過

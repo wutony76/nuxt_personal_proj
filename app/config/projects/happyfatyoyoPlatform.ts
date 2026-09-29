@@ -27,18 +27,40 @@ export const happyfatyoyoPlatform: DetailContent = {
     { title: '後台管理', description: '角色遊戲權限、彩票報表、NPC 自動遊玩系統、活動日誌' }
   ],
   architecture: {
-    nodes: [
-      { id: 'browser', label: 'Browser' },
-      { id: 'app', label: 'Nuxt app/', detail: 'pages / components / composables / services' },
-      { id: 'api', label: 'Nitro server/api', detail: 'API routes' },
-      { id: 'services', label: 'server/services', detail: '業務邏輯層' },
-      { id: 'storage', label: 'Storage（記憶體）', detail: 'Demo 環境用的 in-memory state layer' }
-    ],
-    edges: [
-      { from: 'browser', to: 'app' },
-      { from: 'app', to: 'api' },
-      { from: 'api', to: 'services' },
-      { from: 'services', to: 'storage' }
+    layers: [
+      {
+        label: 'Client',
+        nodes: [{ id: 'browser', label: 'Browser' }]
+      },
+      {
+        label: 'Nuxt App（app/）',
+        nodes: [{ id: 'app', label: 'app/', detail: 'pages / components / composables' }]
+      },
+      {
+        label: 'Nitro API（server/api/）',
+        nodes: [
+          { id: 'api-lottery', label: '/lottery', detail: 'BG 彩票' },
+          { id: 'api-lottery-tw', label: '/lottery-tw', detail: '彩運來' },
+          { id: 'api-games', label: '/games', detail: '經典遊戲 + 柑仔店櫥仔' },
+          { id: 'api-admin', label: '/admin', detail: '角色權限、報表、NPC 自動遊玩' }
+        ]
+      },
+      {
+        label: 'Domain Services（server/services/）',
+        nodes: [
+          { id: 'svc-bg', label: 'game/lottery/bg' },
+          { id: 'svc-tw', label: 'game/lottery/tw' },
+          { id: 'svc-retro', label: 'game/retro' },
+          { id: 'svc-toys', label: 'game/toys' },
+          { id: 'svc-admin', label: 'admin' }
+        ]
+      },
+      {
+        label: 'Storage',
+        nodes: [
+          { id: 'storage', label: 'Storage（記憶體）', detail: 'In-memory，Demo 環境用，非正式 Production Database' }
+        ]
+      }
     ],
     notes: [
       'Storage service 是記憶體狀態層，統一存取會員、訂單、遊戲狀態 —— 明確標示：In-memory storage，' +

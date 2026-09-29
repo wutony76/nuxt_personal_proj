@@ -88,6 +88,18 @@
   color: var(--proj-muted-soft);
 }
 
+.np-proj-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* 簡易版詳細頁（3 段式，內容待補）共用區塊間距 */
+.np-proj-simple-section {
+  margin-top: 32px;
+}
+
 .np-proj-tags {
   display: flex;
   flex-wrap: wrap;
@@ -297,13 +309,35 @@
   }
 }
 
-/* Architecture 圖：純 CSS 方塊 + 箭頭 */
-.np-proj-arch-diagram {
+/* Architecture 圖：純 CSS 分層方塊圖（由上而下），同層內多個 node 為平行關係 */
+.np-proj-arch {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 0;
+}
+
+.np-proj-arch-layer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 6px;
-  overflow-x: auto;
-  padding: 6px 2px;
+}
+
+.np-proj-arch-layer-label {
+  font-family: var(--proj-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--proj-muted-soft);
+}
+
+.np-proj-arch-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
 }
 
 .np-proj-arch-node {
@@ -318,8 +352,8 @@
   white-space: nowrap;
 }
 
-.np-proj-arch-arrow {
-  flex-shrink: 0;
+.np-proj-arch-down {
   color: var(--proj-muted-soft);
   font-family: var(--proj-font-mono);
+  line-height: 1;
 }

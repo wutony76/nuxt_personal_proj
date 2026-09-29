@@ -35,7 +35,9 @@
   - `section/SectionShell.vue`（prop `no`/`title` + default slot）：9 段共用的「編號 + 標題 + 上邊界線」
     外殼
   - `section/FeatureCardGrid.vue`（04 Key Features）、`section/ArchitectureDiagram.vue`（05
-    Architecture，純 CSS 方塊+箭頭，依 `edges` 自動排序節點）、`section/EvidenceCardList.vue`（06
+    Architecture，純 CSS 分層方塊圖，由上而下堆疊 `layers`，同層內多個 node 平行排列，用來呈現
+    Client → Nuxt App → Nitro API（依路由命名空間分支）→ Domain Services（依 bg/tw/retro/toys/admin
+    分支）→ Storage 的實際分層與分支結構）、`section/EvidenceCardList.vue`（06
     Engineering Evidence）、`section/KnowHowHighlights.vue`（07 Know-how 案例頁精選版）、
     `section/KnowHowFull.vue`（07 Know-how 附頁完整版，帶 `id` 錨點）、`section/MetricsCardGrid.vue`
     （09 Result，KPI 卡片排版仿 `admin/reports/index.vue` 的「小標籤→大數字→說明」邏輯，不借用其
@@ -111,8 +113,9 @@ type ProjectSummary = {           // 列表頁 —— 型別上就不含 Know-ho
 type FeatureCard = { title: string; description: string }
 
 type ArchitectureNode = { id: string; label: string; detail?: string }
-type ArchitectureEdge = { from: string; to: string }
-type ArchitectureContent = { nodes: ArchitectureNode[]; edges: ArchitectureEdge[]; notes: string[] }
+/** 一層架構（由上而下堆疊），同一層內的 nodes 是平行關係（例如四個 domain services） */
+type ArchitectureLayer = { label: string; nodes: ArchitectureNode[] }
+type ArchitectureContent = { layers: ArchitectureLayer[]; notes: string[] }
 
 type EvidenceCard = { title: string; description: string; refLabel?: string; refHref?: string }
 
