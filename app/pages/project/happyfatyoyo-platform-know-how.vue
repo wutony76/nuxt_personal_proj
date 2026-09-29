@@ -1,27 +1,27 @@
 <script setup lang="ts">
-import { useProjectFonts } from '~/composables/useProjectFonts'
 import { happyfatyoyoPlatform as detail } from '~/config/projects/happyfatyoyoPlatform'
-import ProjectBackLink from '~/components/project/ProjectBackLink.vue'
 import KnowHowFull from '~/components/project/section/KnowHowFull.vue'
 
-useProjectFonts()
+definePageMeta({ layout: 'portfolio' })
 </script>
 
 <template>
-  <div class="project-scope min-h-screen bg-slate-50">
-    <AppTopbar />
-    <main class="mx-auto max-w-3xl px-5 py-10">
-      <ProjectBackLink to="/project/happyfatyoyo-platform" label="← 返回 HAPPYFATYOYO WORLD" />
-
-      <span class="np-proj-eyebrow">ENGINEERING NOTES</span>
-      <h1 class="np-proj-title">Know-how</h1>
-      <p class="mt-3 max-w-xl text-sm leading-relaxed text-slate-500">
+  <main class="pf-main">
+    <section style="padding: clamp(40px,6vw,80px) 0 clamp(32px,4vw,48px)">
+      <div class="pf-detail-breadcrumb">
+        <NuxtLink to="/project/happyfatyoyo-platform" class="pf-detail-back">← 返回 HAPPYFATYOYO WORLD</NuxtLink>
+        <span class="pf-detail-counter">Engineering Notes</span>
+      </div>
+      <h1 class="pf-detail-title">
+        Know-<span class="pf-detail-title-accent">how</span>
+      </h1>
+      <p class="np-proj-section-body" style="margin-top: 16px; max-width: 640px">
         HAPPYFATYOYO WORLD 完整的技術研究、架構思考與決策紀錄。
       </p>
+    </section>
 
-      <div style="margin-top: 32px">
-        <KnowHowFull :groups="detail.knowHow" />
-      </div>
-    </main>
-  </div>
+    <div style="padding-bottom: clamp(56px,8vw,112px)">
+      <KnowHowFull :groups="detail.knowHow" />
+    </div>
+  </main>
 </template>

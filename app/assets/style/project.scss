@@ -1,179 +1,1121 @@
 /**
- * Portfolio 專案展示區（/project/*）共用樣式。
- * 對應 openspec/changes/add-project-showcase-page/design.md 的 `.project-scope` token 策略：
- * 比照 admin.scss 的 `.admin-scope` 做法——獨立一組 token + class，外層頁面掛 `.project-scope`。
+ * Portfolio 專案展示區（/project/*、首頁）共用樣式。
+ * Industry 設計系統：深色外殼（#0e1211）+ 淺灰主內容區（#dae5e6）+ 青綠 accent（#588c86）
+ * 字體：Barlow Condensed（大字）/ Barlow（內文）/ JetBrains Mono（等寬）/ Noto Sans TC（中文）
  */
 .project-scope {
-  --proj-ink: #0f172a;
-  --proj-muted: #64748b;
-  --proj-muted-soft: #94a3b8;
-  --proj-line: #e2e8f0;
-  --proj-wash: #f8fafc;
-  --proj-accent: #6366f1;
-  --proj-accent-soft: #eef2ff;
+  // ── 基底色板 ──
+  --proj-ink: #0f1a19;
+  --proj-muted: #51625f;
+  --proj-muted-body: #33423f;
+  --proj-muted-soft: #9aa5a2;
+  --proj-line: rgba(15, 26, 25, 0.14);
+  --proj-bg: #dae5e6;
+
+  // ── Accent（青綠） ──
+  --proj-accent: #588c86;
+  --proj-accent-dark: #3c6863;
+  --proj-accent-light: #8fc4bd;
+  --proj-accent-soft: rgba(88, 140, 134, 0.14);
+
+  // ── 深色外殼（header / footer） ──
+  --proj-shell-bg: #0e1211;
+  --proj-shell-text: #e8ecea;
+  --proj-shell-line: rgba(232, 236, 234, 0.1);
+
+  // ── 狀態標籤 ──
   --proj-status-live-fg: #15803d;
   --proj-status-live-bg: #f0fdf4;
-  --proj-status-building-fg: #b45309;
-  --proj-status-building-bg: #fffbeb;
-  --proj-status-archived-fg: #64748b;
-  --proj-status-archived-bg: #f1f5f9;
-  --proj-font-heading: 'Space Grotesk', sans-serif;
+  --proj-status-building-fg: var(--proj-accent-dark);
+  --proj-status-building-bg: transparent;
+  --proj-status-archived-fg: var(--proj-muted);
+  --proj-status-archived-bg: transparent;
+
+  // ── 字體 ──
+  --proj-font-heading: 'Barlow Condensed', 'Noto Sans TC', sans-serif;
+  --proj-font-body: 'Barlow', 'Noto Sans TC', system-ui, sans-serif;
   --proj-font-mono: 'JetBrains Mono', monospace;
 }
 
-.np-proj-eyebrow {
-  font-family: var(--proj-font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.28em;
+// ═══════════════════════════════════════════════
+// Motion — 進場動畫 / Reveal 效果
+// ═══════════════════════════════════════════════
+
+@keyframes pf-fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pf-fade-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pf-fade-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pf-fade-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// 首屏元素載入時直接播放進場動畫（無需等待滾動）
+.pf-hero-anim {
+  animation: pf-fade-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  &.pf-hero-anim-title {
+    animation-delay: 0.08s;
+  }
+
+  &.pf-hero-anim-body {
+    animation-delay: 0.16s;
+  }
+}
+
+// Hero 人像獨立縮放淡入，與 pf-hero-anim-body 疊加出層次感
+.pf-hero-portrait {
+  animation: pf-fade-scale-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 0.32s;
+}
+
+// Hero meta / 專案列表 header meta：左右分向滑入
+.pf-hero-meta,
+.pf-proj-header-meta {
+  > span {
+    display: inline-block;
+    opacity: 0;
+    animation: pf-fade-slide-in-left 0.5s ease-out both;
+  }
+
+  > span:last-child {
+    animation-name: pf-fade-slide-in-right;
+    animation-delay: 0.1s;
+  }
+}
+
+// CTA 按鈕群組逐一 stagger 彈入
+.pf-hero-actions {
+  > * {
+    opacity: 0;
+    animation: pf-fade-slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  > *:nth-child(1) {
+    animation-delay: 0.42s;
+  }
+
+  > *:nth-child(2) {
+    animation-delay: 0.52s;
+  }
+}
+
+// 滾動進入視窗時觸發（見 useScrollReveal 的 v-reveal 指令）
+.pf-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &.pf-reveal-left {
+    transform: translateX(-32px);
+  }
+
+  &.pf-reveal-right {
+    transform: translateX(32px);
+  }
+
+  &.pf-reveal-scale {
+    transform: scale(0.92);
+  }
+
+  &.pf-reveal-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  &.pf-reveal-left.pf-reveal-visible,
+  &.pf-reveal-right.pf-reveal-visible {
+    transform: translateX(0);
+  }
+
+  &.pf-reveal-scale.pf-reveal-visible {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-hero-anim,
+  .pf-hero-portrait,
+  .pf-hero-meta > span,
+  .pf-proj-header-meta > span,
+  .pf-hero-actions > *,
+  .pf-reveal {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// Layout Shell（portfolio.vue layout 共用）
+// ═══════════════════════════════════════════════
+
+.pf-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--proj-shell-bg);
+  color: var(--proj-shell-text);
+  font-family: var(--proj-font-body);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.pf-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  padding: 22px clamp(20px, 5vw, 64px);
+  border-bottom: 1px solid var(--proj-shell-line);
+}
+
+.pf-brand {
+  font-family: var(--proj-font-heading);
+  font-weight: 600;
+  font-size: 24px;
+  letter-spacing: 0.06em;
+  color: var(--proj-shell-text);
+  text-decoration: none;
+  margin-right: auto;
+}
+
+.pf-brand-dot {
   color: var(--proj-accent);
 }
 
-.np-proj-title {
-  margin-top: 6px;
+.pf-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+
+.pf-nav-link {
+  color: var(--proj-shell-text);
+  text-decoration: none;
+  transition: color 0.15s;
+
+  &:hover {
+    color: var(--proj-accent-light);
+  }
+}
+
+.pf-nav-link-active {
+  color: var(--proj-accent-light);
+  border-bottom: 1px solid var(--proj-accent);
+  padding-bottom: 2px;
+}
+
+.pf-nav-user {
+  color: var(--proj-muted-soft);
+  cursor: default;
+}
+
+.pf-footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 24px clamp(20px, 5vw, 64px);
+  border-top: 1px solid var(--proj-shell-line);
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--proj-muted-soft);
+}
+
+// ═══════════════════════════════════════════════
+// 頁面主內容區（淺灰背景）
+// ═══════════════════════════════════════════════
+
+.pf-main {
+  flex: 1;
+  background: var(--proj-bg);
+  color: var(--proj-ink);
+  padding: 0 clamp(20px, 5vw, 64px);
+}
+
+// ═══════════════════════════════════════════════
+// 首頁 Hero
+// ═══════════════════════════════════════════════
+
+.pf-hero {
+  padding: clamp(48px, 8vw, 112px) 0 clamp(56px, 8vw, 120px);
+  border-bottom: 1px solid var(--proj-line);
+}
+
+.pf-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--proj-muted);
+  margin-bottom: clamp(24px, 4vw, 48px);
+}
+
+.pf-hero-meta-right {
+  color: var(--proj-accent-dark);
+}
+
+.pf-hero-title {
+  margin: 0;
   font-family: var(--proj-font-heading);
-  font-weight: 700;
-  font-size: 34px;
+  font-weight: 600;
+  font-size: clamp(72px, 15vw, 232px);
+  line-height: 0.84;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
   color: var(--proj-ink);
 }
 
-.np-proj-role {
-  margin-top: 8px;
+.pf-hero-title-accent {
+  color: var(--proj-accent);
+}
+
+.pf-hero-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: clamp(32px, 5vw, 80px);
+  margin-top: clamp(40px, 6vw, 80px);
+  align-items: end;
+}
+
+.pf-hero-portrait {
+  aspect-ratio: 4 / 5;
+  max-width: 360px;
+  border: 1px solid var(--proj-line);
+  background: repeating-linear-gradient(135deg, rgba(15, 26, 25, 0.07) 0 1px, transparent 1px 11px);
+  display: grid;
+  place-items: center;
   font-family: var(--proj-font-mono);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.1em;
   color: var(--proj-muted);
 }
 
-.np-proj-back {
-  font-family: var(--proj-font-mono);
-  font-size: 12px;
-  color: var(--proj-accent);
+.pf-hero-desc {
+  margin: 0 0 32px;
+  font-size: clamp(17px, 1.6vw, 20px);
+  line-height: 1.85;
+  color: var(--proj-ink);
+  text-wrap: pretty;
+}
+
+.pf-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pf-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 22px;
+  background: var(--proj-accent);
+  color: var(--proj-shell-bg);
+  text-decoration: none;
+  font-family: var(--proj-font-heading);
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background 0.15s, color 0.15s;
 
   &:hover {
-    text-decoration: underline;
+    background: var(--proj-accent-dark);
+    color: var(--proj-bg);
+
+    .pf-btn-arrow {
+      transform: translateX(4px);
+    }
   }
 }
+
+.pf-btn-arrow {
+  display: inline-block;
+  transition: transform 0.2s ease-out;
+}
+
+.pf-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  padding: 14px 22px;
+  border: 1px solid rgba(15, 26, 25, 0.35);
+  color: var(--proj-ink);
+  text-decoration: none;
+  font-family: var(--proj-font-heading);
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: border-color 0.15s, color 0.15s;
+
+  &:hover {
+    border-color: var(--proj-accent-dark);
+    color: var(--proj-accent-dark);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// 首頁 Experience 區段
+// ═══════════════════════════════════════════════
+
+.pf-section {
+  padding: clamp(56px, 8vw, 120px) 0;
+  border-bottom: 1px solid var(--proj-line);
+}
+
+.pf-section-contact {
+  padding: clamp(64px, 10vw, 144px) 0;
+}
+
+.pf-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: clamp(32px, 5vw, 64px);
+}
+
+.pf-section-title {
+  margin: 0;
+  font-family: var(--proj-font-heading);
+  font-weight: 600;
+  font-size: clamp(48px, 8vw, 112px);
+  line-height: 0.9;
+  letter-spacing: -0.01em;
+  color: var(--proj-ink);
+}
+
+.pf-section-eyebrow {
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--proj-muted);
+}
+
+.pf-job-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 12px clamp(24px, 4vw, 64px);
+  padding: clamp(24px, 3vw, 36px) 0;
+  border-top: 1px solid var(--proj-line);
+}
+
+.pf-job-period {
+  font-family: var(--proj-font-mono);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--proj-accent-dark);
+}
+
+.pf-job-company {
+  font-family: var(--proj-font-heading);
+  font-weight: 600;
+  font-size: clamp(24px, 2.4vw, 32px);
+  line-height: 1.15;
+  color: var(--proj-ink);
+}
+
+.pf-job-role {
+  font-size: 14px;
+  color: var(--proj-muted);
+  margin-top: 4px;
+}
+
+.pf-job-desc {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--proj-muted-body);
+  text-wrap: pretty;
+}
+
+// ═══════════════════════════════════════════════
+// 首頁 Contact 區段
+// ═══════════════════════════════════════════════
+
+.pf-contact-eyebrow {
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--proj-muted);
+  margin-bottom: 24px;
+}
+
+.pf-contact-title {
+  margin: 0 0 clamp(40px, 6vw, 72px);
+  font-family: var(--proj-font-heading);
+  font-weight: 600;
+  font-size: clamp(56px, 11vw, 168px);
+  line-height: 0.86;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: var(--proj-ink);
+}
+
+.pf-contact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  border-top: 1px solid var(--proj-line);
+}
+
+.pf-contact-link {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 24px 24px 24px 0;
+  border-bottom: 1px solid var(--proj-line);
+  color: var(--proj-ink);
+  text-decoration: none;
+  transition: color 0.15s;
+
+  &:hover {
+    color: var(--proj-accent-dark);
+  }
+}
+
+.pf-contact-label {
+  font-family: var(--proj-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--proj-muted);
+}
+
+.pf-contact-value {
+  font-size: 18px;
+}
+
+// ═══════════════════════════════════════════════
+// /project 列表頁 Header
+// ═══════════════════════════════════════════════
+
+.pf-proj-header {
+  padding: clamp(48px, 8vw, 104px) 0 clamp(40px, 6vw, 72px);
+}
+
+.pf-proj-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: clamp(24px, 4vw, 40px);
+}
+
+.pf-proj-header-left {
+  color: var(--proj-accent-dark);
+}
+
+.pf-proj-header-right {
+  color: var(--proj-muted);
+}
+
+.pf-proj-header-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 32px clamp(32px, 6vw, 96px);
+  align-items: end;
+}
+
+.pf-proj-header-title {
+  margin: 0;
+  font-family: var(--proj-font-heading);
+  font-weight: 700;
+  font-size: clamp(88px, 16vw, 220px);
+  line-height: 0.85;
+  letter-spacing: -0.02em;
+  color: var(--proj-ink);
+}
+
+.pf-proj-header-count {
+  font-family: var(--proj-font-mono);
+  font-weight: 400;
+  font-size: 0.14em;
+  letter-spacing: 0;
+  color: var(--proj-accent);
+  vertical-align: top;
+  margin-left: 0.2em;
+}
+
+.pf-proj-header-desc {
+  margin: 0;
+  max-width: 560px;
+  font-size: clamp(16px, 1.4vw, 18px);
+  line-height: 1.85;
+  color: var(--proj-muted-body);
+  text-wrap: pretty;
+}
+
+// ═══════════════════════════════════════════════
+// /project 列表（list row 樣式）
+// ═══════════════════════════════════════════════
+
+.pf-proj-list {
+  border-bottom: 1px solid var(--proj-line);
+}
+
+.pf-proj-row {
+  display: grid;
+  grid-template-columns: minmax(48px, 72px) minmax(0, 1fr) auto;
+  gap: 8px clamp(16px, 3vw, 40px);
+  align-items: start;
+  padding: clamp(24px, 3vw, 36px) 0;
+  border-top: 1px solid var(--proj-line);
+  color: var(--proj-ink);
+  text-decoration: none;
+  transition: background 0.15s;
+
+  &:hover {
+    background: linear-gradient(90deg, var(--proj-accent-soft), transparent 70%);
+
+    .pf-proj-row-name {
+      color: var(--proj-accent-dark);
+    }
+
+    .pf-proj-row-arrow {
+      transform: translateX(6px);
+    }
+  }
+}
+
+.pf-proj-row-num {
+  font-family: var(--proj-font-mono);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--proj-accent-dark);
+  padding-top: 10px;
+}
+
+.pf-proj-row-center {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 12px clamp(24px, 4vw, 64px);
+}
+
+.pf-proj-row-name {
+  font-family: var(--proj-font-heading);
+  font-weight: 600;
+  font-size: clamp(30px, 3.6vw, 52px);
+  line-height: 1.05;
+  letter-spacing: -0.005em;
+  transition: color 0.2s;
+}
+
+.pf-proj-row-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  padding-top: 8px;
+  text-align: right;
+}
+
+.pf-proj-row-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 6px;
+}
+
+.pf-proj-row-desc {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--proj-muted-body);
+  text-wrap: pretty;
+}
+
+.pf-proj-row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  color: var(--proj-muted);
+}
+
+.pf-proj-row-status {
+  font-family: var(--proj-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--proj-accent-dark);
+  border: 1px solid var(--proj-accent-dark);
+  padding: 2px 8px;
+}
+
+.pf-proj-row-date {
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  color: var(--proj-muted);
+  white-space: nowrap;
+}
+
+.pf-proj-row-arrow {
+  display: inline-block;
+  font-size: 22px;
+  color: var(--proj-accent);
+  line-height: 1;
+  transition: transform 0.25s ease-out;
+}
+
+// ═══════════════════════════════════════════════
+// 專案詳細頁 Hero
+// ═══════════════════════════════════════════════
+
+.pf-detail-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: clamp(32px, 5vw, 56px);
+}
+
+.pf-detail-back {
+  color: var(--proj-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+
+  &:hover {
+    color: var(--proj-accent-dark);
+  }
+}
+
+.pf-detail-counter {
+  color: var(--proj-accent);
+}
+
+.pf-detail-title {
+  margin: 0;
+  font-family: var(--proj-font-heading);
+  font-weight: 600;
+  font-size: clamp(64px, 12vw, 184px);
+  line-height: 0.86;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: var(--proj-ink);
+}
+
+.pf-detail-title-accent {
+  color: var(--proj-accent);
+}
+
+.pf-detail-tagline {
+  margin: clamp(28px, 4vw, 48px) 0 0;
+  max-width: 720px;
+  font-size: clamp(18px, 1.8vw, 24px);
+  line-height: 1.7;
+  color: var(--proj-ink);
+  text-wrap: pretty;
+}
+
+// ─── Metadata strip ───
+
+.pf-detail-meta {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  border-top: 1px solid var(--proj-line);
+  border-bottom: 1px solid var(--proj-line);
+}
+
+.pf-detail-meta-item {
+  padding: 20px 20px 20px 0;
+}
+
+.pf-detail-meta-label {
+  font-family: var(--proj-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--proj-muted);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.pf-detail-meta-value {
+  margin: 0;
+  font-family: var(--proj-font-mono);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  color: var(--proj-accent-dark);
+
+  &.is-text {
+    font-family: var(--proj-font-body);
+    font-size: 16px;
+    letter-spacing: 0;
+    color: var(--proj-ink);
+  }
+}
+
+.pf-detail-meta-tags {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-family: var(--proj-font-mono);
+  font-size: 13px;
+  color: var(--proj-ink);
+}
+
+// ─── Hero 截圖佔位 ───
+
+.pf-detail-hero-img {
+  margin: clamp(40px, 6vw, 72px) 0;
+  aspect-ratio: 16 / 8;
+  border: 1px solid var(--proj-line);
+  background: repeating-linear-gradient(135deg, rgba(15, 26, 25, 0.07) 0 1px, transparent 1px 11px);
+  display: grid;
+  place-items: center;
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--proj-muted);
+}
+
+// ─── 正文 section（角色 / 挑戰 / 成果等） ───
+
+.pf-detail-sections {
+  display: flex;
+  flex-direction: column;
+}
+
+.pf-detail-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px clamp(32px, 6vw, 96px);
+  padding: clamp(32px, 4vw, 56px) 0;
+  border-top: 1px solid var(--proj-line);
+}
+
+.pf-detail-section-head {
+  margin: 0;
+  font-family: var(--proj-font-heading);
+  font-weight: 600;
+  font-size: clamp(32px, 3.6vw, 48px);
+  line-height: 1;
+  color: var(--proj-ink);
+}
+
+.pf-detail-section-num {
+  font-family: var(--proj-font-mono);
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--proj-accent-dark);
+  display: block;
+  margin-bottom: 12px;
+  letter-spacing: 0.1em;
+}
+
+.pf-detail-section-body {
+  margin: 0;
+  max-width: 640px;
+  font-size: 16px;
+  line-height: 1.85;
+  color: var(--proj-muted-body);
+}
+
+.pf-detail-section-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 640px;
+}
+
+.pf-detail-section-list li {
+  display: flex;
+  gap: 10px;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--proj-muted-body);
+
+  &::before {
+    content: '—';
+    color: var(--proj-accent);
+    flex-shrink: 0;
+  }
+}
+
+// ─── 截圖 gallery ───
+
+.pf-detail-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: clamp(16px, 2vw, 24px);
+  padding-bottom: clamp(56px, 8vw, 112px);
+}
+
+.pf-detail-gallery-img {
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--proj-line);
+  background: repeating-linear-gradient(135deg, rgba(15, 26, 25, 0.07) 0 1px, transparent 1px 11px);
+  display: grid;
+  place-items: center;
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--proj-muted);
+}
+
+// ─── Next project ───
+
+.pf-detail-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: clamp(40px, 6vw, 80px) 0;
+  border-top: 1px solid var(--proj-line);
+  color: var(--proj-ink);
+  text-decoration: none;
+  transition: color 0.15s;
+
+  &:hover {
+    color: var(--proj-accent-dark);
+  }
+}
+
+.pf-detail-next-label {
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--proj-muted);
+}
+
+.pf-detail-next-title {
+  font-family: var(--proj-font-heading);
+  font-weight: 600;
+  font-size: clamp(40px, 7vw, 96px);
+  line-height: 1;
+}
+
+.pf-detail-next-arrow {
+  color: var(--proj-accent);
+}
+
+// ═══════════════════════════════════════════════
+// 元件共用（ProjectStatusBadge / ProjectTagList）
+// ═══════════════════════════════════════════════
 
 .np-proj-status {
   display: inline-flex;
   font-family: var(--proj-font-mono);
   font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   padding: 2px 8px;
-  border-radius: 999px;
+  border: 1px solid currentColor;
   color: var(--proj-muted);
-  background: var(--proj-wash);
 
   &.is-live {
     color: var(--proj-status-live-fg);
-    background: var(--proj-status-live-bg);
   }
 
   &.is-building {
-    color: var(--proj-status-building-fg);
-    background: var(--proj-status-building-bg);
+    color: var(--proj-accent-dark);
   }
 
   &.is-archived {
-    color: var(--proj-status-archived-fg);
-    background: var(--proj-status-archived-bg);
+    color: var(--proj-muted);
   }
-}
-
-.np-proj-year {
-  font-family: var(--proj-font-mono);
-  font-size: 11px;
-  color: var(--proj-muted-soft);
-}
-
-.np-proj-detail-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-/* 簡易版詳細頁（3 段式，內容待補）共用區塊間距 */
-.np-proj-simple-section {
-  margin-top: 32px;
 }
 
 .np-proj-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 6px 16px;
 }
 
 .np-proj-tag {
   font-family: var(--proj-font-mono);
+  font-size: 12px;
+  color: var(--proj-muted);
+}
+
+// ─── 返回連結 ───
+.np-proj-back {
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--proj-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+
+  &:hover {
+    color: var(--proj-accent-dark);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// happyfatyoyo-platform.vue 9-section 詳細頁（精選版，套 Industry 風格）
+// ═══════════════════════════════════════════════
+
+.np-proj-eyebrow {
+  font-family: var(--proj-font-mono);
   font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  color: #4338ca;
-  background: var(--proj-accent-soft);
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--proj-accent-dark);
+}
+
+.np-proj-year {
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--proj-muted);
+}
+
+.np-proj-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: clamp(28px, 4vw, 48px);
+}
+
+.np-proj-simple-section {
+  margin-top: 36px;
+  padding-top: 24px;
+  border-top: 1px solid var(--proj-line);
 }
 
 .np-proj-section-body {
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--proj-muted);
+  font-size: 15px;
+  line-height: 1.85;
+  color: var(--proj-muted-body);
 }
 
 .np-proj-list {
-  padding-left: 18px;
+  padding-left: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--proj-muted);
-  list-style: disc;
+  gap: 10px;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--proj-muted-body);
+}
+
+.np-proj-list li {
+  display: flex;
+  gap: 10px;
+
+  &::before {
+    content: '—';
+    color: var(--proj-accent);
+    flex-shrink: 0;
+  }
 }
 
 .np-proj-pull-quote {
-  margin: 14px 0;
+  margin: 16px 0;
   padding-left: 16px;
   border-left: 3px solid var(--proj-accent);
   font-family: var(--proj-font-heading);
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: 600;
   color: var(--proj-ink);
+  line-height: 1.4;
 }
 
-/* 編號 section 外殼（SectionShell） */
+// ─── SectionShell ───
+
 .np-proj-num-section {
-  margin-top: 36px;
-  padding-top: 20px;
+  margin-top: 0;
+  padding: clamp(32px, 4vw, 56px) 0;
   border-top: 1px solid var(--proj-line);
 }
 
 .np-proj-num-head {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px clamp(32px, 6vw, 96px);
+  align-items: start;
 }
 
 .np-proj-num {
   font-family: var(--proj-font-mono);
+  font-weight: 400;
   font-size: 13px;
-  font-weight: 500;
-  color: var(--proj-accent);
+  color: var(--proj-accent-dark);
+  letter-spacing: 0.1em;
 }
 
 .np-proj-num-title {
   font-family: var(--proj-font-heading);
-  font-weight: 700;
-  font-size: 16px;
+  font-weight: 600;
+  font-size: clamp(32px, 3.6vw, 48px);
+  line-height: 1;
   color: var(--proj-ink);
 }
 
 .np-proj-num-body {
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
-/* 通用卡片格線（Feature / Evidence / Metrics 共用同一種排版邏輯） */
+// ─── 卡片格線（Feature / Evidence / Metrics） ───
+
 .np-proj-card-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -189,80 +1131,85 @@
 }
 
 .np-proj-mini-card {
-  padding: 14px;
-  border-radius: 8px;
+  padding: 16px;
   border: 1px solid var(--proj-line);
-  background: #fff;
+  background: rgba(255, 255, 255, 0.6);
 }
 
 .np-proj-mini-card-title {
   font-family: var(--proj-font-heading);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 16px;
   color: var(--proj-ink);
 }
 
 .np-proj-mini-card-body {
   margin-top: 6px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--proj-muted);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--proj-muted-body);
 }
 
-/* Metrics（Result）卡片：label -> 大數字 -> caption */
+// ─── Metrics ───
+
 .np-proj-metric-label {
   font-family: var(--proj-font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
-  color: var(--proj-muted-soft);
+  text-transform: uppercase;
+  color: var(--proj-muted);
 }
 
 .np-proj-metric-value {
   margin-top: 4px;
   font-family: var(--proj-font-heading);
   font-weight: 700;
-  font-size: 24px;
+  font-size: 28px;
   color: var(--proj-ink);
+  letter-spacing: -0.01em;
 }
 
 .np-proj-metric-caption {
-  margin-top: 2px;
-  font-size: 11px;
+  margin-top: 4px;
+  font-size: 12px;
   color: var(--proj-muted);
 }
 
-/* Engineering Evidence 卡片的路徑標籤 */
+// ─── Engineering Evidence ───
+
 .np-proj-ref-label {
   display: inline-block;
   margin-top: 8px;
   font-family: var(--proj-font-mono);
   font-size: 10px;
-  color: var(--proj-muted-soft);
+  color: var(--proj-muted);
 }
 
-/* Know-how 分組（Highlights / Full 共用） */
+// ─── Know-how ───
+
 .np-proj-groups {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
 .np-proj-group-title {
   font-family: var(--proj-font-mono);
   font-weight: 500;
   font-size: 12px;
-  letter-spacing: 0.06em;
-  color: var(--proj-accent);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--proj-accent-dark);
 }
 
 .np-proj-group .np-proj-list {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .np-proj-highlight-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  gap: 16px;
 
   @media (max-width: 700px) {
     grid-template-columns: 1fr;
@@ -276,21 +1223,22 @@
 }
 
 .np-proj-highlight-title {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--proj-ink);
 }
 
 .np-proj-highlight-synopsis {
-  font-size: 11.5px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.55;
   color: var(--proj-muted);
 }
 
 .np-proj-view-link {
   font-family: var(--proj-font-mono);
   font-size: 11px;
-  color: var(--proj-accent);
+  color: var(--proj-accent-dark);
+  text-decoration: none;
 
   &:hover {
     text-decoration: underline;
@@ -302,20 +1250,22 @@
   margin-top: 16px;
   font-family: var(--proj-font-mono);
   font-size: 12px;
-  color: var(--proj-accent);
+  color: var(--proj-accent-dark);
+  text-decoration: none;
 
   &:hover {
     text-decoration: underline;
   }
 }
 
-/* Architecture 圖：純 CSS 分層方塊圖（由上而下），同層內多個 node 為平行關係 */
+// ─── Architecture ───
+
 .np-proj-arch {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 10px 0;
+  padding: 12px 0;
 }
 
 .np-proj-arch-layer {
@@ -329,8 +1279,9 @@
 .np-proj-arch-layer-label {
   font-family: var(--proj-font-mono);
   font-size: 10px;
-  letter-spacing: 0.06em;
-  color: var(--proj-muted-soft);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--proj-muted);
 }
 
 .np-proj-arch-row {
@@ -342,10 +1293,9 @@
 
 .np-proj-arch-node {
   flex-shrink: 0;
-  padding: 10px 14px;
-  border-radius: 8px;
+  padding: 10px 16px;
   border: 1px solid var(--proj-line);
-  background: var(--proj-wash);
+  background: rgba(255, 255, 255, 0.5);
   font-size: 12px;
   font-weight: 600;
   color: var(--proj-ink);
@@ -353,7 +1303,7 @@
 }
 
 .np-proj-arch-down {
-  color: var(--proj-muted-soft);
+  color: var(--proj-accent);
   font-family: var(--proj-font-mono);
   line-height: 1;
 }

@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { ProjectSummary } from '~/types/project'
-import ProjectCard from '~/components/project/ProjectCard.vue'
-import { useProjectFonts } from '~/composables/useProjectFonts'
+import { useScrollReveal } from '~/composables/useScrollReveal'
 
-useProjectFonts()
+definePageMeta({ layout: 'portfolio' })
+
+const { vReveal } = useScrollReveal()
 
 const PROJECTS: ProjectSummary[] = [
   {
@@ -11,7 +13,7 @@ const PROJECTS: ProjectSummary[] = [
     no: '01',
     name: 'HAPPYFATYOYO WORLD',
     tagline: '本站本身：規格驅動開發的全端彩票 / 遊戲 / 後台自動化工程作品',
-    year: '2026.04 – 至今',
+    year: '2026.04 — 至今',
     status: 'building',
     techStack: ['Nuxt 4', 'TypeScript', 'Nitro', 'Pinia']
   },
@@ -106,24 +108,53 @@ const PROJECTS: ProjectSummary[] = [
     techStack: ['待補']
   }
 ]
+
+const count = computed(() => String(PROJECTS.length).padStart(2, '0'))
 </script>
 
 <template>
-  <div class="project-scope min-h-screen bg-slate-50">
-    <AppTopbar />
-    <main class="mx-auto max-w-6xl px-5 py-10">
-      <div>
-        <span class="np-proj-eyebrow">PROJECTS</span>
-        <p class="np-proj-role">Senior Frontend / Full Stack Engineer Portfolio</p>
-        <h1 class="np-proj-title">專案</h1>
-        <p class="mt-3 max-w-xl text-sm leading-relaxed text-slate-500">
-          以多年前端開發經驗為核心，延伸至全端工程與互動產品實作，涵蓋遊戲、娛樂、彩票、金融資料與 Web3 等多元領域，結合 2D／3D 美術與遊戲開發經驗，展現從前端實作、系統整合到業務邏輯的完整工程能力。
+  <main class="pf-main">
+    <!-- ── Projects Header ── -->
+    <section class="pf-proj-header">
+      <div class="pf-proj-header-meta pf-hero-anim">
+        <span class="pf-proj-header-left">Projects</span>
+        <span class="pf-proj-header-right">Senior Frontend / Full Stack Engineer Portfolio</span>
+      </div>
+      <div class="pf-proj-header-body">
+        <h1 class="pf-proj-header-title pf-hero-anim pf-hero-anim-title">
+          專案<sup class="pf-proj-header-count">({{ count }})</sup>
+        </h1>
+        <p class="pf-proj-header-desc pf-hero-anim pf-hero-anim-body">
+          以多年前端開發經驗為核心，延伸至全端工程與互動產品實作，涵蓋遊戲、娛樂、彩票、金融資料與 Web3
+          等多元領域，結合 2D / 3D 美術與遊戲開發經驗，展現從前端實作、系統整合到業務邏輯的完整工程能力。
         </p>
       </div>
+    </section>
 
-      <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        <ProjectCard v-for="p in PROJECTS" :key="p.slug" :project="p" />
-      </div>
-    </main>
-  </div>
+    <!-- ── Projects List ── -->
+    <div class="pf-proj-list">
+      <NuxtLink
+        v-for="(p, i) in PROJECTS"
+        :key="p.slug"
+        :to="`/project/${p.slug}`"
+        class="pf-proj-row"
+      >
+        <span v-reveal="{ delay: Math.min(i, 6) * 50, variant: 'left' }" class="pf-proj-row-num">{{ p.no }}</span>
+        <div v-reveal="{ delay: Math.min(i, 6) * 50 + 40 }" class="pf-proj-row-center">
+          <div class="pf-proj-row-name">{{ p.name }}</div>
+          <div class="pf-proj-row-detail">
+            <p class="pf-proj-row-desc">{{ p.tagline }}</p>
+            <div class="pf-proj-row-tags">
+              <span v-for="t in p.techStack" :key="t">#{{ t }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-reveal="{ delay: Math.min(i, 6) * 50 + 80, variant: 'right' }" class="pf-proj-row-right">
+          <span class="pf-proj-row-status">{{ p.status.toUpperCase() }}</span>
+          <span class="pf-proj-row-date">{{ p.year }}</span>
+          <span class="pf-proj-row-arrow">→</span>
+        </div>
+      </NuxtLink>
+    </div>
+  </main>
 </template>

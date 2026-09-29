@@ -58,9 +58,16 @@ const _actions = {
 <template>
   <main class="grid min-h-[calc(100vh-64px)] place-items-center px-6 py-8">
     <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h1 class="text-2xl font-bold text-slate-900">登入後台</h1>
+      <h1 class="text-2xl font-bold text-slate-900">登入</h1>
       <p class="mb-4 mt-2 text-sm text-slate-600">
-        請輸入 Email 與密碼（至少 6 碼）。
+        請輸入 Email 與密碼（至少 6 碼）
+        <br />
+        <br />
+      <h5> 測試帳號 </h5>
+      test02@test.cc / 222222 <br />
+      test03@test.cc / 222222 <br />
+      test04@test.cc / 222222 <br />
+      <br />
       </p>
 
       <label class="mb-3 block text-sm font-semibold text-slate-700">

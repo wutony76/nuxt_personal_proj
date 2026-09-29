@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Portfolio" description="深色編輯風個人履歷：首頁、專案列表、專案內頁" -->
+<helmet><script src="./ds-base.js"></script><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap"><style>html,body{margin:0;background:#dae5e6;color:#0f1a19}::selection{background:#588c86;color:#0e1211}</style></helmet>
+<div style="min-height:100vh;background:#0e1211;color:#e8ecea;font-family:'Barlow','Noto Sans TC',system-ui,sans-serif;font-size:16px;line-height:1.7">
+<header style="display:flex;align-items:center;flex-wrap:wrap;gap:16px 32px;padding:22px clamp(20px,5vw,64px);border-bottom:1px solid rgba(232,236,234,.1)">
+<a href="Portfolio.dc.html" style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;letter-spacing:.06em;color:#e8ecea;text-decoration:none;margin-right:auto">HFYY<span style="color:#588c86">.</span></a>
+<nav style="display:flex;flex-wrap:wrap;gap:8px 28px;font-size:14px;letter-spacing:.04em">
+<a href="Portfolio.dc.html" style="color:#8fc4bd;text-decoration:none;border-bottom:1px solid #588c86;padding-bottom:2px">首頁</a>
+<a href="Projects.dc.html" style="color:#e8ecea;text-decoration:none" style-hover="color:#8fc4bd">專案</a>
+<a href="#" style="color:#e8ecea;text-decoration:none" style-hover="color:#8fc4bd">彩票</a>
+<a href="#" style="color:#e8ecea;text-decoration:none" style-hover="color:#8fc4bd">彩運來</a>
+<a href="#" style="color:#e8ecea;text-decoration:none" style-hover="color:#8fc4bd">遊戲</a>
+<a href="#" style="color:#e8ecea;text-decoration:none" style-hover="color:#8fc4bd">後台</a>
+<a href="#" style="color:#9aa5a2;text-decoration:none" style-hover="color:#8fc4bd">登出 HappyFatYoYo</a>
+</nav>
+</header>
+<main style="background:#dae5e6;color:#0f1a19;padding:0 clamp(20px,5vw,64px)">
+<section data-screen-label="Home Hero" style="padding:clamp(48px,8vw,112px) 0 clamp(56px,8vw,120px);border-bottom:1px solid rgba(15,26,25,.14)">
+<div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#51625f;margin-bottom:clamp(24px,4vw,48px)"><span>Portfolio — 2026</span><span style="color:#3c6863">Senior Frontend / Full Stack Engineer</span></div>
+<h1 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:clamp(72px,15vw,232px);line-height:.84;letter-spacing:-.02em;text-transform:uppercase;color:#0f1a19">Happy<br>Fat <span style="color:#588c86">YoYo</span></h1>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:clamp(32px,5vw,80px);margin-top:clamp(40px,6vw,80px);align-items:end">
+<sc-if value="{{ showPortrait }}" hint-placeholder-val="{{ true }}"><div style="aspect-ratio:4/5;max-width:360px;border:1px solid rgba(15,26,25,.22);background:repeating-linear-gradient(135deg,rgba(15,26,25,.07) 0 1px,transparent 1px 11px);display:grid;place-items:center;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.1em;color:#51625f">個人照片</div></sc-if>
+<div style="max-width:560px">
+<p style="margin:0 0 32px;font-size:clamp(17px,1.6vw,20px);line-height:1.85;color:#0f1a19;text-wrap:pretty">以多年前端開發經驗為核心，延伸至全端工程與互動產品實作，涵蓋遊戲、娛樂、彩票、金融資料與 Web3 等多元領域，結合 2D / 3D 美術與遊戲開發經驗，展現從前端實作、系統整合到業務邏輯的完整工程能力。</p>
+<div style="display:flex;flex-wrap:wrap;gap:12px">
+<a href="Projects.dc.html" style="display:inline-flex;align-items:center;gap:10px;padding:14px 22px;background:#588c86;color:#0e1211;text-decoration:none;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;letter-spacing:.06em;text-transform:uppercase" style-hover="background:#3c6863;color:#dae5e6">查看專案 →</a>
+<a href="#contact" style="display:inline-flex;align-items:center;padding:14px 22px;border:1px solid rgba(15,26,25,.35);color:#0f1a19;text-decoration:none;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;letter-spacing:.06em;text-transform:uppercase" style-hover="border-color:#3c6863;color:#3c6863">聯絡我</a>
+</div>
+</div>
+</div>
+</section>
+<section data-screen-label="Experience" style="padding:clamp(56px,8vw,120px) 0;border-bottom:1px solid rgba(15,26,25,.14)">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:clamp(32px,5vw,64px)">
+<h2 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:clamp(48px,8vw,112px);line-height:.9;letter-spacing:-.01em;color:#0f1a19">經歷</h2>
+<span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#51625f">01 — Experience</span>
+</div>
+<sc-for list="{{ jobs }}" as="job" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px clamp(24px,4vw,64px);padding:clamp(24px,3vw,36px) 0;border-top:1px solid rgba(15,26,25,.14)">
+<div style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.08em;color:#3c6863">{{ job.period }}</div>
+<div><div style="font-family:'Barlow Condensed','Noto Sans TC',sans-serif;font-weight:600;font-size:clamp(24px,2.4vw,32px);line-height:1.15;color:#0f1a19">{{ job.company }}</div><div style="font-size:14px;color:#51625f;margin-top:4px">{{ job.role }}</div></div>
+<p style="margin:0;font-size:15px;line-height:1.8;color:#33423f;text-wrap:pretty">{{ job.desc }}</p>
+</div>
+</sc-for>
+</section>
+<section id="contact" data-screen-label="Contact" style="padding:clamp(64px,10vw,144px) 0">
+<div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#51625f;margin-bottom:24px">02 — Contact</div>
+<h2 style="margin:0 0 clamp(40px,6vw,72px);font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:clamp(56px,11vw,168px);line-height:.86;letter-spacing:-.02em;text-transform:uppercase;color:#0f1a19">Let's build<br><span style="color:#588c86">something.</span></h2>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));border-top:1px solid rgba(15,26,25,.14)">
+<a href="#" style="display:flex;flex-direction:column;gap:6px;padding:24px 24px 24px 0;border-bottom:1px solid rgba(15,26,25,.14);color:#0f1a19;text-decoration:none" style-hover="color:#3c6863"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#51625f">Email</span><span style="font-size:18px">待補 ↗</span></a>
+<a href="#" style="display:flex;flex-direction:column;gap:6px;padding:24px 24px 24px 0;border-bottom:1px solid rgba(15,26,25,.14);color:#0f1a19;text-decoration:none" style-hover="color:#3c6863"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#51625f">GitHub</span><span style="font-size:18px">待補 ↗</span></a>
+<a href="#" style="display:flex;flex-direction:column;gap:6px;padding:24px 24px 24px 0;border-bottom:1px solid rgba(15,26,25,.14);color:#0f1a19;text-decoration:none" style-hover="color:#3c6863"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#51625f">LinkedIn</span><span style="font-size:18px">待補 ↗</span></a>
+</div>
+</section>
+</main>
+<footer style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:24px clamp(20px,5vw,64px);border-top:1px solid rgba(232,236,234,.1);font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.08em;color:#9aa5a2"><span>© 2026 HappyFatYoYo</span><span>HFYY<span style="color:#588c86">.</span></span></footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showPortrait&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      showPortrait: this.props.showPortrait ?? true,
+      jobs: [
+        { period: '20XX — 至今', company: '公司名稱（待補）', role: 'Senior Frontend Engineer', desc: '工作內容與成果（待補）' },
+        { period: '20XX — 20XX', company: '公司名稱（待補）', role: 'Frontend Engineer', desc: '工作內容與成果（待補）' },
+        { period: '20XX — 20XX', company: '公司名稱（待補）', role: '2D / 3D 美術 · 遊戲開發', desc: '工作內容與成果（待補）' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
