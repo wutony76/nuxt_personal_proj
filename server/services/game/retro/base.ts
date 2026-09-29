@@ -1,4 +1,4 @@
-import { Storage } from '../../storage'
+import { Storage } from 'serv/services/storage'
 import RetroHistoryClass, { type RetroHistoryRecordRow } from './history'
 import { retroLeaderboardBroadcast } from './retroBroadcast'
 

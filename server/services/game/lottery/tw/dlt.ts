@@ -1,7 +1,7 @@
-import { Storage } from '../../../storage'
+import { Storage } from 'serv/services/storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import LOTTERY_BASE from './base'
-import { MEMORY } from '../../../base'
+import { MEMORY } from 'serv/services/base'
 import {
   DLT_BET_AMOUNT,
   DLT_MAX_SLOTS,

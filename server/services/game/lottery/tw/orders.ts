@@ -1,4 +1,4 @@
-import { Storage } from '../../../storage'
+import { Storage } from 'serv/services/storage'
 
 // ⚠️ 這支是 tw/orders.ts，複製自 bg/orders.ts（見 bg/base.ts 同名檔）——
 // bg／tw 兩個分類的 service 基底刻意不共用同一份檔案，改一邊不會牽動另一邊。

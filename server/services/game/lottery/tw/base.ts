@@ -1,8 +1,8 @@
-import { Storage } from '../../../storage'
+import { Storage } from 'serv/services/storage'
 import { STATUS_TIME } from '~/config/constants'
 import OrdersClass from './orders'
 // ⚠️ 這支是 services/base.ts（全域 BaseClass），與本檔（本層的彩票基底）不同層
-import BaseClass from '../../../base'
+import BaseClass from 'serv/services/base'
 
 // ⚠️ 這支是 tw/base.ts，複製自 bg/base.ts——依使用者要求，bg／tw 兩個分類的 service 基底
 // 刻意不共用同一份檔案（含 ./orders 也各自一份），改一邊不會牽動另一邊。

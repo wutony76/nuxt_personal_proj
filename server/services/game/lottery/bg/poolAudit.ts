@@ -1,4 +1,4 @@
-import { Storage } from '../../../storage'
+import { Storage } from 'serv/services/storage'
 
 /**
  * 池底重骰事件：ensurePoolBase() 觸發重骰時記錄一筆

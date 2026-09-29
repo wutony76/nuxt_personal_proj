@@ -1,4 +1,4 @@
-import { Storage } from '../../storage'
+import { Storage } from 'serv/services/storage'
 
 /**
  * PAC-MAN 固定樣板迷宮，從 client 端程式碼常數搬到 server 端可變狀態（見

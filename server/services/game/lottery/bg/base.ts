@@ -1,8 +1,8 @@
-import { Storage } from '../../../storage'
+import { Storage } from 'serv/services/storage'
 import { STATUS_TIME } from '~/config/constants'
 import OrdersClass from './orders'
 // ⚠️ 這支是 services/base.ts（全域 BaseClass），與本檔（本層的彩票基底）不同層
-import BaseClass from '../../../base'
+import BaseClass from 'serv/services/base'
 
 type PlayItem = {
   num?: number | string

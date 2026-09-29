@@ -1,10 +1,10 @@
-import { Storage } from '../../../storage'
+import { Storage } from 'serv/services/storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import LOTTERY_BASE, { CYCLE_MS, TOTAL_ISSUES_PER_DAY, type OpenCodeRecord } from './base'
 import { recordFloorOverpay } from './poolAudit'
 // ⚠️ 別跟同層的 ./base 搞混：這支是 services/base.ts（BaseClass 與 MEMORY 時鐘），
 //    ./base 才是本層的彩票基底（期表／狀態機／訂單）
-import { MEMORY } from '../../../base'
+import { MEMORY } from 'serv/services/base'
 import { type JackpotRow } from '#shared/config/jackpot'
 import { sscJackpotHit, sscJackpotLabel, SSC_JACKPOT_SETTINGS } from '#shared/config/ssc-cd'
 import { sscDigitsOf, sscSumOf } from '#shared/config/ssc'
