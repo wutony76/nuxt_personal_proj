@@ -904,7 +904,6 @@ export function testPlayAll(userId: string): TestPlayResultItem[] {
         results.push({ compositeKey, category: cat, key, name, status: 'ok', note: `bet: ${built.betAmount} coin` })
 
       } else if (cat === 'toys') {
-        const toyKeys = _allowedKeysOf(userId, 'toys')
         const minBet = Math.min(...TOY_BET_CHIPS)
         _topUpIfNeeded(userId, minBet, setting)
         const spent = playRandomToy(userId, [key])
@@ -914,7 +913,6 @@ export function testPlayAll(userId: string): TestPlayResultItem[] {
           _addSpent(userId, spent)
           results.push({ compositeKey, category: cat, key, name, status: 'ok', note: `bet: ${spent} coin` })
         }
-        void toyKeys // satisfy linter
       } else {
         results.push({ compositeKey, category: cat, key, name, status: 'skipped', note: '未知分類' })
       }
