@@ -26,7 +26,7 @@
   - **沒有用 Nuxt 官方的資料獲取方式**：全專案完全沒用到 Nuxt 提供的 `useAsyncData`/`useFetch`，還是照舊 Vue 的寫法：等頁面元件掛載完成後，才在 `onMounted` 裡手動打 API 拿資料，loading 狀態也是自己土法煉鋼控制，不是交給 Nuxt 內建機制處理。這種寫法在整個專案裡到處都是（多達 44 個檔案），例如 `trend.vue` 這種報表頁，就是進頁面之後才發 API 去要資料。
   - **CSR waterfall 是白屏／長 loading 的根因**：頁面先送出空殼 HTML（因為 `ssr:false`），瀏覽器要等 JS 下載、執行、掛載，`onMounted` 才觸發 fetch，資料回來才 render——典型 CSR waterfall（HTML → JS → 掛載 → fetch → render），而非 SSR 直接吐出含資料的 HTML。報表類頁面（trend、bet_search、coin_ledger）資料量大時這個 waterfall 被放大，體驗上就是「白屏 + 轉圈圈」。
   - **代價**：連帶讓 Nuxt 其他核心優勢（SEO、首屏 TTFB、資料去重快取）全部作廢，等於用 Nuxt 的建置複雜度，換來 Vue SPA 的效能天花板，且更差（多一層框架開銷）。
-  - 註：以上檔案／行號引用的是舊公司專案，**非本 repo**；本 repo（`nuxt_personal_proj`）的 `nuxt.config.ts` 目前沒有 `routeRules`，純粹作為練習與展示用途，記錄於此作為之後開發的借鏡。
+  - 註：以上檔案／行號引用的是舊公司專案，**非本 repo**；本 repo（`nuxt_personal_proj`）的 `nuxt.config.ts` 目前沒有 `routeRules`，純粹作為個人作品集展示用途，記錄於此作為之後開發的借鏡。
 - **參考 URL**：http://104.199.176.35/credit/#/?domain=fntuser-dev.tlsanheng.com&searchCode=96225&nuxt
   - 測試帳密: newt02b0022/newt02b0022
 

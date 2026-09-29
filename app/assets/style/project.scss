@@ -1,0 +1,325 @@
+/**
+ * Portfolio 專案展示區（/project/*）共用樣式。
+ * 對應 openspec/changes/add-project-showcase-page/design.md 的 `.project-scope` token 策略：
+ * 比照 admin.scss 的 `.admin-scope` 做法——獨立一組 token + class，外層頁面掛 `.project-scope`。
+ */
+.project-scope {
+  --proj-ink: #0f172a;
+  --proj-muted: #64748b;
+  --proj-muted-soft: #94a3b8;
+  --proj-line: #e2e8f0;
+  --proj-wash: #f8fafc;
+  --proj-accent: #6366f1;
+  --proj-accent-soft: #eef2ff;
+  --proj-status-live-fg: #15803d;
+  --proj-status-live-bg: #f0fdf4;
+  --proj-status-building-fg: #b45309;
+  --proj-status-building-bg: #fffbeb;
+  --proj-status-archived-fg: #64748b;
+  --proj-status-archived-bg: #f1f5f9;
+  --proj-font-heading: 'Space Grotesk', sans-serif;
+  --proj-font-mono: 'JetBrains Mono', monospace;
+}
+
+.np-proj-eyebrow {
+  font-family: var(--proj-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  color: var(--proj-accent);
+}
+
+.np-proj-title {
+  margin-top: 6px;
+  font-family: var(--proj-font-heading);
+  font-weight: 700;
+  font-size: 34px;
+  color: var(--proj-ink);
+}
+
+.np-proj-role {
+  margin-top: 8px;
+  font-family: var(--proj-font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--proj-muted);
+}
+
+.np-proj-back {
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  color: var(--proj-accent);
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.np-proj-status {
+  display: inline-flex;
+  font-family: var(--proj-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--proj-muted);
+  background: var(--proj-wash);
+
+  &.is-live {
+    color: var(--proj-status-live-fg);
+    background: var(--proj-status-live-bg);
+  }
+
+  &.is-building {
+    color: var(--proj-status-building-fg);
+    background: var(--proj-status-building-bg);
+  }
+
+  &.is-archived {
+    color: var(--proj-status-archived-fg);
+    background: var(--proj-status-archived-bg);
+  }
+}
+
+.np-proj-year {
+  font-family: var(--proj-font-mono);
+  font-size: 11px;
+  color: var(--proj-muted-soft);
+}
+
+.np-proj-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.np-proj-tag {
+  font-family: var(--proj-font-mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #4338ca;
+  background: var(--proj-accent-soft);
+}
+
+.np-proj-section-body {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--proj-muted);
+}
+
+.np-proj-list {
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--proj-muted);
+  list-style: disc;
+}
+
+.np-proj-pull-quote {
+  margin: 14px 0;
+  padding-left: 16px;
+  border-left: 3px solid var(--proj-accent);
+  font-family: var(--proj-font-heading);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--proj-ink);
+}
+
+/* 編號 section 外殼（SectionShell） */
+.np-proj-num-section {
+  margin-top: 36px;
+  padding-top: 20px;
+  border-top: 1px solid var(--proj-line);
+}
+
+.np-proj-num-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.np-proj-num {
+  font-family: var(--proj-font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--proj-accent);
+}
+
+.np-proj-num-title {
+  font-family: var(--proj-font-heading);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--proj-ink);
+}
+
+.np-proj-num-body {
+  margin-top: 10px;
+}
+
+/* 通用卡片格線（Feature / Evidence / Metrics 共用同一種排版邏輯） */
+.np-proj-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.np-proj-mini-card {
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--proj-line);
+  background: #fff;
+}
+
+.np-proj-mini-card-title {
+  font-family: var(--proj-font-heading);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--proj-ink);
+}
+
+.np-proj-mini-card-body {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--proj-muted);
+}
+
+/* Metrics（Result）卡片：label -> 大數字 -> caption */
+.np-proj-metric-label {
+  font-family: var(--proj-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--proj-muted-soft);
+}
+
+.np-proj-metric-value {
+  margin-top: 4px;
+  font-family: var(--proj-font-heading);
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--proj-ink);
+}
+
+.np-proj-metric-caption {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--proj-muted);
+}
+
+/* Engineering Evidence 卡片的路徑標籤 */
+.np-proj-ref-label {
+  display: inline-block;
+  margin-top: 8px;
+  font-family: var(--proj-font-mono);
+  font-size: 10px;
+  color: var(--proj-muted-soft);
+}
+
+/* Know-how 分組（Highlights / Full 共用） */
+.np-proj-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.np-proj-group-title {
+  font-family: var(--proj-font-mono);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--proj-accent);
+}
+
+.np-proj-group .np-proj-list {
+  margin-top: 6px;
+}
+
+.np-proj-highlight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+
+  @media (max-width: 700px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.np-proj-highlight-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.np-proj-highlight-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--proj-ink);
+}
+
+.np-proj-highlight-synopsis {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--proj-muted);
+}
+
+.np-proj-view-link {
+  font-family: var(--proj-font-mono);
+  font-size: 11px;
+  color: var(--proj-accent);
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.np-proj-view-all {
+  display: inline-block;
+  margin-top: 16px;
+  font-family: var(--proj-font-mono);
+  font-size: 12px;
+  color: var(--proj-accent);
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/* Architecture 圖：純 CSS 方塊 + 箭頭 */
+.np-proj-arch-diagram {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 6px 2px;
+}
+
+.np-proj-arch-node {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--proj-line);
+  background: var(--proj-wash);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--proj-ink);
+  white-space: nowrap;
+}
+
+.np-proj-arch-arrow {
+  flex-shrink: 0;
+  color: var(--proj-muted-soft);
+  font-family: var(--proj-font-mono);
+}

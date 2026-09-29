@@ -2,8 +2,10 @@
 
 ## Product Overview
 
-- Project name: `nuxt_personal_proj` (`my-portfolio`)
-- Purpose: 個人 Nuxt 練習與展示專案，核心場景為彩票大廳、玩法頁與小遊戲頁
+- Project name: `nuxt_personal_proj` (`HappyFatYoYo-World`)
+- Positioning: Senior Frontend / Full Stack Engineer Portfolio（不是一般 UI/Behance 作品集，目標是展示
+  Frontend Architecture、Full Stack Development、Domain Modeling、Engineering Decision 等工程深度）
+- Purpose: 基於多年累積的全端開發經驗，建立具備完整產品架構與業務邏輯的休閒博弈展示平台，整合彩票、遊戲與營運管理，串聯完整產品生態迴圈；同時導入 AI 輔助開發，將規格設計、實作、驗證與 Engineering Evidence 整合為可追蹤、可複用的開發流程。
 - Primary users: 專案維護者、內部測試使用者
 - Current brand text in UI: `HappyFatYoYo`
 
