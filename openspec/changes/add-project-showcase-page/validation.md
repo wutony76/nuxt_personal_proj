@@ -12,7 +12,7 @@
   - `curl http://localhost:6100/project/happyfatyoyo-platform` → `200`
   - `curl http://localhost:6100/project/happyfatyoyo-platform-know-how` → `200`
   - `curl http://localhost:6100/project/happy-fish-3D` → `200`（本輪未變動，仍正常）
-- [x] 列表頁內容：`grep -o "PROJECTS|3D歡樂捕魚|HappyFatYoYo 彩票遊戲平台|View Project"` 四個關鍵字皆命中
+- [x] 列表頁內容：`grep -o "PROJECTS|3D歡樂捕魚|HAPPYFATYOYO WORLD|View Project"` 四個關鍵字皆命中
 - [x] 案例頁 9 段標題：`grep -o "Overview|Problem|Solution|Key Features|Architecture|Engineering Evidence|Know-how|Tech Stack|Result"` 9 個全數命中
 - [x] 案例頁內容區塊：`BG 彩票`/`彩運來`/`遊戲中心`/`柑仔店櫥仔`/`後台管理`（Feature Card）、
   `BG LOTTERY`/`RETRO GAMES`（Metrics）、`View Research`/`View Architecture`/`View Decision Log`/
@@ -84,6 +84,22 @@
   （不是 UI/Behance 作品集，目標是展示 Frontend Architecture／Full Stack Development／Domain
   Modeling／Engineering Decision 等工程深度）
 - 驗證：`curl http://localhost:6100/project` 回 200，`grep -o "Senior Frontend / Full Stack Engineer Portfolio"` 命中
+
+## 第五輪：專案名稱更名
+
+使用者要求把第二個專案的顯示名稱「HappyFatYoYo 彩票遊戲平台」改為「HAPPYFATYOYO WORLD」（呼應
+`openspec/project.md` 裡已手動改過的 package 別名 `HappyFatYoYo-World`）：
+
+- 全站 `grep` 找出 6 個出現點：`app/config/projects/happyfatyoyoPlatform.ts`（doc 註解）、
+  `app/pages/project/index.vue`（卡片 `name`）、`app/pages/project/happyfatyoyo-platform.vue`
+  （`<h1>` 標題）、`app/pages/project/happyfatyoyo-platform-know-how.vue`（返回連結文字 + 附頁副標題）、
+  `openspec/changes/add-project-showcase-page/{proposal,validation}.md`
+- 只換顯示名稱文字，**不動** route slug（`happyfatyoyo-platform`）與檔名，避免破壞既有連結
+- 附頁副標題原本中文名稱後面沒有空格直接接「完整的」，換成全大寫英文名稱後補一個空格
+  （`HAPPYFATYOYO WORLD 完整的...`），避免英文字母跟中文字黏在一起
+- 驗證：三個路由（`/project`、`/project/happyfatyoyo-platform`、
+  `/project/happyfatyoyo-platform-know-how`）皆回 200，`grep -o "HAPPYFATYOYO WORLD"` 在三頁皆命中，
+  全站重新確認「HappyFatYoYo 彩票遊戲平台」舊名稱零殘留
 
 ## 結論
 

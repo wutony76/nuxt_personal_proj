@@ -18,7 +18,7 @@ const PROJECTS: ProjectSummary[] = [
   {
     slug: 'happyfatyoyo-platform',
     no: '02',
-    name: 'HappyFatYoYo 彩票遊戲平台',
+    name: 'HAPPYFATYOYO WORLD',
     tagline: '本站本身：規格驅動開發的全端彩票 / 遊戲 / 後台自動化工程作品',
     year: '2026.04 – 至今',
     status: 'building',

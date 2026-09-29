@@ -1,7 +1,7 @@
 import type { DetailContent } from '~/types/project'
 
 /**
- * 「HappyFatYoYo 彩票遊戲平台」案例頁內容（即本專案自我介紹）。
+ * 「HAPPYFATYOYO WORLD」案例頁內容（即本專案自我介紹）。
  * 由詳細頁（精選 Know-how）與 know-how 附頁（完整 Know-how）共用同一份資料，避免內容重複維護。
  */
 export const happyfatyoyoPlatform: DetailContent = {

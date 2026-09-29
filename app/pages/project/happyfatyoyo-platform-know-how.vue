@@ -11,12 +11,12 @@ useProjectFonts()
   <div class="project-scope min-h-screen bg-slate-50">
     <AppTopbar />
     <main class="mx-auto max-w-3xl px-5 py-10">
-      <ProjectBackLink to="/project/happyfatyoyo-platform" label="← 返回 HappyFatYoYo 彩票遊戲平台" />
+      <ProjectBackLink to="/project/happyfatyoyo-platform" label="← 返回 HAPPYFATYOYO WORLD" />
 
       <span class="np-proj-eyebrow">ENGINEERING NOTES</span>
       <h1 class="np-proj-title">Know-how</h1>
       <p class="mt-3 max-w-xl text-sm leading-relaxed text-slate-500">
-        HappyFatYoYo 彩票遊戲平台完整的技術研究、架構思考與決策紀錄。
+        HAPPYFATYOYO WORLD 完整的技術研究、架構思考與決策紀錄。
       </p>
 
       <div style="margin-top: 32px">

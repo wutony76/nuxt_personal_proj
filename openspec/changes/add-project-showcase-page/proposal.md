@@ -30,7 +30,7 @@ Evidence Cards／Metrics／Know-how 精選卡＋展開機制建立視覺層級�
   - `app/components/AppTopbar.vue`：把空 `<div></div>` 換成「專案」NuxtLink（`to="/project"`）
   - `app/pages/project/index.vue`：專案列表頁（卡片式），改用 `ProjectSummary` 型別 + `ProjectCard` 元件
   - `app/pages/project/happy-fish-3D.vue`：「3D歡樂捕魚」專案詳細頁，本輪**不變動**（見下）
-  - `app/pages/project/happyfatyoyo-platform.vue`：第二個專案項目「HappyFatYoYo 彩票遊戲平台」
+  - `app/pages/project/happyfatyoyo-platform.vue`：第二個專案項目「HAPPYFATYOYO WORLD」
     詳細頁——內容即這個 Nuxt 專案本身（自我介紹型專案），9 段固定結構
     （01 Overview ~ 09 Result，`07 Know-how` 為精選版）
   - 新增 `app/pages/project/happyfatyoyo-platform-know-how.vue`：Know-how 完整版附頁
@@ -44,7 +44,7 @@ Evidence Cards／Metrics／Know-how 精選卡＋展開機制建立視覺層級�
     `ArchitectureDiagram`／`EvidenceCardList`／`KnowHowHighlights`／`KnowHowFull`／`MetricsCardGrid`）
 - 不包含：
   - 不對外連結到 `wutony76.github.io`
-  - 不建立除「3D歡樂捕魚」「HappyFatYoYo 彩票遊戲平台」以外的其他專案項目
+  - 不建立除「3D歡樂捕魚」「HAPPYFATYOYO WORLD」以外的其他專案項目
   - `happy-fish-3D.vue` 本輪不套用新的 9 段 schema——內容本來就標註為推測草稿，優先度排在
     `happyfatyoyo-platform` 之後（使用者確認）
   - Engineering Evidence 的 repo 路徑不做成可點擊連結（repo 相對路徑，無對外可服務網址）

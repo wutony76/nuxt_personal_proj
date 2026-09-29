@@ -37,7 +37,7 @@ const _handlers = {
         <ProjectStatusBadge status="building" />
         <span class="np-proj-year">2026.04 – 至今</span>
       </div>
-      <h1 class="np-proj-title">HappyFatYoYo 彩票遊戲平台</h1>
+      <h1 class="np-proj-title">HAPPYFATYOYO WORLD</h1>
       <ProjectTagList :tags="['Nuxt 4', 'TypeScript', 'Nitro', 'Pinia']" />
 
       <SectionShell no="01" title="Overview">
