@@ -28,7 +28,7 @@ const JOBS = [
 </script>
 
 <template>
-  <main class="pf-main">
+  <main class="pf-main pf-main-textured">
     <!-- ── Hero ── -->
     <section class="pf-hero">
       <div class="pf-hero-meta">

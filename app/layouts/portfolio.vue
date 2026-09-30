@@ -16,6 +16,8 @@ onMounted(async () => {
 
 const isHome = computed(() => route.path === '/')
 const isProject = computed(() => route.path.startsWith('/project'))
+// 材質紋理僅套用在首頁與專案列表頁，專案詳細頁維持原本乾淨版面
+const hasTexture = computed(() => route.path === '/' || route.path === '/project')
 
 const handleLogout = async () => {
   await logout()
@@ -26,7 +28,7 @@ const handleLogout = async () => {
 <template>
   <div class="project-scope pf-shell">
     <!-- ── Header ── -->
-    <header class="pf-header">
+    <header :class="['pf-header', hasTexture && 'pf-header-textured']">
       <NuxtLink to="/" class="pf-brand">
         HFYY<span class="pf-brand-dot">.</span>
       </NuxtLink>
@@ -73,7 +75,7 @@ const handleLogout = async () => {
     <slot />
 
     <!-- ── Footer ── -->
-    <footer class="pf-footer">
+    <footer :class="['pf-footer', hasTexture && 'pf-footer-textured']">
       <span>© 2026 HappyFatYoYo</span>
       <span>HFYY<span class="pf-brand-dot">.</span></span>
     </footer>

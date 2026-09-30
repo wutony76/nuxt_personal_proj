@@ -274,6 +274,40 @@
 }
 
 // ═══════════════════════════════════════════════
+// 材質紋理（Industry 設計系統：噪點顆粒 + 刻痕 + 暈影）
+// 參照 SAMPLE/Industry/texture/page_texture.html。由頁面／layout 依路由自行加上
+// .pf-header-textured / .pf-footer-textured / .pf-main-textured 修飾類別，
+// 避免所有共用 header/footer/main 的頁面被迫套用同一種材質觀感。
+// ═══════════════════════════════════════════════
+
+.pf-header-textured,
+.pf-footer-textured {
+  background-color: var(--proj-shell-bg);
+  background-image:
+    url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iLjciIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48ZmVDb2xvck1hdHJpeCB2YWx1ZXM9IjAgMCAwIDAgLjkgMCAwIDAgMCAuOTUgMCAwIDAgMCAuOTMgMCAwIDAgLjA3IDAiLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbikiLz48L3N2Zz4='),
+    repeating-linear-gradient(135deg, rgba(232, 236, 234, 0.055) 0 1.5px, transparent 1.5px 5px),
+    repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(45deg, rgba(232, 236, 234, 0.018) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, rgba(88, 140, 134, 0.06), rgba(0, 0, 0, 0.18));
+  background-size: 200px 200px, auto, auto, auto, 100% 100%;
+  background-position: 0 0, 0 0, 2px 0, 0 0, 0 0;
+}
+
+.pf-main-textured {
+  background-color: var(--proj-bg);
+  background-image:
+    url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMjAiIGhlaWdodD0iMjIwIj48ZmlsdGVyIGlkPSJnIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iLjkiIG51bU9jdGF2ZXM9IjQiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48ZmVDb2xvck1hdHJpeCB2YWx1ZXM9IjAgMCAwIDAgLjA1IDAgMCAwIDAgLjA5IDAgMCAwIDAgLjA5IDAgMCAwIC40NSAtLjIyIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI2cpIi8+PC9zdmc+'),
+    url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMjAiIGhlaWdodD0iMzIwIj48ZmlsdGVyIGlkPSJmIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iLjA1IC42MjUiIG51bU9jdGF2ZXM9IjIiIHNlZWQ9IjciIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48ZmVDb2xvck1hdHJpeCB2YWx1ZXM9IjAgMCAwIDAgLjA4IDAgMCAwIDAgLjEzIDAgMCAwIDAgLjEzIDAgMCAwIC4xNSAtLjA4Ii8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI2YpIi8+PC9zdmc+'),
+    url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAwIiBoZWlnaHQ9IjEwMDAiPjxmaWx0ZXIgaWQ9Im0iPjxmZVR1cmJ1bGVuY2UgdHlwZT0iZnJhY3RhbE5vaXNlIiBiYXNlRnJlcXVlbmN5PSIuMDA1IiBudW1PY3RhdmVzPSIyIiBzZWVkPSIzIiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PGZlQ29sb3JNYXRyaXggdmFsdWVzPSIwIDAgMCAwIDEgMCAwIDAgMCAxIDAgMCAwIDAgMSAwIDAgMCAuMjIgLS4wOCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNtKSIvPjwvc3ZnPg=='),
+    radial-gradient(120% 90% at 50% 40%, transparent 60%, rgba(15, 26, 25, 0.07));
+  background-size: 220px 220px, 320px 320px, 1000px 1000px, 100% 100%;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 14px 18px -14px rgba(0, 0, 0, 0.35),
+    inset 0 -14px 18px -14px rgba(0, 0, 0, 0.25);
+}
+
+// ═══════════════════════════════════════════════
 // 首頁 Hero
 // ═══════════════════════════════════════════════
 

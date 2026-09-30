@@ -113,7 +113,7 @@ const count = computed(() => String(PROJECTS.length).padStart(2, '0'))
 </script>
 
 <template>
-  <main class="pf-main">
+  <main class="pf-main pf-main-textured">
     <!-- ── Projects Header ── -->
     <section class="pf-proj-header">
       <div class="pf-proj-header-meta pf-hero-anim">
