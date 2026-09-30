@@ -190,6 +190,13 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
+          <!-- 猜對但還沒到連勝上限時，結果彈窗故意不彈出（見上方 modalVisible 註解，避免擋住猜色按鈕），
+               這裡補一顆常駐按鈕讓玩家可以隨時見好就收，不用被迫猜到連勝上限或猜錯歸零 -->
+          <button v-if="round.state.canClaim && round.state.canGuess" type="button" class="claim-now"
+            :disabled="isLocked || round.state.settling" @click="round.actions.claim">
+            提前領取 F 幣 {{ money(round.state.pot) }}
+          </button>
+
           <button v-if="!round.state.canGuess && round.state.pot <= 0" type="button" class="deal"
             :disabled="isLocked || round.state.blockedGameKey != null" @click="round.actions.start">
             開始
@@ -375,7 +382,8 @@ onBeforeUnmount(() => {
 
   .candy,
   .choice,
-  .deal {
+  .deal,
+  .claim-now {
     border: 0;
     border-radius: 999px;
     min-width: 64px;
@@ -404,7 +412,8 @@ onBeforeUnmount(() => {
   .is-empty { color: var(--color-accent-300, #ffc6a5); }
 
   .choice,
-  .deal {
+  .deal,
+  .claim-now {
     cursor: pointer;
 
     &:disabled {
@@ -416,6 +425,11 @@ onBeforeUnmount(() => {
   .deal {
     background: var(--color-accent-500, #e08a4a);
     color: var(--color-neutral-900, #2e2b25);
+  }
+
+  .claim-now {
+    background: #dc2626;
+    color: var(--color-bg, #f5ead8);
   }
 }
 

@@ -171,6 +171,14 @@ onBeforeUnmount(() => {
             <button type="button" :disabled="isLocked || !round.state.canGuess"
               @click="round.actions.guess('same')">相同</button>
           </div>
+
+          <!-- 猜對但還沒到連勝上限時，結果彈窗故意不彈出（見上方 modalVisible 註解，避免擋住牌面），
+               這裡補一顆常駐按鈕讓玩家可以隨時見好就收，不用被迫翻到連勝上限或猜錯歸零 -->
+          <button v-if="round.state.canClaim && round.state.canGuess" type="button" class="claim-now"
+            :disabled="isLocked || round.state.settling" @click="round.actions.claim">
+            提前領取 F 幣 {{ money(round.state.pot) }}
+          </button>
+
           <button v-if="round.state.rank == null" type="button" class="deal"
             :disabled="isLocked || round.state.blockedGameKey != null" @click="round.actions.start">
             發牌
@@ -438,6 +446,21 @@ onBeforeUnmount(() => {
     border-radius: 999px;
     padding: 10px 22px;
     background: var(--color-accent-700, #8c491a);
+    color: var(--color-bg, #f5ead8);
+    font-weight: 700;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+  }
+
+  .claim-now {
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 22px;
+    background: #dc2626;
     color: var(--color-bg, #f5ead8);
     font-weight: 700;
     cursor: pointer;
