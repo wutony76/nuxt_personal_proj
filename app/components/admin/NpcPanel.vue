@@ -20,6 +20,9 @@ import {
 } from '~/services/api'
 import { balanceChangeTypeLabel } from '~/utils/balanceChangeLabel'
 import { formatUserAgentShort } from '~/utils/userAgentLabel'
+import { useAdminAuth } from '~/composables/useAdminAuth'
+
+const { isDemo } = useAdminAuth()
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 type LedgerTab = 'balance' | 'login'
@@ -714,7 +717,7 @@ watch(
         <span class="np-toggle-status" :class="{ on: state.enabled }">
           {{ state.enabled ? '啟用中' : '已關閉' }}
         </span>
-        <button type="button" class="admin-btn admin-btn-primary" :disabled="state.togglePending"
+        <button type="button" class="admin-btn admin-btn-primary" :disabled="state.togglePending || isDemo"
           @click="click.toggleEnabled()">
           {{ state.togglePending ? '處理中…' : (state.enabled ? '關閉 NPC 自動遊玩' : '開啟 NPC 自動遊玩') }}
         </button>
@@ -794,24 +797,26 @@ watch(
             <h2>全域設定</h2>
           </div>
         </div>
-        <div class="np-schedule-list">
-          <div v-for="field in SCHEDULE_FIELDS" :key="field.key" class="np-schedule-row">
-            <label class="np-schedule-label">{{ field.label }}</label>
-            <div class="np-schedule-input-row">
-              <input class="admin-input admin-num np-schedule-input"
-                :value="state.scheduleDraft[field.key] ?? state.schedule[field.key]"
-                @input="state.scheduleDraft[field.key] = ($event.target as HTMLInputElement).value">
-              <span class="np-schedule-suffix">{{ field.suffix }}</span>
+        <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+          <div class="np-schedule-list">
+            <div v-for="field in SCHEDULE_FIELDS" :key="field.key" class="np-schedule-row">
+              <label class="np-schedule-label">{{ field.label }}</label>
+              <div class="np-schedule-input-row">
+                <input class="admin-input admin-num np-schedule-input"
+                  :value="state.scheduleDraft[field.key] ?? state.schedule[field.key]"
+                  @input="state.scheduleDraft[field.key] = ($event.target as HTMLInputElement).value">
+                <span class="np-schedule-suffix">{{ field.suffix }}</span>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="np-schedule-actions">
-          <button type="button" class="admin-btn admin-btn-primary" :disabled="state.scheduleSaving"
-            @click="click.saveSchedule()">
-            {{ state.scheduleSaving ? '儲存中…' : '儲存' }}
-          </button>
-        </div>
-        <p v-if="state.scheduleError" class="np-error">{{ state.scheduleError }}</p>
+          <div class="np-schedule-actions">
+            <button type="button" class="admin-btn admin-btn-primary" :disabled="state.scheduleSaving"
+              @click="click.saveSchedule()">
+              {{ state.scheduleSaving ? '儲存中…' : '儲存' }}
+            </button>
+          </div>
+          <p v-if="state.scheduleError" class="np-error">{{ state.scheduleError }}</p>
+        </fieldset>
       </div>
 
       <!-- NPC 會員清單 -->
@@ -824,30 +829,32 @@ watch(
         </div>
 
         <form class="np-create-form" @submit.prevent="click.createMember()">
-          <div class="admin-field np-create-field">
-            <label>帳號</label>
-            <input :value="state.createForm.name" type="text" class="admin-input" maxlength="40" placeholder="請輸入帳號"
-              autocomplete="off" @input="click.inputCreateName">
-          </div>
-          <div class="admin-field np-create-field">
-            <label>Email</label>
-            <input :value="state.createForm.email" type="email" class="admin-input" placeholder="自動帶入 帳號@npc.hfyy.cc"
-              autocomplete="off" @input="click.inputCreateEmail">
-          </div>
-          <div class="admin-field np-create-field">
-            <label>密碼</label>
-            <input v-model="state.createForm.password" type="text" class="admin-input" minlength="6" maxlength="72"
-              placeholder="至少 6 字元" autocomplete="off">
-          </div>
-          <div class="admin-field np-create-field np-create-field-role">
-            <label>角色</label>
-            <span class="admin-tag">NPC</span>
-          </div>
-          <div class="np-create-actions">
-            <button type="submit" class="admin-btn admin-btn-primary" :disabled="state.createStatus === 'loading'">
-              {{ state.createStatus === 'loading' ? '新增中…' : '新增 NPC 會員' }}
-            </button>
-          </div>
+          <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+            <div class="admin-field np-create-field">
+              <label>帳號</label>
+              <input :value="state.createForm.name" type="text" class="admin-input" maxlength="40" placeholder="請輸入帳號"
+                autocomplete="off" @input="click.inputCreateName">
+            </div>
+            <div class="admin-field np-create-field">
+              <label>Email</label>
+              <input :value="state.createForm.email" type="email" class="admin-input" placeholder="自動帶入 帳號@npc.hfyy.cc"
+                autocomplete="off" @input="click.inputCreateEmail">
+            </div>
+            <div class="admin-field np-create-field">
+              <label>密碼</label>
+              <input v-model="state.createForm.password" type="text" class="admin-input" minlength="6" maxlength="72"
+                placeholder="至少 6 字元" autocomplete="off">
+            </div>
+            <div class="admin-field np-create-field np-create-field-role">
+              <label>角色</label>
+              <span class="admin-tag">NPC</span>
+            </div>
+            <div class="np-create-actions">
+              <button type="submit" class="admin-btn admin-btn-primary" :disabled="state.createStatus === 'loading'">
+                {{ state.createStatus === 'loading' ? '新增中…' : '新增 NPC 會員' }}
+              </button>
+            </div>
+          </fieldset>
         </form>
         <p v-if="state.createError" class="np-error">{{ state.createError }}</p>
         <p v-else-if="state.createStatus === 'success'" class="np-ok">
@@ -855,10 +862,12 @@ watch(
         </p>
 
         <div class="np-autocreate-row">
-          <button type="button" class="admin-btn admin-btn-secondary" :disabled="state.autoCreateStatus === 'loading'"
-            @click="click.autoCreateMember()">
-            {{ state.autoCreateStatus === 'loading' ? '新增中…' : '直接新增.NPC' }}
-          </button>
+          <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+            <button type="button" class="admin-btn admin-btn-secondary" :disabled="state.autoCreateStatus === 'loading'"
+              @click="click.autoCreateMember()">
+              {{ state.autoCreateStatus === 'loading' ? '新增中…' : '直接新增.NPC' }}
+            </button>
+          </fieldset>
           <button type="button" class="np-game-quick-btn" @click="click.toggleNameWordsOpen()">
             {{ state.nameWordsOpen ? '收合單字庫設定' : '單字庫設定' }}
           </button>
@@ -870,21 +879,23 @@ watch(
         <p class="np-hint np-hint-right">點擊「直接新增.NPC」會從下面的單字庫隨機挑 2 個單字組成名稱建立一個NPC會員；如果組出來的名稱已經存在，後面會直接加上數字避免重複。</p>
 
         <div v-if="state.nameWordsOpen" class="np-preset-panel">
-          <form class="np-preset-save-form" @submit.prevent="click.addNameWord()">
-            <input v-model="state.nameWordDraft" type="text" class="admin-input np-preset-name-input" maxlength="20"
-              placeholder="輸入單字加入單字庫" autocomplete="off">
-            <button type="submit" class="admin-btn admin-btn-secondary" :disabled="state.nameWordsSaving">
-              {{ state.nameWordsSaving ? '儲存中…' : '新增單字' }}
-            </button>
-          </form>
-          <p v-if="state.nameWordsError" class="np-error">{{ state.nameWordsError }}</p>
-          <div class="np-nameword-list">
-            <span v-for="word in state.nameWords" :key="word" class="np-nameword-tag">
-              {{ word }}
-              <button type="button" class="np-nameword-remove" :disabled="state.nameWordsSaving"
-                @click="click.removeNameWord(word)">×</button>
-            </span>
-          </div>
+          <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+            <form class="np-preset-save-form" @submit.prevent="click.addNameWord()">
+              <input v-model="state.nameWordDraft" type="text" class="admin-input np-preset-name-input" maxlength="20"
+                placeholder="輸入單字加入單字庫" autocomplete="off">
+              <button type="submit" class="admin-btn admin-btn-secondary" :disabled="state.nameWordsSaving">
+                {{ state.nameWordsSaving ? '儲存中…' : '新增單字' }}
+              </button>
+            </form>
+            <p v-if="state.nameWordsError" class="np-error">{{ state.nameWordsError }}</p>
+            <div class="np-nameword-list">
+              <span v-for="word in state.nameWords" :key="word" class="np-nameword-tag">
+                {{ word }}
+                <button type="button" class="np-nameword-remove" :disabled="state.nameWordsSaving"
+                  @click="click.removeNameWord(word)">×</button>
+              </span>
+            </div>
+          </fieldset>
         </div>
 
         <div v-if="!state.members.length" class="admin-empty">目前沒有角色為 NPC 的會員</div>
@@ -926,7 +937,7 @@ watch(
                 <button
                   type="button"
                   class="admin-btn np-test-btn"
-                  :disabled="state.testPlayStatus === 'loading'"
+                  :disabled="state.testPlayStatus === 'loading' || isDemo"
                   @click="click.testPlayAll()"
                 >
                   <span v-if="state.testPlayStatus === 'loading'">執行中…</span>
@@ -1107,41 +1118,43 @@ watch(
             </section>
 
             <section v-else-if="state.detailTab === 'settings'" class="np-detail-settings">
-              <div class="np-detail-edit-grid">
-                <template v-for="field in MEMBER_NUMBER_FIELDS" :key="field.key">
-                  <label class="np-detail-edit-label">{{ field.label }}</label>
-                  <input v-model="state.memberDraft[field.key]" class="admin-input admin-num np-detail-edit-input">
-                </template>
-                <label class="np-detail-edit-label">遊戲時段</label>
-                <div class="np-timeslot-list">
-                  <label v-for="slot in state.timeSlots" :key="slot.id" class="np-timeslot-option">
-                    <input type="checkbox" :checked="state.memberTimeSlotsDraft.includes(slot.id)"
-                      @change="click.toggleTimeSlotDraft(slot.id)">
-                    <span>{{ slot.label }}</span>
-                  </label>
+              <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+                <div class="np-detail-edit-grid">
+                  <template v-for="field in MEMBER_NUMBER_FIELDS" :key="field.key">
+                    <label class="np-detail-edit-label">{{ field.label }}</label>
+                    <input v-model="state.memberDraft[field.key]" class="admin-input admin-num np-detail-edit-input">
+                  </template>
+                  <label class="np-detail-edit-label">遊戲時段</label>
+                  <div class="np-timeslot-list">
+                    <label v-for="slot in state.timeSlots" :key="slot.id" class="np-timeslot-option">
+                      <input type="checkbox" :checked="state.memberTimeSlotsDraft.includes(slot.id)"
+                        @change="click.toggleTimeSlotDraft(slot.id)">
+                      <span>{{ slot.label }}</span>
+                    </label>
+                  </div>
                 </div>
-              </div>
-              <p class="np-hint">
-              <div>
-                BG 彩票權重／經典遊戲權重決定這個 NPC 每次行動選哪一類玩法（比例關係，不需加總為 100）。
-                經典遊戲模擬分數、權重、單注金額這幾個欄位，在這個 NPC 沒存過設定前會顯示
-                「排程參數」的全域預設值；按下「儲存」後就固定用這裡填的值，不再跟著全域預設變動。
-                每日上限／自動儲值／遊戲頻率／隨機延遲機率／隨機延遲上限這幾個欄位沒有全域預設，
-                固定套用系統內建預設值。
-              </div>
-              <div>
-                遊戲頻率：這個 NPC 兩次行動間至少間隔幾秒；間隔到了之後，有機率（隨機延遲機率）
-                再額外隨機延遲 0～隨機延遲上限秒，避免每次都固定間隔、行為太規律像機器人。
-              </div>
-              <div>
-                遊戲時段：複選這個 NPC 允許自動遊玩的時段，只有落在勾選時段內才會行動；未勾選任何時段代表這個 NPC 暫停行動。
-              </div>
-              </p>
+                <p class="np-hint">
+                <div>
+                  BG 彩票權重／經典遊戲權重決定這個 NPC 每次行動選哪一類玩法（比例關係，不需加總為 100）。
+                  經典遊戲模擬分數、權重、單注金額這幾個欄位，在這個 NPC 沒存過設定前會顯示
+                  「排程參數」的全域預設值；按下「儲存」後就固定用這裡填的值，不再跟著全域預設變動。
+                  每日上限／自動儲值／遊戲頻率／隨機延遲機率／隨機延遲上限這幾個欄位沒有全域預設，
+                  固定套用系統內建預設值。
+                </div>
+                <div>
+                  遊戲頻率：這個 NPC 兩次行動間至少間隔幾秒；間隔到了之後，有機率（隨機延遲機率）
+                  再額外隨機延遲 0～隨機延遲上限秒，避免每次都固定間隔、行為太規律像機器人。
+                </div>
+                <div>
+                  遊戲時段：複選這個 NPC 允許自動遊玩的時段，只有落在勾選時段內才會行動；未勾選任何時段代表這個 NPC 暫停行動。
+                </div>
+                </p>
 
-              <div class="np-detail-edit-actions">
-                <button type="button" class="admin-btn admin-btn-primary" @click="click.saveMember()">儲存</button>
-              </div>
-              <p v-if="state.memberError" class="np-error">{{ state.memberError }}</p>
+                <div class="np-detail-edit-actions">
+                  <button type="button" class="admin-btn admin-btn-primary" @click="click.saveMember()">儲存</button>
+                </div>
+                <p v-if="state.memberError" class="np-error">{{ state.memberError }}</p>
+              </fieldset>
             </section>
 
             <section v-else-if="state.detailTab === 'games'" class="np-detail-games">
@@ -1150,57 +1163,59 @@ watch(
                 設定後即時保存。彩運來、柑仔店櫥仔會計入每日花費上限。
               </p>
 
-              <div class="np-preset-panel">
-                <form class="np-preset-save-form" @submit.prevent="click.saveGamePreset()">
-                  <input v-model="state.presetNameDraft" type="text" class="admin-input np-preset-name-input"
-                    maxlength="30" placeholder="輸入名稱保存目前的勾選" autocomplete="off">
-                  <button type="submit" class="admin-btn admin-btn-secondary" :disabled="state.presetSaving">
-                    {{ state.presetSaving ? '保存中…' : '保存目前勾選' }}
-                  </button>
-                </form>
-                <p v-if="state.presetError" class="np-error">{{ state.presetError }}</p>
-
-                <div v-if="state.gamePresets.length" class="np-preset-list">
-                  <div v-for="preset in state.gamePresets" :key="preset.id" class="np-preset-item">
-                    <span class="np-preset-name">{{ preset.name }}</span>
-                    <span class="np-preset-count">{{ preset.allowedGames.length }} 款</span>
-                    <button type="button" class="np-game-quick-btn" :disabled="state.presetApplyingId === preset.id"
-                      @click="click.applyGamePreset(preset.id)">
-                      {{ state.presetApplyingId === preset.id ? '套用中…' : '快選套用' }}
+              <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+                <div class="np-preset-panel">
+                  <form class="np-preset-save-form" @submit.prevent="click.saveGamePreset()">
+                    <input v-model="state.presetNameDraft" type="text" class="admin-input np-preset-name-input"
+                      maxlength="30" placeholder="輸入名稱保存目前的勾選" autocomplete="off">
+                    <button type="submit" class="admin-btn admin-btn-secondary" :disabled="state.presetSaving">
+                      {{ state.presetSaving ? '保存中…' : '保存目前勾選' }}
                     </button>
-                    <button type="button" class="np-game-quick-btn" :disabled="state.presetDeletingId === preset.id"
-                      @click="click.deleteGamePreset(preset.id)">刪除</button>
-                  </div>
-                </div>
-                <p v-else class="np-hint">還沒有保存過的遊戲勾選範本。</p>
-              </div>
+                  </form>
+                  <p v-if="state.presetError" class="np-error">{{ state.presetError }}</p>
 
-              <div v-for="cat in (['bg', 'tw', 'retro', 'toys'] as const)" :key="cat" class="np-game-section">
-                <div class="np-game-section-head">
-                  <span class="np-game-section-title">{{ CATEGORY_LABEL[cat] }}</span>
-                  <span v-if="!gamesByCategory[cat]?.some((g) => g.supported)" class="np-game-badge">即將支援</span>
-                  <div v-else class="np-game-quick-actions">
-                    <button type="button" class="np-game-quick-btn"
-                      :disabled="!!state.gameBulkPending[`${selectedMember.id}:${cat}`]"
-                      @click="click.bulkSetMemberGames(selectedMember.id, cat, true)">全選</button>
-                    <button type="button" class="np-game-quick-btn"
-                      :disabled="!!state.gameBulkPending[`${selectedMember.id}:${cat}`]"
-                      @click="click.bulkSetMemberGames(selectedMember.id, cat, false)">清空</button>
+                  <div v-if="state.gamePresets.length" class="np-preset-list">
+                    <div v-for="preset in state.gamePresets" :key="preset.id" class="np-preset-item">
+                      <span class="np-preset-name">{{ preset.name }}</span>
+                      <span class="np-preset-count">{{ preset.allowedGames.length }} 款</span>
+                      <button type="button" class="np-game-quick-btn" :disabled="state.presetApplyingId === preset.id"
+                        @click="click.applyGamePreset(preset.id)">
+                        {{ state.presetApplyingId === preset.id ? '套用中…' : '快選套用' }}
+                      </button>
+                      <button type="button" class="np-game-quick-btn" :disabled="state.presetDeletingId === preset.id"
+                        @click="click.deleteGamePreset(preset.id)">刪除</button>
+                    </div>
+                  </div>
+                  <p v-else class="np-hint">還沒有保存過的遊戲勾選範本。</p>
+                </div>
+
+                <div v-for="cat in (['bg', 'tw', 'retro', 'toys'] as const)" :key="cat" class="np-game-section">
+                  <div class="np-game-section-head">
+                    <span class="np-game-section-title">{{ CATEGORY_LABEL[cat] }}</span>
+                    <span v-if="!gamesByCategory[cat]?.some((g) => g.supported)" class="np-game-badge">即將支援</span>
+                    <div v-else class="np-game-quick-actions">
+                      <button type="button" class="np-game-quick-btn"
+                        :disabled="!!state.gameBulkPending[`${selectedMember.id}:${cat}`]"
+                        @click="click.bulkSetMemberGames(selectedMember.id, cat, true)">全選</button>
+                      <button type="button" class="np-game-quick-btn"
+                        :disabled="!!state.gameBulkPending[`${selectedMember.id}:${cat}`]"
+                        @click="click.bulkSetMemberGames(selectedMember.id, cat, false)">清空</button>
+                    </div>
+                  </div>
+                  <div class="np-game-grid">
+                    <button v-for="g in gamesByCategory[cat]" :key="g.key" type="button" class="np-game-toggle"
+                      :class="[selectedMember.allowedGames.includes(`${g.category}:${g.key}`) ? 'is-on' : 'is-off', { 'is-disabled': !g.supported }]"
+                      :disabled="!g.supported || !!state.gameTogglePending[`${g.category}:${g.key}`]"
+                      @click="click.toggleMemberGame(selectedMember.id, g, !selectedMember.allowedGames.includes(`${g.category}:${g.key}`))">
+                      <span class="np-game-name">{{ g.name }}</span>
+                      <span class="np-game-state">
+                        {{ !g.supported ? '即將支援' : (selectedMember.allowedGames.includes(`${g.category}:${g.key}`) ? '已勾選'
+                          : '未勾選') }}
+                      </span>
+                    </button>
                   </div>
                 </div>
-                <div class="np-game-grid">
-                  <button v-for="g in gamesByCategory[cat]" :key="g.key" type="button" class="np-game-toggle"
-                    :class="[selectedMember.allowedGames.includes(`${g.category}:${g.key}`) ? 'is-on' : 'is-off', { 'is-disabled': !g.supported }]"
-                    :disabled="!g.supported || !!state.gameTogglePending[`${g.category}:${g.key}`]"
-                    @click="click.toggleMemberGame(selectedMember.id, g, !selectedMember.allowedGames.includes(`${g.category}:${g.key}`))">
-                    <span class="np-game-name">{{ g.name }}</span>
-                    <span class="np-game-state">
-                      {{ !g.supported ? '即將支援' : (selectedMember.allowedGames.includes(`${g.category}:${g.key}`) ? '已勾選'
-                        : '未勾選') }}
-                    </span>
-                  </button>
-                </div>
-              </div>
+              </fieldset>
             </section>
           </div>
         </div>

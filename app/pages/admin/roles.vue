@@ -17,7 +17,7 @@ const AUTH_STEPS = [
   { no: '04', title: 'GET /api/admin/me', desc: '各子頁自行二次確認，不倚賴前端路由守衛。' }
 ]
 
-const { user: me } = useAdminAuth()
+const { user: me, isDemo } = useAdminAuth()
 const { roles: roleDefs, fetch: fetchRoleDefs } = useRoleDefs()
 
 const state = reactive({
@@ -142,7 +142,8 @@ onMounted(() => {
                   <td>{{ row.name }}</td>
                   <td style="color:color-mix(in srgb, #1c1c22 72%, #ffffff)">{{ row.email }}</td>
                   <td style="text-align:right">
-                    <select class="admin-input ar-role-select" :value="row.role" :disabled="state.savingId === row.id"
+                    <select class="admin-input ar-role-select" :value="row.role"
+                      :disabled="state.savingId === row.id || isDemo"
                       @change="click.setRole(row, $event)">
                       <option v-for="r in roleDefs" :key="r.id" :value="r.id"
                         :disabled="r.id !== row.role && !_handlers.canSetRole(row, r.id)">

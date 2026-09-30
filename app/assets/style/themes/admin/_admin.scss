@@ -256,6 +256,17 @@ input[type='time'].admin-input {
   background: var(--paper);
 }
 
+/**
+ * DEMO 模式（唯讀角色）用：各後台元件自己把「實際會寫入的控制項」（儲存／刪除／新增／
+ * 切換開關）包一層 <fieldset class="admin-fieldset-reset" :disabled="isDemo">，
+ * 瀏覽用的分頁籤／篩選／搜尋留在 fieldset 外面維持可操作。
+ * fieldset 預設有邊框/內距/min-width:min-content，這裡整個歸零，只留 disabled 這個原生行為。
+ */
+.admin-fieldset-reset {
+  all: unset;
+  display: contents;
+}
+
 .admin-grid1 {
   display: grid;
   gap: 1px;

@@ -6,6 +6,9 @@
 import { computed, onMounted, reactive, watch } from 'vue'
 import { api } from '~/services/api'
 import { useRoleDefs } from '~/composables/useRoleDefs'
+import { useAdminAuth } from '~/composables/useAdminAuth'
+
+const { isDemo } = useAdminAuth()
 
 type RoleSettingsPatch = {
   testMode?: boolean
@@ -204,17 +207,19 @@ onMounted(() => {
             <div class="arl-info-card">
               <div class="arl-info-head">
                 <div class="arl-info-name">{{ selected.name }}</div>
-                <button v-if="!selected.builtin" type="button" class="admin-btn admin-btn-ghost arl-delete"
-                  :class="{ 'is-confirming': state.confirmingId === selected.id }"
-                  :disabled="state.removingId === selected.id" @click="click.remove(selected.id)">
-                  {{
-                    state.removingId === selected.id
-                      ? '刪除中…'
-                      : state.confirmingId === selected.id
-                        ? '再次點擊確認刪除'
-                        : '刪除角色'
-                  }}
-                </button>
+                <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+                  <button v-if="!selected.builtin" type="button" class="admin-btn admin-btn-ghost arl-delete"
+                    :class="{ 'is-confirming': state.confirmingId === selected.id }"
+                    :disabled="state.removingId === selected.id" @click="click.remove(selected.id)">
+                    {{
+                      state.removingId === selected.id
+                        ? '刪除中…'
+                        : state.confirmingId === selected.id
+                          ? '再次點擊確認刪除'
+                          : '刪除角色'
+                    }}
+                  </button>
+                </fieldset>
               </div>
               <div class="arl-info-row">
                 <span class="arl-info-k">角色 ID</span>
@@ -246,86 +251,90 @@ onMounted(() => {
             </nav>
 
             <div class="arl-subtab-content">
-              <div v-if="state.infoSubTab === 'overview'" class="arl-settings">
-                <div class="arl-setting-row">
-                  <span class="arl-setting-label">
-                    測試模式
-                    <span v-if="selected.id === 'npc'" class="arl-setting-locked">（固定開啟）</span>
-                  </span>
-                  <button type="button" class="arl-setting-toggle"
-                    :class="selected.testMode ? 'is-on' : 'is-off'"
-                    :disabled="state.settingsSavingKey === 'testMode' || selected.id === 'npc'"
-                    @click="click.toggleTestMode()">
-                    {{ selected.testMode ? '開啟' : '關閉' }}
-                  </button>
+              <fieldset v-if="state.infoSubTab === 'overview'" class="admin-fieldset-reset" :disabled="isDemo">
+                <div class="arl-settings">
+                  <div class="arl-setting-row">
+                    <span class="arl-setting-label">
+                      測試模式
+                      <span v-if="selected.id === 'npc'" class="arl-setting-locked">（固定開啟）</span>
+                    </span>
+                    <button type="button" class="arl-setting-toggle"
+                      :class="selected.testMode ? 'is-on' : 'is-off'"
+                      :disabled="state.settingsSavingKey === 'testMode' || selected.id === 'npc'"
+                      @click="click.toggleTestMode()">
+                      {{ selected.testMode ? '開啟' : '關閉' }}
+                    </button>
+                  </div>
+                  <div class="arl-setting-row">
+                    <span class="arl-setting-label">
+                      NPC模式
+                      <span v-if="selected.id === 'npc'" class="arl-setting-locked">（固定開啟）</span>
+                    </span>
+                    <button type="button" class="arl-setting-toggle"
+                      :class="selected.npcMode ? 'is-on' : 'is-off'"
+                      :disabled="state.settingsSavingKey === 'npcMode' || selected.id === 'npc'"
+                      @click="click.toggleNpcMode()">
+                      {{ selected.npcMode ? '開啟' : '關閉' }}
+                    </button>
+                  </div>
+                  <div class="arl-setting-row">
+                    <span class="arl-setting-label">
+                      DEMO模式
+                      <span v-if="selected.id === 'demo'" class="arl-setting-locked">（固定開啟）</span>
+                    </span>
+                    <button type="button" class="arl-setting-toggle"
+                      :class="selected.demoMode ? 'is-on' : 'is-off'"
+                      :disabled="state.settingsSavingKey === 'demoMode' || selected.id === 'demo'"
+                      @click="click.toggleDemoMode()">
+                      {{ selected.demoMode ? '開啟' : '關閉' }}
+                    </button>
+                  </div>
+                  <p v-if="selected.demoMode" class="arl-hint">
+                    被指派此角色的帳號不需要在白名單內即可瀏覽整個後台，但所有寫入操作一律被拒絕。
+                  </p>
+                  <div class="arl-setting-row">
+                    <span class="arl-setting-label">每日自動加F幣</span>
+                    <input type="number" class="admin-input arl-setting-amount" min="0" max="1000000"
+                      :value="state.dailyCoinAmountDraft"
+                      :disabled="state.settingsSavingKey === 'dailyCoinReward'"
+                      @input="state.dailyCoinAmountDraft = ($event.target as HTMLInputElement).valueAsNumber"
+                      @change="click.commitDailyCoinAmount()">
+                    <button type="button" class="arl-setting-toggle"
+                      :class="selected.dailyCoinReward.enabled ? 'is-on' : 'is-off'"
+                      :disabled="state.settingsSavingKey === 'dailyCoinReward'" @click="click.toggleDailyCoinEnabled()">
+                      {{ selected.dailyCoinReward.enabled ? '開啟' : '關閉' }}
+                    </button>
+                  </div>
+                  <p v-if="state.settingsError" class="arl-error">{{ state.settingsError }}</p>
                 </div>
-                <div class="arl-setting-row">
-                  <span class="arl-setting-label">
-                    NPC模式
-                    <span v-if="selected.id === 'npc'" class="arl-setting-locked">（固定開啟）</span>
-                  </span>
-                  <button type="button" class="arl-setting-toggle"
-                    :class="selected.npcMode ? 'is-on' : 'is-off'"
-                    :disabled="state.settingsSavingKey === 'npcMode' || selected.id === 'npc'"
-                    @click="click.toggleNpcMode()">
-                    {{ selected.npcMode ? '開啟' : '關閉' }}
-                  </button>
-                </div>
-                <div class="arl-setting-row">
-                  <span class="arl-setting-label">
-                    DEMO模式
-                    <span v-if="selected.id === 'demo'" class="arl-setting-locked">（固定開啟）</span>
-                  </span>
-                  <button type="button" class="arl-setting-toggle"
-                    :class="selected.demoMode ? 'is-on' : 'is-off'"
-                    :disabled="state.settingsSavingKey === 'demoMode' || selected.id === 'demo'"
-                    @click="click.toggleDemoMode()">
-                    {{ selected.demoMode ? '開啟' : '關閉' }}
-                  </button>
-                </div>
-                <p v-if="selected.demoMode" class="arl-hint">
-                  被指派此角色的帳號不需要在白名單內即可瀏覽整個後台，但所有寫入操作一律被拒絕。
-                </p>
-                <div class="arl-setting-row">
-                  <span class="arl-setting-label">每日自動加F幣</span>
-                  <input type="number" class="admin-input arl-setting-amount" min="0" max="1000000"
-                    :value="state.dailyCoinAmountDraft"
-                    :disabled="state.settingsSavingKey === 'dailyCoinReward'"
-                    @input="state.dailyCoinAmountDraft = ($event.target as HTMLInputElement).valueAsNumber"
-                    @change="click.commitDailyCoinAmount()">
-                  <button type="button" class="arl-setting-toggle"
-                    :class="selected.dailyCoinReward.enabled ? 'is-on' : 'is-off'"
-                    :disabled="state.settingsSavingKey === 'dailyCoinReward'" @click="click.toggleDailyCoinEnabled()">
-                    {{ selected.dailyCoinReward.enabled ? '開啟' : '關閉' }}
-                  </button>
-                </div>
-                <p v-if="state.settingsError" class="arl-error">{{ state.settingsError }}</p>
-              </div>
+              </fieldset>
               <AdminRoleGamesPanel v-else-if="!selected.builtin && state.infoSubTab === 'games'"
-                :role-id="selected.id" class="arl-games" />
+                :role-id="selected.id" class="arl-games" :is-demo="isDemo" />
             </div>
           </template>
           <div v-else class="admin-empty arl-info-empty">請從左側選擇角色</div>
         </div>
 
         <form v-else class="arl-form" @submit.prevent="click.submit">
-          <div class="arl-fields">
-            <div class="admin-field">
-              <label>角色名稱</label>
-              <input v-model="state.name" type="text" class="admin-input" maxlength="20" placeholder="例如 VIP"
-                autocomplete="off">
+          <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+            <div class="arl-fields">
+              <div class="admin-field">
+                <label>角色名稱</label>
+                <input v-model="state.name" type="text" class="admin-input" maxlength="20" placeholder="例如 VIP"
+                  autocomplete="off">
+              </div>
             </div>
-          </div>
 
-          <div class="arl-footer">
-            <button type="submit" class="admin-btn admin-btn-primary" :disabled="state.submitStatus === 'loading'">
-              {{ state.submitStatus === 'loading' ? '新增中…' : '新增' }}
-            </button>
-            <p v-if="state.submitError" class="arl-error">{{ state.submitError }}</p>
-            <p v-else-if="state.submitStatus === 'success'" class="arl-ok">
-              已建立 <span class="admin-num">{{ state.successId }}</span>（in-memory，重啟後消失）
-            </p>
-          </div>
+            <div class="arl-footer">
+              <button type="submit" class="admin-btn admin-btn-primary" :disabled="state.submitStatus === 'loading'">
+                {{ state.submitStatus === 'loading' ? '新增中…' : '新增' }}
+              </button>
+              <p v-if="state.submitError" class="arl-error">{{ state.submitError }}</p>
+              <p v-else-if="state.submitStatus === 'success'" class="arl-ok">
+                已建立 <span class="admin-num">{{ state.successId }}</span>（in-memory，重啟後消失）
+              </p>
+            </div>
+          </fieldset>
         </form>
       </div>
     </div>

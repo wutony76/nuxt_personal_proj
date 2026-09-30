@@ -6,8 +6,10 @@
  */
 import { nextTick, ref, watch } from 'vue'
 import { useChat } from '~/composables/useChat'
+import { useAdminAuth } from '~/composables/useAdminAuth'
 
 const { messages, errorMessage, onlineCount, connected, actions } = useChat()
+const { isDemo } = useAdminAuth()
 
 const draft = ref('')
 const listRef = ref<HTMLElement | null>(null)
@@ -84,12 +86,13 @@ const click = {
         class="admin-input"
         maxlength="200"
         placeholder="以管理者身分發言..."
+        :disabled="isDemo"
         @keyup.enter="click.send"
       >
       <button
         type="button"
         class="admin-btn admin-btn-primary"
-        :disabled="!draft.trim()"
+        :disabled="!draft.trim() || isDemo"
         @click="click.send"
       >
         送出

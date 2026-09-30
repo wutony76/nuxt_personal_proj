@@ -2,6 +2,9 @@
 import { ref, reactive, watch, onMounted } from 'vue'
 import dayjs from 'dayjs'
 import { api } from '~/services/api'
+import { useAdminAuth } from '~/composables/useAdminAuth'
+
+const { isDemo } = useAdminAuth()
 
 // ─── State ───
 const month = ref(dayjs().format('YYYY-MM'))
@@ -149,6 +152,7 @@ onMounted(() => {
           <div v-else-if="toyShop.status === 'error'" class="admin-empty" style="color:#b91c1c">{{ toyShop.error }}
           </div>
           <template v-else-if="toyShop.status === 'success'">
+            <fieldset class="admin-fieldset-reset" :disabled="isDemo">
             <div class="atl-toyshop-toggle">
               <span class="atl-toyshop-status" :class="{ on: toyShop.enabled }">
                 {{ toyShop.enabled ? '開放中' : '暫停中' }}
@@ -210,6 +214,7 @@ onMounted(() => {
                 </div>
               </div>
             </div>
+            </fieldset>
           </template>
         </div>
       </div>

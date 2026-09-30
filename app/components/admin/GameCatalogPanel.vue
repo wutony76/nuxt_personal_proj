@@ -6,6 +6,9 @@
  */
 import { computed, onMounted, reactive } from 'vue'
 import { api, type RoleGamePerm } from '~/services/api'
+import { useAdminAuth } from '~/composables/useAdminAuth'
+
+const { isDemo } = useAdminAuth()
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
@@ -74,7 +77,7 @@ onMounted(() => _actions.fetch())
         </div>
         <div class="gcp-grid">
           <button v-for="row in bgGames" :key="row.key" type="button" class="gcp-toggle"
-            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey" :aria-pressed="row.enabled"
+            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey || isDemo" :aria-pressed="row.enabled"
             @click="click.toggle(row)">
             <span class="gcp-toggle-name">{{ row.name }}</span>
             <span class="gcp-toggle-state">{{ row.enabled ? '開啟' : '關閉' }}</span>
@@ -91,7 +94,7 @@ onMounted(() => _actions.fetch())
         </div>
         <div class="gcp-grid">
           <button v-for="row in twGames" :key="row.key" type="button" class="gcp-toggle"
-            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey" :aria-pressed="row.enabled"
+            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey || isDemo" :aria-pressed="row.enabled"
             @click="click.toggle(row)">
             <span class="gcp-toggle-name">{{ row.name }}</span>
             <span class="gcp-toggle-state">{{ row.enabled ? '開啟' : '關閉' }}</span>
@@ -106,7 +109,7 @@ onMounted(() => _actions.fetch())
         </div>
         <div class="gcp-grid">
           <button v-for="row in retroGames" :key="row.key" type="button" class="gcp-toggle"
-            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey" :aria-pressed="row.enabled"
+            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey || isDemo" :aria-pressed="row.enabled"
             @click="click.toggle(row)">
             <span class="gcp-toggle-name">{{ row.name }}</span>
             <span class="gcp-toggle-state">{{ row.enabled ? '開啟' : '關閉' }}</span>

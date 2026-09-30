@@ -68,15 +68,28 @@
     但橫幅 `.ash-notice` 實際上是 `<main>` 的手足元素，不在查詢範圍內
   - 修正方式：改用 `.ash-notice-demo` class 選擇器直接檢查，確認橫幅確實存在
     且可見；屬於測試腳本本身的誤判，非產品程式碼問題
+- 問題（後續使用者回報，已修正）：`Shell.vue` 用單一 `<fieldset disabled>` 包住
+  整個頁面內容區塊的做法，把「會員管理」「角色列表」等頁面裡的分頁籤
+  （資訊／新增、設定／新增、總覽／遊戲）也一併鎖死——HTML 規格下
+  `fieldset[disabled]` 會無條件鎖住所有子孫表單元素，巢狀 fieldset 無法
+  局部解鎖，導致 demo 帳號連「切換分頁看內容」都做不到，只能卡在預設分頁
+  - 發現方式：使用者實際操作回報「會員管理 資訊／新增 需要可以查看」
+  - 修正方式：拿掉 `Shell.vue` 的全域 fieldset，改成在每個實際有寫入功能的
+    元件/頁面內，只把「儲存／刪除／新增／切換開關」這些真正的寫入控制項包
+    一層 `<fieldset class="admin-fieldset-reset">`（`display:contents`，
+    不佔版面），分頁籤／篩選／搜尋／導覽全部留在 fieldset 外面維持可操作。
+    共調整：`CreateMember.vue`、`RoleList.vue`、`RoleGamesPanel.vue`、
+    `GameCatalogPanel.vue`、`AccessPanel.vue`、`roles.vue`、`NpcPanel.vue`、
+    `games.vue`、`taiwan-lottery.vue`、`ChatPanel.vue`、`ChatSchedule.vue`
+  - 是否已重新驗證：是，用 test04 逐一實測每個分頁籤都可點擊切換，切換後
+    分頁內的寫入控制項（按鈕/輸入框/下拉選單/切換開關）仍全部維持 disabled，
+    直接呼叫寫入 API 仍是 403
 
 ## 結論
 
 - 是否通過：是
 - 已知限制或風險：
-  - `<fieldset disabled>` 是「整個頁面內容區塊」層級的防呆，連同「篩選下拉選單」
-    這類非寫入、純顯示用的控制項也一併被鎖定（demo 帳號無法切換篩選條件），
-    是簡化實作換取全站覆蓋率的已知取捨，不影響安全性（真正邊界在後端）
-  - Teleport 到 `<body>` 的彈窗（例如全域 `$dialog`）不在 fieldset 範圍內；
+  - Teleport 到 `<body>` 的彈窗（例如全域 `$dialog`）不在任何 fieldset 範圍內；
     真正的安全邊界仍是後端 `requireAdmin`，即使前端沒擋到，寫入 API 呼叫
     也會被拒絕
 - 後續追蹤事項：若之後要讓 demo 帳號仍可操作「純顯示用篩選」，可以把

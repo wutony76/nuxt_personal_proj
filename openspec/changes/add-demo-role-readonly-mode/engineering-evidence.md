@@ -17,15 +17,26 @@
     `members/[id]/balance-changes.get.ts`、`members/[id]/login-history.get.ts`
   - `server/api/admin/me.get.ts`（多回傳 `isDemo`）
   - `server/api/admin/role-defs/[id]/settings.patch.ts`（接受 `demoMode` patch）
-  - 前端：`app/services/api.ts`（型別）、`app/composables/useAdminAuth.ts`
+  - 前端（第一輪）：`app/services/api.ts`（型別）、`app/composables/useAdminAuth.ts`
     （state 補 `isDemo`）、`app/components/admin/Shell.vue`
-    （DEMO 橫幅 + fieldset 唯讀鎖定 + denied 文案）、
-    `app/components/admin/RoleList.vue`（DEMO 模式設定開關）、
-    `app/pages/admin/roles.vue`（頁面說明文字更新）
+    （DEMO 橫幅 + denied 文案）、`app/components/admin/RoleList.vue`
+    （DEMO 模式設定開關）、`app/pages/admin/roles.vue`（頁面說明文字更新）
+  - 前端（第二輪，使用者回報「會員管理 資訊／新增需要可以查看」後的修正）：
+    - `app/components/admin/Shell.vue`：拿掉全域 `<fieldset disabled>` 包裹
+      `<slot />` 的做法（分頁籤會被一起鎖死，且巢狀 fieldset 無法局部解鎖）
+    - `app/assets/style/themes/admin/_admin.scss`：新增共用 `.admin-fieldset-reset`
+      （`display:contents`）給各元件自己局部使用
+    - 逐一調整為「只鎖寫入控制項」：`CreateMember.vue`、`RoleList.vue`、
+      `RoleGamesPanel.vue`、`GameCatalogPanel.vue`、`AccessPanel.vue`、
+      `roles.vue`、`NpcPanel.vue`、`games.vue`、`taiwan-lottery.vue`、
+      `ChatPanel.vue`、`ChatSchedule.vue`
   - 文件：`docs/Architecture/README.md`（新增「後台存取模型」段落）
   - OpenSpec：`openspec/changes/add-demo-role-readonly-mode/`
-    （proposal/design/tasks/validation/engineering-evidence）
-- Commit / PR 參考：（尚未提交，待使用者確認後由使用者指示是否建立 commit）
+    （proposal/design/tasks/validation/engineering-evidence，design.md／validation.md
+    已補上第二輪修正的記錄）
+- Commit / PR 參考：第一輪已提交（`feat(admin): 新增 Demo 角色與唯讀後台存取模式`、
+  `feat(admin): test04 種子帳號固定指派 Demo 角色`）；第二輪（分頁籤可查看的修正）
+  尚未提交，待使用者確認後再建立 commit
 
 ## 驗證佐證
 

@@ -15,7 +15,7 @@ const props = defineProps<{
   reloadToken?: number
 }>()
 
-const { user: me } = useAdminAuth()
+const { user: me, isDemo } = useAdminAuth()
 const { roles: roleDefs, fetch: fetchRoleDefs } = useRoleDefs()
 
 const state = reactive({
@@ -179,7 +179,7 @@ watch(
               <select
                 class="admin-input aap-role-select"
                 :value="selected.role"
-                :disabled="state.saveStatus === 'loading'"
+                :disabled="state.saveStatus === 'loading' || isDemo"
                 @change="click.setRole(($event.target as HTMLSelectElement).value)"
               >
                 <option

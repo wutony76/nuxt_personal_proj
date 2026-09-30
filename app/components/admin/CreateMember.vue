@@ -7,6 +7,9 @@ import { api, type AdminAccessUser, type AdminMemberBalanceChange, type AdminMem
 import { balanceChangeTypeLabel } from '~/utils/balanceChangeLabel'
 import { formatUserAgentShort } from '~/utils/userAgentLabel'
 import { useRoleDefs } from '~/composables/useRoleDefs'
+import { useAdminAuth } from '~/composables/useAdminAuth'
+
+const { isDemo } = useAdminAuth()
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 type DetailTab = 'info' | 'create'
@@ -425,81 +428,85 @@ watch(
                 <span class="acm-info-k">帳號</span>
                 <span>{{ selected.name }}</span>
               </div>
-              <div class="acm-info-row acm-info-row-editable">
-                <span class="acm-info-k">Email</span>
-                <template v-if="!state.emailEditing">
-                  <span class="acm-info-v">{{ selected.email }}</span>
-                  <div class="acm-info-action-wrap">
-                    <span class="admin-en acm-info-action-k">email</span>
-                    <button type="button" class="acm-info-link" @click="click.startEmailEdit">修改</button>
+              <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+                <div class="acm-info-row acm-info-row-editable">
+                  <span class="acm-info-k">Email</span>
+                  <template v-if="!state.emailEditing">
+                    <span class="acm-info-v">{{ selected.email }}</span>
+                    <div class="acm-info-action-wrap">
+                      <span class="admin-en acm-info-action-k">email</span>
+                      <button type="button" class="acm-info-link" @click="click.startEmailEdit">修改</button>
+                    </div>
+                    <p v-if="state.emailSaveStatus === 'success'" class="acm-ok acm-info-feedback">Email 已更新</p>
+                  </template>
+                  <div v-else class="acm-info-edit">
+                    <input v-model="state.emailDraft" type="email" class="admin-input acm-info-edit-input" maxlength="120"
+                      placeholder="login@example.com" autocomplete="off">
+                    <div class="acm-info-edit-actions">
+                      <button type="button" class="admin-btn admin-btn-primary"
+                        :disabled="state.emailSaveStatus === 'loading'" @click="click.saveEmail">
+                        {{ state.emailSaveStatus === 'loading' ? '儲存中…' : '儲存' }}
+                      </button>
+                      <button type="button" class="admin-btn" @click="click.cancelEmailEdit">取消</button>
+                    </div>
+                    <p v-if="state.emailSaveError" class="acm-error">{{ state.emailSaveError }}</p>
                   </div>
-                  <p v-if="state.emailSaveStatus === 'success'" class="acm-ok acm-info-feedback">Email 已更新</p>
-                </template>
-                <div v-else class="acm-info-edit">
-                  <input v-model="state.emailDraft" type="email" class="admin-input acm-info-edit-input" maxlength="120"
-                    placeholder="login@example.com" autocomplete="off">
-                  <div class="acm-info-edit-actions">
-                    <button type="button" class="admin-btn admin-btn-primary"
-                      :disabled="state.emailSaveStatus === 'loading'" @click="click.saveEmail">
-                      {{ state.emailSaveStatus === 'loading' ? '儲存中…' : '儲存' }}
-                    </button>
-                    <button type="button" class="admin-btn" @click="click.cancelEmailEdit">取消</button>
-                  </div>
-                  <p v-if="state.emailSaveError" class="acm-error">{{ state.emailSaveError }}</p>
                 </div>
-              </div>
-              <div class="acm-info-row acm-info-row-editable">
-                <span class="acm-info-k">密碼</span>
-                <template v-if="!state.passwordEditing">
-                  <span class="acm-info-v acm-info-mask">xxxxxx</span>
-                  <div class="acm-info-action-wrap">
-                    <span class="admin-en acm-info-action-k">pwd</span>
-                    <button type="button" class="acm-info-link" @click="click.startPasswordEdit">修改</button>
+                <div class="acm-info-row acm-info-row-editable">
+                  <span class="acm-info-k">密碼</span>
+                  <template v-if="!state.passwordEditing">
+                    <span class="acm-info-v acm-info-mask">xxxxxx</span>
+                    <div class="acm-info-action-wrap">
+                      <span class="admin-en acm-info-action-k">pwd</span>
+                      <button type="button" class="acm-info-link" @click="click.startPasswordEdit">修改</button>
+                    </div>
+                    <p v-if="state.passwordSaveStatus === 'success'" class="acm-ok acm-info-feedback">密碼已更新</p>
+                  </template>
+                  <div v-else class="acm-info-edit">
+                    <input v-model="state.passwordDraft" type="text" class="admin-input acm-info-edit-input" minlength="6"
+                      maxlength="72" placeholder="新密碼（至少 6 字元）" autocomplete="off">
+                    <div class="acm-info-edit-actions">
+                      <button type="button" class="admin-btn admin-btn-primary"
+                        :disabled="state.passwordSaveStatus === 'loading'" @click="click.savePassword">
+                        {{ state.passwordSaveStatus === 'loading' ? '儲存中…' : '儲存' }}
+                      </button>
+                      <button type="button" class="admin-btn" @click="click.cancelPasswordEdit">取消</button>
+                    </div>
+                    <p v-if="state.passwordSaveError" class="acm-error">{{ state.passwordSaveError }}</p>
                   </div>
-                  <p v-if="state.passwordSaveStatus === 'success'" class="acm-ok acm-info-feedback">密碼已更新</p>
-                </template>
-                <div v-else class="acm-info-edit">
-                  <input v-model="state.passwordDraft" type="text" class="admin-input acm-info-edit-input" minlength="6"
-                    maxlength="72" placeholder="新密碼（至少 6 字元）" autocomplete="off">
-                  <div class="acm-info-edit-actions">
-                    <button type="button" class="admin-btn admin-btn-primary"
-                      :disabled="state.passwordSaveStatus === 'loading'" @click="click.savePassword">
-                      {{ state.passwordSaveStatus === 'loading' ? '儲存中…' : '儲存' }}
-                    </button>
-                    <button type="button" class="admin-btn" @click="click.cancelPasswordEdit">取消</button>
-                  </div>
-                  <p v-if="state.passwordSaveError" class="acm-error">{{ state.passwordSaveError }}</p>
                 </div>
-              </div>
+              </fieldset>
               <div class="acm-info-row">
                 <span class="acm-info-k">角色</span>
                 <span class="admin-tag" :class="{ 'is-user': selected.role !== 'admin' }">
                   {{ _handlers.roleLabel(selected.role) }}
                 </span>
               </div>
-              <div class="acm-info-row acm-info-row-editable">
-                <span class="acm-info-k">F幣</span>
-                <template v-if="!state.coinEditing">
-                  <span class="acm-info-v acm-info-coin">{{ _handlers.formatCoin(selected.coin) }}</span>
-                  <div class="acm-info-action-wrap">
-                    <span class="admin-en acm-info-action-k">coin</span>
-                    <button type="button" class="acm-info-link" @click="click.startCoinEdit">充值</button>
+              <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+                <div class="acm-info-row acm-info-row-editable">
+                  <span class="acm-info-k">F幣</span>
+                  <template v-if="!state.coinEditing">
+                    <span class="acm-info-v acm-info-coin">{{ _handlers.formatCoin(selected.coin) }}</span>
+                    <div class="acm-info-action-wrap">
+                      <span class="admin-en acm-info-action-k">coin</span>
+                      <button type="button" class="acm-info-link" @click="click.startCoinEdit">充值</button>
+                    </div>
+                    <p v-if="state.coinSaveStatus === 'success'" class="acm-ok acm-info-feedback">F幣已更新</p>
+                  </template>
+                  <div v-else class="acm-info-edit">
+                    <input v-model="state.coinDraft" type="number" class="admin-input acm-info-edit-input" step="1"
+                      placeholder="調整金額（正數充值、負數扣款）" autocomplete="off">
+                    <div class="acm-info-edit-actions">
+                      <button type="button" class="admin-btn admin-btn-primary"
+                        :disabled="state.coinSaveStatus === 'loading'" @click="click.saveCoin">
+                        {{ state.coinSaveStatus === 'loading' ? '處理中…' : '確認' }}
+                      </button>
+                      <button type="button" class="admin-btn" @click="click.cancelCoinEdit">取消</button>
+                    </div>
+                    <p v-if="state.coinSaveError" class="acm-error">{{ state.coinSaveError }}</p>
                   </div>
-                  <p v-if="state.coinSaveStatus === 'success'" class="acm-ok acm-info-feedback">F幣已更新</p>
-                </template>
-                <div v-else class="acm-info-edit">
-                  <input v-model="state.coinDraft" type="number" class="admin-input acm-info-edit-input" step="1"
-                    placeholder="調整金額（正數充值、負數扣款）" autocomplete="off">
-                  <div class="acm-info-edit-actions">
-                    <button type="button" class="admin-btn admin-btn-primary"
-                      :disabled="state.coinSaveStatus === 'loading'" @click="click.saveCoin">
-                      {{ state.coinSaveStatus === 'loading' ? '處理中…' : '確認' }}
-                    </button>
-                    <button type="button" class="admin-btn" @click="click.cancelCoinEdit">取消</button>
-                  </div>
-                  <p v-if="state.coinSaveError" class="acm-error">{{ state.coinSaveError }}</p>
                 </div>
-              </div>
+              </fieldset>
             </div>
 
             <section class="acm-ledger">
@@ -589,41 +596,43 @@ watch(
         </div>
 
         <form v-else class="acm-form" @submit.prevent="click.submit">
-          <div class="acm-fields">
-            <div class="admin-field">
-              <label>帳號</label>
-              <input v-model="state.name" type="text" class="admin-input" maxlength="40" placeholder="請輸入帳號"
-                autocomplete="off">
+          <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+            <div class="acm-fields">
+              <div class="admin-field">
+                <label>帳號</label>
+                <input v-model="state.name" type="text" class="admin-input" maxlength="40" placeholder="請輸入帳號"
+                  autocomplete="off">
+              </div>
+              <div class="admin-field">
+                <label>Email</label>
+                <input v-model="state.email" type="email" class="admin-input" placeholder="login@example.com"
+                  autocomplete="off">
+              </div>
+              <div class="admin-field">
+                <label>密碼</label>
+                <input v-model="state.password" type="text" class="admin-input" minlength="6" maxlength="72"
+                  placeholder="至少 6 字元" autocomplete="off">
+              </div>
+              <div class="admin-field">
+                <label>角色</label>
+                <select v-model="state.role" class="admin-input">
+                  <option v-for="r in roleDefs" :key="r.id" :value="r.id">{{ r.name }}</option>
+                </select>
+              </div>
             </div>
-            <div class="admin-field">
-              <label>Email</label>
-              <input v-model="state.email" type="email" class="admin-input" placeholder="login@example.com"
-                autocomplete="off">
-            </div>
-            <div class="admin-field">
-              <label>密碼</label>
-              <input v-model="state.password" type="text" class="admin-input" minlength="6" maxlength="72"
-                placeholder="至少 6 字元" autocomplete="off">
-            </div>
-            <div class="admin-field">
-              <label>角色</label>
-              <select v-model="state.role" class="admin-input">
-                <option v-for="r in roleDefs" :key="r.id" :value="r.id">{{ r.name }}</option>
-              </select>
-            </div>
-          </div>
 
-          <div class="acm-footer">
-            <div class="acm-footer-actions">
-              <button type="submit" class="admin-btn admin-btn-primary" :disabled="state.submitStatus === 'loading'">
-                {{ state.submitStatus === 'loading' ? '新增中…' : '新增' }}
-              </button>
-              <p v-if="state.submitError" class="acm-error">{{ state.submitError }}</p>
-              <p v-else-if="state.submitStatus === 'success'" class="acm-ok">
-                已建立 <span class="admin-num">{{ state.successId }}</span>（in-memory，重啟後消失）
-              </p>
+            <div class="acm-footer">
+              <div class="acm-footer-actions">
+                <button type="submit" class="admin-btn admin-btn-primary" :disabled="state.submitStatus === 'loading'">
+                  {{ state.submitStatus === 'loading' ? '新增中…' : '新增' }}
+                </button>
+                <p v-if="state.submitError" class="acm-error">{{ state.submitError }}</p>
+                <p v-else-if="state.submitStatus === 'success'" class="acm-ok">
+                  已建立 <span class="admin-num">{{ state.successId }}</span>（in-memory，重啟後消失）
+                </p>
+              </div>
             </div>
-          </div>
+          </fieldset>
           <p class="acm-hint">
             Email 為登入的帳號，不可重複。預設密碼
             <span class="admin-num">{{ DEFAULT_MEMBER_PASSWORD }}</span>。

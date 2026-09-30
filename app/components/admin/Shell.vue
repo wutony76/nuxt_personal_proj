@@ -193,12 +193,13 @@ onMounted(() => {
             </button>
           </aside>
         </header>
-        <!-- DEMO 模式：fieldset disabled 會讓瀏覽器原生擋掉底下所有 button/input/select/textarea
-             的互動，不用逐一改每個後台頁面/元件；真正的安全邊界仍在後端 requireAdmin（見
-             server/services/auth.ts），這裡純粹是避免誤觸的 UI 層防呆。 -->
-        <fieldset class="ash-demo-fieldset" :disabled="isDemo">
-          <slot />
-        </fieldset>
+        <!-- DEMO 模式的唯讀鎖定不在這裡統一處理：<fieldset disabled> 會讓底下「所有」
+             button/input/select/textarea 一起失能，包含分頁籤／篩選／排序這類純瀏覽用途的
+             控制項也會被鎖死，沒有辦法只挑「會員管理」「角色列表」這類頁面裡真正的分頁籤
+             選擇性排除（disabled 的 fieldset 底下巢狀 fieldset 一樣會被鎖住，無法局部解鎖）。
+             改成各頁面/元件自己用 useAdminAuth().isDemo 只包住實際會寫入的控制項
+             （儲存／刪除／新增／切換開關），瀏覽用的分頁籤/篩選/搜尋維持可操作。 -->
+        <slot />
       </template>
     </main>
   </div>
@@ -323,15 +324,6 @@ onMounted(() => {
   color: #7f1d1d;
   border-bottom-color: color-mix(in srgb, #dc2626 40%, var(--line));
   font-weight: 700;
-}
-
-/* fieldset 預設會有邊框/內距/min-width:min-content，會影響版面，這裡整個歸零，
-   只留 disabled 這個原生行為 */
-.ash-demo-fieldset {
-  border: 0;
-  margin: 0;
-  padding: 0;
-  min-width: 0;
 }
 
 .ash-main {

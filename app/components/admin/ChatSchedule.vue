@@ -5,6 +5,9 @@
  */
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { api, type ChatSchedule, type ChatScheduleRepeat } from '~/services/api'
+import { useAdminAuth } from '~/composables/useAdminAuth'
+
+const { isDemo } = useAdminAuth()
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
@@ -175,59 +178,61 @@ onUnmounted(() => {
       <span class="acs-head-title">自動發言設定</span>
     </div>
 
-    <div class="acs-form">
-      <div class="admin-field">
-        <label>訊息</label>
-        <input v-model="state.draftText" type="text" class="admin-input" maxlength="200" placeholder="例如：大家早安"
-          @keyup.enter="click.add">
-      </div>
-      <div class="acs-row">
-        <div v-if="!isInterval" class="admin-field acs-field-time">
-          <label>時間</label>
-          <div ref="rootRef" class="acs-time">
-            <button type="button" class="admin-input admin-num acs-time-trigger" :aria-expanded="state.timeOpen"
-              @click="click.toggleTime">
-              <span>{{ draftTime }}</span>
-              <span class="acs-time-icon" aria-hidden="true">▾</span>
-            </button>
-            <div v-if="state.timeOpen" class="acs-time-panel" role="listbox" aria-label="選擇時間">
-              <div ref="hourListRef" class="acs-time-col" role="group" aria-label="小時">
-                <button v-for="h in HOUR_OPTIONS" :key="h" type="button" class="acs-time-opt admin-num"
-                  :class="{ 'is-active': h === state.draftHour }" role="option" :aria-selected="h === state.draftHour"
-                  @click="click.pickHour(h)">
-                  {{ h }}
-                </button>
-              </div>
-              <div ref="minuteListRef" class="acs-time-col" role="group" aria-label="分鐘">
-                <button v-for="m in MINUTE_OPTIONS" :key="m" type="button" class="acs-time-opt admin-num"
-                  :class="{ 'is-active': m === state.draftMinute }" role="option"
-                  :aria-selected="m === state.draftMinute" @click="click.pickMinute(m)">
-                  {{ m }}
-                </button>
+    <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+      <div class="acs-form">
+        <div class="admin-field">
+          <label>訊息</label>
+          <input v-model="state.draftText" type="text" class="admin-input" maxlength="200" placeholder="例如：大家早安"
+            @keyup.enter="click.add">
+        </div>
+        <div class="acs-row">
+          <div v-if="!isInterval" class="admin-field acs-field-time">
+            <label>時間</label>
+            <div ref="rootRef" class="acs-time">
+              <button type="button" class="admin-input admin-num acs-time-trigger" :aria-expanded="state.timeOpen"
+                @click="click.toggleTime">
+                <span>{{ draftTime }}</span>
+                <span class="acs-time-icon" aria-hidden="true">▾</span>
+              </button>
+              <div v-if="state.timeOpen" class="acs-time-panel" role="listbox" aria-label="選擇時間">
+                <div ref="hourListRef" class="acs-time-col" role="group" aria-label="小時">
+                  <button v-for="h in HOUR_OPTIONS" :key="h" type="button" class="acs-time-opt admin-num"
+                    :class="{ 'is-active': h === state.draftHour }" role="option" :aria-selected="h === state.draftHour"
+                    @click="click.pickHour(h)">
+                    {{ h }}
+                  </button>
+                </div>
+                <div ref="minuteListRef" class="acs-time-col" role="group" aria-label="分鐘">
+                  <button v-for="m in MINUTE_OPTIONS" :key="m" type="button" class="acs-time-opt admin-num"
+                    :class="{ 'is-active': m === state.draftMinute }" role="option"
+                    :aria-selected="m === state.draftMinute" @click="click.pickMinute(m)">
+                    {{ m }}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+          <div v-else class="admin-field acs-field-interval">
+            <label>每 N 秒</label>
+            <input v-model="state.draftIntervalSeconds" type="number" class="admin-input admin-num"
+              :min="MIN_INTERVAL_SECONDS" :max="MAX_INTERVAL_SECONDS" step="1" placeholder="30" @keyup.enter="click.add">
+          </div>
+          <div class="admin-field acs-field-repeat">
+            <label>重複</label>
+            <select v-model="state.draftRepeat" class="admin-input">
+              <option value="daily">每天</option>
+              <option value="once">一次</option>
+              <option value="interval">間隔</option>
+            </select>
+          </div>
         </div>
-        <div v-else class="admin-field acs-field-interval">
-          <label>每 N 秒</label>
-          <input v-model="state.draftIntervalSeconds" type="number" class="admin-input admin-num"
-            :min="MIN_INTERVAL_SECONDS" :max="MAX_INTERVAL_SECONDS" step="1" placeholder="30" @keyup.enter="click.add">
-        </div>
-        <div class="admin-field acs-field-repeat">
-          <label>重複</label>
-          <select v-model="state.draftRepeat" class="admin-input">
-            <option value="daily">每天</option>
-            <option value="once">一次</option>
-            <option value="interval">間隔</option>
-          </select>
-        </div>
+        <button type="button" class="admin-btn admin-btn-primary acs-add"
+          :disabled="state.submitStatus === 'loading' || !state.draftText.trim()" @click="click.add">
+          {{ state.submitStatus === 'loading' ? '新增中…' : '新增排程' }}
+        </button>
+        <p v-if="state.submitError" class="acs-error">{{ state.submitError }}</p>
       </div>
-      <button type="button" class="admin-btn admin-btn-primary acs-add"
-        :disabled="state.submitStatus === 'loading' || !state.draftText.trim()" @click="click.add">
-        {{ state.submitStatus === 'loading' ? '新增中…' : '新增排程' }}
-      </button>
-      <p v-if="state.submitError" class="acs-error">{{ state.submitError }}</p>
-    </div>
+    </fieldset>
 
     <div v-if="state.status === 'loading'" class="admin-empty acs-empty">載入中…</div>
     <div v-else-if="state.status === 'error'" class="acs-error acs-pad">{{ state.error }}</div>
@@ -243,6 +248,7 @@ onUnmounted(() => {
           :class="row.enabled ? 'is-on' : 'is-off'"
           :aria-pressed="row.enabled"
           :title="row.enabled ? '點擊關閉' : '點擊開啟'"
+          :disabled="isDemo"
           @click="click.toggleEnabled(row)"
         >
           {{ row.enabled ? '開啟' : '關閉' }}
@@ -254,7 +260,7 @@ onUnmounted(() => {
             <span class="admin-tag">{{ _handlers.repeatLabel(row.repeat) }}</span>
           </div>
         </div>
-        <button type="button" class="admin-btn admin-btn-ghost" @click="click.remove(row.id)">刪除</button>
+        <button type="button" class="admin-btn admin-btn-ghost" :disabled="isDemo" @click="click.remove(row.id)">刪除</button>
       </li>
     </ul>
   </div>

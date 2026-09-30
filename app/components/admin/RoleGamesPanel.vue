@@ -11,6 +11,8 @@ type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
 const props = defineProps<{
   roleId: string
+  /** DEMO 唯讀角色：鎖住全部開關（見 RoleList.vue 傳入 useAdminAuth().isDemo） */
+  isDemo?: boolean
 }>()
 
 const state = reactive({
@@ -77,7 +79,7 @@ watch(() => props.roleId, (roleId) => _actions.fetch(roleId), { immediate: true 
         </div>
         <div class="rgp-grid">
           <button v-for="row in bgGames" :key="row.key" type="button" class="rgp-toggle"
-            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey"
+            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey || isDemo"
             :aria-pressed="row.enabled" @click="click.toggle(row)">
             <span class="rgp-toggle-name">{{ row.name }}</span>
             <span class="rgp-toggle-state">{{ row.enabled ? '開啟' : '關閉' }}</span>
@@ -92,7 +94,7 @@ watch(() => props.roleId, (roleId) => _actions.fetch(roleId), { immediate: true 
         </div>
         <div class="rgp-grid">
           <button v-for="row in retroGames" :key="row.key" type="button" class="rgp-toggle"
-            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey"
+            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey || isDemo"
             :aria-pressed="row.enabled" @click="click.toggle(row)">
             <span class="rgp-toggle-name">{{ row.name }}</span>
             <span class="rgp-toggle-state">{{ row.enabled ? '開啟' : '關閉' }}</span>
@@ -107,7 +109,7 @@ watch(() => props.roleId, (roleId) => _actions.fetch(roleId), { immediate: true 
         </div>
         <div class="rgp-grid">
           <button v-for="row in twGames" :key="row.key" type="button" class="rgp-toggle"
-            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey"
+            :class="row.enabled ? 'is-on' : 'is-off'" :disabled="!!state.togglingKey || isDemo"
             :aria-pressed="row.enabled" @click="click.toggle(row)">
             <span class="rgp-toggle-name">{{ row.name }}</span>
             <span class="rgp-toggle-state">{{ row.enabled ? '開啟' : '關閉' }}</span>

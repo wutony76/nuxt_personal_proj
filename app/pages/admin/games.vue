@@ -5,6 +5,9 @@
  */
 import { onMounted, reactive } from 'vue'
 import { api, type RetroGameKey, type RetroGameRateInfo, type MazeTemplate, type GameHistoryRecord } from '~/services/api'
+import { useAdminAuth } from '~/composables/useAdminAuth'
+
+const { isDemo } = useAdminAuth()
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 type EditDraft = { coinRate: string; coinCapPerRun: string; coinDailyCap: string }
@@ -262,25 +265,25 @@ onMounted(() => {
                   <div class="admin-num" style="font-size:10.5px;color:var(--muted)">{{ row.key }}</div>
                 </td>
                 <td style="text-align:right">
-                  <input v-if="state.editingKey === row.key && state.draft" v-model="state.draft.coinRate" class="admin-input admin-num agm-edit-input">
+                  <input v-if="state.editingKey === row.key && state.draft" v-model="state.draft.coinRate" :disabled="isDemo" class="admin-input admin-num agm-edit-input">
                   <span v-else class="admin-num">{{ row.coinRate }}</span>
                 </td>
                 <td style="text-align:right">
-                  <input v-if="state.editingKey === row.key && state.draft" v-model="state.draft.coinCapPerRun" class="admin-input admin-num agm-edit-input">
+                  <input v-if="state.editingKey === row.key && state.draft" v-model="state.draft.coinCapPerRun" :disabled="isDemo" class="admin-input admin-num agm-edit-input">
                   <span v-else class="admin-num">{{ row.coinCapPerRun }}</span>
                 </td>
                 <td style="text-align:right">
-                  <input v-if="state.editingKey === row.key && state.draft" v-model="state.draft.coinDailyCap" class="admin-input admin-num agm-edit-input">
+                  <input v-if="state.editingKey === row.key && state.draft" v-model="state.draft.coinDailyCap" :disabled="isDemo" class="admin-input admin-num agm-edit-input">
                   <span v-else class="admin-num">{{ row.coinDailyCap }}</span>
                 </td>
                 <td style="text-align:right">
                   <div class="agm-actions">
                     <template v-if="state.editingKey === row.key">
-                      <button type="button" class="admin-btn admin-btn-primary" @click="click.save(row)">儲存</button>
+                      <button type="button" class="admin-btn admin-btn-primary" :disabled="isDemo" @click="click.save(row)">儲存</button>
                       <button type="button" class="admin-btn admin-btn-ghost" @click="click.cancel">取消</button>
                     </template>
                     <template v-else>
-                      <button type="button" class="admin-btn admin-btn-secondary" @click="click.edit(row)">編輯</button>
+                      <button type="button" class="admin-btn admin-btn-secondary" :disabled="isDemo" @click="click.edit(row)">編輯</button>
                       <a class="admin-btn admin-btn-ghost" :href="PLAY_PATHS[row.key]" target="_blank" rel="noopener">試玩 ↗</a>
                     </template>
                   </div>
@@ -295,7 +298,7 @@ onMounted(() => {
         <section>
           <div class="admin-sechead">
             <div class="admin-sechead-left"><span class="admin-en">Fixed mazes</span><h2>PAC-MAN 固定樣板迷宮</h2></div>
-            <button type="button" class="admin-btn admin-btn-primary" @click="click.openMaze">新增樣板</button>
+            <button type="button" class="admin-btn admin-btn-primary" :disabled="isDemo" @click="click.openMaze">新增樣板</button>
           </div>
           <div v-if="state.mazeStatus === 'loading'" class="admin-empty">載入中...</div>
           <div v-else-if="state.mazeStatus === 'error'" class="admin-empty">載入失敗，請重新整理再試一次</div>
@@ -310,7 +313,7 @@ onMounted(() => {
                 <pre class="admin-num agm-maze-grid">{{ m.rows.join('\n') }}</pre>
                 <div class="agm-maze-bottom">
                   <span class="admin-num" style="font-size:11px;color:var(--muted)">{{ m.rows[0]?.length }} × {{ m.rows.length }}</span>
-                  <button type="button" class="admin-btn admin-btn-ghost" @click="click.removeMaze(m.id)">刪除</button>
+                  <button type="button" class="admin-btn admin-btn-ghost" :disabled="isDemo" @click="click.removeMaze(m.id)">刪除</button>
                 </div>
               </div>
             </div>
@@ -389,7 +392,7 @@ onMounted(() => {
         </div>
         <div class="agm-dialog-actions">
           <button type="button" class="admin-btn admin-btn-secondary" @click="click.closeMaze">取消</button>
-          <button type="button" class="admin-btn admin-btn-primary" :disabled="state.mazeSaving" @click="click.saveMaze">
+          <button type="button" class="admin-btn admin-btn-primary" :disabled="state.mazeSaving || isDemo" @click="click.saveMaze">
             {{ state.mazeSaving ? '驗證中...' : '驗證並儲存' }}
           </button>
         </div>

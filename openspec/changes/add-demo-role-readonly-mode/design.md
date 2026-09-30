@@ -2,20 +2,30 @@
 
 ## 1. Layout Structure（頁面結構）
 
-- Route / Page：不新增頁面，`/admin/**` 全站生效（透過共用 `AdminShell`）
+- Route / Page：不新增頁面，`/admin/**` 全站生效
 - Sections：`Shell.vue` 新增一條「DEMO 模式」橫幅（`status==='ok' && isDemo` 時顯示，
   位置比照既有 `.ash-notice`）
-- Blocks：`Shell.vue` 的 `<slot />`（頁面主體內容）改包一層
-  `<fieldset :disabled="isDemo">`；頁首導覽／登出／回首頁維持在 fieldset 外，
-  不受影響
+- Blocks：⚠️ 原規劃是 `Shell.vue` 的 `<slot />` 整個包一層 `<fieldset :disabled="isDemo">`，
+  後來發現 HTML 規格下 `fieldset[disabled]` 會無條件鎖住所有子孫表單元素、
+  巢狀 fieldset 無法局部解鎖，導致分頁籤（資訊／新增等純瀏覽用途的按鈕）也被鎖死，
+  使用者實測回報後改為：`Shell.vue` 不再統一包 fieldset，改成每個實際有寫入功能的
+  元件/頁面各自把「儲存／刪除／新增／切換開關」這些真正的寫入控制項包一層
+  `<fieldset class="admin-fieldset-reset" :disabled="isDemo">`
+  （`app/assets/style/themes/admin/_admin.scss` 的共用 class，`display:contents`
+  不佔版面），分頁籤／篩選／搜尋／導覽全部留在 fieldset 外面維持可操作
 - 響應式斷點策略：沿用既有 `.ash-*` 樣式，不新增斷點
 
 ## 2. Component Breakdown（元件拆分）
 
 - 既有元件調整：
-  - `app/components/admin/Shell.vue`：唯讀橫幅 + fieldset 包裹
+  - `app/components/admin/Shell.vue`：唯讀橫幅（不再包 fieldset，見上方 Blocks 說明）
   - `app/components/admin/RoleList.vue`：角色設定新增「DEMO 模式」開關列
-    （比照既有 `測試模式`／`NPC模式` 開關的 pattern，`demo` 角色鎖定不可關）
+    （比照既有 `測試模式`／`NPC模式` 開關的 pattern，`demo` 角色鎖定不可關），
+    以及設定分頁／新增角色表單各自包 `admin-fieldset-reset`
+  - `app/components/admin/{CreateMember,RoleGamesPanel,GameCatalogPanel,
+    AccessPanel,NpcPanel,ChatPanel,ChatSchedule}.vue`、
+    `app/pages/admin/{roles,games,taiwan-lottery}.vue`：比照同一套
+    「只鎖寫入控制項、分頁籤/篩選維持可操作」的模式逐一調整
 - 職責與邊界：
   - `Shell.vue` 只負責「唯讀模式的視覺提示與 UI 層擋操作」，不做任何權限判斷邏輯
     （判斷結果完全來自 `useAdminAuth()`）
