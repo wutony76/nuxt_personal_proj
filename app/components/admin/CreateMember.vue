@@ -9,7 +9,7 @@ import { formatUserAgentShort } from '~/utils/userAgentLabel'
 import { useRoleDefs } from '~/composables/useRoleDefs'
 import { useAdminAuth } from '~/composables/useAdminAuth'
 
-const { isDemo } = useAdminAuth()
+const { user: me, isDemo } = useAdminAuth()
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 type DetailTab = 'info' | 'create'
@@ -53,6 +53,8 @@ const state = reactive({
   coinDraft: '',
   coinSaveStatus: 'idle' as AsyncStatus,
   coinSaveError: '',
+  roleSaveStatus: 'idle' as AsyncStatus,
+  roleSaveError: '',
   balanceStatus: 'idle' as AsyncStatus,
   balanceError: '',
   balanceRows: [] as AdminMemberBalanceChange[],
@@ -65,6 +67,7 @@ const state = reactive({
 })
 
 const selected = computed(() => state.users.find((u) => u.id === state.selectedId) ?? null)
+const adminCount = computed(() => state.users.filter((u) => u.role === 'admin').length)
 
 const filteredUsers = computed(() => {
   const query = state.searchQuery.trim().toLowerCase()
@@ -79,6 +82,12 @@ const filteredUsers = computed(() => {
 
 const _handlers = {
   roleLabel: (role: UserRole) => roleDefs.value.find((r) => r.id === role)?.name ?? role,
+  canSetRole: (row: AdminAccessUser, next: UserRole) => {
+    if (row.role === next) return false
+    if (next !== 'admin' && row.id === me.value?.id) return false
+    if (next !== 'admin' && row.role === 'admin' && adminCount.value <= 1) return false
+    return true
+  },
   formatCoin: (value: number) =>
     Number(value ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
   formatMoney: (value: number) =>
@@ -174,6 +183,8 @@ const _actions = {
     state.coinDraft = ''
     state.coinSaveStatus = 'idle'
     state.coinSaveError = ''
+    state.roleSaveStatus = 'idle'
+    state.roleSaveError = ''
   },
   saveEmail: async () => {
     const row = selected.value
@@ -254,6 +265,34 @@ const _actions = {
       state.coinSaveStatus = 'error'
     }
   },
+  setRole: async (role: UserRole) => {
+    const row = selected.value
+    if (!row || state.roleSaveStatus === 'loading') return
+    if (!_handlers.canSetRole(row, role)) {
+      if (role !== 'admin' && row.id === me.value?.id) {
+        state.roleSaveError = '不可將自己降級，以免失去後台權限。'
+      } else if (role !== 'admin' && adminCount.value <= 1) {
+        state.roleSaveError = '至少需保留一位 Admin。'
+      } else {
+        state.roleSaveError = ''
+      }
+      state.roleSaveStatus = 'error'
+      return
+    }
+    state.roleSaveStatus = 'loading'
+    state.roleSaveError = ''
+    try {
+      const res = await api.admin.setRole(row.id, role)
+      const idx = state.users.findIndex((u) => u.id === res.user.id)
+      if (idx >= 0) state.users[idx] = res.user
+      state.roleSaveStatus = 'success'
+    } catch (e: unknown) {
+      state.roleSaveError = (e as { message?: string; data?: { message?: string } })?.data?.message
+        ?? (e as { message?: string })?.message
+        ?? '角色更新失敗'
+      state.roleSaveStatus = 'error'
+    }
+  },
   fetchBalanceHistory: async (userId?: string) => {
     const id = userId ?? selected.value?.id
     if (!id) {
@@ -325,6 +364,7 @@ const click = {
   },
   cancelPasswordEdit: () => _actions.resetInfoEdit(),
   savePassword: () => _actions.savePassword(),
+  setRole: (event: Event) => _actions.setRole((event.target as HTMLSelectElement).value),
   startCoinEdit: () => {
     _actions.resetInfoEdit()
     state.coinEditing = true
@@ -476,11 +516,24 @@ watch(
                   </div>
                 </div>
               </fieldset>
-              <div class="acm-info-row">
+              <div class="acm-info-row acm-info-row-editable">
                 <span class="acm-info-k">角色</span>
                 <span class="admin-tag" :class="{ 'is-user': selected.role !== 'admin' }">
                   {{ _handlers.roleLabel(selected.role) }}
                 </span>
+                <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+                  <select class="admin-input acm-role-select" :value="selected.role"
+                    :disabled="state.roleSaveStatus === 'loading'" @change="click.setRole">
+                    <option v-for="r in roleDefs" :key="r.id" :value="r.id"
+                      :disabled="r.id !== selected.role && !_handlers.canSetRole(selected, r.id)">
+                      {{ r.name }}
+                    </option>
+                  </select>
+                </fieldset>
+                <p v-if="state.roleSaveStatus === 'error' && state.roleSaveError" class="acm-error acm-info-feedback">
+                  {{ state.roleSaveError }}
+                </p>
+                <p v-else-if="state.roleSaveStatus === 'success'" class="acm-ok acm-info-feedback">角色已更新</p>
               </div>
               <fieldset class="admin-fieldset-reset" :disabled="isDemo">
                 <div class="acm-info-row acm-info-row-editable">
@@ -707,6 +760,12 @@ watch(
 .acm-role-filter {
   flex-shrink: 0;
   width: 92px;
+}
+
+.acm-role-select {
+  height: 26px;
+  width: 120px;
+  font-size: 12px;
 }
 
 .acm-list {
