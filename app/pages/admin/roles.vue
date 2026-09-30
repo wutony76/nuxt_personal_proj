@@ -101,7 +101,7 @@ onMounted(() => {
 
 <template>
   <AdminShell active="roles" kicker="Roles" title="角色權限"
-    desc="會員角色可在 Admin／User／NPC 間切換，角色本身亦可自訂新增。白名單與角色清單皆存於伺服器記憶體，重啟後回復預設。">
+    desc="會員角色可在 Admin／User／NPC／Demo 間切換，角色本身亦可自訂新增。指派 Demo 角色可讓非白名單帳號唯讀瀏覽整個後台。白名單與角色清單皆存於伺服器記憶體，重啟後回復預設。">
     <template #page-aside>
       <AdminRolesPageNav />
     </template>

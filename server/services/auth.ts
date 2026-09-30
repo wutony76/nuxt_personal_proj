@@ -49,6 +49,14 @@ export const sessionController = {
     if (!sessionController.isAdmin(user)) throwErrCode(40003)
     return user
   },
+  /** 只給「唯讀」後台端點用：白名單 admin 或 demoMode 角色皆可通過。
+   *  寫入端點（POST/PATCH/PUT/DELETE）一律繼續用 requireAdmin（白名單限定），
+   *  這樣 demoMode 帳號天生打不了任何寫入端點，不需要另外攔寫入。 */
+  requireAdminView: (event: H3Event): AuthUser => {
+    const user = sessionController.require(event)
+    if (adminAccessService.accessLevel(user.id) === 'none') throwErrCode(40003)
+    return user
+  },
   save: (event: H3Event, user: AuthUser) => {
     const token = globalThis.crypto.randomUUID()
     const store = Storage.get.sessions()

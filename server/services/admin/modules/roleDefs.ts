@@ -4,6 +4,9 @@ export type RoleDef = {
   builtin: boolean
   testMode: boolean
   npcMode: boolean
+  /** 唯讀模式：開啟後，指派此角色的帳號不需要在 adminIds 白名單內也能瀏覽整個後台，
+   *  但所有寫入端點仍走 requireAdmin（白名單限定），一律被拒絕。見 adminAccess.ts accessLevel。 */
+  demoMode: boolean
   dailyCoinReward: {
     enabled: boolean
     amount: number
@@ -15,15 +18,18 @@ const MAX_DAILY_COIN_AMOUNT = 1_000_000
 
 /** 'npc' 角色的測試模式／NPC模式固定為開啟，不可關閉（見 roleDefsService.updateSettings）。 */
 const LOCKED_ON_ROLE_ID = 'npc'
+/** 'demo' 角色的唯讀模式固定為開啟，不可關閉（見 roleDefsService.updateSettings）。 */
+const LOCKED_DEMO_ROLE_ID = 'demo'
 
-function _defaultSettings(): Pick<RoleDef, 'testMode' | 'npcMode' | 'dailyCoinReward'> {
-  return { testMode: false, npcMode: false, dailyCoinReward: { enabled: false, amount: 0 } }
+function _defaultSettings(): Pick<RoleDef, 'testMode' | 'npcMode' | 'demoMode' | 'dailyCoinReward'> {
+  return { testMode: false, npcMode: false, demoMode: false, dailyCoinReward: { enabled: false, amount: 0 } }
 }
 
 const BUILTIN_ROLES: RoleDef[] = [
   { id: 'admin', name: 'Admin', builtin: true, ..._defaultSettings() },
   { id: 'user', name: 'User', builtin: true, ..._defaultSettings() },
-  { id: 'npc', name: 'NPC', builtin: true, ..._defaultSettings(), testMode: true, npcMode: true }
+  { id: 'npc', name: 'NPC', builtin: true, ..._defaultSettings(), testMode: true, npcMode: true },
+  { id: 'demo', name: 'Demo', builtin: true, ..._defaultSettings(), demoMode: true }
 ]
 
 /** 執行期角色清單；啟動時自種子複製，重啟回復。 */
@@ -113,6 +119,7 @@ export const roleDefsService = {
   updateSettings: (id: string, patch: {
     testMode?: boolean
     npcMode?: boolean
+    demoMode?: boolean
     dailyCoinReward?: { enabled?: boolean; amount?: number }
   }): RoleDef => {
     const role = roles.get(id)
@@ -125,9 +132,13 @@ export const roleDefsService = {
     if (locked && patch.npcMode === false) {
       throw createError({ statusCode: 400, message: 'NPC 角色的 NPC模式固定為開啟，不可關閉。' })
     }
+    if (id === LOCKED_DEMO_ROLE_ID && patch.demoMode === false) {
+      throw createError({ statusCode: 400, message: 'Demo 角色的唯讀模式固定為開啟，不可關閉。' })
+    }
 
     if (patch.testMode !== undefined) role.testMode = patch.testMode
     if (patch.npcMode !== undefined) role.npcMode = patch.npcMode
+    if (patch.demoMode !== undefined) role.demoMode = patch.demoMode
     if (patch.dailyCoinReward?.enabled !== undefined) {
       role.dailyCoinReward.enabled = patch.dailyCoinReward.enabled
     }

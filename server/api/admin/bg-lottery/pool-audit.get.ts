@@ -7,7 +7,7 @@ import { Storage } from 'serv/services/storage'
  * @param range 時間區間：7d / 30d / all（預設 all）
  */
 export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+  sessionController.requireAdminView(event)
 
   const query = getQuery(event)
   const filterKey = String(query.lotteryKey ?? '').trim()

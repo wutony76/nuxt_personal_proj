@@ -6,6 +6,6 @@ import { Storage } from 'serv/services/storage'
  * @returns roles
  */
 export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+  sessionController.requireAdminView(event)
   return { roles: Storage.manager.admin.roleDefs.list() }
 })

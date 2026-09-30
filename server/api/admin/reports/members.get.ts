@@ -100,7 +100,7 @@ function filterNpc(playerSets: Record<string, Set<string>>, isNpc: (userId: stri
 }
 
 export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+  sessionController.requireAdminView(event)
 
   const query = getQuery(event)
   const month = String(query.month ?? '').trim()

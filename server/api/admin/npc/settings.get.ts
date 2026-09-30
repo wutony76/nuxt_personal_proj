@@ -6,7 +6,7 @@ import { Storage } from 'serv/services/storage'
  * 保存的遊戲勾選範本、自動新增用的單字庫、NPC 會員清單
  */
 export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+  sessionController.requireAdminView(event)
 
   const npc = Storage.manager.admin.npcAutoPlay
   return {

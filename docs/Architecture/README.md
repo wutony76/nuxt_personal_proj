@@ -119,6 +119,19 @@ server/
 └─ utils/                      auth、encrypt、error、socketAuth
 ```
 
+## 後台存取模型（server/services/admin/modules/adminAccess.ts）
+
+- `adminIds` 白名單（`server/config/admin.ts`，寫死常數，重啟回復）是唯一的「完整管理員」
+  身分來源；`role` 欄位本身不授予權限，只是白名單內外的顯示標籤
+- `accessLevel(userId)` 回傳 `'admin' | 'demo' | 'none'`：白名單一律 `'admin'`；非白名單
+  帳號若被指派了 `demoMode: true` 的角色（內建 `demo` 角色即是）回 `'demo'`，可唯讀瀏覽
+  整個後台但打不了任何寫入端點；其餘 `'none'`
+- 後台 API 兩種守門：`sessionController.requireAdmin()`（白名單限定，所有寫入端點
+  POST/PATCH/PUT/DELETE 用這個）／`requireAdminView()`（admin 或 demo 皆可，只給
+  唯讀 GET 端點用）
+- 前端 `Shell.vue` 用 `<fieldset disabled>` 包住 demo 帳號看到的頁面內容，UI 層擋掉
+  所有表單操作；真正的安全邊界仍在後端 `requireAdmin`
+
 ## shared/config/
 
 - 各盤口純資料設定（cd、of、eggscd、fc3dof、k3cd/of、kl10cd、kl8cd、pk10cd/of、pl3of、ssccd/of、x5cd/of）
@@ -136,4 +149,4 @@ server/
 
 ---
 
-最後更新：2026-09-30
+最後更新：2026-09-30（新增後台存取模型段落）

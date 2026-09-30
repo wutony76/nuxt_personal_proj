@@ -6,7 +6,7 @@ import { Storage } from 'serv/services/storage'
  * @returns users
  */
 export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+  sessionController.requireAdminView(event)
   const users = Storage.manager.admin.access.listUsers()
   return {
     users,

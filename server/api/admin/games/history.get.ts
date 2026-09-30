@@ -3,7 +3,7 @@ import { Storage } from 'serv/services/storage'
 
 /** 查任一玩家跨所有復古遊戲的遊戲紀錄，加上對應的 coin 兌換明細，見 design.md Decision 5 */
 export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+  sessionController.requireAdminView(event)
 
   const query = getQuery(event)
   const userId = String(query.userId ?? '').trim()

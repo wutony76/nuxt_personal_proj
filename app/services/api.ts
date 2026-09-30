@@ -1412,6 +1412,8 @@ export type RoleDef = {
   builtin: boolean
   testMode: boolean
   npcMode: boolean
+  /** 唯讀模式：開啟後指派此角色的帳號不需要在白名單內也能瀏覽後台，但打不了任何寫入端點 */
+  demoMode: boolean
   dailyCoinReward: {
     enabled: boolean
     amount: number
@@ -1827,7 +1829,7 @@ export const api = {
       })
   },
   admin: {
-    me: () => $fetch<{ isAdmin: boolean; user: AuthUser }>('/api/admin/me'),
+    me: () => $fetch<{ isAdmin: boolean; isDemo: boolean; user: AuthUser }>('/api/admin/me'),
     roles: () =>
       $fetch<{ users: AdminAccessUser[]; admins: Array<{ id: string; name: string; email: string }> }>(
         '/api/admin/roles'
@@ -1850,6 +1852,7 @@ export const api = {
     setRoleSettings: (id: string, patch: {
       testMode?: boolean
       npcMode?: boolean
+      demoMode?: boolean
       dailyCoinReward?: { enabled?: boolean; amount?: number }
     }) =>
       $fetch<{ role: RoleDef }>(`/api/admin/role-defs/${id}/settings`, {

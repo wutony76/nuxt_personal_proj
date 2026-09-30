@@ -4,6 +4,7 @@ import { Storage } from 'serv/services/storage'
 type Body = {
   testMode?: unknown
   npcMode?: unknown
+  demoMode?: unknown
   dailyCoinReward?: {
     enabled?: unknown
     amount?: unknown
@@ -11,7 +12,7 @@ type Body = {
 }
 
 /**
- * 更新角色開關設定：測試模式／NPC模式／每日自動加F幣。
+ * 更新角色開關設定：測試模式／NPC模式／DEMO模式／每日自動加F幣。
  * @returns role（更新後的角色定義）
  */
 export default defineEventHandler(async (event) => {
@@ -23,11 +24,13 @@ export default defineEventHandler(async (event) => {
   const patch: {
     testMode?: boolean
     npcMode?: boolean
+    demoMode?: boolean
     dailyCoinReward?: { enabled?: boolean; amount?: number }
   } = {}
 
   if (typeof body?.testMode === 'boolean') patch.testMode = body.testMode
   if (typeof body?.npcMode === 'boolean') patch.npcMode = body.npcMode
+  if (typeof body?.demoMode === 'boolean') patch.demoMode = body.demoMode
   if (body?.dailyCoinReward) {
     patch.dailyCoinReward = {}
     if (typeof body.dailyCoinReward.enabled === 'boolean') patch.dailyCoinReward.enabled = body.dailyCoinReward.enabled

@@ -57,7 +57,7 @@ function _perGameOf(gameMap: Record<string, { amount: number; count: number }>) 
  * 同形狀統計；`records` 每筆多帶 `isNpc` 供前端篩選）
  */
 export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+  sessionController.requireAdminView(event)
 
   const query = getQuery(event)
   const month = String(query.month ?? '').trim()

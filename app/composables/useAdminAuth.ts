@@ -9,6 +9,8 @@ import { useAuth } from '~/composables/useAuth'
 const state = reactive({
   checked: false as boolean,
   isAdmin: false as boolean,
+  /** 唯讀 demo 角色：不在白名單內，但被指派了 demoMode 角色，可瀏覽後台但打不了寫入端點 */
+  isDemo: false as boolean,
   user: null as AuthUser | null
 })
 
@@ -22,6 +24,7 @@ export const useAdminAuth = () => {
         try {
           const result = await api.admin.me()
           state.isAdmin = result.isAdmin
+          state.isDemo = result.isDemo
           state.user = result.user
         } catch (e: unknown) {
           const statusCode = (e as { statusCode?: number })?.statusCode
@@ -29,6 +32,7 @@ export const useAdminAuth = () => {
             useAuth().clearSession()
           }
           state.isAdmin = false
+          state.isDemo = false
           state.user = null
         } finally {
           state.checked = true
@@ -42,6 +46,7 @@ export const useAdminAuth = () => {
   const reset = () => {
     state.checked = false
     state.isAdmin = false
+    state.isDemo = false
     state.user = null
     checkPromise = null
   }
@@ -49,6 +54,7 @@ export const useAdminAuth = () => {
   return {
     checked: computed(() => state.checked),
     isAdmin: computed(() => state.isAdmin),
+    isDemo: computed(() => state.isDemo),
     user: computed(() => state.user),
     check,
     reset

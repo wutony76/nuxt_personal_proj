@@ -115,6 +115,19 @@ export const adminAccessService = {
     adminIds.has(userId) ? 'admin' : (memberRoleId.get(userId) ?? DEFAULT_ROLE),
 
   /**
+   * 後台存取層級：白名單帳號一律 'admin'；非白名單帳號若被指派了 demoMode 角色
+   * （見 roleDefs.ts），可唯讀瀏覽整個後台但打不了任何寫入端點，回 'demo'；
+   * 其餘回 'none'（沒有後台存取權）。
+   * @param userId 帳號 id
+   * @returns 'admin' | 'demo' | 'none'
+   */
+  accessLevel: (userId: string): 'admin' | 'demo' | 'none' => {
+    if (adminIds.has(userId)) return 'admin'
+    const roleId = memberRoleId.get(userId) ?? DEFAULT_ROLE
+    return roleDefsService.get(roleId)?.demoMode ? 'demo' : 'none'
+  },
+
+  /**
    * 刪除角色時呼叫：目前指派該角色的會員一律退回預設角色（'user'）。
    * @param roleId 被刪除的角色 id
    */

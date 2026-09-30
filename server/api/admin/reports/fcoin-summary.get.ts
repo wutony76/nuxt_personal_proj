@@ -108,7 +108,7 @@ function _summarize(bucket: Bucket, month: string) {
  * @returns 月 KPI + 每日流水 + 每款玩具明細（含 npc 子物件：僅 NPC 角色會員的同形狀統計）
  */
 export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+  sessionController.requireAdminView(event)
 
   const query = getQuery(event)
   const month = String(query.month ?? '').trim()

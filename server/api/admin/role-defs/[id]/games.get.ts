@@ -6,7 +6,7 @@ import { Storage } from 'serv/services/storage'
  * @returns games
  */
 export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+  sessionController.requireAdminView(event)
   const id = String(getRouterParam(event, 'id') ?? '').trim()
   if (!id) throw createError({ statusCode: 400, message: '缺少角色 id。' })
 

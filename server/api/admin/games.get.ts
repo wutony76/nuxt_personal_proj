@@ -7,6 +7,6 @@ import { Storage } from 'serv/services/storage'
  * @returns games
  */
 export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+  sessionController.requireAdminView(event)
   return { games: Storage.manager.admin.roleGamePerms.listGlobal() }
 })

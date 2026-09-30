@@ -22,7 +22,7 @@ const props = defineProps<{
 const router = useRouter()
 const route = useRoute()
 const { isLoggedIn, refresh: refreshAuth, logout } = useAuth()
-const { checked, isAdmin, user, check, reset: resetAdminAuth } = useAdminAuth()
+const { checked, isAdmin, isDemo, user, check, reset: resetAdminAuth } = useAdminAuth()
 
 /** guard 跑完 session 確認後才切換 expired／denied／ok */
 const sessionReady = ref(false)
@@ -36,7 +36,7 @@ const status = computed<Status>(() => {
   if (!sessionReady.value) return 'checking'
   if (!isLoggedIn.value) return 'expired'
   if (!checked.value) return 'checking'
-  return isAdmin.value ? 'ok' : 'denied'
+  return isAdmin.value || isDemo.value ? 'ok' : 'denied'
 })
 
 const NAV = [
@@ -111,7 +111,9 @@ onMounted(() => {
           <div v-if="status === 'ok'" class="ash-user">
             <div class="ash-user-text">
               <div class="ash-user-name">{{ user?.name }}</div>
-              <div class="admin-en" style="color:color-mix(in srgb, #ffffff 55%, #1c1c22)">Admin whitelist</div>
+              <div class="admin-en" style="color:color-mix(in srgb, #ffffff 55%, #1c1c22)">
+                {{ isDemo ? 'Demo · read-only' : 'Admin whitelist' }}
+              </div>
             </div>
             <div class="ash-user-avatar">{{ adminInitial }}</div>
           </div>
@@ -126,6 +128,9 @@ onMounted(() => {
       </div>
     </header>
 
+    <div v-if="status === 'ok' && isDemo" class="ash-notice ash-notice-demo">
+      <div class="ash-notice-inner">DEMO 模式：目前僅供瀏覽，畫面上所有操作都已鎖定，任何修改都會被伺服器拒絕。</div>
+    </div>
     <div v-if="status === 'ok'" class="ash-notice">
       <div class="ash-notice-inner">In-memory only — 後台改的所有值僅在伺服器運行期間有效，重啟後回復程式碼預設值。</div>
     </div>
@@ -154,8 +159,11 @@ onMounted(() => {
             <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"></path>
           </svg>
           <div>
-            <div class="ash-denied-title">40003 Forbidden｜無管理員權限</div>
-            <p class="ash-denied-desc">此帳號不在管理員白名單內。白名單異動需修改 <code>server/config/admin.ts</code> 並重新部署。</p>
+            <div class="ash-denied-title">40003 Forbidden｜無後台存取權限</div>
+            <p class="ash-denied-desc">
+              此帳號不在管理員白名單內，也沒有被指派唯讀的 Demo 角色。白名單異動需修改
+              <code>server/config/admin.ts</code> 並重新部署；Demo 角色可在「角色 / 權限」頁面直接指派，不需要重新部署。
+            </p>
           </div>
           <button type="button" class="admin-btn admin-btn-primary" @click="click.backHome">回到首頁</button>
         </div>
@@ -185,7 +193,12 @@ onMounted(() => {
             </button>
           </aside>
         </header>
-        <slot />
+        <!-- DEMO 模式：fieldset disabled 會讓瀏覽器原生擋掉底下所有 button/input/select/textarea
+             的互動，不用逐一改每個後台頁面/元件；真正的安全邊界仍在後端 requireAdmin（見
+             server/services/auth.ts），這裡純粹是避免誤觸的 UI 層防呆。 -->
+        <fieldset class="ash-demo-fieldset" :disabled="isDemo">
+          <slot />
+        </fieldset>
       </template>
     </main>
   </div>
@@ -303,6 +316,22 @@ onMounted(() => {
 .ash-notice-inner {
   max-width: 1500px;
   margin: 0 auto;
+}
+
+.ash-notice-demo {
+  background: color-mix(in srgb, #dc2626 12%, var(--paper));
+  color: #7f1d1d;
+  border-bottom-color: color-mix(in srgb, #dc2626 40%, var(--line));
+  font-weight: 700;
+}
+
+/* fieldset 預設會有邊框/內距/min-width:min-content，會影響版面，這裡整個歸零，
+   只留 disabled 這個原生行為 */
+.ash-demo-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
 }
 
 .ash-main {

@@ -10,6 +10,7 @@ import { useRoleDefs } from '~/composables/useRoleDefs'
 type RoleSettingsPatch = {
   testMode?: boolean
   npcMode?: boolean
+  demoMode?: boolean
   dailyCoinReward?: { enabled?: boolean; amount?: number }
 }
 
@@ -141,6 +142,10 @@ const click = {
     if (!selected.value) return
     _actions.updateSettings('npcMode', { npcMode: !selected.value.npcMode })
   },
+  toggleDemoMode: () => {
+    if (!selected.value) return
+    _actions.updateSettings('demoMode', { demoMode: !selected.value.demoMode })
+  },
   toggleDailyCoinEnabled: () => {
     if (!selected.value) return
     _actions.updateSettings('dailyCoinReward', { dailyCoinReward: { enabled: !selected.value.dailyCoinReward.enabled } })
@@ -266,6 +271,21 @@ onMounted(() => {
                     {{ selected.npcMode ? '開啟' : '關閉' }}
                   </button>
                 </div>
+                <div class="arl-setting-row">
+                  <span class="arl-setting-label">
+                    DEMO模式
+                    <span v-if="selected.id === 'demo'" class="arl-setting-locked">（固定開啟）</span>
+                  </span>
+                  <button type="button" class="arl-setting-toggle"
+                    :class="selected.demoMode ? 'is-on' : 'is-off'"
+                    :disabled="state.settingsSavingKey === 'demoMode' || selected.id === 'demo'"
+                    @click="click.toggleDemoMode()">
+                    {{ selected.demoMode ? '開啟' : '關閉' }}
+                  </button>
+                </div>
+                <p v-if="selected.demoMode" class="arl-hint">
+                  被指派此角色的帳號不需要在白名單內即可瀏覽整個後台，但所有寫入操作一律被拒絕。
+                </p>
                 <div class="arl-setting-row">
                   <span class="arl-setting-label">每日自動加F幣</span>
                   <input type="number" class="admin-input arl-setting-amount" min="0" max="1000000"

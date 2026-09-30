@@ -24,7 +24,7 @@ const PAGE_SIZE = 200
  * @returns { entries: NpcActivityLogEntry[], nextCursor: string | null }
  */
 export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+  sessionController.requireAdminView(event)
 
   const query = getQuery(event)
   const memberIdFilter = typeof query.memberId === 'string' && query.memberId ? query.memberId : null

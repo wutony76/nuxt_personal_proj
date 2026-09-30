@@ -232,7 +232,7 @@ function _summarize(bucket: Bucket, month: string, days: string[]) {
 }
 
 export default defineEventHandler((event) => {
-  sessionController.requireAdmin(event)
+  sessionController.requireAdminView(event)
 
   const query = getQuery(event)
   const month = String(query.month ?? '').trim()
