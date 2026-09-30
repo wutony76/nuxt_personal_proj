@@ -468,7 +468,7 @@ watch(
                 <span class="acm-info-k">帳號</span>
                 <span>{{ selected.name }}</span>
               </div>
-              <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+              <fieldset class="admin-fieldset-reset" :disabled="isDemo" :title="isDemo ? '唯讀模式，只有查看權限' : undefined">
                 <div class="acm-info-row acm-info-row-editable">
                   <span class="acm-info-k">Email</span>
                   <template v-if="!state.emailEditing">
@@ -521,7 +521,7 @@ watch(
                 <span class="admin-tag" :class="{ 'is-user': selected.role !== 'admin' }">
                   {{ _handlers.roleLabel(selected.role) }}
                 </span>
-                <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+                <fieldset class="admin-fieldset-reset" :disabled="isDemo" :title="isDemo ? '唯讀模式，只有查看權限' : undefined">
                   <select class="admin-input acm-role-select" :value="selected.role"
                     :disabled="state.roleSaveStatus === 'loading'" @change="click.setRole">
                     <option v-for="r in roleDefs" :key="r.id" :value="r.id"
@@ -535,7 +535,7 @@ watch(
                 </p>
                 <p v-else-if="state.roleSaveStatus === 'success'" class="acm-ok acm-info-feedback">角色已更新</p>
               </div>
-              <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+              <fieldset class="admin-fieldset-reset" :disabled="isDemo" :title="isDemo ? '唯讀模式，只有查看權限' : undefined">
                 <div class="acm-info-row acm-info-row-editable">
                   <span class="acm-info-k">F幣</span>
                   <template v-if="!state.coinEditing">
@@ -649,7 +649,7 @@ watch(
         </div>
 
         <form v-else class="acm-form" @submit.prevent="click.submit">
-          <fieldset class="admin-fieldset-reset" :disabled="isDemo">
+          <fieldset class="admin-fieldset-reset" :disabled="isDemo" :title="isDemo ? '唯讀模式，只有查看權限' : undefined">
             <div class="acm-fields">
               <div class="admin-field">
                 <label>帳號</label>
@@ -978,8 +978,14 @@ watch(
   text-decoration: underline;
   cursor: pointer;
 
-  &:hover {
+  &:hover:not(:disabled) {
     color: color-mix(in srgb, #1c1c22 72%, #ffffff);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    text-decoration: none;
   }
 }
 
