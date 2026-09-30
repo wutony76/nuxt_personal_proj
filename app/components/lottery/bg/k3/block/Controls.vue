@@ -217,7 +217,7 @@ const click = {
 
   /**
    * 投注鈕：樣式對齊 6hc-of 的 .action-btn.bet
-   * 基底來自 app/assets/style/lhc_of.scss（radius 4px／字重 700／黃底墨黃字 ＋ #e98e5c 描邊），
+   * 基底來自 app/assets/style/themes/lottery/_lhc-of.scss（radius 4px／字重 700／黃底墨黃字 ＋ #e98e5c 描邊），
    * 高度 45px／字級 14px／hover 與 disabled 取自
    * app/components/lottery/bg/6hc/of/block/controls/Coin.vue。
    */

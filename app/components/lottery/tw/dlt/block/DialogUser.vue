@@ -335,7 +335,7 @@ function betNumbers(betCode: string[]): string[] {
 }
 
 /*
- * .report-table 是 6hc-of／k3 等玩法共用的全域 class（見 app/assets/style/lhc_of.scss，
+ * .report-table 是 6hc-of／k3 等玩法共用的全域 class（見 app/assets/style/themes/lottery/_lhc-of.scss，
  * scoped 在各自的 .lottery-xxx 頁面根層級）；DLT 沒有對應的 lhc_dlt.scss，
  * 所以直接把同一套基礎樣式（邊框/列高/表頭底色）搬進這裡的 scoped style，
  * 數值與色票 token（--color-neutral-300／--color-accent-700／--color-neutral-700，柑仔店暖色系）完全對齊。

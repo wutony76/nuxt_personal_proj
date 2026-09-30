@@ -196,7 +196,7 @@ const dialogClick = {
   }
 
   /* ── 後台 admin 主題（呼叫端傳 className: 'is-admin' 或 'is-admin is-admin-logout'）──
-     黑白編輯風，token 對齊 app/assets/style/admin.scss；Teleport 到 body 故在此自帶變數。 */
+     黑白編輯風，token 對齊 app/assets/style/themes/admin/_admin.scss；Teleport 到 body 故在此自帶變數。 */
   &.is-admin {
     --admin-ink: #1c1c22;
     --admin-paper: #ffffff;

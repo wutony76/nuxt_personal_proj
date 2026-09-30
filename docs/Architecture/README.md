@@ -75,6 +75,25 @@ app/
 └─ types/                      前端型別定義
 ```
 
+## app/assets/style/ 樣式結構（7-1 pattern）
+
+```
+app/assets/style/
+├─ main.scss              唯一 manifest，只做 @use forwarding，不寫實際樣式規則
+├─ abstracts/             全域 CSS 變數（:root { --xxx }）
+├─ base/                  全域基礎樣式（body、.lottery-scrollbar 等）
+├─ vendors/               第三方資源（Google Fonts @import url()）
+└─ themes/                依「主題／盤口」分層的 scope 樣式：
+   ├─ lottery/            各樂透玩法（.lottery-*／.theme-taiwan-lottery），
+   │                      _index.scss 統一 forward 資料夾內 partial
+   ├─ admin/               後台管理主題（.admin-scope）
+   └─ project/             Portfolio 專案展示主題（.project-scope）
+```
+
+`nuxt.config.ts` 的 `css` 陣列只掛兩項：`main.scss`（上述 manifest）+
+`app/assets/css/main.css`（Tailwind entry，走 `@layer base`，優先權天生低於
+manifest 產出的 non-layered 規則，兩者順序互不影響）。
+
 ## server/ 後端結構（Nitro）
 
 ```
@@ -111,9 +130,10 @@ server/
 - 狀態：組件/composable 內以單一 `reactive` 物件為主；全域用 Pinia setup store
 - 邏輯分層：`click`（UI 入口）→ `actions`（業務流程，需 loading guard）→ `_handlers`（私有工具）
 - 非同步需有 loading/success/error 三段狀態，不可吞錯
-- SCSS 用巢狀語法、`@use`/`@forward`（禁止 `@import`）
+- SCSS 用巢狀語法、`@use`/`@forward`（禁止 `@import`），依 7-1 pattern 收在
+  `app/assets/style/`，`main.scss` 為唯一 manifest（見上方「app/assets/style/ 樣式結構」）
 - 新遊戲一律走 OpenSpec 六階段流程：Proposal → Design → Tasks → Implementation → Validation → Engineering Evidence
 
 ---
 
-最後更新：2026-09-09
+最後更新：2026-09-30

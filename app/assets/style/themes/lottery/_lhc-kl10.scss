@@ -1,5 +1,5 @@
-/* Scoped under .lottery-pk10（頁面根）。整份沿用 lhc_k3.scss，讓 PK10 與快3／6hc 視覺一致 */
-.lottery-pk10 {
+/* Scoped under .lottery-kl10（頁面根）。整份沿用 _lhc-eggs.scss，讓快樂十分與 PC蛋蛋／快3 視覺一致 */
+.lottery-kl10 {
   .block-main {
     padding: 0.75rem;
     border: 1px solid var(--color-red-700);
@@ -34,7 +34,6 @@
         background: $report-table-header-bg;
         font-weight: 700;
         color: $report-table-header-ft;
-        /* K3 的欄位比 6hc 多（7 欄），不鎖 nowrap 標題會折行 */
         white-space: nowrap;
       }
 
@@ -62,7 +61,7 @@
       color: var(--color-red-main);
     }
 
-    /* 暫無資料：撐滿捲動區高度（同 lhc_cd.scss），避免空狀態只有一小塊；並反灰 */
+    /* 暫無資料：撐滿捲動區高度，避免空狀態只有一小塊；並反灰 */
     tr.tr-no-records {
       height: 100%;
 

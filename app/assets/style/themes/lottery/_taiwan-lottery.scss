@@ -7,11 +7,10 @@
  * （比照專案「管理後台樣式包在 .theme-admin {} scope 內」的既有慣例）。
  *
  * ⚠️ --font-heading 指定的 Caprasimo／Noto Serif TC 之前一直沒有實際載入字型檔，
- * 所有標題文字其實都是 fallback 到瀏覽器預設 serif（看起來偏細瘦），這裡補上
- * Google Fonts 引入（Noto Serif TC 只載 900 這個粗體字重，中文字型檔很大，其他
- * 字重目前沒用到）。
+ * 所有標題文字其實都是 fallback 到瀏覽器預設 serif（看起來偏細瘦），字型引入
+ * （Noto Serif TC 只載 900 這個粗體字重，中文字型檔很大，其他字重目前沒用到）
+ * 統一收在 vendors/_fonts.scss。
  */
-@import url('https://fonts.googleapis.com/css2?family=Caprasimo&family=Noto+Serif+TC:wght@900&display=swap');
 
 .theme-taiwan-lottery {
   --color-bg: #f5ead8;
@@ -135,7 +134,7 @@
 }
 
 /**
- * 「彩運來」全域自訂捲軸類別，比照 base.scss 現有 .lottery-scrollbar（BG 彩票紅色系）
+ * 「彩運來」全域自訂捲軸類別，比照 base/_global.scss 現有 .lottery-scrollbar（BG 彩票紅色系）
  * 的結構，換成柑仔店赭橙色系；需要捲動的容器（大廳頁面、TaiwanLotteryPrizeDialog）掛上即可。
  */
 .taiwan-lottery-scrollbar {

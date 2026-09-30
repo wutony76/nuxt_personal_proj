@@ -1,5 +1,5 @@
-/* Scoped under .lottery-ssc（頁面根）。整份沿用 lhc_k3.scss，讓時時彩與快3／6hc 視覺一致 */
-.lottery-ssc {
+/* Scoped under .lottery-x5（頁面根）。整份沿用 _lhc-ssc.scss，讓 11選5 與時時彩／快3／6hc 視覺一致 */
+.lottery-x5 {
   .block-main {
     padding: 0.75rem;
     border: 1px solid var(--color-red-700);
@@ -61,7 +61,7 @@
       color: var(--color-red-main);
     }
 
-    /* 暫無資料：撐滿捲動區高度（同 lhc_cd.scss），避免空狀態只有一小塊；並反灰 */
+    /* 暫無資料：撐滿捲動區高度（同 _lhc-cd.scss），避免空狀態只有一小塊；並反灰 */
     tr.tr-no-records {
       height: 100%;
 

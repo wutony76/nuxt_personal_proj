@@ -1,12 +1,12 @@
-/* Scoped under .lottery-6hc-cd (page root). 參照 lhc_of.scss 的 6hc-of 樣式 */
-.lottery-6hc-cd {
+/* Scoped under .lottery-eggs（頁面根）。整份沿用 _lhc-k3.scss，讓 PC蛋蛋與快3／時時彩視覺一致 */
+.lottery-eggs {
   .block-main {
     padding: 0.75rem;
     border: 1px solid var(--color-red-700);
     border-radius: var(--base-radius);
   }
 
-  /* 報表投注明細表（參照 6hc-of .report-table，色票沿用本專案 CSS 變數） */
+  /* 報表表格：與 6hc 的 .report-table 同一套（色票沿用專案 CSS 變數） */
   $report-table-border: var(--color-red-content);
   $report-table-header-bg: color-mix(in srgb, var(--color-red-main) 8%, #fff);
   $report-table-header-ft: var(--color-red-desc);
@@ -27,37 +27,49 @@
         padding: 6px 4px;
         text-align: center;
         font-size: 12px;
-
-        &:last-child {
-          border-right: none;
-        }
       }
 
-      &:first-child th {
+      th {
         height: 40px;
         background: $report-table-header-bg;
-        color: $report-table-header-ft;
         font-weight: 700;
+        color: $report-table-header-ft;
+        white-space: nowrap;
       }
 
       &:last-child td,
       &:last-child th {
-        border-bottom: none;
+        border-bottom: unset;
+      }
+
+      td:last-child,
+      th:last-child {
+        border-right: unset;
       }
     }
 
-    tr.total-row td {
-      background: $report-table-total-bg;
-      font-weight: 600;
+    &.is-empty {
+      td {
+        padding: 28px 4px;
+        color: var(--color-red-desc);
+      }
     }
 
+    .total-row td {
+      background: $report-table-total-bg;
+      font-weight: 700;
+      color: var(--color-red-main);
+    }
+
+    /* 暫無資料：撐滿捲動區高度，避免空狀態只有一小塊；並反灰 */
     tr.tr-no-records {
       height: 100%;
 
       .no-records {
         height: 100%;
         min-height: 120px;
-        color: var(--color-red-desc);
+        background: #f7f7f7;
+        color: var(--text-gray);
         vertical-align: middle;
       }
     }

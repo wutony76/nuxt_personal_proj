@@ -1,0 +1,12 @@
+/**
+ * SCSS 唯一 manifest（7-1 pattern）。只做 @use forwarding，不寫任何實際樣式規則。
+ * 順序對應原本 nuxt.config.ts 的 `css` 陣列（base → admin → project），
+ * 避免搬移後改變 cascade 結果。Tailwind 的 `assets/css/main.css` 走獨立入口，
+ * 見 nuxt.config.ts 註解。
+ */
+@use "vendors/fonts";
+@use "abstracts/variables";
+@use "base/global";
+@use "themes/lottery";
+@use "themes/admin/admin";
+@use "themes/project/project";
