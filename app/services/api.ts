@@ -1758,6 +1758,58 @@ export type ToyPogView = {
   blocked: boolean
 }
 
+/**
+ * 各彩種「當期資訊」的 fetch 函式 Registry。
+ *
+ * 新增彩種只需在此加一行，不需動 `api.lottery.currentInfo` 的主體。
+ * key = LOTTERY[xxx].id（number）
+ */
+export type AnyCurrent =
+  | Lottery6hcCurrent
+  | K3Current
+  | Pk10Current
+  | SscCurrent
+  | X5Current
+  | EggsCurrent
+  | Kl10Current
+  | Kl8Current
+  | Fc3dCurrent
+  | Pl3Current
+  | DltCurrent
+  | SuperlottoCurrent
+  | D539Current
+  | M649Current
+  | M539Current
+  | P3Current
+  | P4Current
+  | BingoCurrent
+
+const LOTTERY_CURRENT_REGISTRY: Record<number, () => Promise<AnyCurrent>> = {
+  [LOTTERY['LHC-CD'].id]: () => $fetch<Lottery6hcCurrent>('/api/lottery/6hc-cd/current'),
+  [LOTTERY['LHC-OF'].id]: () => $fetch<Lottery6hcCurrent>('/api/lottery/6hc-of/current'),
+  [LOTTERY['K3-CD'].id]: () => $fetch<K3Current>('/api/lottery/k3-cd/current'),
+  [LOTTERY['K3-OF'].id]: () => $fetch<K3Current>('/api/lottery/k3-of/current'),
+  [LOTTERY['PK10-CD'].id]: () => $fetch<Pk10Current>('/api/lottery/pk10-cd/current'),
+  [LOTTERY['PK10-OF'].id]: () => $fetch<Pk10Current>('/api/lottery/pk10-of/current'),
+  [LOTTERY['SSC-CD'].id]: () => $fetch<SscCurrent>('/api/lottery/ssc-cd/current'),
+  [LOTTERY['SSC-OF'].id]: () => $fetch<SscCurrent>('/api/lottery/ssc-of/current'),
+  [LOTTERY['X5-CD'].id]: () => $fetch<X5Current>('/api/lottery/x5-cd/current'),
+  [LOTTERY['X5-OF'].id]: () => $fetch<X5Current>('/api/lottery/x5-of/current'),
+  [LOTTERY.EGGS.id]: () => $fetch<EggsCurrent>('/api/lottery/eggs/current'),
+  [LOTTERY.KL10.id]: () => $fetch<Kl10Current>('/api/lottery/kl10/current'),
+  [LOTTERY.KL8.id]: () => $fetch<Kl8Current>('/api/lottery/kl8/current'),
+  [LOTTERY.FC3D.id]: () => $fetch<Fc3dCurrent>('/api/lottery/fc3d/current'),
+  [LOTTERY.PL3.id]: () => $fetch<Pl3Current>('/api/lottery/pl3/current'),
+  [LOTTERY.DLT.id]: () => $fetch<DltCurrent>('/api/lottery-tw/dlt/current'),
+  [LOTTERY.SUPERLOTTO.id]: () => $fetch<SuperlottoCurrent>('/api/lottery-tw/superlotto/current'),
+  [LOTTERY.D539.id]: () => $fetch<D539Current>('/api/lottery-tw/d539/current'),
+  [LOTTERY.M649.id]: () => $fetch<M649Current>('/api/lottery-tw/m649/current'),
+  [LOTTERY.M539.id]: () => $fetch<M539Current>('/api/lottery-tw/m539/current'),
+  [LOTTERY.P3.id]: () => $fetch<P3Current>('/api/lottery-tw/p3/current'),
+  [LOTTERY.P4.id]: () => $fetch<P4Current>('/api/lottery-tw/p4/current'),
+  [LOTTERY.BINGO.id]: () => $fetch<BingoCurrent>('/api/lottery-tw/bingo/current'),
+}
+
 export const api = {
   system: {
     servTime: () => $fetch<{ serverTime: number }>('/api/servTime')
@@ -1986,59 +2038,17 @@ export const api = {
     }
   },
   lottery: {
-    currentInfo: (lotteryId: string | number) => {
-      const normalizedLotteryId = Number(lotteryId)
-      switch (normalizedLotteryId) {
-        case LOTTERY['LHC-CD'].id:
-          return $fetch<Lottery6hcCurrent>('/api/lottery/6hc-cd/current')
-        case LOTTERY['LHC-OF'].id:
-          return $fetch<Lottery6hcCurrent>('/api/lottery/6hc-of/current')
-        case LOTTERY['K3-CD'].id:
-          return $fetch<K3Current>('/api/lottery/k3-cd/current')
-        case LOTTERY['K3-OF'].id:
-          return $fetch<K3Current>('/api/lottery/k3-of/current')
-        case LOTTERY['PK10-CD'].id:
-          return $fetch<Pk10Current>('/api/lottery/pk10-cd/current')
-        case LOTTERY['PK10-OF'].id:
-          return $fetch<Pk10Current>('/api/lottery/pk10-of/current')
-        case LOTTERY['SSC-CD'].id:
-          return $fetch<SscCurrent>('/api/lottery/ssc-cd/current')
-        case LOTTERY['SSC-OF'].id:
-          return $fetch<SscCurrent>('/api/lottery/ssc-of/current')
-        case LOTTERY['X5-CD'].id:
-          return $fetch<X5Current>('/api/lottery/x5-cd/current')
-        case LOTTERY['X5-OF'].id:
-          return $fetch<X5Current>('/api/lottery/x5-of/current')
-        case LOTTERY.EGGS.id:
-          return $fetch<EggsCurrent>('/api/lottery/eggs/current')
-        case LOTTERY.KL10.id:
-          return $fetch<Kl10Current>('/api/lottery/kl10/current')
-        case LOTTERY.KL8.id:
-          return $fetch<Kl8Current>('/api/lottery/kl8/current')
-        case LOTTERY.FC3D.id:
-          return $fetch<Fc3dCurrent>('/api/lottery/fc3d/current')
-        case LOTTERY.PL3.id:
-          return $fetch<Pl3Current>('/api/lottery/pl3/current')
-        case LOTTERY.DLT.id:
-          return $fetch<DltCurrent>('/api/lottery-tw/dlt/current')
-        case LOTTERY.SUPERLOTTO.id:
-          return $fetch<SuperlottoCurrent>('/api/lottery-tw/superlotto/current')
-        case LOTTERY.D539.id:
-          return $fetch<D539Current>('/api/lottery-tw/d539/current')
-        case LOTTERY.M649.id:
-          return $fetch<M649Current>('/api/lottery-tw/m649/current')
-        case LOTTERY.M539.id:
-          return $fetch<M539Current>('/api/lottery-tw/m539/current')
-        case LOTTERY.P3.id:
-          return $fetch<P3Current>('/api/lottery-tw/p3/current')
-        case LOTTERY.P4.id:
-          return $fetch<P4Current>('/api/lottery-tw/p4/current')
-        case LOTTERY.BINGO.id:
-          return $fetch<BingoCurrent>('/api/lottery-tw/bingo/current')
-        default:
-          return null
-      }
+    /**
+     * 依彩種 id 取當期資訊，找不到對應彩種回傳 null。
+     * 新增彩種請在 `LOTTERY_CURRENT_REGISTRY` 加一行，不要改這裡。
+     * @param lotteryId LOTTERY[xxx].id
+     * @returns Promise<AnyCurrent> | null
+     */
+    currentInfo: (lotteryId: string | number): Promise<AnyCurrent> | null => {
+      const fn = LOTTERY_CURRENT_REGISTRY[Number(lotteryId)]
+      return fn ? fn() : null
     },
+    current6hcCd: () => $fetch<Lottery6hcCurrent>('/api/lottery/6hc-cd/current'),
     current6hcOf: () => $fetch<Lottery6hcCurrent>('/api/lottery/6hc-of/current'),
     jackpot6hcOf: () => $fetch<{ issue: string; currentIssueJackpot: number; carryJackpot: number; jackpotBase: number; jackpotBaseSetAt: number }>('/api/lottery/6hc-of/jackpot'),
     jackpot6hcCd: () => $fetch<Lottery6hcCdJackpot>('/api/lottery/6hc-cd/jackpot'),
