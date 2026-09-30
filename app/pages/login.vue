@@ -66,7 +66,7 @@ const _actions = {
       <h5> 測試帳號 </h5>
       test02@test.cc / 222222 <br />
       test03@test.cc / 222222 <br />
-      test04@test.cc / 222222 <br />
+      test04@test.cc / 222222 (可查看後台) <br />
       <br />
       </p>
 

@@ -55,11 +55,13 @@ export default class HFYYManage {
     // 初始會員：啟動時建幾筆測試帳號，方便本機／測試環境驗證後台會員功能。
     // 密碼固定 222222，對應 app/pages/login.vue 畫面上寫的「測試帳號 test02~04@test.cc / 222222」
     // 提示文字——之前這裡是 123456，跟畫面上的提示對不起來，照著提示登入會失敗。
+    // test04 固定指派 demo 角色，方便重啟後不用每次手動重新設定即可驗證唯讀後台體驗。
     ;['01', '02', '03', '04', '05'].forEach((n) => {
       this.access.createMember({
         name: `test${n}`,
         email: `test${n}@test.cc`,
-        password: '222222'
+        password: '222222',
+        role: n === '04' ? 'demo' : undefined
       })
     })
 
