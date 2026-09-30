@@ -14,7 +14,6 @@ const chips = computed(() => round.state.catalog?.betChips ?? [])
 const blockedItem = computed(() =>
   round.state.catalog?.items.find((item) => item.slug === round.state.blockedGameKey) ?? null
 )
-const face = computed(() => (round.state.revealed ? round.state.nextRank ?? round.state.rank : round.state.rank))
 type MainTab = 'game' | 'rules'
 const ui = reactive({ mainTab: 'game' as MainTab, resultReady: false })
 
@@ -32,6 +31,75 @@ watch(() => round.state.revealed, (revealed) => {
     }, 1000)
   } else {
     ui.resultReady = false
+  }
+}, { immediate: true })
+
+/** 翻牌卡片的正／反面數字，要跟 CSS 的 0.6s 翻面動畫時間一致 */
+const FLIP_DURATION_MS = 600
+const flip = reactive({ front: null as number | null, back: null as number | null, open: false, noAnim: false })
+let flipSettleTimer: ReturnType<typeof setTimeout> | null = null
+/** round.state.rank 在翻牌動畫「開始播放的同一瞬間」就已經被改寫成新數字（見 useToyCards.ts
+ *  的 applyView：revealed 變 true 那刻 rank 同時被换成新值），如果卡片正面直接綁這個值，
+ *  玩家會在卡片都還沒轉到看不見正面角度時就先看到答案。這裡改用獨立的 front/back 快照：
+ *  正面永遠停在翻牌前的數字，背面放翻牌後的數字，靠 backface-visibility 讓背面數字轉到
+ *  超過 90 度以後才會露出來，動畫播完再把新數字疊回正面、角度歸零，準備下一次翻牌。
+ *
+ *  ⚠️ 動畫播完後不能直接把 open 改回 false 讓 CSS transition 自然「轉回去」：那樣會在
+ *  疊字的同一瞬間又觸發一次 180→0 的倒轉動畫，畫面上看起來像翻過去又翻回來，而且倒轉
+ *  途中會有一段時間正反兩面都轉到看不見（90°~270° 之間永遠有一面在轉場），玩家觀感上
+ *  等同「答案沒有真的翻出來就直接變了」。做法是疊字的同時暫時關掉 transition（noAnim），
+ *  angle 瞬間歸零、正面同時換成新數字，兩者視覺上完全等價、沒有動畫可看；下一幀再把
+ *  transition 開回來，準備下一次翻牌。 */
+/** 播放一次翻面：背面先定格成要揭曉的數字，轉完再疊回正面、瞬間歸零角度 */
+const _playFlip = (backValue: number | null) => {
+  flip.back = backValue
+  flip.open = true
+  if (flipSettleTimer) clearTimeout(flipSettleTimer)
+  flipSettleTimer = setTimeout(() => {
+    flip.noAnim = true
+    flip.front = flip.back
+    flip.open = false
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        flip.noAnim = false
+      })
+    })
+    flipSettleTimer = null
+  }, FLIP_DURATION_MS)
+}
+
+watch(() => round.state.revealed, (revealed) => {
+  if (!revealed) {
+    flip.front = round.state.rank
+    flip.back = round.state.nextRank
+    flip.open = false
+    return
+  }
+  if (round.state.nextRank != null) {
+    // 猜牌之後的正常翻面，flip.back 已經在上面「revealed:false」那次定格好了
+    _playFlip(flip.back)
+    return
+  }
+  if (flip.front == null && round.state.rank != null) {
+    // 剛發牌（這局第一張）：沒有「翻牌前」的舊數字可比對，直接顯示會讓答案瞬間出現，
+    // 一樣要從「尚未發牌」的背面翻出這張數字，跟猜牌用同一套翻面動畫
+    _playFlip(round.state.rank)
+    return
+  }
+  // 其餘情況（例如中途重整頁面回來，已經有目前這張牌但沒有翻面可播）：直接顯示
+  flip.front = round.state.rank
+  flip.open = false
+})
+/** 領取／重玩後 round.state.rank 會被清成 null，這裡同步重置卡面，避免殘留上一局數字 */
+watch(() => round.state.rank, (rank) => {
+  if (rank == null) {
+    if (flipSettleTimer) {
+      clearTimeout(flipSettleTimer)
+      flipSettleTimer = null
+    }
+    flip.front = null
+    flip.back = null
+    flip.open = false
   }
 }, { immediate: true })
 
@@ -115,6 +183,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   round.stopReveal()
   if (resultDelayTimer) clearTimeout(resultDelayTimer)
+  if (flipSettleTimer) clearTimeout(flipSettleTimer)
 })
 </script>
 
@@ -159,8 +228,13 @@ onBeforeUnmount(() => {
         <div class="frame-headline" :class="headlineTone">{{ headline }}</div>
 
         <div class="frame-border">
-          <article class="card" :class="{ 'is-open': round.state.revealed && round.state.nextRank != null }">
-            <span>{{ face ?? '？' }}</span>
+          <article class="card">
+            <div class="card-inner" :class="{ 'is-open': flip.open, 'no-anim': flip.noAnim }">
+              <div class="card-face card-front">{{ flip.front ?? '？' }}</div>
+              <!-- 背面只是花紋、不顯示 flip.back 的數字：真正的牌背不該讓玩家看到下一張是什麼，
+                   數字要等翻完、疊回正面那一刻才「揭曉」，不能在背面就先看到答案 -->
+              <div class="card-face card-back" />
+            </div>
           </article>
           <p v-if="round.state.streak > 0" class="cards-streak">連勝 {{ round.state.streak }}</p>
           <div class="choices">
@@ -391,21 +465,60 @@ onBeforeUnmount(() => {
     align-self: center;
     width: 100px;
     aspect-ratio: 3 / 4;
-    display: grid;
-    place-items: center;
-    border-radius: var(--radius-md, 16px);
-    border: 2px solid var(--color-accent-400, #d68a52);
-    background: var(--color-neutral-100, #f9f4ed);
-    color: var(--color-neutral-800, #474238);
-    font-family: var(--font-heading, serif);
-    font-weight: 900;
-    font-size: 40px;
+    position: relative;
+    perspective: 800px;
+  }
+
+  /* 正反兩面各自定格（見 script 的 flip.front／flip.back），這裡只負責 3D 翻面：
+     .card-inner 轉 180 度，正面轉走、backface-visibility 讓它超過 90 度就看不見，
+     背面因為本身已經預先轉了 180 度，轉滿 180 度後總角度等於 360（跟正面同向），
+     文字不會鏡射反過來，翻到一半以前也看不到答案 */
+  .card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
     transition: transform 0.6s ease;
 
     &.is-open {
       transform: rotateY(180deg);
-      background: var(--color-accent-2-200, #e1eecc);
     }
+
+    /* 疊字歸零那一瞬間關掉 transition，避免瞬間又演一次 180→0 的倒轉動畫 */
+    &.no-anim {
+      transition: none;
+    }
+  }
+
+  .card-face {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-md, 16px);
+    border: 2px solid var(--color-accent-400, #d68a52);
+    font-family: var(--font-heading, serif);
+    font-weight: 900;
+    font-size: 40px;
+    backface-visibility: hidden;
+  }
+
+  .card-front {
+    background: var(--color-neutral-100, #f9f4ed);
+    color: var(--color-neutral-800, #474238);
+  }
+
+  .card-back {
+    /* 跟正面（米白底、深字）的顏色故意拉開差異，斜紋 + 深色系，
+       讓玩家一眼就能看出「這是背面」，不會誤以為只是換了個數字 */
+    background: repeating-linear-gradient(
+      135deg,
+      var(--color-accent-700, #8c491a) 0 8px,
+      var(--color-accent-800, #643312) 8px 16px
+    );
+    border-color: var(--color-accent-900, #4a2b0f);
+    color: var(--color-bg, #f5ead8);
+    transform: rotateY(180deg);
   }
 
   .cards-streak {
