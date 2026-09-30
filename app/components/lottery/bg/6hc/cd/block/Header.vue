@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import Ball from '~/components/lottery/bg/6hc/cd/base/Ball.vue'
-import { STATUS_TIME } from '~/config/constants'
+import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import { CREDIT_JACKPOT } from '#shared/config/6hc-cd'
-import { lottery_id as cdLotteryId } from '~/services/lottery6hcCreditService'
+
+const cdLotteryId = LOTTERY['LHC-CD'].id
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
