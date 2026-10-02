@@ -305,15 +305,21 @@ const displayPools = reactive<Record<string, number>>({})
 const _poolRaf: Record<string, number> = {}
 const POOL_ANIM_MS = 4000
 /**
- * 專供「首次揭示」用的較短動畫時長（見下面 onMounted／watch(initialPools) 的 reveal
- * 分支）：實測發現改成從 90%~95% 起跑後，若沿用 POOL_ANIM_MS（4000ms），ease-out
+ * 專供「首次揭示」用的動畫時長（見下面 onMounted／watch(initialPools) 的 reveal
+ * 分支）：實測發現改成從接近目標值起跑後，若沿用 POOL_ANIM_MS（4000ms），ease-out
  * 曲線的尾段要到接近 t=1（約 3.9 秒後）才會讓四捨五入後的整數顯示停止變動——
  * settled 時間跟起跑百分比幾乎無關，取決於曲線尾段逼近目標的速度，而三次方
  * ease-out 的尾段天生很平緩。固定每 10 秒輪詢的真實數字更新沿用 4000ms（那是
  * 真實數據變化，值得從容跑完），但「資料其實已經到位，只是補一個視覺收尾」的
- * reveal 動畫沒有理由跟著等 4 秒，改用這組更短的時長。
+ * reveal 動畫沒有理由跟著等 4 秒，改用這組較短的時長。
+ *
+ * ⚠️ 最早一版用 800ms + 起跑 90%~95%，settled 時間雖然壓到最低，但使用者實測
+ * 回報「肉眼幾乎感覺不到數字在跳動」——落差小（只有 5%~10%）又收得快，人眼
+ * 來不及感知就已經結束，等於把原本要保留的「跳動感」改沒了。改成 2000ms +
+ * 起跑 80%~90%，讓跳動的範圍與持續時間都更明顯可見，settled 時間仍遠優於
+ * 最初從 0 起跑、沿用 4000ms 的版本（約 4.4 秒）。
  */
-const POOL_REVEAL_ANIM_MS = 800
+const POOL_REVEAL_ANIM_MS = 2000
 
 /** 池額跳動動畫（與各玩法頁首的池額動畫同一套手法），變大變小都用 ease-out 跑過去 */
 const _animatePoolTo = (key: string, target: number, durationMs: number = POOL_ANIM_MS) => {
@@ -360,7 +366,7 @@ const mounted = ref(false)
  *   DOM 對不起來（hydration mismatch）；而且 `requestAnimationFrame`／
  *   `performance.now()` 在 SSR 的 Node 環境根本不存在，這裡若誤呼叫會直接噴錯。
  * - mount 之後（client-side 導覽切過來，lazy 資料晚點才到）：改成從接近目標值
- *   （90%~95%，隨機取一個比例避免每張卡片動作完全同步顯得呆板）開始跑
+ *   （80%~90%，隨機取一個比例避免每張卡片動作完全同步顯得呆板）開始跑
  *   `_animatePoolTo` 爬升——跟 onMounted 那段「SSR 資料已經在、只是補動畫效果」
  *   的視覺風格一致，不會再出現「完全沒有動畫、數字直接憑空冒出來」的落差。
  */
@@ -373,7 +379,7 @@ watch(initialPools, (next) => {
       if (!mounted.value) {
         displayPools[key] = value
       } else if (!(key in displayPools)) {
-        const start = value * (0.9 + Math.random() * 0.05)
+        const start = value * (0.8 + Math.random() * 0.10)
         displayPools[key] = Number(start.toFixed(2))
         _animatePoolTo(key, value, POOL_REVEAL_ANIM_MS)
       } else {
@@ -458,7 +464,7 @@ onMounted(() => {
   // 首次資料與「全部失敗就立即補抓一次」已經交給上面那個 watch(initialPools, ...) 處理，
   // SSR 回應的 HTML 本身已經是正確數字（curl 可驗證，不是真的等到這裡才有資料）。
   // 這裡額外補一次「從接近目標值爬升到實值」的視覺效果，純粹是保留原本的動畫體感，
-  // 不是重新打 API：先把目前已經正確的顯示值記下來，重置成該值的 90%~95%（隨機取一個
+  // 不是重新打 API：先把目前已經正確的顯示值記下來，重置成該值的 80%~90%（隨機取一個
   // 比例，不要每張卡片動作完全同步），再用既有的 _animatePoolTo 動畫回去。
   //
   // ⚠️ 不是從 0 開始：SSR 給的已經是正確數字，從 0 重置會讓使用者先看到正確數字、
@@ -466,20 +472,22 @@ onMounted(() => {
   // 不做動畫更差；改成只從接近目標值的地方爬升，體感上更接近「數字剛結算完、還在
   // 微調」的真實感，而不是「資料不見了」。
   //
-  // ⚠️ 用 POOL_REVEAL_ANIM_MS（800ms）不是預設的 POOL_ANIM_MS（4000ms）：實測發現
+  // ⚠️ 用 POOL_REVEAL_ANIM_MS（2000ms）不是預設的 POOL_ANIM_MS（4000ms）：實測發現
   // 「起跑百分比」本身並不會讓 settled 時間變快——ease-out 三次方曲線的尾段要到
   // 接近 t=1（沿用 4000ms 的話約 3.9 秒後）才會讓四捨五入後的整數顯示停止變動，
   // 這是曲線形狀決定的，跟 diff 有多小關係不大。真正讓「資料已經到位、只是補一個
   // 視覺收尾」這類 reveal 動畫的 settled 時間變快的做法，是直接縮短這段動畫本身
   // 的時長（10 秒輪詢的真實數字更新則維持原本 4000ms，那是真實資料變化，值得
-  // 從容跑完）。
+  // 從容跑完）。這個時長與起跑百分比（80%~90%）是使用者實測第一版太短（800ms、
+  // 90%~95%）後「肉眼幾乎感覺不到跳動」回報調整過的，兩者要同時夠大/夠長才會
+  // 有明顯的跳動感，只調一個不夠。
   //
   // 不會造成 hydration mismatch——SSR 與 client 的「初次渲染」都是同一份正確數字
   // （見上面的 watch(initialPools, { immediate: true })），這段是 mount 完成之後才執行的
   // 一般 reactive 更新，不是 hydration 當下的比對內容。
   const targets = { ...displayPools }
   for (const [key, target] of Object.entries(targets)) {
-    const start = target * (0.9 + Math.random() * 0.05)
+    const start = target * (0.8 + Math.random() * 0.10)
     displayPools[key] = Number(start.toFixed(2))
   }
   for (const [key, target] of Object.entries(targets)) {

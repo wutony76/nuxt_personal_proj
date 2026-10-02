@@ -53,3 +53,21 @@
 - [x] `docs/Engineering Evidence/ssr-performance-log.md` 追加兩列（兩版修正
       各一列，誠實記錄「只改起跑百分比沒有解決 settled 時間問題」與「額外
       縮短動畫時長才真正解決」的完整過程）
+
+## 7. 使用者實測回報：800ms 版本跳動感幾乎消失
+
+- [x] 使用者在瀏覽器直接觀察回報：800ms + 起跑 90~95% 的版本「肉眼幾乎感覺
+      不到數字在跳動」
+- [x] 自動化腳本複測確認動畫技術上確實有在跑，排除程式碼邏輯壞掉；匿名/
+      已登入狀態皆一致，排除權限狀態造成差異
+- [x] 跟使用者確認（`AskUserQuestion`）：採用「拉長到 2 秒、起跑改 80~90%」
+- [x] `POOL_REVEAL_ANIM_MS` 從 800ms 調整為 2000ms；起跑百分比從 90~95%
+      調整為 80~90%（`onMounted` 與 `watch(initialPools,...)` 的 lazy 分支
+      兩處都要一起改）
+- [x] Playwright 取樣驗證：數字會明顯下探（約 9.5%）再花約 2 秒爬回目標值，
+      跳動感清楚可見
+- [x] 效能重新量測：settled 中位數 2513.5ms，分布穩定集中（9/10 落在
+      2476~2632ms），不再有雙峰分布
+- [x] `npm test` 回歸：33/36，`m539`／`m649`／`p3` 確認與本次改動無關
+- [x] 追加更新 `validation.md`／`docs/Engineering Evidence/*.md`／
+      `ssr-performance-log.md`
