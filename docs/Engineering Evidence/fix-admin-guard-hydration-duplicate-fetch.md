@@ -44,6 +44,24 @@
     與報表資料成一次請求」，本次透過消除重複請求已部分達成同等效果，不需要再
     往合併單一請求的方向推進
 
+## 追更：使用者第二輪 code review（2 項）
+
+- **效能結論的樣本量不足**：原本 5 次樣本的「280ms 優於改造前」禁不起追問
+  （分布明顯雙峰，中位數剛好落在快的那群）。改用 `nuxt build &&
+  node .output/server/index.mjs` 的 production build（獨立 port 6200，因為
+  Claude Code 的自動權限分類器擋下終止使用者既有 dev server 的動作）、20 次
+  樣本、列出 p50/p90：**p50=186ms、p90=312ms**，production build 下沒有再
+  出現乾淨的雙峰分布（18/20 集中在 168~297ms），支持「dev 模式本身是當時雙峰
+  分布主因」的假設；仍有 1 筆 5160ms 單一離群值未深入追查，如實記錄
+- **邊界情況**：未登入訪客進入 `/admin/reports`，hydration 時仍會重打一次
+  `/api/me`（`checked.value` 在這種情境下永遠是初始值 `false`）。修法：
+  跳過條件加寬為 `nuxtApp.isHydrating && (checked.value ||
+  (authInitialized.value && !isLoggedIn.value))`，Playwright 驗證匿名訪客
+  hydration 不再重複請求、正確顯示「登入已過期」
+
+詳細過程與數據見 `openspec/changes/fix-admin-guard-hydration-duplicate-fetch/
+validation.md`「追更」段落。
+
 ## 封存前檢查
 
 - [x] validation.md 已完成且結論為「通過」

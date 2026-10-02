@@ -36,7 +36,16 @@ export async function useAdminReportData<T>(
   key: string,
   fetcher: (month: string, opts?: { headers?: HeadersInit }) => Promise<T>
 ) {
-  const month = ref(dayjs().format('YYYY-MM'))
+  /**
+   * ⚠️ 改用 useState，不要用 `ref(dayjs().format('YYYY-MM'))`：後者在 SSR 與 client
+   * hydration 分別各自呼叫一次 `dayjs()`，若伺服器時區（通常是 UTC）跟瀏覽器時區
+   * （台灣 UTC+8）不同，每月 1 號台灣時間 00:00~08:00 這段窗口，兩邊算出來的
+   * `YYYY-MM` 會不一樣（伺服器還在算上個月，瀏覽器已經是這個月）——不只是畫面文字
+   * 兜不起來的 hydration mismatch，連帶 `useAsyncData` 的 `{ watch: [month] }` 都會
+   * 拿到不一致的初始月份去打 API。`useState` 讓伺服器算好的值序列化到 payload，
+   * client hydration 直接複用同一個值，不會各自重算。
+   */
+  const month = useState(`admin-report-month-${key}`, () => dayjs().format('YYYY-MM'))
   const status = ref<FetchStatus>('idle')
   const error = ref('')
   const summary = ref<T | null>(null)

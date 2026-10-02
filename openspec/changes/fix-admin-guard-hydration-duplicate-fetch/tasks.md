@@ -55,3 +55,17 @@
       變成真正的淨改善」這個完整故事
 - [x] 回頭更新 `add-ssr-admin-reports-cookie-forward` 的
       `engineering-evidence.md`「後續追蹤事項」，加上指向本次變更的追蹤紀錄
+
+## 6. 使用者第二輪 code review（2 項追加修正）
+
+- [x] 用 `nuxt build && node .output/server/index.mjs`（獨立 port 6200，避開
+      既有 dev server）重新量測 20 次，列出 p50/p90，驗證 production build 下
+      dev 模式觀察到的乾淨雙峰分布是否重現
+- [x] 確認：production build 下雙峰分布沒有重現（p50=186ms、p90=312ms，18/20
+      集中在 168~297ms），支持「dev 模式本身是當時雙峰分布主因」的假設；仍有
+      1 筆 5160ms 單一離群值未深入追查，誠實記錄為未解之謎
+- [x] `Shell.vue` 的 `guard()` 跳過條件加寬：`nuxtApp.isHydrating &&
+      (checked.value || (authInitialized.value && !isLoggedIn.value))`，
+      修正「未登入訪客 hydration 時仍會重打一次 `/api/me`」的邊界情況
+- [x] Playwright 驗證：匿名訪客 hydration 不再重複請求、正確顯示「登入已過期」；
+      已登入 hydration／client-side 導覽兩種情境回歸測試皆未受影響

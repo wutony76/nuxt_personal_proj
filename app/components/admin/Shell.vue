@@ -32,7 +32,7 @@ const props = defineProps<{
 
 const router = useRouter()
 const route = useRoute()
-const { isLoggedIn, refresh: refreshAuth, logout } = useAuth()
+const { isLoggedIn, initialized: authInitialized, refresh: refreshAuth, logout } = useAuth()
 const { checked, isAdmin, isDemo, user, check, reset: resetAdminAuth } = useAdminAuth()
 
 /** guard 跑完 session 確認後才切換 expired／denied／ok */
@@ -64,16 +64,23 @@ const _actions = {
   /**
    * `nuxtApp.isHydrating` 只在「client 端正在把 SSR 產出的 HTML 接管成互動頁面」的
    * 這一瞬間是 true，之後（包含之後任何一次 client-side 導覽切到另一個 admin 頁面）
-   * 永遠是 false。只有在這個瞬間、且 `checked.value` 已經是 true（代表 SSR 階段的
-   * guard 已經完整跑過一次、useState 已經把正確結果序列化帶到瀏覽器）時，才跳過重打
-   * /api/me、/api/admin/me——避免 resetAdminAuth() 把 SSR 已經正確灌好的狀態洗掉，
-   * 又在瀏覽器重打一次一模一樣的請求（實測過曾經誤用 useAsyncData 包這段邏輯，雖然
-   * 解決了 hydration 重複請求，但副作用是「後台頁面之間切換」也會被一併跳過驗證——
-   * 不符合這裡要保留的「每次掛載都重新跟伺服器確認一次 session」語意，所以改用這個
-   * 只命中一次的判斷，不碰任何跨元件共用的快取機制）。
+   * 永遠是 false。只有在這個瞬間、且 SSR 階段已經把一個有意義的結果序列化帶到瀏覽器時，
+   * 才跳過重打 /api/me、/api/admin/me——避免 resetAdminAuth() 把 SSR 已經正確灌好的
+   * 狀態洗掉，又在瀏覽器重打一次一模一樣的請求（實測過曾經誤用 useAsyncData 包這段
+   * 邏輯，雖然解決了 hydration 重複請求，但副作用是「後台頁面之間切換」也會被一併
+   * 跳過驗證——不符合這裡要保留的「每次掛載都重新跟伺服器確認一次 session」語意，
+   * 所以改用這個只命中一次的判斷，不碰任何跨元件共用的快取機制）。
+   *
+   * 「SSR 階段已經有意義的結果」分兩種情況，缺一都不能跳過：
+   * - `checked.value` 為 true：SSR 階段判定已登入，且完整跑過 `check()`
+   * - `authInitialized.value && !isLoggedIn.value`：SSR 階段判定未登入（`check()`
+   *   本來就不會被呼叫，`checked` 永遠是初始值 `false`，不能拿它當依據）；這裡改看
+   *   `authInitialized`（`useAuth` 的 `init`／`refresh` 完成後一定會設為 true，不管
+   *   登入成功或失敗），搭配 `!isLoggedIn.value` 確認「已經問過伺服器、答案是沒登入」，
+   *   而不是「還沒問過伺服器的初始狀態」
    */
   guard: async () => {
-    if (nuxtApp.isHydrating && checked.value) {
+    if (nuxtApp.isHydrating && (checked.value || (authInitialized.value && !isLoggedIn.value))) {
       sessionReady.value = true
       return
     }
