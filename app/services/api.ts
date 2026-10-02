@@ -1,4 +1,8 @@
-import { $fetch } from 'ofetch'
+// ⚠️ 刻意不 import { $fetch } from 'ofetch'——裸 ofetch 在 Node（SSR）環境下呼叫這裡
+// 常見的相對路徑（例如 '/api/lottery/...'）會直接丟 "Failed to parse URL"（已實測確認）。
+// 這裡改用 Nuxt 自動注入、有 SSR 情境感知能力的全域 $fetch（同一套 ofetch 底層實作，
+// 呼叫方式與型別簽章完全相同，client 端行為不變），讓這個檔案的函式之後可以安全地被
+// useAsyncData／useFetch 在 SSR 階段呼叫（見 add-ssr-lottery-hall-pools）。
 import { LOTTERY } from '~/config/constants'
 
 export type AuthUser = {

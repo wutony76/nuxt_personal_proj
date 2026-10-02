@@ -29,6 +29,16 @@
   - 註：以上檔案／行號引用的是舊公司專案，**非本 repo**；本 repo（`nuxt_personal_proj`）的 `nuxt.config.ts` 目前沒有 `routeRules`，純粹作為個人作品集展示用途，記錄於此作為之後開發的借鏡。
 - **參考 URL**：http://104.199.176.35/credit/#/?domain=fntuser-dev.tlsanheng.com&searchCode=96225&nuxt
   - 測試帳密: newt02b0022/newt02b0022
+- **2026-10-02 更新**：上面「借鏡」不再只是紙上談兵——盤點後發現本 repo 當時其實也是
+  同一個模式（`useFetch`/`useAsyncData` 使用次數 0，94 個頁面 74 個在 `onMounted` 才抓資料）。
+  已針對 `app/pages/lottery-hall.vue`（唯一「免登入可瀏覽＋有真實資料＋適合 SSR」的大廳頁）
+  示範正確做法：`useAsyncData` 做首次 SSR 抓取＋保留既有 `setInterval` 輪詢做後續更新，
+  並順手修掉 `app/services/api.ts` 讓裸 `ofetch` 在 SSR 環境必定失敗的基礎設施問題（之後
+  其他頁面要比照辦理不會再卡住）。效能量測：首次看到真實數字的時間從中位數 4419ms 降到
+  189ms。詳見 `openspec/changes/add-ssr-lottery-hall-pools/` 與
+  `docs/Engineering Evidence/ssr-performance-log.md`（持續累積的效能量測歷史）。多數頁面
+  （需登入的遊戲/彩票下注頁）**刻意不**比照轉換——SSR 階段抓不到瀏覽器 session cookie，
+  硬轉會有 hydration mismatch 風險，且這些頁面本來就不該被爬蟲看到，SEO 效益是負的。
 
 ## 頂層目錄
 
@@ -163,4 +173,4 @@ server/
 
 ---
 
-最後更新：2026-10-02（新增測試與 CI 段落）
+最後更新：2026-10-02（補上 lottery-hall.vue 首次 SSR 改造的追蹤記錄）

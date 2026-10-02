@@ -1,0 +1,59 @@
+# Tasks
+
+## 1. 規格與設計確認
+
+- [x] 完成 proposal 定稿（範圍/風險/驗證方式，已確認只動 `lottery-hall.vue`，排除所有
+      需要登入態的頁面）
+- [x] 完成 design 定稿（`useAsyncData` 轉換方式、SSR 初始值不觸發動畫的邊界、效能量測機制、
+      歷史列表格式）
+- [x] Figma 對照清單 — 不適用（無版面變動）
+
+## 2. 基準量測（Implementation 開始前，先量「改造前」的數據）
+
+- [x] 在目前 `main`（改造前）跑 `test/perf-ssr-lottery-hall.mjs`（這支腳本本身先寫好，
+      再用 `git stash` 暫時還原頁面改動量到基準值）
+- [x] 記錄 5 次量測結果與中位數（4526/4464/4419/4417/4415ms，中位數 4419ms）
+
+## 3. `lottery-hall.vue` 改造
+
+- [x] 新增 `useAsyncData('lottery-hall-pools', ...)`，fetcher 內容比照現有 `_fetchPools`
+      的 try/catch 容錯邊界（單一彩種失敗回 `null`，不阻斷其他彩種）
+- [x] `displayPools` 初始化邏輯：用 `initialPools.value` 直接賦值，不經過 `_animatePoolTo`/RAF
+- [x] `onMounted` 內的 `_fetchPools()` 改成條件判斷：SSR 已有初始值就跳過、只掛 `setInterval`；
+      沒有初始值才 fallback 呼叫一次
+- [x] 確認 `setInterval(_fetchPools, 10000)`、`onBeforeUnmount` 清理、`_animatePoolTo` 動畫
+      邏輯**完全沒有被刪除或精簡**
+- [x]（規劃階段未預見、Implementation 時發現必須一併處理）`state.list` 的 `init()` 原本只在
+      `onMounted` 呼叫，SSR 階段 `state.list` 是空的，導致 `games-grid` 整組卡片（連同剛做好
+      的彩池 SSR 資料）都不會出現在 SSR 回應裡——`GET_CONT.lotteryAll()` 是讀靜態設定的純函式，
+      已改成在 setup 階段同步呼叫一次，`onMounted` 不再重複呼叫
+- [x]（規劃階段未預見、Implementation 時發現必須一併處理）`app/services/api.ts` 原本
+      `import { $fetch } from 'ofetch'`，裸 ofetch 在 Node（SSR）環境呼叫相對路徑會直接噴
+      `Failed to parse URL`（已實測確認），改成不自行 import、改用 Nuxt 自動注入且有 SSR
+      情境感知能力的全域 `$fetch`——這個決定有先用 AskUserQuestion 跟使用者確認過才動手，
+      因為會讓影響面超出「只動 lottery-hall.vue」的原訂範圍
+
+## 4. 錯誤處理與體驗
+
+- [x] `initialPools.value` 為 `undefined`（SSR 失敗/被跳過）時的防呆：`displayPools` 初始化時
+      用 `initialPools.value ?? {}` 擋，不讓整頁因此出錯
+- [x] 確認 11 個彩種其中任一個 API 逾時/失敗時，SSR 回應不會被卡住太久：新增
+      `withTimeout()` 包住每個 fetcher，3 秒逾時就當失敗處理（回 `null`），不讓單一卡住的
+      端點拖垮整頁 SSR 回應
+
+## 5. 效能量測（改造後）
+
+- [x] 改造後跑 `test/perf-ssr-lottery-hall.mjs`（`SCENARIO=after`），5 次取中位數
+      （682/189/174/215/178ms，中位數 189ms；第 1 次含瀏覽器冷啟動）
+- [x] 把「改造前」「改造後」兩組數據一起寫進
+      `docs/Engineering Evidence/ssr-performance-log.md`（新增列，不覆寫既有內容）
+
+## 6. 驗證與交付檢查
+
+- [x] `curl` 驗證 SSR 回應的 HTML 內含真實彩池數字（15 張卡片的 `data-pool-value` 屬性皆有
+      正確金額）
+- [x] 用 Playwright 檢查瀏覽器 console：`networkidle` 後無任何 hydration/mismatch 相關警告
+- [x] 確認 `npm run dev` 正常啟動，`npm test`（36 支既有測試）全數通過不受影響
+- [x] 抽查其他依賴 `app/services/api.ts` 的頁面（`/`、`/lottery-hall-taiwan`、`/game-hall`、
+      `/admin`、`/login`）皆仍正常回應 HTTP 200
+- [x] 變更檔案與風險說明整理完成，已進入 Validation 階段（見 `validation.md`）

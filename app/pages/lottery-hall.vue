@@ -273,8 +273,46 @@ const POOL_FETCHERS: Record<string, () => Promise<number>> = {
   },
 }
 
-/** 卡片顯示用的彩池數字（動畫跑到的當前值），key 為 card.routeKey */
-const displayPools = reactive<Record<string, number>>({})
+/**
+ * 單一彩種取太久就當失敗處理，不讓 SSR 回應被某個卡住的端點拖住——CSR 時代一個彩種
+ * fetch 卡住只影響那張卡片的動畫，現在挪到 SSR，卡住會拖累整頁首次回應，風險層級不同，
+ * 需要這層本來不存在的保護。
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`逾時 ${ms}ms`)), ms))
+  ])
+}
+
+/**
+ * 首次彩池資料改用 useAsyncData，讓 SSR 回應的 HTML 就直接帶真實金額，不再是空殼
+ * （見 add-ssr-lottery-hall-pools）。容錯邊界比照 _fetchPools 既有做法：單一彩種取
+ * 失敗回 null、不阻斷其他彩種，也不讓整個 useAsyncData 因為一個端點失敗而整包出錯。
+ */
+const { data: initialPools } = await useAsyncData('lottery-hall-pools', async () => {
+  const entries = await Promise.all(Object.entries(POOL_FETCHERS).map(async ([key, fetcher]) => {
+    try {
+      return [key, await withTimeout(fetcher(), 3000)] as const
+    } catch {
+      return [key, null] as const
+    }
+  }))
+  return Object.fromEntries(entries) as Record<string, number | null>
+})
+
+/**
+ * 卡片顯示用的彩池數字（動畫跑到的當前值），key 為 card.routeKey。
+ * ⚠️ 起始值直接吃 SSR 帶來的 initialPools（有拿到才放進去，null 就略過），不經過
+ * _animatePoolTo／requestAnimationFrame——這是「起始狀態」不是「一次更新」，不該跑動畫，
+ * 否則 SSR 已經吐出真實數字，client hydrate 後卻又從 0 開始跑一次 4 秒動畫，觀感反而倒退。
+ */
+const displayPools = reactive<Record<string, number>>(
+  Object.fromEntries(
+    Object.entries(initialPools.value ?? {})
+      .filter((entry): entry is [string, number] => entry[1] != null)
+  )
+)
 const _poolRaf: Record<string, number> = {}
 const POOL_ANIM_MS = 4000
 
@@ -363,6 +401,10 @@ const cards = computed(() => _handlers.buildCards(state.list))
 const init = () => {
   state.list = GET_CONT.lotteryAll()
 }
+// 同步呼叫（不等 onMounted）：GET_CONT.lotteryAll() 是純函式、讀靜態設定，SSR 階段就能跑，
+// 讓 games-grid 的卡片（連同上面已經 SSR 好的彩池數字）在首次回應的 HTML 就出現，
+// 不用等 client hydrate 完才在 onMounted 裡補填
+init()
 
 const click = {
   start: async (key: string) => {
@@ -376,8 +418,11 @@ const click = {
 }
 
 onMounted(() => {
-  init()
-  _fetchPools()
+  // SSR 已經成功帶出至少一個彩種的真實金額就不用再補一次 client fetch；
+  // 全部拿 null（例如 SSR 當下 API 全掛）才立即補抓一次，不用乾等 10 秒輪詢
+  if (Object.keys(displayPools).length === 0) {
+    _fetchPools()
+  }
   poolTimer = setInterval(_fetchPools, 10000)
 })
 
@@ -476,7 +521,7 @@ onBeforeUnmount(() => {
           <div class="mono gc__note">{{ card.note }}</div>
           <div v-if="_handlers.hasPool(card.routeKey)" class="gc__pool">
             <span class="mono gc__pool-label"></span>
-            <span class="bebas gc__pool-val">{{ money(displayPools[card.routeKey] ?? 0) }}</span>
+            <span class="bebas gc__pool-val" :data-pool-value="card.routeKey">{{ money(displayPools[card.routeKey] ?? 0) }}</span>
           </div>
           <span class="gc__enter" @click="click.start(card.routeKey)">
             <span class="brush gc__enter-label">{{ card.label }}</span>
