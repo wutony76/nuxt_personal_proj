@@ -15,10 +15,23 @@
   （SSR 預設開著，但因為發 request 的時機卡在 client-only 生命週期，實質等於全站 CSR）
 
 但**不是所有頁面都該轉**：多數頁面（`lottery/tw/*.vue`、`lottery/bg/*.vue`、`game/*.vue`）
-需要登入態判斷，且 `app/middleware/game-access.global.ts` 的既有註解已經明講「SSR 這裡用的是
-裸 `$fetch`，不會帶到瀏覽器目前的 session cookie，SSR 側一律會被判定成訪客」——硬轉這些頁面
-會造成 hydration mismatch（SSR 吐訪客畫面、client hydrate 後變已登入畫面），且這些頁面本來就
-不該被爬蟲看到，SEO 價值是負的。
+需要登入態判斷。
+
+> ⚠️ **更正（review 後修正）**：原本這裡寫「SSR 階段抓不到瀏覽器 session cookie」，
+> 這個說法不精確、容易被誤讀成「SSR 技術上做不到登入態頁面」——這是錯的。Nuxt 有
+> `useRequestFetch()`／`useRequestHeaders(['cookie'])`，就是設計來把原始請求的 cookie
+> 轉送給 SSR 階段的內部 API 呼叫用的。真正的原因是：
+> 1. `app/middleware/game-access.global.ts` 現有的程式碼**目前就是**只在 client 端跑
+>    （見其註解），要讓這類頁面安全轉 SSR，需要額外改動這個 middleware 與各頁面的登入
+>    檢查邏輯去正確轉發 cookie，這是一塊有風險、需要獨立驗證的工作，不是「順手就能做」。
+> 2. 本次刻意只挑一個低風險、公開頁面當示範，把「cookie 轉發」這塊留給下一次示範
+>    （挑一個需要登入的頁面，例如報表頁）時再正式處理，不要一次把兩個不同技術難度的
+>    問題（SSR 資料獲取 + SSR 登入態轉發）混在同一個變更裡驗證，會稀釋這次要證明的重點。
+>
+> 硬轉這些頁面而不做 cookie 轉發，才會真的出現 hydration mismatch（SSR 吐訪客畫面、
+> client hydrate 後變已登入畫面）；這是「沒做 cookie 轉發就硬轉」的後果，不是 SSR
+> 本身的限制。且這些頁面本來就不該被爬蟲看到完整內容，SEO 價值是負的，即使做了
+> cookie 轉發，優先順序也排在這次的公開頁面示範之後。
 
 逐一確認「大廳/選單」類頁面後，真正符合「公開可瀏覽、有真實資料、目前用 `onMounted` 抓」
 三個條件的只有 `app/pages/lottery-hall.vue`：
@@ -50,8 +63,9 @@
   - `lottery-hall-taiwan.vue` 的 toy catalog 抓取——候選但本次先不做，等這次的模式驗證過
     （有實際效能數據佐證）後再評估是否比照辦理，避免一次改太多頁面、稀釋驗證重點
   - 任何需要登入態的頁面（`lottery/tw/*`、`lottery/bg/*`、`game/*`、`admin/*`）——
-    cookie 轉發與 hydration mismatch 風險不在本次範圍，是否要做需要另外評估 SSR 端
-    如何安全轉發 session cookie（`useRequestHeaders(['cookie'])`），風險明顯更高
+    技術上可以用 `useRequestFetch()`／`useRequestHeaders(['cookie'])` 轉發 cookie 做到
+    SSR，但本次刻意不做，留給下一次示範（建議挑一個資料量大、需要登入的報表類頁面，
+    例如架構文件原本批評的 `trend`/`bet_search` 那類場景的對應頁面）單獨處理與驗證
   - 不移除、不簡化既有的 `setInterval` 輪詢與 `requestAnimationFrame` 動畫邏輯
 
 ## 影響面
@@ -99,7 +113,9 @@
 - [x] `lottery-hall.vue` 首次 SSR 回應的 HTML 內含真實彩池數字（curl 已驗證，15 張卡片皆有
       正確金額）
 - [x] 既有 10 秒輪詢與數字動畫行為不變（程式碼未刪除，邏輯僅改「首次資料從哪來」）
-- [x] `test/perf-ssr-lottery-hall.mjs` 量測出改造前後「真實數字出現時間」的具體數據
-      （改造前中位數 4419ms → 改造後中位數 189ms）
+- [x] `test/perf-ssr-lottery-hall.mjs` 量測出改造前後的具體數據（**更正版**，同時量
+      TTFB／首次真實數字／settled／LCP 4 項指標，不要只看單一容易被誤導的指標——詳見
+      `validation.md` 第 2 節「Code review 後的 4 項修正」：真正代表 SSR 效益的「首次
+      真實數字」中位數 486ms → 226ms，約 2.1 倍）
 - [x] 具體效能數據寫入 `docs/Engineering Evidence/ssr-performance-log.md`，以歷史列表形式
       呈現（新增列，不覆寫/不刪除既有列）

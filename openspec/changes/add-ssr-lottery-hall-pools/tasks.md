@@ -37,9 +37,9 @@
 
 - [x] `initialPools.value` 為 `undefined`（SSR 失敗/被跳過）時的防呆：`displayPools` 初始化時
       用 `initialPools.value ?? {}` 擋，不讓整頁因此出錯
-- [x] 確認 11 個彩種其中任一個 API 逾時/失敗時，SSR 回應不會被卡住太久：新增
-      `withTimeout()` 包住每個 fetcher，3 秒逾時就當失敗處理（回 `null`），不讓單一卡住的
-      端點拖垮整頁 SSR 回應
+- [x] 確認 11 個彩種其中任一個 API 逾時/失敗時，SSR 回應不會被卡住太久：~~新增
+      `withTimeout()` 包住每個 fetcher~~ **已在第 7 節第 3 項改成 ofetch 內建 `timeout`**，
+      不讓單一卡住的端點拖垮整頁 SSR 回應
 
 ## 5. 效能量測（改造後）
 
@@ -57,3 +57,25 @@
 - [x] 抽查其他依賴 `app/services/api.ts` 的頁面（`/`、`/lottery-hall-taiwan`、`/game-hall`、
       `/admin`、`/login`）皆仍正常回應 HTTP 200
 - [x] 變更檔案與風險說明整理完成，已進入 Validation 階段（見 `validation.md`）
+
+## 7. Code review 修正（使用者完整 review 後提出 4 項問題）
+
+- [x] **效能數字框架誤導**：`test/perf-ssr-lottery-hall.mjs` 改版，同時量 TTFB／首次真實
+      數字／settled／LCP 四項指標；重新確認「改造前」基準點是真正原始 CSR 版本（用
+      `git show <commit>~1` 還原，不是中途已 commit 的半成品）；更正後數據：首次真實數字
+      486ms→226ms（約 2.1 倍，真正的 SSR 效益），settled 4448ms→226ms（約 19.7 倍，但
+      大部分來自跳過動畫，不是 SSR 本身），TTFB 17ms→20ms（本機幾乎無差異，正式環境
+      換較慢服務會更明顯）
+- [x] **「SSR 抓不到 cookie」錯誤觀念**：改寫 `proposal.md`／`docs/Architecture/README.md`
+      對應段落，說明 `useRequestFetch()`／`useRequestHeaders(['cookie'])` 技術上可以轉發
+      cookie，這次不轉換登入頁面是刻意的範圍限縮（分開驗證 SSR 資料獲取 vs SSR 登入態），
+      不是技術做不到
+- [x] **`withTimeout()` 計時器沒清掉、底層請求沒真的中止**：移除自刻的 `Promise.race`
+      wrapper，改用 ofetch 內建 `timeout`（已讀原始碼確認用真正的 `AbortController`，
+      完成時會 `clearTimeout`），把 `{ timeout: 3000 }` 加到 `api.ts` 24 個相關函式上
+- [x] **`await useAsyncData` 卡住 client-side 導覽**：加上 `{ lazy: true }`，
+      `displayPools` 初始化改成 `watch(initialPools, ..., { immediate: true })` 反應式
+      灌值；用 Playwright 點擊真實 `NuxtLink` 驗證 client-side 導覽耗時 184ms、不被 15 個
+      API 卡住
+- [x] 修正後重新驗證：`curl` SSR 含真實數字、`npm test` 36/36 全過、Playwright 導覽與
+      hydration 檢查皆過

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import { GET_CONT } from '../config/constants'
 import { useRouter } from 'vue-router'
 import { api } from '../services/api'
@@ -274,45 +274,34 @@ const POOL_FETCHERS: Record<string, () => Promise<number>> = {
 }
 
 /**
- * 單一彩種取太久就當失敗處理，不讓 SSR 回應被某個卡住的端點拖住——CSR 時代一個彩種
- * fetch 卡住只影響那張卡片的動畫，現在挪到 SSR，卡住會拖累整頁首次回應，風險層級不同，
- * 需要這層本來不存在的保護。
- */
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`逾時 ${ms}ms`)), ms))
-  ])
-}
-
-/**
  * 首次彩池資料改用 useAsyncData，讓 SSR 回應的 HTML 就直接帶真實金額，不再是空殼
  * （見 add-ssr-lottery-hall-pools）。容錯邊界比照 _fetchPools 既有做法：單一彩種取
  * 失敗回 null、不阻斷其他彩種，也不讓整個 useAsyncData 因為一個端點失敗而整包出錯。
+ *
+ * ⚠️ 單一彩種逾時用的是 `api.lottery.*` 那 23 個函式各自在 ofetch 呼叫時帶的
+ * `{ timeout: 3000 }`（ofetch 內建、用真正的 AbortController 中止底層請求，逾時後
+ * 連線本身會被取消，不是只有 JS 這層放棄等待卻讓請求繼續在背景空轉），不要在這裡
+ * 自己刻一個 `Promise.race` 計時器 wrapper——那種寫法逾時後原本的 fetch 不會被真的
+ * 取消，計時器本身也不會被清掉，等於每個請求都平白多掛一個跑好跑滿的 setTimeout。
+ *
+ * ⚠️ `lazy: true`：SSR 階段仍然照樣等資料回來才送出 HTML（這才是這次要的效果），
+ * 但從別頁用 client-side 導覽切過來這個頁面時，不會卡住導覽等 15 個 API 全部回來——
+ * `initialPools.value` 在這種情境下一開始會是 `null`，資料到了才透過下面的 watch
+ * 反應式地補進 `displayPools`，不能再像原本那樣只在這裡用當下的 `.value` 做一次性賦值。
  */
 const { data: initialPools } = await useAsyncData('lottery-hall-pools', async () => {
   const entries = await Promise.all(Object.entries(POOL_FETCHERS).map(async ([key, fetcher]) => {
     try {
-      return [key, await withTimeout(fetcher(), 3000)] as const
+      return [key, await fetcher()] as const
     } catch {
       return [key, null] as const
     }
   }))
   return Object.fromEntries(entries) as Record<string, number | null>
-})
+}, { lazy: true })
 
-/**
- * 卡片顯示用的彩池數字（動畫跑到的當前值），key 為 card.routeKey。
- * ⚠️ 起始值直接吃 SSR 帶來的 initialPools（有拿到才放進去，null 就略過），不經過
- * _animatePoolTo／requestAnimationFrame——這是「起始狀態」不是「一次更新」，不該跑動畫，
- * 否則 SSR 已經吐出真實數字，client hydrate 後卻又從 0 開始跑一次 4 秒動畫，觀感反而倒退。
- */
-const displayPools = reactive<Record<string, number>>(
-  Object.fromEntries(
-    Object.entries(initialPools.value ?? {})
-      .filter((entry): entry is [string, number] => entry[1] != null)
-  )
-)
+/** 卡片顯示用的彩池數字（動畫跑到的當前值），key 為 card.routeKey */
+const displayPools = reactive<Record<string, number>>({})
 const _poolRaf: Record<string, number> = {}
 const POOL_ANIM_MS = 4000
 
@@ -347,6 +336,27 @@ const _fetchPools = async () => {
     } catch { /* 該彩種彩池取不到不阻斷畫面，維持上一次的顯示值 */ }
   }))
 }
+
+/**
+ * 把 initialPools 的資料灌進 displayPools，直接賦值、不經過 _animatePoolTo／
+ * requestAnimationFrame——這是「起始狀態」不是「一次更新」，不該跑動畫，否則 SSR
+ * 已經吐出真實數字，client hydrate 後卻又從 0 開始跑一次 4 秒動畫，觀感反而倒退。
+ * `immediate: true` 讓 SSR／非 lazy 情境下已經 resolve 好的值能馬上生效；`lazy`
+ * 情境下（client-side 導覽切過來）資料晚點才到，則交給 watch 本身的反應式觸發補上。
+ * 若等到資料回來後發現全部彩種都是 null（例如 SSR 當下 API 全掛），立即補抓一次，
+ * 不用乾等 10 秒輪詢。
+ */
+watch(initialPools, (next) => {
+  if (!next) return
+  let any = false
+  for (const [key, value] of Object.entries(next)) {
+    if (value != null) {
+      displayPools[key] = value
+      any = true
+    }
+  }
+  if (!any) _fetchPools()
+}, { immediate: true })
 
 let poolTimer: ReturnType<typeof setInterval> | null = null
 
@@ -418,11 +428,8 @@ const click = {
 }
 
 onMounted(() => {
-  // SSR 已經成功帶出至少一個彩種的真實金額就不用再補一次 client fetch；
-  // 全部拿 null（例如 SSR 當下 API 全掛）才立即補抓一次，不用乾等 10 秒輪詢
-  if (Object.keys(displayPools).length === 0) {
-    _fetchPools()
-  }
+  // 首次資料與「全部失敗就立即補抓一次」已經交給上面那個 watch(initialPools, ...) 處理，
+  // 這裡只需要掛上後續的 10 秒輪詢
   poolTimer = setInterval(_fetchPools, 10000)
 })
 

@@ -2057,8 +2057,8 @@ export const api = {
     },
     current6hcCd: () => $fetch<Lottery6hcCurrent>('/api/lottery/6hc-cd/current'),
     current6hcOf: () => $fetch<Lottery6hcCurrent>('/api/lottery/6hc-of/current'),
-    jackpot6hcOf: () => $fetch<{ issue: string; currentIssueJackpot: number; carryJackpot: number; jackpotBase: number; jackpotBaseSetAt: number }>('/api/lottery/6hc-of/jackpot'),
-    jackpot6hcCd: () => $fetch<Lottery6hcCdJackpot>('/api/lottery/6hc-cd/jackpot'),
+    jackpot6hcOf: () => $fetch<{ issue: string; currentIssueJackpot: number; carryJackpot: number; jackpotBase: number; jackpotBaseSetAt: number }>('/api/lottery/6hc-of/jackpot', { timeout: 3000 }),
+    jackpot6hcCd: () => $fetch<Lottery6hcCdJackpot>('/api/lottery/6hc-cd/jackpot', { timeout: 3000 }),
     road6hcOf: () => $fetch<{ plays: Lottery6hcRoadPlay[] }>('/api/lottery/6hc-of/road'),
     road6hcCd: () => $fetch<{ plays: Lottery6hcRoadPlay[] }>('/api/lottery/6hc-cd/road'),
     openCodeHistory6hcOf: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/6hc-of/opencode-history'),
@@ -2085,10 +2085,10 @@ export const api = {
     claimOneIssueK3Of: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/k3-of/claim', { method: 'POST' }),
     /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
-    jackpotK3Cd: () => $fetch<CreditJackpotState>('/api/lottery/k3-cd/jackpot'),
-    jackpotK3Of: () => $fetch<CreditJackpotState>('/api/lottery/k3-of/jackpot'),
+    jackpotK3Cd: () => $fetch<CreditJackpotState>('/api/lottery/k3-cd/jackpot', { timeout: 3000 }),
+    jackpotK3Of: () => $fetch<CreditJackpotState>('/api/lottery/k3-of/jackpot', { timeout: 3000 }),
     /** 共用彩池（K3-CD 與 K3-OF 共用同一份），與上面的爆池是兩個獨立的池 */
-    poolK3Of: () => $fetch<SharedPoolState>('/api/lottery/k3-of/pool'),
+    poolK3Of: () => $fetch<SharedPoolState>('/api/lottery/k3-of/pool', { timeout: 3000 }),
     // ── PK10（PK10-CD / PK10-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
     currentPk10Cd: () => $fetch<Pk10Current>('/api/lottery/pk10-cd/current'),
     currentPk10Of: () => $fetch<Pk10Current>('/api/lottery/pk10-of/current'),
@@ -2101,10 +2101,10 @@ export const api = {
     claimOneIssuePk10Of: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/pk10-of/claim', { method: 'POST' }),
     /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
-    jackpotPk10Cd: () => $fetch<CreditJackpotState>('/api/lottery/pk10-cd/jackpot'),
-    jackpotPk10Of: () => $fetch<CreditJackpotState>('/api/lottery/pk10-of/jackpot'),
+    jackpotPk10Cd: () => $fetch<CreditJackpotState>('/api/lottery/pk10-cd/jackpot', { timeout: 3000 }),
+    jackpotPk10Of: () => $fetch<CreditJackpotState>('/api/lottery/pk10-of/jackpot', { timeout: 3000 }),
     /** 共用彩池（PK10-CD 與 PK10-OF 共用同一份），與上面的爆池是兩個獨立的池 */
-    poolPk10Of: () => $fetch<SharedPoolState>('/api/lottery/pk10-of/pool'),
+    poolPk10Of: () => $fetch<SharedPoolState>('/api/lottery/pk10-of/pool', { timeout: 3000 }),
     // ── 時時彩（SSC-CD / SSC-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
     currentSscCd: () => $fetch<SscCurrent>('/api/lottery/ssc-cd/current'),
     currentSscOf: () => $fetch<SscCurrent>('/api/lottery/ssc-of/current'),
@@ -2117,10 +2117,10 @@ export const api = {
     claimOneIssueSscOf: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/ssc-of/claim', { method: 'POST' }),
     /** 信用盤爆池（與 current 回的 pool 是兩個不同的池） */
-    jackpotSscCd: () => $fetch<CreditJackpotState>('/api/lottery/ssc-cd/jackpot'),
-    jackpotSscOf: () => $fetch<CreditJackpotState>('/api/lottery/ssc-of/jackpot'),
+    jackpotSscCd: () => $fetch<CreditJackpotState>('/api/lottery/ssc-cd/jackpot', { timeout: 3000 }),
+    jackpotSscOf: () => $fetch<CreditJackpotState>('/api/lottery/ssc-of/jackpot', { timeout: 3000 }),
     /** 共用彩池（SSC-CD 與 SSC-OF 共用同一份），與上面的爆池是兩個獨立的池 */
-    poolSscOf: () => $fetch<SharedPoolState>('/api/lottery/ssc-of/pool'),
+    poolSscOf: () => $fetch<SharedPoolState>('/api/lottery/ssc-of/pool', { timeout: 3000 }),
     // ── 11選5（X5-CD / X5-OF 共用開獎號與彩池，兩支 current 回的 pool 是同一份）──
     currentX5Cd: () => $fetch<X5Current>('/api/lottery/x5-cd/current'),
     currentX5Of: () => $fetch<X5Current>('/api/lottery/x5-of/current'),
@@ -2133,10 +2133,10 @@ export const api = {
     claimOneIssueX5Of: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/x5-of/claim', { method: 'POST' }),
     /** 爆池（與 current 回的 pool 是兩個不同的池；兩個盤口共吃這一池，兩支路由回同一份） */
-    jackpotX5Cd: () => $fetch<CreditJackpotState>('/api/lottery/x5-cd/jackpot'),
-    jackpotX5Of: () => $fetch<CreditJackpotState>('/api/lottery/x5-of/jackpot'),
+    jackpotX5Cd: () => $fetch<CreditJackpotState>('/api/lottery/x5-cd/jackpot', { timeout: 3000 }),
+    jackpotX5Of: () => $fetch<CreditJackpotState>('/api/lottery/x5-of/jackpot', { timeout: 3000 }),
     /** 共用彩池（X5-CD 與 X5-OF 共用同一份），與上面的爆池是兩個獨立的池 */
-    poolX5Of: () => $fetch<SharedPoolState>('/api/lottery/x5-of/pool'),
+    poolX5Of: () => $fetch<SharedPoolState>('/api/lottery/x5-of/pool', { timeout: 3000 }),
     // ── PC蛋蛋（只有信用盤，來源本身無官方盤）──
     currentEggs: () => $fetch<EggsCurrent>('/api/lottery/eggs/current'),
     openCodeHistoryEggs: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/eggs/opencode-history'),
@@ -2144,9 +2144,9 @@ export const api = {
     claimOneIssueEggs: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/eggs/claim', { method: 'POST' }),
     /** 爆池（PC蛋蛋沒有官方盤共用彩池，這是它唯一的池） */
-    jackpotEggs: () => $fetch<CreditJackpotState>('/api/lottery/eggs/jackpot'),
+    jackpotEggs: () => $fetch<CreditJackpotState>('/api/lottery/eggs/jackpot', { timeout: 3000 }),
     /** 彩池玩法（選號）狀態，與上面的爆池是兩個獨立的池 */
-    poolEggs: () => $fetch<PoolPlayState>('/api/lottery/eggs/pool'),
+    poolEggs: () => $fetch<PoolPlayState>('/api/lottery/eggs/pool', { timeout: 3000 }),
     // ── 快樂十分（只有信用盤，來源本身無官方盤）──
     currentKl10: () => $fetch<Kl10Current>('/api/lottery/kl10/current'),
     openCodeHistoryKl10: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/kl10/opencode-history'),
@@ -2154,9 +2154,9 @@ export const api = {
     claimOneIssueKl10: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/kl10/claim', { method: 'POST' }),
     /** 爆池（快樂十分沒有官方盤共用彩池，這是它唯一的池） */
-    jackpotKl10: () => $fetch<CreditJackpotState>('/api/lottery/kl10/jackpot'),
+    jackpotKl10: () => $fetch<CreditJackpotState>('/api/lottery/kl10/jackpot', { timeout: 3000 }),
     /** 彩池玩法（選號）狀態，與上面的爆池是兩個獨立的池 */
-    poolKl10: () => $fetch<PoolPlayState>('/api/lottery/kl10/pool'),
+    poolKl10: () => $fetch<PoolPlayState>('/api/lottery/kl10/pool', { timeout: 3000 }),
     // ── 快樂8（只有信用盤，來源本身無官方盤）──
     currentKl8: () => $fetch<Kl8Current>('/api/lottery/kl8/current'),
     openCodeHistoryKl8: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/kl8/opencode-history'),
@@ -2164,9 +2164,9 @@ export const api = {
     claimOneIssueKl8: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/kl8/claim', { method: 'POST' }),
     /** 爆池（快樂8沒有官方盤共用彩池，這是它唯一的池） */
-    jackpotKl8: () => $fetch<CreditJackpotState>('/api/lottery/kl8/jackpot'),
+    jackpotKl8: () => $fetch<CreditJackpotState>('/api/lottery/kl8/jackpot', { timeout: 3000 }),
     /** 彩池玩法（選號）狀態，與上面的爆池是兩個獨立的池 */
-    poolKl8: () => $fetch<PoolPlayState>('/api/lottery/kl8/pool'),
+    poolKl8: () => $fetch<PoolPlayState>('/api/lottery/kl8/pool', { timeout: 3000 }),
     // ── 福彩3D（只有官方盤，來源本身無信用盤；三星直選改吃分層彩池，全站另有開豹子爆池）──
     currentFc3d: () => $fetch<Fc3dCurrent>('/api/lottery/fc3d/current'),
     openCodeHistoryFc3d: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/fc3d/opencode-history'),
@@ -2174,9 +2174,9 @@ export const api = {
     claimOneIssueFc3d: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/fc3d/claim', { method: 'POST' }),
     /** 全站爆池（開出豹子觸發） */
-    jackpotFc3d: () => $fetch<CreditJackpotState>('/api/lottery/fc3d/jackpot'),
+    jackpotFc3d: () => $fetch<CreditJackpotState>('/api/lottery/fc3d/jackpot', { timeout: 3000 }),
     /** 三星直選分層彩池狀態，與上面的爆池是兩個獨立的池 */
-    poolFc3d: () => $fetch<PoolPlayState>('/api/lottery/fc3d/pool'),
+    poolFc3d: () => $fetch<PoolPlayState>('/api/lottery/fc3d/pool', { timeout: 3000 }),
     // ── 排列3（只有官方盤，玩法結構與福彩3D相同，來源本身無信用盤）──
     currentPl3: () => $fetch<Pl3Current>('/api/lottery/pl3/current'),
     openCodeHistoryPl3: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery/pl3/opencode-history'),
@@ -2184,9 +2184,9 @@ export const api = {
     claimOneIssuePl3: () =>
       $fetch<LotteryClaimOneIssueResponse>('/api/lottery/pl3/claim', { method: 'POST' }),
     /** 全站爆池（開出豹子觸發） */
-    jackpotPl3: () => $fetch<CreditJackpotState>('/api/lottery/pl3/jackpot'),
+    jackpotPl3: () => $fetch<CreditJackpotState>('/api/lottery/pl3/jackpot', { timeout: 3000 }),
     /** 三星直選分層彩池狀態，與上面的爆池是兩個獨立的池 */
-    poolPl3: () => $fetch<PoolPlayState>('/api/lottery/pl3/pool'),
+    poolPl3: () => $fetch<PoolPlayState>('/api/lottery/pl3/pool', { timeout: 3000 }),
     // ── 大樂透（DLT，tw 分類、完全鏡射官方，路由在 lottery-tw/dlt 而非 lottery/**）──
     currentDlt: () => $fetch<DltCurrent>('/api/lottery-tw/dlt/current'),
     openCodeHistoryDlt: () => $fetch<LotteryOpenCodeHistoryResponse>('/api/lottery-tw/dlt/opencode-history'),

@@ -34,11 +34,20 @@
   已針對 `app/pages/lottery-hall.vue`（唯一「免登入可瀏覽＋有真實資料＋適合 SSR」的大廳頁）
   示範正確做法：`useAsyncData` 做首次 SSR 抓取＋保留既有 `setInterval` 輪詢做後續更新，
   並順手修掉 `app/services/api.ts` 讓裸 `ofetch` 在 SSR 環境必定失敗的基礎設施問題（之後
-  其他頁面要比照辦理不會再卡住）。效能量測：首次看到真實數字的時間從中位數 4419ms 降到
-  189ms。詳見 `openspec/changes/add-ssr-lottery-hall-pools/` 與
-  `docs/Engineering Evidence/ssr-performance-log.md`（持續累積的效能量測歷史）。多數頁面
-  （需登入的遊戲/彩票下注頁）**刻意不**比照轉換——SSR 階段抓不到瀏覽器 session cookie，
-  硬轉會有 hydration mismatch 風險，且這些頁面本來就不該被爬蟲看到，SEO 效益是負的。
+  其他頁面要比照辦理不會再卡住）。
+  - **效能量測（誠實版，見 `docs/Engineering Evidence/ssr-performance-log.md` 完整數據）**：
+    真正代表 CSR waterfall 成本的指標——「第一次看到真實數字」的時間，中位數從 486ms
+    降到 226ms（約 2.1 倍，這才是 SSR 資料獲取本身的效益）。「數字完全停止變動」的時間
+    從 4448ms 降到 226ms（約 19.7 倍），但這個數字裡約 4000ms 是**刻意跳過**原本
+    `_animatePoolTo` 4 秒跑數字動畫的效果，不是 SSR 的功勞，兩者不要混為一談。TTFB
+    （SSR 要多等伺服器把 15 個彩池 API 都抓完才送出 HTML 的代價）在本機量測中前後幾乎
+    沒有差異（約 17ms → 20ms）——因為這些 API 都是同進程的 Nitro 記憶體操作，正式環境
+    若换成較慢的外部服務，TTFB 的代價會更明顯，這是必須誠實揭露的取捨，不是沒有代價。
+  - **多數頁面（需登入的遊戲/彩票下注頁）刻意不比照轉換**：不是「SSR 技術上抓不到
+    cookie」（`useRequestFetch()`／`useRequestHeaders(['cookie'])` 就是設計來轉發 cookie
+    用的），而是這些頁面現有的登入檢查（`app/middleware/game-access.global.ts`）目前
+    寫死只在 client 端跑，要安全轉 SSR 需要額外處理 cookie 轉發與避免 hydration
+    mismatch，是獨立的一塊工作，這次刻意不跟 SSR 資料獲取的示範混在一起驗證。
 
 ## 頂層目錄
 

@@ -4,6 +4,9 @@
 
 - 對應變更：`add-ssr-lottery-hall-pools`
 - 驗證環境：本機 dev server（`http://localhost:6100`，既有長跑的 dev server，非另開新 port）
+- 本檔案分兩階段：第一次 Implementation 後的驗證（第 1~2 節），以及**事後 code review
+  發現 4 個問題、逐一修正後的第二次驗證**（第 3 節）——後者是本檔案的主要內容，
+  第一版的效能數字已確認**框架誤導**（見下方），已更正。
 
 ## 功能驗證
 
@@ -14,71 +17,133 @@
     `data-pool-value="6HC-OF" ...>2,301,430`
   - [x] 既有 10 秒輪詢與數字動畫行為不變 — 實際結果：程式碼走讀確認
     `setInterval(_fetchPools, 10000)`、`_animatePoolTo`、`onBeforeUnmount` 清理這三段
-    完全沒有被刪除或改寫，只有 `onMounted` 內是否要「立即補呼叫一次」多了一個條件判斷
-  - [x] `test/perf-ssr-lottery-hall.mjs` 量測出具體數據 — 實際結果：見下方「回歸驗證」
-        與 `docs/Engineering Evidence/ssr-performance-log.md`
-  - [x] 具體效能數據寫入歷史列表文件 — 實際結果：已新增兩列（改造前/改造後）到
-        `ssr-performance-log.md`，未覆寫既有內容
+    完全沒有被刪除或改寫
+  - [x] 效能量測出具體數據 — 見第 3 節（更正版，4 項指標）
+  - [x] 具體效能數據寫入歷史列表文件 — 已新增 4 列（2 列原始、2 列更正）到
+        `ssr-performance-log.md`，未覆寫或刪除既有內容，照文件自己定的政策處理
 
 ## 視覺驗證
 
 - 不適用（沒有版面/Figma 變動，純資料獲取時機改變）
 
-## 回歸驗證
+## 回歸驗證（第一次 Implementation 後）
 
-- 受影響既有流程檢查：
-  - 流程：`lottery-hall.vue` 本身的所有互動（進場按鈕 `click.start`、10 秒輪詢更新、
-    數字動畫）
-  - 結果：Playwright 檢查瀏覽器 console（`networkidle` 後等待 1 秒）無任何
-    hydration/mismatch 相關警告；程式碼層面輪詢與動畫邏輯未變動
-  - 流程：效能量測（改造前 baseline vs 改造後）
-  - 結果：
-    - 改造前（`git stash` 暫時還原後量測）：5 次樣本 `4526/4464/4419/4417/4415ms`，
-      中位數 **4419ms**
-    - 改造後：5 次樣本 `682/189/174/215/178ms`，中位數 **189ms**（第 1 次含瀏覽器冷啟動，
-      拿掉後 4 次樣本落在 174~215ms 區間，相當穩定）
-    - 改善幅度：約為改造前的 1/23
-  - 流程：`app/services/api.ts` 這個全站共用檔案被改動（移除 `ofetch` 顯式 import）
-  - 結果：
-    - `npm test`（36 支既有 `test:*` 腳本，涵蓋台彩/BG/retro/童玩/角色權限/聊天室）全數通過，
-      這些腳本雖然不透過 `api.ts`（它們是獨立打 HTTP 的 Node 腳本），但能確認 server 端
-      行為與既有功能未受影響
-    - 抽查其他依賴 `api.ts` 的頁面：`/`、`/lottery-hall-taiwan`（有實際 api 呼叫：
-      `api.games.toys.catalog()`）、`/game-hall`、`/admin`、`/login` 皆回應 HTTP 200
+- 流程：`app/services/api.ts` 這個全站共用檔案被改動
+- 結果：
+  - `npm test`（36 支既有 `test:*` 腳本）全數通過
+  - 抽查其他依賴 `api.ts` 的頁面：`/`、`/lottery-hall-taiwan`、`/game-hall`、`/admin`、
+    `/login` 皆回應 HTTP 200
 
-## 問題與修正紀錄
+## 問題與修正紀錄（第一次 Implementation，規劃階段未預見）
 
-- 問題：Implementation 開始後發現 `state.list`（驅動 `games-grid` 卡片列表）只在
-  `onMounted` 初始化，SSR 階段永遠是空陣列，導致即使彩池資料 SSR 成功，畫面上也沒有
-  卡片可以顯示這些數字（`games-grid` 整組是空的）
-  - 發現方式：第一次 `curl` 驗證時，`__NUXT_DATA__` payload 裡確實看到 11 個彩種的真實數字，
-    但 HTML 裡 `games-grid` 是空的、找不到任何 `data-pool-value`
-  - 修正方式：確認 `GET_CONT.lotteryAll()` 是讀靜態設定的純函式、無瀏覽器相依，把 `init()`
-    的呼叫從 `onMounted` 移到 setup 階段同步執行
-  - 是否已重新驗證：已重新驗證，修正後 `curl` 可以在 HTML 裡找到全部 15 張卡片的
-    `data-pool-value` 與正確金額
+- 問題：`state.list`（驅動 `games-grid` 卡片列表）只在 `onMounted` 初始化，SSR 階段永遠是
+  空陣列，導致即使彩池資料 SSR 成功，畫面上也沒有卡片可以顯示這些數字
+  - 發現方式：`curl` 驗證時 `__NUXT_DATA__` payload 裡有真實數字，但 HTML 裡 `games-grid`
+    是空的
+  - 修正方式：確認 `GET_CONT.lotteryAll()` 是讀靜態設定的純函式，把 `init()` 移到 setup
+    階段同步執行
+  - 是否已重新驗證：已驗證，`curl` 可找到全部 15 張卡片
 - 問題：`app/services/api.ts` 用裸 `ofetch` 的 `$fetch`，在 SSR 呼叫相對路徑會直接噴
   `Failed to parse URL`
-  - 發現方式：對照 `app/middleware/game-access.global.ts` 既有註解提到「SSR 這裡用的是
-    裸 $fetch，不會帶到瀏覽器目前的 session cookie」，進一步追查後用純 Node 腳本實測
-    確認裸 ofetch 對相對路徑在 Node 環境必定失敗（非只是不帶 cookie，是整個請求失敗）
-  - 修正方式：這個修正會讓影響面超出原訂「只動 `lottery-hall.vue`」的範圍，**先用
-    AskUserQuestion 跟使用者確認**（選項：改 api.ts 一行 / 在 lottery-hall.vue 本地重寫
-    11 個端點呼叫 / 先暫停），使用者選擇「改 api.ts 一行（建議）」後才動手
-  - 是否已重新驗證：已重新驗證，見上方「回歸驗證」
+  - 發現方式：用純 Node 腳本實測確認
+  - 修正方式：影響面超出原訂範圍，**先用 AskUserQuestion 跟使用者確認**，選擇「改 api.ts
+    一行（建議）」後才動手
+  - 是否已重新驗證：已驗證
+
+## 第二次驗證：使用者 code review 後的 4 項修正
+
+使用者在看過第一版 commit 後做了一次完整 review，指出 4 個問題，逐一處理如下。
+
+### 1. 「改善 23 倍」的效能數字框架誤導
+
+- **問題**：第一版量測只量「數字停止變動」一個指標（改造前 4419ms → 改造後 189ms，
+  約 23 倍），但改造前的 4419ms 裡約 4000ms 是 `_animatePoolTo` 的 `POOL_ANIM_MS=4000`
+  動畫時間，不是網路延遲或 CSR waterfall 的成本。拿這個倍數講 SSR 效益，等於把「拿掉
+  動畫」的效果也算進 SSR 頭上，經不起「扣掉動畫還剩多少」這種追問。
+- **修正**：重寫 `test/perf-ssr-lottery-hall.mjs`，同時量 4 個指標：
+  - **TTFB**：SSR 的代價（伺服器要等資料回來才能送出 HTML）
+  - **firstRealNumberMs**：第一次看到非 0 真實數字的時間（真正的 CSR waterfall 成本，
+    動畫套用前的瞬間）
+  - **settledMs**：數字完全停止變動的時間（含動畫，若有）
+  - **lcpMs**：Largest Contentful Paint（瀏覽器原生 PerformanceObserver）
+- **重新量測結果**（5 次取中位數，詳細樣本見 `ssr-performance-log.md`）：
+
+  | 指標 | 改造前 | 改造後 | 差異 |
+  |---|---|---|---|
+  | TTFB | 17ms | 20ms | 幾乎無差異（本機同進程 API，延遲趨近 0；正式環境換成較慢服務會更明顯） |
+  | 首次真實數字（waterfall 成本） | 486ms | 226ms | **約 2.1 倍**——這才是 SSR 資料獲取本身的效益 |
+  | 完全停止變動（含動畫） | 4448ms | 226ms | 約 19.7 倍，但大部分來自「跳過動畫」，不是 SSR 本身 |
+  | LCP | 296ms | 336ms | 幾乎無差異，在量測雜訊範圍內 |
+
+  第一版「改造前基準」實測方法論本身也有誤：量測時不慎用 `git stash` 回退到已經
+  commit 的 SSR-v1 版本（還是有 `useAsyncData`），不是真正原始 CSR 版本——這次改用
+  `git show <commit>~1` 取出真正原始檔案內容重新量測，確認過真的有看到 0→真實數字的
+  動畫過程才採信數據（見下方「問題與修正紀錄」）。
+- 是否已重新驗證：已驗證，`ssr-performance-log.md` 新增 2 列更正資料並標註原始 2 列
+  「數字正確但框架誤導」
+
+### 2. 「SSR 抓不到 cookie」的錯誤觀念
+
+- **問題**：proposal.md 跟 commit 訊息都寫「需要登入的頁面 SSR 階段抓不到瀏覽器 session
+  cookie」，這個說法不精確——Nuxt 的 `useRequestFetch()`／`useRequestHeaders(['cookie'])`
+  正是設計來把原始請求的 cookie 轉送給 SSR 階段內部 API 呼叫用的，不是做不到。
+- **修正**：改寫 `proposal.md`「背景」與「不包含」兩個段落，明確說明真正的原因是
+  （a）`game-access.global.ts` 現有邏輯目前寫死只在 client 端跑，要轉 SSR 需要額外處理
+  cookie 轉發，是獨立的一塊工作；（b）這次刻意只示範一個低風險的公開頁面，把 SSR
+  資料獲取跟 SSR 登入態轉發這兩個不同難度的問題分開驗證，不要混在一起。`docs/
+  Architecture/README.md` 的對應段落同步更正。
+- **後續追蹤**：下一次示範建議挑一個需要登入、資料量大的報表類頁面，用
+  `useRequestFetch()` 實際做一次 cookie 轉發的 SSR 轉換，這才是架構文件原本真正在
+  批評的那類場景（`trend`/`bet_search`），這次的大廳公開頁避開了最該證明的那一類，
+  是刻意的範圍限縮，不是迴避。
+- 是否已重新驗證：文件修正，不涉及程式碼，無需額外功能驗證
+
+### 3. `withTimeout()` 計時器沒有清掉、底層請求沒有真的中止
+
+- **問題**：第一版用 `Promise.race([fetcher(), new Promise((_,reject)=>setTimeout(...))])`
+  包單一彩種逾時，就算 fetch 成功了，那個 `setTimeout` 還是會跑滿 3 秒才被回收；
+  如果真的逾時，底層的 HTTP 請求本身也沒有被中止，只是 JS 這層放棄等待，實際請求
+  繼續在背景空轉浪費資源。
+- **修正**：改用 ofetch 內建的 `timeout` 選項（實測確認其底層用真正的 `AbortController`
+  中止請求，且完成時會 `clearTimeout` 自己的計時器，見 `node_modules/ofetch` 原始碼）。
+  把 `{ timeout: 3000 }` 直接加到 `app/services/api.ts` 裡這次用到的 24 個彩池/爆池
+  相關函式的 `$fetch` 呼叫上（這些函式本來就被另外 20 處呼叫，一併受惠於這個逾時保護，
+  不只是 SSR 這次用到的 15 個），完全移除 `lottery-hall.vue` 裡自己刻的 `withTimeout()`。
+- 是否已重新驗證：已驗證，`curl` 確認 SSR 回應仍正常含真實數字；`npm test` 36 支
+  既有測試重跑全數通過（這些函式被其他 20 處呼叫，確認沒有因為加上 timeout 而破壞
+  既有頁面）
+
+### 4. `await useAsyncData` 會卡住 client-side 導覽
+
+- **問題**：用 `await useAsyncData(...)` 時，從別的頁面用 client-side 導覽切到
+  `/lottery-hall`，Vue Router 的導覽會被卡住，要等 15 個彩池 API 全部回來（最壞情況
+  接近之前量到的 ~500ms，若網路狀況差可能更久）才會真的換頁，使用者體感是「點了連結
+  沒反應」。
+- **修正**：`useAsyncData` 加上 `{ lazy: true }`——SSR 階段仍然照樣等資料回來才送出
+  HTML（這次要的效果不變），但 client-side 導覽不會被卡住。副作用：`initialPools.value`
+  在 lazy 情境下一開始會是 `null`（資料在背景抓，還沒到），原本「setup 階段讀一次
+  `.value` 做初始化」的寫法不再夠用，改成 `watch(initialPools, ..., { immediate: true })`
+  反應式地在資料到達（不管是 SSR 已經有、還是 lazy 之後才到）的當下才把值灌進
+  `displayPools`。
+- **驗證方式**：用 Playwright 點擊 `/game-hall` 上真正的 `NuxtLink`（client-side 導覽，
+  非 `page.goto()` 模擬的整頁載入）切到 `/lottery-hall`，量「網址變更完成」的時間：
+  **184ms**（遠低於等 15 個 API 全部回來的時間，證明導覽沒有被卡住）；資料本身在
+  329ms 內補齊（彩池數字從 0 變成真實值）。無 hydration/mismatch 警告。
+- 是否已重新驗證：已驗證（見上）
 
 ## 結論
 
-- 是否通過：**通過**
+- 是否通過：**通過**（含 4 項 review 修正後重新驗證）
 - 已知限制或風險：
-  - 效能量測在本機 dev 環境進行（非正式站），數字僅供「改前改後相對比較」參考；
-    正式站的網路延遲、伺服器負載與本機不同，絕對數字會不一樣，但「SSR 消除 4 秒動畫
-    等待」這個結構性改善不受環境影響
-  - `withTimeout()` 的 3 秒逾時門檻是經驗值，沒有實際量測過 11 個彩種 API 在各種負載下
-    的真實回應時間分布，之後若發現誤判（正常回應被判定逾時）需要回頭調整
+  - 效能量測在本機 dev 環境進行（非正式站），TTFB 幾乎無差異是因為這些 API 都是同進程
+    Nitro 記憶體操作；正式環境換成較慢的外部服務時，SSR 的 TTFB 代價會更明顯，必須
+    誠實揭露這個取捨
+  - ofetch 的 3 秒逾時門檻是經驗值，未實際量測過 24 個函式在各種負載下的真實回應時間
+    分布，之後若發現誤判需要回頭調整
+  - cookie 轉發（`useRequestFetch()`）尚未實際示範過，下一次若要轉換需要登入的頁面，
+    這塊是全新、未驗證過的風險
 - 後續追蹤事項：
-  - `app/pages/lottery-hall-taiwan.vue` 的 `api.games.toys.catalog()`（proposal.md
-    列為候選、本次不做）：可以用同樣的模式比照辦理，等這次的方法論穩定後再評估
-  - `app/services/api.ts` 的 SSR 相容性問題已經修好（拿掉裸 ofetch import），理論上
-    之後任何頁面想比照這次的模式做 SSR 轉換，都不會再卡在這個問題上——這是這次意外
-    修掉的一個全站層級的基礎設施問題，值得之後有需要時再利用
+  - `app/pages/lottery-hall-taiwan.vue` 的 toy catalog 抓取可比照辦理（候選、本次不做）
+  - 挑一個需要登入的報表類頁面，用 `useRequestFetch()` 做第二個 SSR + cookie 轉發的示範
+  - `app/services/api.ts` 的 SSR 相容性問題與 24 個函式的逾時保護已經修好，之後其他
+    頁面比照辦理不會再卡住
