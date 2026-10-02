@@ -48,6 +48,24 @@
     用的），而是這些頁面現有的登入檢查（`app/middleware/game-access.global.ts`）目前
     寫死只在 client 端跑，要安全轉 SSR 需要額外處理 cookie 轉發與避免 hydration
     mismatch，是獨立的一塊工作，這次刻意不跟 SSR 資料獲取的示範混在一起驗證。
+- **第二次示範（`add-ssr-admin-reports-cookie-forward`）：把上面「刻意不做」的那塊真的
+  做了一次**——後台報表頁（`app/pages/admin/reports/` 5 頁）改用 `useAsyncData` +
+  `useRequestHeaders(['cookie'])` 真的轉發 cookie。過程中發現兩個規劃階段沒預見、但不
+  處理就讓這次改造失去意義的問題：
+  1. 所有 `/admin/**` 頁面共用的 `AdminShell.vue` 自己也有一層權限檢查，也是
+     client-only，SSR 階段畫面永遠卡在「正在確認管理員權限...」，把報表資料蓋住
+  2. 要讓這層權限檢查也能 SSR，發現 `useAuth`/`useAdminAuth` 的內部狀態是**模組層級
+     單例 `reactive({})`**——這在 SSR 下是整個 Nitro process 共用一份，若真的執行會有
+     不同使用者的登入狀態互相污染的風險（潛在、過去因為從未在 SSR 被呼叫過而未觸發）。
+     改成 Nuxt 的 `useState()`（server 端每個請求各自獨立、client 端維持單例），對外
+     介面不變，全站 70+ 處既有呼叫點不用改
+  - **效能數據誠實呈現**：這次中位數「首次真實數字」反而從 390ms 變慢到 485ms——
+    不像 `lottery-hall.vue` 那樣有清楚的改善。推測是這次疊加了兩個非同步相依
+    （權限檢查 2 次 API + 報表資料 1 次 API），SSR 把請求從 client 搬到 server 並沒有
+    減少關鍵路徑的請求數，淨效益天生比只有 1 個相依的 lottery-hall 小。架構正確性
+    （cookie 真的轉發成功、SSR 回應確實含真實資料、無 hydration mismatch）已驗證成立，
+    但「使用者感受到的載入變快」這個效益這次沒有數據支撐，如實記錄、不美化，詳見
+    `openspec/changes/add-ssr-admin-reports-cookie-forward/validation.md`
 
 ## 頂層目錄
 
@@ -182,4 +200,4 @@ server/
 
 ---
 
-最後更新：2026-10-02（補上 lottery-hall.vue 首次 SSR 改造的追蹤記錄）
+最後更新：2026-10-02（補上後台報表頁 SSR + cookie 轉發、useAuth/useAdminAuth 改用 useState 的追蹤記錄）

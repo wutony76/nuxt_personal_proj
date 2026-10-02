@@ -1,9 +1,9 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
-import dayjs from 'dayjs'
+import { computed } from 'vue'
 import { Pie } from 'vue-chartjs'
 import { Chart, registerables } from 'chart.js'
 import { api } from '~/services/api'
+import { useAdminReportData } from '~/composables/useAdminReportData'
 
 Chart.register(...registerables)
 
@@ -14,11 +14,8 @@ const PALETTE = [
   '#c0c0d0', '#909098',
 ]
 
-// ─── State ───
-const month = ref(dayjs().format('YYYY-MM'))
-const status = ref('idle')
-const error = ref('')
-const summary = ref(null)
+// ─── State（改用 useAdminReportData：SSR + cookie 轉發，見 add-ssr-admin-reports-cookie-forward） ───
+const { month, status, error, summary } = await useAdminReportData('admin-report-members', api.admin.reports.memberSummary)
 
 // ─── 圓餅圖 data／options factory（BG／TW／GAME 三分類共用同一套）───
 function makePieData(category) {
@@ -75,25 +72,6 @@ const _fmt = {
   players: (v) => `${Number(v).toLocaleString('zh-TW')} 人`,
 }
 
-// ─── Actions ───
-const _actions = {
-  fetch: async () => {
-    if (status.value === 'loading') return
-    status.value = 'loading'
-    error.value = ''
-    summary.value = null
-    try {
-      summary.value = await api.admin.reports.memberSummary(month.value)
-      status.value = 'success'
-    } catch (e) {
-      error.value = e?.message ?? '載入失敗'
-      status.value = 'error'
-    }
-  },
-}
-
-watch(month, () => _actions.fetch())
-onMounted(() => _actions.fetch())
 </script>
 
 <template>

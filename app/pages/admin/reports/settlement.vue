@@ -1,39 +1,15 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
-import dayjs from 'dayjs'
 import { api } from '~/services/api'
+import { useAdminReportData } from '~/composables/useAdminReportData'
 
-// ─── State ───
-const month = ref(dayjs().format('YYYY-MM'))
-const status = ref('idle')
-const error = ref('')
-const summary = ref(null)
+// ─── State（改用 useAdminReportData：SSR + cookie 轉發，見 add-ssr-admin-reports-cookie-forward） ───
+const { month, status, error, summary } = await useAdminReportData('admin-report-settlement', api.admin.reports.bgSummary)
 
 // ─── Formatters ───
 const _fmt = {
   coin: (v) => `F${Number(v).toLocaleString('zh-TW')}`,
   orders: (v) => Number(v).toLocaleString('zh-TW'),
 }
-
-// ─── Actions ───
-const _actions = {
-  fetch: async () => {
-    if (status.value === 'loading') return
-    status.value = 'loading'
-    error.value = ''
-    summary.value = null
-    try {
-      summary.value = await api.admin.reports.bgSummary(month.value)
-      status.value = 'success'
-    } catch (e) {
-      error.value = e?.message ?? '載入失敗'
-      status.value = 'error'
-    }
-  },
-}
-
-watch(month, () => _actions.fetch())
-onMounted(() => _actions.fetch())
 </script>
 
 <template>

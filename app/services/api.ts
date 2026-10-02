@@ -1821,7 +1821,8 @@ export const api = {
     servTime: () => $fetch<{ serverTime: number }>('/api/servTime')
   },
   auth: {
-    me: () => $fetch<{ user: AuthUser }>('/api/me'),
+    /** @param opts.headers SSR 轉發用（useRequestHeaders(['cookie'])），見 add-ssr-admin-reports-cookie-forward */
+    me: (opts?: { headers?: HeadersInit }) => $fetch<{ user: AuthUser }>('/api/me', { headers: opts?.headers }),
     login: (payload: { email: string; password: string }) =>
       $fetch<{ user: AuthUser }>('/api/login', {
         method: 'POST',
@@ -1833,7 +1834,9 @@ export const api = {
       })
   },
   admin: {
-    me: () => $fetch<{ isAdmin: boolean; isDemo: boolean; user: AuthUser }>('/api/admin/me'),
+    /** @param opts.headers SSR 轉發用（useRequestHeaders(['cookie'])），見 add-ssr-admin-reports-cookie-forward */
+    me: (opts?: { headers?: HeadersInit }) =>
+      $fetch<{ isAdmin: boolean; isDemo: boolean; user: AuthUser }>('/api/admin/me', { headers: opts?.headers }),
     roles: () =>
       $fetch<{ users: AdminAccessUser[]; admins: Array<{ id: string; name: string; email: string }> }>(
         '/api/admin/roles'
@@ -2009,22 +2012,28 @@ export const api = {
        * BG 彩票月度統計
        * @param month YYYY-MM
        */
-      bgSummary: (month: string) =>
-        $fetch<BgReportSummary>('/api/admin/reports/bg-summary', { query: { month } }),
-      fCoinSummary: (month: string) =>
-        $fetch<FcoinSummary>('/api/admin/reports/fcoin-summary', { query: { month } }),
+      /**
+       * @param month YYYY-MM
+       * @param opts.headers 轉發用（SSR 階段用 useRequestHeaders(['cookie']) 帶原始請求的
+       *   cookie，不然這幾支報表端點走 sessionController.requireAdminView，SSR 內部呼叫
+       *   沒帶 cookie 一律會被判定成訪客，見 add-ssr-admin-reports-cookie-forward）
+       */
+      bgSummary: (month: string, opts?: { headers?: HeadersInit }) =>
+        $fetch<BgReportSummary>('/api/admin/reports/bg-summary', { query: { month }, headers: opts?.headers }),
+      fCoinSummary: (month: string, opts?: { headers?: HeadersInit }) =>
+        $fetch<FcoinSummary>('/api/admin/reports/fcoin-summary', { query: { month }, headers: opts?.headers }),
       /**
        * 台彩鏡射玩法（彩運來）中獎派彩月報
        * @param month YYYY-MM
        */
-      twLotteryPayout: (month: string) =>
-        $fetch<TwLotteryPayoutSummary>('/api/admin/reports/tw-lottery-payout', { query: { month } }),
+      twLotteryPayout: (month: string, opts?: { headers?: HeadersInit }) =>
+        $fetch<TwLotteryPayoutSummary>('/api/admin/reports/tw-lottery-payout', { query: { month }, headers: opts?.headers }),
       /**
        * 會員月度玩法人數分佈（BG／TW／GAME 三分類，各玩法不重複人數排行）
        * @param month YYYY-MM
        */
-      memberSummary: (month: string) =>
-        $fetch<MemberSummary>('/api/admin/reports/members', { query: { month } }),
+      memberSummary: (month: string, opts?: { headers?: HeadersInit }) =>
+        $fetch<MemberSummary>('/api/admin/reports/members', { query: { month }, headers: opts?.headers }),
     },
     chat: {
       listSchedules: () => $fetch<{ schedules: ChatSchedule[] }>('/api/admin/chat/schedules'),

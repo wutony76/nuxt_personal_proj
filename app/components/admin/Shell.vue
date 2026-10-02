@@ -4,11 +4,21 @@
  * 頂部導覽（總覽／角色權限／遊戲管理／資料統計）、in-memory 提示、頁首（kicker/title/desc）。
  * 各頁面把自己的內容放進預設 slot，只有 status 為 ok（已確認是管理員）才會渲染 slot。
  * 視覺風格見 app/assets/style/themes/admin/_admin.scss，比照 SAMPLE/admin.design/main.dc.html。
+ *
+ * ⚠️ 權限檢查（guard）現在 SSR 階段也會跑（見 add-ssr-admin-reports-cookie-forward）：
+ * 用 `useRequestHeaders(['cookie'])` 轉發原始請求的 cookie 給 `refreshAuth()`/`check()`，
+ * 讓後台頁面（含 slot 裡的報表資料）首次 SSR 回應就能是已登入/已通過權限檢查的畫面，
+ * 不再是「正在確認管理員權限...」的空殼。改成在 `<script setup>` 頂層 `await`，不用
+ * `onMounted`——每個 admin 頁面各自內嵌一個 AdminShell 實例，client-side 導覽切到
+ * 另一個 admin 頁面時這段 setup 會重新整個跑一次，等同維持原本「每次掛載都重新跟伺服器
+ * 確認一次 session」的語意（避免 cookie 已過期但 client 端快取仍顯示已登入）。
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
 import { useAdminAuth } from '~/composables/useAdminAuth'
+
+const forwardedHeaders = useRequestHeaders(['cookie'])
 
 const { $dialog } = useNuxtApp()
 
@@ -53,10 +63,10 @@ const _actions = {
   guard: async () => {
     sessionReady.value = false
     resetAdminAuth()
-    await refreshAuth()
+    await refreshAuth({ headers: forwardedHeaders })
     sessionReady.value = true
     if (!isLoggedIn.value) return
-    await check()
+    await check({ headers: forwardedHeaders })
   },
   submitLogout: async () => {
     if (state.isLoggingOut) return
@@ -94,9 +104,7 @@ const loginTo = computed(() => ({
   query: { redirect: route.fullPath || '/admin' }
 }))
 
-onMounted(() => {
-  _actions.guard()
-})
+await _actions.guard()
 </script>
 
 <template>

@@ -1,8 +1,9 @@
 import { api, type AuthUser } from '~/services/api'
 
 export class AuthService {
-  fetchMe() {
-    return api.auth.me() as Promise<{ user: AuthUser }>
+  /** @param opts.headers SSR 轉發用（useRequestHeaders(['cookie'])），見 add-ssr-admin-reports-cookie-forward */
+  fetchMe(opts?: { headers?: HeadersInit }) {
+    return api.auth.me(opts) as Promise<{ user: AuthUser }>
   }
 
   submitLogin(payload: { email: string; password: string }) {

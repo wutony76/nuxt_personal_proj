@@ -1,9 +1,9 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
-import dayjs from 'dayjs'
+import { computed } from 'vue'
 import { Doughnut } from 'vue-chartjs'
 import { Chart, registerables } from 'chart.js'
 import { api } from '~/services/api'
+import { useAdminReportData } from '~/composables/useAdminReportData'
 
 Chart.register(...registerables)
 
@@ -14,11 +14,8 @@ const PALETTE = [
   '#c0c0d0', '#909098',
 ]
 
-// ─── State ───
-const month = ref(dayjs().format('YYYY-MM'))
-const status = ref('idle')
-const error = ref('')
-const summary = ref(null)
+// ─── State（改用 useAdminReportData：SSR + cookie 轉發，見 add-ssr-admin-reports-cookie-forward） ───
+const { month, status, error, summary } = await useAdminReportData('admin-report-plays', api.admin.reports.bgSummary)
 
 // ─── Donut Chart data（BG 彩種佔比，比照總覽頁的彩種排行，不是更細的玩法/playKey 分析）───
 const donutData = computed(() => {
@@ -113,25 +110,6 @@ const twDonutOptions = {
   },
 }
 
-// ─── Actions ───
-const _actions = {
-  fetch: async () => {
-    if (status.value === 'loading') return
-    status.value = 'loading'
-    error.value = ''
-    summary.value = null
-    try {
-      summary.value = await api.admin.reports.bgSummary(month.value)
-      status.value = 'success'
-    } catch (e) {
-      error.value = e?.message ?? '載入失敗'
-      status.value = 'error'
-    }
-  },
-}
-
-watch(month, () => _actions.fetch())
-onMounted(() => _actions.fetch())
 </script>
 
 <template>

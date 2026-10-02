@@ -1,17 +1,14 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
-import dayjs from 'dayjs'
+import { computed } from 'vue'
 import { Bar } from 'vue-chartjs'
 import { Chart, registerables } from 'chart.js'
 import { api } from '~/services/api'
+import { useAdminReportData } from '~/composables/useAdminReportData'
 
 Chart.register(...registerables)
 
-// ─── State ───
-const month = ref(dayjs().format('YYYY-MM'))
-const status = ref('idle')
-const error = ref('')
-const summary = ref(null)
+// ─── State（改用 useAdminReportData：SSR + cookie 轉發，見 add-ssr-admin-reports-cookie-forward） ───
+const { month, status, error, summary } = await useAdminReportData('admin-report-fcoin', api.admin.reports.fCoinSummary)
 
 // ─── Daily Flow Chart ───
 const flowBarData = computed(() => {
@@ -84,25 +81,6 @@ const toyTotals = computed(() => ({
   count: toyGames.value.reduce((sum, g) => sum + g.count, 0),
 }))
 
-// ─── Actions ───
-const _actions = {
-  fetch: async () => {
-    if (status.value === 'loading') return
-    status.value = 'loading'
-    error.value = ''
-    summary.value = null
-    try {
-      summary.value = await api.admin.reports.fCoinSummary(month.value)
-      status.value = 'success'
-    } catch (e) {
-      error.value = e?.message ?? '載入失敗'
-      status.value = 'error'
-    }
-  },
-}
-
-watch(month, () => _actions.fetch())
-onMounted(() => _actions.fetch())
 </script>
 
 <template>
