@@ -52,12 +52,13 @@ ok('四色各 25%', GUMMY_COLORS.every((item) => item.weight === 2500) && GUMMY_
 resetToyPool()
 const bag = wallet(1000)
 play('hit', 'start', 100, undefined, bag, 0)
+// 連勝表跟 cards.ts 共用同一張 CARD_STREAK（難度校準後）= [1, 1, 1.05, 1.1, 1.3]
 const red = play('hit', 'guess', undefined, 'red', bag, 0)
 ok('注入紅且猜中', red.color === 'red' && red.correct === true && red.history.join() === 'red')
-ok('第一勝 1.8 不再扣', red.multiplier === 1.8 && red.unclaimed === 180 && bag.balance === 900)
+ok('第一勝依連勝表 streak0=1（尚未成長）', red.multiplier === 1 && red.unclaimed === 100 && bag.balance === 900)
 
 const yellow = play('hit', 'guess', undefined, 'yellow', bag, 0.3)
-ok('最近四顆是真的', yellow.color === 'yellow' && yellow.history.join() === 'red,yellow' && yellow.multiplier === 3)
+ok('最近四顆是真的', yellow.color === 'yellow' && yellow.history.join() === 'red,yellow' && yellow.multiplier === 1)
 
 resetToyPool()
 writePool({

@@ -69,7 +69,8 @@ let last = started
 for (const id of ['8', '7', '6', '5', '4']) {
   last = play('win', 'play', undefined, id, bag, [0], injected)
 }
-ok('贏的回合多入帳 190 一次', last.settled && last.playerWins === 5 && last.reward === 190 && last.multiplier === 1.9 && bag.balance === 1090)
+// CALIBRATED_WIN_MULTIPLIER（難度校準後）= 1.05，不是舊的 1.9
+ok('贏的回合多入帳 105 一次', last.settled && last.playerWins === 5 && last.reward === 105 && last.multiplier === 1.05 && bag.balance === 1005)
 ok('打完不留彩池', readPool('win') == null)
 
 resetToyPool()
@@ -100,7 +101,8 @@ const kingBag = wallet(1000)
 play('king', 'start', 100, undefined, kingBag, [0], kingDeck)
 let kingLast = null
 for (const id of ['king', '8', '7', '6', '5']) kingLast = play('king', 'play', undefined, id, kingBag, [0], kingDeck)
-ok('王取勝整局再乘 2', kingLast.reward === 380 && kingLast.multiplier === 3.8 && kingBag.balance === 1280)
+// CALIBRATED_KING_MULTIPLIER（難度校準後）= 1.3，不是舊的 3.8
+ok('出王取勝 ×1.3（難度校準後的倍數）', kingLast.reward === 130 && kingLast.multiplier === 1.3 && kingBag.balance === 1030)
 
 resetToyPool()
 writePool({ userId: 'busy', unclaimed: 30, gameKey: 'gummy', bet: 10, claimed: false })

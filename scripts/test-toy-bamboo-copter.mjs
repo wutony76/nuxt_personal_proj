@@ -62,11 +62,14 @@ try {
 }
 ok('超額注額不扣款', low.balance === 20 && threw)
 
+// m30 倍數難度校準後是 1.15（CALIBRATED_TARGET_MULTIPLIER，見 bambooCopter.ts），
+// 不是 BAMBOO_TARGETS 原本內建的 2——難度=1 時達標與否完全交給 resolveFate 決定，
+// 這張校準表才是真正拿來算錢的
 resetToyPool()
 const hitBag = wallet(1000)
 const hit = play('hit', 100, 'm30', hitBag, 0.725)
-ok('37m 判定達標', hit.height === 37 && hit.hit === true && hit.multiplier === 2)
-ok('同一請求入帳且不留彩池', hit.reward === 200 && hitBag.balance === 1100 && readPool('hit') == null)
+ok('37m 判定達標', hit.height === 37 && hit.hit === true && hit.multiplier === 1.15)
+ok('同一請求入帳且不留彩池', hit.reward === 115 && hitBag.balance === 1015 && readPool('hit') == null)
 
 resetToyPool()
 const missBag = wallet(1000)

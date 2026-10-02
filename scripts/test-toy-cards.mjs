@@ -59,11 +59,35 @@ function play(userId, action, bet, choice, bag, rng) {
   })
 }
 
+/**
+ * ⚠️ cards.ts 的 _guess() 會在真正抽牌「之前」多呼叫一次 rng() 決定這次猜測的目標輸贏
+ * （難度機制，見 difficulty.ts），接著才用 scripted() 共用的那份牌堆 rng 抽牌——如果直接
+ * 把 scripted() 傳給 playCards()，第一次呼叫會被「燒掉」當目標值，後面的牌全部跟著錯位、
+ * 甚至會把 queue 提前抽乾炸掉。這裡包一層：只在「這次 guess 呼叫」的第一次呼叫回傳跟
+ * 「預期猜中與否」一致的目標值（< 0.9 代表目標是贏、>= 0.9 代表目標是輸——跟寫這個情境
+ * 的人一樣，必須先知道這次猜測應該贏還輸，才不會讓 resolveWithFate 重骰、多吃一張牌），
+ * 之後每次呼叫才轉呼叫真正的 scripted() 牌堆 rng，牌堆序列才能照腳本預期前進。
+ * 只有 'guess' 動作才會燒這個值，'start' 動作不會，呼叫端不要幫 start 包這層。
+ * @param baseRng scripted() 建立的共用牌堆 rng
+ * @param winTarget 這次猜測「預期」是贏還是輸
+ */
+function guessRng(baseRng, winTarget) {
+  let first = true
+  return () => {
+    if (first) {
+      first = false
+      return winTarget ? 0 : 0.95
+    }
+    return baseRng()
+  }
+}
+
 resetToyPool()
 ok('點數範圍 1–13', freshDeck().length === 13 && Math.min(...freshDeck()) === 1 && Math.max(...freshDeck()) === 13)
 ok('發完重洗', drawRank([], () => 0).deck.length === 12)
-ok('連勝表', cardMultiplier(0, 'high') === 1.8 && cardMultiplier(1, 'low') === 3 && cardMultiplier(4, 'high') === 15)
-ok('相同固定 10', cardMultiplier(2, 'same') === 10)
+// 連勝表 CARD_STREAK（難度校準後）= [1, 1, 1.05, 1.1, 1.3]，索引 = 猜測前的連勝次數
+ok('連勝表', cardMultiplier(0, 'high') === 1 && cardMultiplier(2, 'low') === 1.05 && cardMultiplier(4, 'high') === 1.3)
+ok('相同固定 6.5', cardMultiplier(2, 'same') === 6.5)
 ok('猜中判斷', judgeCard(7, 9, 'high') && !judgeCard(7, 3, 'high') && judgeCard(7, 7, 'same'))
 
 resetToyPool()
@@ -78,25 +102,28 @@ ok('超額注額不扣款', low.balance === 30 && threw)
 
 resetToyPool()
 const bag = wallet(1000)
-const high = scripted([7, 9, 11])
+const high = scripted([7, 9, 11, 13])
 const dealt = play('u1', 'start', 100, undefined, bag, high)
 ok('開局先抽 7', dealt.rank === 7 && dealt.nextRank == null)
 ok('開局扣一次', bag.balance === 900 && dealt.unclaimed === 0 && dealt.reward === 0)
 
-const first = play('u1', 'guess', undefined, 'high', bag, high)
-ok('第一勝依 1.8', first.correct && first.multiplier === 1.8 && first.nextRank === 9 && first.unclaimed === 180 && first.streak === 1)
+const first = play('u1', 'guess', undefined, 'high', bag, guessRng(high, true))
+ok('第一勝依連勝表 streak0=1（尚未成長）', first.correct && first.multiplier === 1 && first.nextRank === 9 && first.unclaimed === 100 && first.streak === 1)
 ok('第一勝不再扣款', bag.balance === 900 && first.reward === 0)
 
-const second = play('u1', 'guess', undefined, 'high', bag, high)
-ok('第二勝依 ×3', second.correct && second.multiplier === 3 && second.nextRank === 11 && second.unclaimed === 540)
+const second = play('u1', 'guess', undefined, 'high', bag, guessRng(high, true))
+ok('第二勝依連勝表 streak1=1（尚未成長）', second.correct && second.multiplier === 1 && second.nextRank === 11 && second.unclaimed === 100 && second.streak === 2)
 ok('第二勝不再扣款', bag.balance === 900 && second.reward === 0)
+
+const third = play('u1', 'guess', undefined, 'high', bag, guessRng(high, true))
+ok('第三勝依連勝表 streak2=1.05 開始成長', third.correct && third.multiplier === 1.05 && third.nextRank === 13 && third.unclaimed === 105 && third.streak === 3)
 
 resetToyPool()
 const bustBag = wallet(1000)
 const bustRng = scripted([7, 9, 3])
 play('bust', 'start', 100, undefined, bustBag, bustRng)
-play('bust', 'guess', undefined, 'high', bustBag, bustRng)
-const busted = play('bust', 'guess', undefined, 'high', bustBag, bustRng)
+play('bust', 'guess', undefined, 'high', bustBag, guessRng(bustRng, true))
+const busted = play('bust', 'guess', undefined, 'high', bustBag, guessRng(bustRng, false))
 ok('猜錯歸零', busted.correct === false && busted.unclaimed === 0 && busted.nextRank === 3)
 ok('猜錯不加帳', bustBag.balance === 900 && busted.reward === 0)
 
@@ -118,7 +145,7 @@ const same = playCards({
   rng: () => 0,
   wallet: sameBag
 })
-ok('相同 ×10 並計入連勝', same.correct && same.multiplier === 10 && same.streak === 1 && same.unclaimed === 1000 && sameBag.balance === 900)
+ok('相同 ×6.5 並計入連勝', same.correct && same.multiplier === 6.5 && same.streak === 1 && same.unclaimed === 650 && sameBag.balance === 900)
 
 resetToyPool()
 const streakBag = wallet(1000)
@@ -126,12 +153,12 @@ const rng = scripted([1, 2, 3, 4, 5, 6])
 play('win5', 'start', 100, undefined, streakBag, rng)
 let last = null
 for (let i = 0; i < 5; i += 1) {
-  last = play('win5', 'guess', undefined, 'high', streakBag, rng)
+  last = play('win5', 'guess', undefined, 'high', streakBag, guessRng(rng, true))
 }
-ok('第 5 勝後不能再猜', last.streak === 5 && last.canGuess === false && last.canClaim === true)
+ok('第 5 勝後不能再猜（連勝表 1/1/1.05/1.1/1.3 累乘到 151）', last.streak === 5 && last.unclaimed === 151 && last.canGuess === false && last.canClaim === true)
 let blocked = false
 try {
-  play('win5', 'guess', undefined, 'high', streakBag, rng)
+  play('win5', 'guess', undefined, 'high', streakBag, guessRng(rng, true))
 } catch (error) {
   blocked = error instanceof ToyPlayError
 }

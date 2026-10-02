@@ -68,17 +68,22 @@ ok('注額 0 被拒', (() => {
   }
 })())
 
+// ⚠️ 派彩倍數對照 server/services/game/toys/catalog.ts 的 LUCKY_DRAW_REWARDS
+// （difficulty 難度校準後的現行權重表：empty=0／small=1／mid=2／big=5／special=15／super=50，
+//   見 add-toy-shop-admin-controls 那次 commit「重新校準各玩法派彩倍數」）。
+// rng 是 0~1 的均勻值，pickWeighted() 用「累積扣權重、第一個讓 cursor<0 的項目」決定結果，
+// 下面每個 rng 常數都對應著在這張權重表上會落在哪一級，數字會隨權重表調整而跟著變動。
 resetToyPool()
 const bag = wallet(1000)
 const small = play('u1', 'start', 100, 3, bag, 0.5)
-ok('小獎倍率 1.2', small.result?.rewardId === 'small' && small.result.multiplier === 1.2)
+ok('小獎倍率 1', small.result?.rewardId === 'small' && small.result.multiplier === 1)
 ok('選格只決定翻面', small.result?.cellIndex === 3)
 ok('扣款一次', bag.balance === 900)
-ok('未領金額 120', small.unclaimed === 120 && small.reward === 0)
+ok('未領金額 100', small.unclaimed === 100 && small.reward === 0)
 
-const grown = play('u1', 'continue', 100, 1, bag, 0.8)
+const grown = play('u1', 'continue', 100, 1, bag, 0.98)
 ok('繼續不扣款', bag.balance === 900)
-ok('連乘為 240', grown.unclaimed === 240)
+ok('連乘為 200（中獎 x2）', grown.result?.rewardId === 'mid' && grown.unclaimed === 200)
 
 const bust = play('u1', 'continue', 100, 2, bag, 0)
 ok('抽空歸零', bust.unclaimed === 0)
@@ -88,28 +93,29 @@ resetToyPool()
 const claimBag = wallet(500)
 play('u2', 'start', 100, 0, claimBag, 0.5)
 const claimed = play('u2', 'claim', 100, 0, claimBag, 0)
-ok('領取入帳 120', claimed.reward === 120 && claimBag.balance === 520)
+ok('領取入帳 100', claimed.reward === 100 && claimBag.balance === 500)
 let secondClaimBlocked = false
 try {
   play('u2', 'claim', 100, 0, claimBag, 0)
 } catch {
   secondClaimBlocked = true
 }
-ok('重複領取不加帳', secondClaimBlocked && claimBag.balance === 520)
+ok('重複領取不加帳', secondClaimBlocked && claimBag.balance === 500)
 
+// 0.99995：pickWeighted 在目前權重表上落在「super」（1/10000，最稀有那一級）
 resetToyPool()
 const superBag = wallet(100)
-const jackpot = play('u3', 'start', 10, 7, superBag, 0.999)
+const jackpot = play('u3', 'start', 10, 7, superBag, 0.99995)
 ok('注入 RNG 命中超級獎', jackpot.result?.rewardId === 'super')
 ok('離開頁面不自動入帳', superBag.balance === 90 && jackpot.unclaimed === 500)
 
 resetToyPool()
 const capBag = wallet(100)
-play('u4', 'start', 1, 0, capBag, 0.999)
-const capped = play('u4', 'continue', 1, 1, capBag, 0.999)
+play('u4', 'start', 1, 0, capBag, 0.99995)
+const capped = play('u4', 'continue', 1, 1, capBag, 0.99995)
 let cappedBlocked = false
 try {
-  play('u4', 'continue', 1, 2, capBag, 0.999)
+  play('u4', 'continue', 1, 2, capBag, 0.99995)
 } catch {
   cappedBlocked = true
 }

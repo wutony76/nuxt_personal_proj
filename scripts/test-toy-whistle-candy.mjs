@@ -51,8 +51,9 @@ ok('相同平手', judgeWhistle('mid', 'mid') === 'tie')
 
 resetToyPool()
 const bag = wallet(1000)
+// CALIBRATED_WIN_MULTIPLIER（難度校準後）= 1.18，不是舊的 1.9
 const win = play('u1', 100, 'short', bag, 0.8)
-ok('短勝長入帳 190', win.npc === 'long' && win.outcome === 'win' && win.reward === 190 && bag.balance === 1090)
+ok('短勝長入帳 118', win.npc === 'long' && win.outcome === 'win' && win.reward === 118 && bag.balance === 1018)
 ok('歷史是這次抽出的長', win.history.join() === 'long' && snapshotWhistle('u1', bag.balance).history.join() === 'long')
 
 const again = play('u1', 100, 'short', bag, 0.4)

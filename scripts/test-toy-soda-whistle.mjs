@@ -46,11 +46,14 @@ function play(userId, action, bet, bag, roll) {
   })
 }
 
+// ⚠️ isSodaBust() 難度校準後改成 roll >= scaleWinProbability(1-rate, difficulty)，
+// 跟舊版「roll < rate 才算爆」正好相反——現在是「roll 越高越容易爆」，門檻是
+// 1-rate（難度=1 時完全還原），不要再沿用舊的「低 roll=爆、高 roll=安全」直覺。
 resetToyPool()
-ok('示意表六階', SODA_PRIZES.join() === '100,150,250,400,700,1200')
+ok('示意表六階（難度校準後的回饋率 ≈98% 版本）', SODA_PRIZES.join() === '100,104,112,127,159,227')
 ok('爆率遞增', SODA_BUST_RATES.join() === '0.02,0.04,0.07,0.12,0.2,0.3')
-ok('注額 50 第二階 75', sodaPrize(50, 1) === 75)
-ok('落在爆掉區間', isSodaBust(3, 0.11) && !isSodaBust(3, 0.12))
+ok('注額 50 第二階 52', sodaPrize(50, 1) === 52)
+ok('落在爆掉區間（第 3 階門檻 1-0.12=0.88，roll 要 >= 才算爆）', isSodaBust(3, 0.89) && !isSodaBust(3, 0.87))
 
 resetToyPool()
 const low = wallet(20)
@@ -64,45 +67,45 @@ ok('超額注額不扣款', low.balance === 20 && threw)
 
 resetToyPool()
 const bag = wallet(1000)
-const first = play('u1', 'start', 50, bag, 0.99)
+const first = play('u1', 'start', 50, bag, 0)
 ok('第一階 50 且扣一次', first.busted === false && first.unclaimed === 50 && first.reward === 0 && bag.balance === 950)
-const second = play('u1', 'continue', 50, bag, 0.99)
-ok('第二階 75 不再扣款', second.busted === false && second.step === 2 && second.unclaimed === 75 && bag.balance === 950)
+const second = play('u1', 'continue', 50, bag, 0)
+ok('第二階 52 不再扣款', second.busted === false && second.step === 2 && second.unclaimed === 52 && bag.balance === 950)
 
 resetToyPool()
 const bustBag = wallet(1000)
-play('bust', 'start', 100, bustBag, 0.99)
-play('bust', 'continue', 100, bustBag, 0.99)
-const held = play('bust', 'continue', 100, bustBag, 0.99)
-ok('吹到 250', held.unclaimed === 250 && held.step === 3)
-const busted = play('bust', 'continue', 100, bustBag, 0)
+play('bust', 'start', 100, bustBag, 0)
+play('bust', 'continue', 100, bustBag, 0)
+const held = play('bust', 'continue', 100, bustBag, 0)
+ok('吹到第三階 112', held.unclaimed === 112 && held.step === 3)
+const busted = play('bust', 'continue', 100, bustBag, 0.99)
 ok('注入爆掉歸零', busted.busted === true && busted.unclaimed === 0 && busted.reward === 0 && bustBag.balance === 900)
 
 resetToyPool()
 const top = wallet(1000)
-let last = play('top', 'start', 100, top, 0.99)
-for (let i = 0; i < 5; i += 1) last = play('top', 'continue', 100, top, 0.99)
-ok('第六階後只能領', last.step === 6 && last.unclaimed === 1200 && last.canContinue === false && last.canClaim === true)
+let last = play('top', 'start', 100, top, 0)
+for (let i = 0; i < 5; i += 1) last = play('top', 'continue', 100, top, 0)
+ok('第六階後只能領', last.step === 6 && last.unclaimed === 227 && last.canContinue === false && last.canClaim === true)
 let blocked = false
 try {
-  play('top', 'continue', 100, top, 0.99)
+  play('top', 'continue', 100, top, 0)
 } catch (error) {
   blocked = error instanceof ToyPlayError
 }
 ok('第七次被拒', blocked && top.balance === 900)
-const claimed = play('top', 'claim', 100, top, 0.99)
-ok('領取入帳 1200', claimed.claimed && claimed.reward === 1200 && top.balance === 2100)
+const claimed = play('top', 'claim', 100, top, 0)
+ok('領取入帳 227', claimed.claimed && claimed.reward === 227 && top.balance === 1127)
 let doubleClaim = false
 try {
-  play('top', 'claim', 100, top, 0.99)
+  play('top', 'claim', 100, top, 0)
 } catch (error) {
   doubleClaim = error instanceof ToyPlayError
 }
-ok('重複領取不加帳', doubleClaim && top.balance === 2100)
+ok('重複領取不加帳', doubleClaim && top.balance === 1127)
 
 resetToyPool()
 const hold = wallet(400)
-play('hold', 'start', 10, hold, 0.99)
+play('hold', 'start', 10, hold, 0)
 ok('離頁不入帳', hold.balance === 390)
 let occupied = false
 try {
