@@ -57,6 +57,16 @@ const state = reactive({
   ruleDialogVisible: false, // 遊戲說明
 })
 let floatTimer: ReturnType<typeof setTimeout> | null = null
+/**
+ * onMounted／syncPlayByRoute 內有好幾個 await，使用者若在這些 await 還沒跑完前就
+ * 點「返回大廳」離開，元件的非同步鏈不會被取消，JS 還是會繼續跑完。跑到最後
+ * syncPlayByRoute() 讀 routePlayKey 時，route 早就已經變成 /lottery-hall（route.params.play
+ * 是 undefined），會被誤判成「網址帶的玩法 key 不合法」，進而 router.replace() 導回
+ * /lottery/bg/6hc-cd/tema——這就是「返回大廳又被彈回單一玩法」的真正成因，不是 bug
+ * 出在返回連結本身，是舊元件卡著還沒死透的非同步鏈搶著下指令。用這個旗標讓每個
+ * await 之後的續行程式碼都先確認「元件還在不在」，不在就不要再動路由或共用狀態。
+ */
+let isUnmounted = false
 
 // key 對應 use6hc.state.select（= config 的玩法 key，小寫）
 const playMap: Record<string, Component> = {
@@ -138,19 +148,35 @@ const click = {
   },
 }
 
+/**
+ * 離開這個頁面時，route 本身會先反應式更新（例如變成 /lottery-hall），watch(routePlayKey)
+ * 在元件真正 onBeforeUnmount 之前就會被觸發一次（Vue Router 的 route 更新先發生、
+ * 元件卸載的渲染排程晚一步），單靠 isUnmounted 旗標攔不住這個情況——isUnmounted
+ * 要等到 onBeforeUnmount 才會變 true，但這個檢查點執行時它可能都還是 false。
+ * 真正可靠的判斷是直接看「現在的路由是不是還在 6hc-cd 底下」：不是的話，不管
+ * routePlayKey 看起來多不合法，都不該在這裡自作主張 router.replace 把人導回來。
+ */
+function _stillOnThisPage(): boolean {
+  return route.path.startsWith('/lottery/bg/6hc-cd')
+}
+
 const _actions = {
   syncPlayByRoute: async () => {
+    if (isUnmounted || !_stillOnThisPage()) return
     if (playList.value.length === 0) return
     const target = routePlayKey.value
     if (!playKeySet.value.has(target)) {
+      if (isUnmounted || !_stillOnThisPage()) return
       await router.replace('/lottery/bg/6hc-cd/tema')
       return
     }
+    if (isUnmounted || !_stillOnThisPage()) return
     await use6hc.actions.fetchPlayByKey(target)
   },
 }
 
 watch(routePlayKey, async () => {
+  if (isUnmounted) return
   await _actions.syncPlayByRoute()
 })
 
@@ -164,26 +190,32 @@ onBeforeRouteLeave((_to, _from) => {
 
 onMounted(async () => {
   await init()
+  if (isUnmounted) return
   if (!isLoggedIn.value) {
     router.replace('/login')
     return
   }
   const _userId = String(user.value?.id ?? '')
   await use6hc.init.startServerTimeSync()
+  if (isUnmounted) return
   await mxFetch.initPageData(_userId)
+  if (isUnmounted) return
   // 首次載入依當前路由初始化玩法（設定 activePlay），watch 僅在路由變更時觸發
   await _actions.syncPlayByRoute()
+  if (isUnmounted) return
 
   activate('6hc-cd')
   state.entered = true
   // 等頁面進場動畫（約 0.83s）結束後再顯示浮動投注鈕與 Controls 面板
   floatTimer = setTimeout(() => {
+    if (isUnmounted) return
     state.showFloat = true
     state.showControls = true
   }, 900)
 })
 
 onBeforeUnmount(() => {
+  isUnmounted = true
   use6hc.init.stopServerTimeSync()
   if (floatTimer) { clearTimeout(floatTimer); floatTimer = null }
   deactivate()
