@@ -429,7 +429,19 @@ const click = {
 
 onMounted(() => {
   // 首次資料與「全部失敗就立即補抓一次」已經交給上面那個 watch(initialPools, ...) 處理，
-  // 這裡只需要掛上後續的 10 秒輪詢
+  // SSR 回應的 HTML 本身已經是正確數字（curl 可驗證，不是真的等到這裡才有資料）。
+  // 這裡額外補一次「從 0 跳到實值」的視覺效果，純粹是保留原本的動畫體感，不是重新打 API：
+  // 先把目前已經正確的顯示值記下來，重置成 0，再用既有的 _animatePoolTo 動畫回去。
+  // 不會造成 hydration mismatch——SSR 與 client 的「初次渲染」都是同一份正確數字
+  // （見上面的 watch(initialPools, { immediate: true })），這段是 mount 完成之後才執行的
+  // 一般 reactive 更新，不是 hydration 當下的比對內容。
+  const targets = { ...displayPools }
+  for (const key of Object.keys(targets)) {
+    displayPools[key] = 0
+  }
+  for (const [key, target] of Object.entries(targets)) {
+    _animatePoolTo(key, target)
+  }
   poolTimer = setInterval(_fetchPools, 10000)
 })
 

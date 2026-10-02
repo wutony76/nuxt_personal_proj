@@ -79,3 +79,13 @@
       API 卡住
 - [x] 修正後重新驗證：`curl` SSR 含真實數字、`npm test` 36/36 全過、Playwright 導覽與
       hydration 檢查皆過
+
+## 8. 使用者實測回饋：補回首次載入動畫（UX）
+
+- [x] 確認「彩池金額沒有跳動」不是 bug：10 秒輪詢正常運作，是本機 dev 環境彩池數字本來
+      就靜止（直接查 API 確認 5 秒內無變化）
+- [x] 確認真正原因：首次載入刻意不經過 `_animatePoolTo`，犧牲了原本的視覺效果
+- [x] 跟使用者確認處理方式（`AskUserQuestion`）：SSR 仍顯示最終值，`onMounted` 後補一次
+      從 0 跳到實值的動畫
+- [x] 實作並用 Playwright 驗證：SSR 正確值 → 重置 0 → 平滑爬升回去，無 hydration
+      mismatch，`npm test` 36/36 全過
