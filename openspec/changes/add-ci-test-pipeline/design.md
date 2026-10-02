@@ -12,7 +12,7 @@ push / PR → main
   │
   └─ job: test    （新增）checkout → setup-node → npm ci
                     → 背景啟動 dev server（nohup + curl 輪詢就緒，最長等 60 秒）
-                    → npm test（= node scripts/ci-test-all.mjs）
+                    → npm test（= node test/ci-test-all.mjs）
                        → 動態讀 package.json，抓出所有 `test:` 開頭的 script
                        → 依序 spawn 每一支（child process，繼承 stdio）
                        → 彙總 pass/fail，任何一支失敗 → process.exitCode = 1
@@ -24,11 +24,11 @@ push / PR → main
 
 ## 2. 為什麼不手刻一份 script 清單
 
-`scripts/test-bg-all.mjs`／`scripts/test-games-all.mjs` 這兩支既有彙總器是「固定列舉」：
+`test/test-bg-all.mjs`／`test/test-games-all.mjs` 這兩支既有彙總器是「固定列舉」：
 各自手動列出它要跑哪幾支子腳本（因為每個彙總器要表達的是「BG 所有盤口」「retro+童玩」這種
 有業務意義的分組，列舉本身就是文件）。
 
-但 CI 層的彙總器（`scripts/ci-test-all.mjs`）目的不一樣：它要表達的是「把現在能跑的測試全部跑過」，
+但 CI 層的彙總器（`test/ci-test-all.mjs`）目的不一樣：它要表達的是「把現在能跑的測試全部跑過」，
 這種情境下手動列舉清單只會製造「新增測試但忘記同步更新清單」的風險——這正是本次觸發這整個 CI 任務的
 童玩測試腳本壞掉事件的同一種失敗模式（規則/現況不同步，只是這次是「CI 清單」會跟「測試腳本」不同步，
 而不是「測試腳本」跟「賠率常數」不同步）。所以 CI 彙總器改用 `Object.keys(require('./package.json').scripts)`

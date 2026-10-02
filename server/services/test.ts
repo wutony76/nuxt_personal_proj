@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 
 /**
- * bg 系列全部盤口的測試腳本（見 scripts/test-*.mjs），依序執行、不平行，
+ * bg 系列全部盤口的測試腳本（見 test/test-*.mjs），依序執行、不平行，
  * 避免多支腳本同時打同一個 session 互相干擾。
  */
 const BG_TEST_SCRIPTS = [
@@ -56,7 +56,7 @@ function runTestScript(scriptPath: string): Promise<void> {
 }
 
 /**
- * 開發用測試工具：依序把 scripts/test-*.mjs 跑一輪，不用手動一支一支下指令。
+ * 開發用測試工具：依序把 test/test-*.mjs 跑一輪，不用手動一支一支下指令。
  *
  *   new TestClass().bg()      // bg 系列（K3／6HC／PK10／SSC／X5／EGGS／KL10／KL8／FC3D／PL3）
  *   new TestClass().tw()      // 台彩系列（DLT）
@@ -77,7 +77,7 @@ export default class TestClass {
     console.log(`\n[TESTING] === (${label}) 開始依序執行測試腳本 ===\n`)
     for (const script of scripts) {
       console.log(`\n[TESTING] --- 執行 ${script} ---`)
-      await runTestScript(join(process.cwd(), 'scripts', script))
+      await runTestScript(join(process.cwd(), 'test', script))
     }
     console.log(`\n[TESTING] === (${label}) 全部測試腳本執行完畢 ===\n`)
   }

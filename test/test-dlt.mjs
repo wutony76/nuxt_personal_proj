@@ -1,79 +1,83 @@
 #!/usr/bin/env node
 /**
- * 今彩539（D539）隨時可跑的端到端測試腳本（比照 scripts/test-dlt.mjs）。
+ * 大樂透（DLT）隨時可跑的端到端測試腳本。
  *
  * 用法：
- *   node scripts/test-d539.mjs                 # 預設打 http://localhost:6100
- *   BASE_URL=http://localhost:6100 node scripts/test-d539.mjs
- *   npm run test:d539
+ *   node test/test-dlt.mjs                 # 預設打 http://localhost:6100
+ *   BASE_URL=http://localhost:6100 node test/test-dlt.mjs
+ *   npm run test:dlt
  *
  * 前提：
  *   - dev server 要跑著（`npm run dev`，預設 port 6100）
  *   - 用種子帳號 admin@example.com / 123456 登入（見 server/services/storage.ts）
  *   - 依賴兩支保留下來的管理員限定測試工具（皆不打外部官方 API，用假資料取代）：
- *       server/api/admin/d539-test-settle.post.ts —— 只測「已知開獎號 → 派彩判定」這一段
- *       server/api/admin/d539-test-draw.post.ts   —— 測「開獎＋結算」整條流程（真實下注 → 判定/派彩）
+ *       server/api/admin/dlt-test-settle.post.ts —— 只測「已知開獎號 → 派彩判定」這一段
+ *       server/api/admin/dlt-test-draw.post.ts   —— 測「開獎＋結算」整條流程（真實下注 → 判定/派彩）
  *
- * 涵蓋範圍（對照 openspec/changes/add-tw-lottery-suite/test-plan.md 第 1 節）：
- *   1. 當期資訊格式（期別格式、4 個獎項 key/順序）
+ * 涵蓋範圍：
+ *   1. 當期資訊格式
  *   2. 正常下注（單組／多組）與餘額扣款
- *   3. 拒單情境（選 4/6 個號碼、重複、超出 1–39、超過 5 組）且確認未扣款
- *   4. 4 個獎項的結算判定與派彩金額（k=5 頭獎～k=2 四獎，k<2 不中獎）
- *   5. A~E 多組同時結算、互不影響、互不稀釋
- *   6. 已結算期別不重複結算（冪等性）
- *   7. 開獎＋結算整條流程：對「真正的」currentIssue 下注 → 模擬開獎 → 驗證判定，
- *      且 currentIssue／狀態完全不受測試影響（比照 dlt.ts 的既有防護原則）
+ *   3. 拒單情境（號碼數不符／重複／超過 5 組）且確認未扣款
+ *   4. 8 個獎項的結算判定與派彩金額（頭獎～普獎）
+ *   5. 不中獎情境
+ *   6. A~E 多組同時結算、互不影響、互不稀釋
+ *   7. 已結算期別不重複結算（冪等性）
+ *   8. 開獎＋結算整條流程：對「真正的」currentIssue 下注 → 模擬開獎觸發 _attemptSettlement →
+ *      驗證注單被正確結算，且 currentIssue／狀態完全不受測試影響（見 dlt.ts `_attemptSettlement()`
+ *      測試模式一律在判定/派彩後直接 return，不會走到期別推進那段）
  *
  * ⚠️ 這支腳本會留下測試紀錄（不清除、也不需要清除，`recordOpenCode` 等假資料一律帶
- * 「（測試）」後綴以便和真實開獎紀錄分辨）；所有測試都刻意設計成**絕不會**讓真正的
- * `currentIssue`／`cutoffAt`／`drawAt`／`lastKnownOfficialPeriod` 改變。
+ * 「（測試）」後綴以便和真實開獎紀錄分辨）；所有測試（含第 8 項）都刻意設計成
+ * **絕不會**讓真正的 `currentIssue`／`cutoffAt`／`drawAt`／`lastKnownOfficialPeriod` 改變——
+ * 這些欄位要拿來跟台灣彩券官方 API 對齊，反覆執行這支腳本本身不能造成站上顯示的期號
+ * 跟官方真實序號脫鉤（一旦脫鉤只能重啟 server 才能重新對齊，見 openspec/changes/
+ * align-dlt-issue-with-official-period）。
  */
 
 import { createTestRunner } from './_test-utils.mjs'
 
-const { baseUrl: BASE_URL, api, ok, section, login, summary, waitForOpen } = createTestRunner()
-
-const LOTTERY_ID = 11003
-const LOTTERY_KEY = 'D539'
+const { baseUrl: BASE_URL, api, ok, section, login, summary } = createTestRunner()
 
 async function getCoin() {
-  const { body } = await api(`/api/lottery/userInfo?lottery=${LOTTERY_KEY}`)
+  const { body } = await api('/api/lottery/userInfo?lottery=DLT')
   return Number(body?.coin ?? NaN)
 }
 
 async function testCurrentInfo() {
   section('當期資訊')
-  const { status, body } = await api('/api/lottery-tw/d539/current')
+  const { status, body } = await api('/api/lottery-tw/dlt/current')
   ok('current API 回 200', status === 200)
   ok('issue 對齊官方期別格式（民國年 3 碼＋該年度序號 6 碼）', /^\d{3}\d{6}$/.test(String(body?.issue ?? '')), body?.issue)
   ok('currentStatus 有值', typeof body?.currentStatus === 'string' && body.currentStatus.length > 0)
   ok('quotaIssueMaxBets = quotaIssueMaxCoin / 50', body?.quotaIssueMaxBets === Math.floor(Number(body?.quotaIssueMaxCoin) / 50))
-  ok('tiers 剛好 4 個獎項', Array.isArray(body?.tiers) && body.tiers.length === 4)
-  const expectedKeys = ['d539JackpotAssign', 'd539SecondAssign', 'd539ThirdAssign', 'd539FourthAssign']
-  ok('4 個獎項 key 與順序正確', JSON.stringify((body?.tiers ?? []).map((t) => t.key)) === JSON.stringify(expectedKeys))
+  ok('tiers 剛好 8 個獎項', Array.isArray(body?.tiers) && body.tiers.length === 8)
+  const expectedKeys = [
+    'jackpotAssign', 'secondAssign', 'thirdAssign', 'fourthAssign',
+    'fifthAssign', 'sixthAssign', 'seventhAssign', 'normalAssign'
+  ]
+  ok('8 個獎項 key 與順序正確', JSON.stringify((body?.tiers ?? []).map((t) => t.key)) === JSON.stringify(expectedKeys))
 }
 
 async function testBetting() {
   section('下注與拒單')
-  await waitForOpen('/api/lottery-tw/d539/current')
   const before = await getCoin()
 
   const okBet = await api('/api/lottery/bet', {
     method: 'POST',
     body: JSON.stringify({
-      lottery: { id: LOTTERY_ID, key: LOTTERY_KEY },
+      lottery: { id: 11001, key: 'DLT' },
       amount: 50,
-      slots: [{ numbers: [1, 2, 3, 4, 5] }]
+      slots: [{ numbers: [1, 2, 3, 4, 5, 6] }]
     })
   })
-  ok('單組下注成功（5 個號碼）', okBet.status === 200 && okBet.body?.orders?.length === 1, JSON.stringify(okBet.body))
+  ok('單組下注成功', okBet.status === 200 && okBet.body?.orders?.length === 1, JSON.stringify(okBet.body))
 
   const multiBet = await api('/api/lottery/bet', {
     method: 'POST',
     body: JSON.stringify({
-      lottery: { id: LOTTERY_ID, key: LOTTERY_KEY },
+      lottery: { id: 11001, key: 'DLT' },
       amount: 50,
-      slots: [{ numbers: [6, 7, 8, 9, 10] }, { numbers: [11, 12, 13, 14, 15] }]
+      slots: [{ numbers: [7, 8, 9, 10, 11, 12] }, { numbers: [13, 14, 15, 16, 17, 18] }]
     })
   })
   ok('雙組下注成功', multiBet.status === 200 && multiBet.body?.orders?.length === 2)
@@ -89,67 +93,60 @@ async function testBetting() {
 
   const tooFew = await api('/api/lottery/bet', {
     method: 'POST',
-    body: JSON.stringify({ lottery: { id: LOTTERY_ID, key: LOTTERY_KEY }, amount: 50, slots: [{ numbers: [1, 2, 3, 4] }] })
+    body: JSON.stringify({ lottery: { id: 11001, key: 'DLT' }, amount: 50, slots: [{ numbers: [1, 2, 3, 4, 5] }] })
   })
-  ok('拒單：只選 4 個號碼（非 5）→ 400', tooFew.status === 400)
-
-  const tooMany = await api('/api/lottery/bet', {
-    method: 'POST',
-    body: JSON.stringify({ lottery: { id: LOTTERY_ID, key: LOTTERY_KEY }, amount: 50, slots: [{ numbers: [1, 2, 3, 4, 5, 6] }] })
-  })
-  ok('拒單：選 6 個號碼（非 5）→ 400', tooMany.status === 400)
+  ok('拒單：只選 5 個號碼 → 400', tooFew.status === 400)
 
   const dup = await api('/api/lottery/bet', {
     method: 'POST',
-    body: JSON.stringify({ lottery: { id: LOTTERY_ID, key: LOTTERY_KEY }, amount: 50, slots: [{ numbers: [1, 1, 2, 3, 4] }] })
+    body: JSON.stringify({ lottery: { id: 11001, key: 'DLT' }, amount: 50, slots: [{ numbers: [1, 1, 2, 3, 4, 5] }] })
   })
   ok('拒單：號碼重複 → 400', dup.status === 400)
-
-  const outOfRange = await api('/api/lottery/bet', {
-    method: 'POST',
-    body: JSON.stringify({ lottery: { id: LOTTERY_ID, key: LOTTERY_KEY }, amount: 50, slots: [{ numbers: [1, 2, 3, 4, 40] }] })
-  })
-  ok('拒單：號碼超出 1–39（40 在大樂透合法、今彩539不合法）→ 400', outOfRange.status === 400)
 
   const tooManySlots = await api('/api/lottery/bet', {
     method: 'POST',
     body: JSON.stringify({
-      lottery: { id: LOTTERY_ID, key: LOTTERY_KEY },
+      lottery: { id: 11001, key: 'DLT' },
       amount: 50,
-      slots: Array.from({ length: 6 }, (_, i) => ({ numbers: [1 + i, 2 + i, 3 + i, 4 + i, 5 + i] }))
+      slots: Array.from({ length: 6 }, (_, i) => ({ numbers: [1 + i, 2 + i, 3 + i, 4 + i, 5 + i, 6 + i] }))
     })
   })
   ok('拒單：一次送 6 組（超過上限 5）→ 400', tooManySlots.status === 400)
 
   const balanceAfterRejects = await getCoin()
   ok(
-    '五種拒單情境皆未扣款',
+    '三種拒單情境皆未扣款',
     Math.abs(balanceBeforeRejects - balanceAfterRejects) < 0.001,
     `before=${balanceBeforeRejects} after=${balanceAfterRejects}`
   )
 }
 
 async function settle(payload) {
-  return api('/api/admin/d539-test-settle', { method: 'POST', body: JSON.stringify(payload) })
+  return api('/api/admin/dlt-test-settle', { method: 'POST', body: JSON.stringify(payload) })
 }
 
 async function testTiers() {
-  section('4 獎項結算判定')
-  const winningNumbers = [1, 2, 3, 4, 5]
+  section('8 獎項結算判定')
+  const winningNumbers = [1, 2, 3, 4, 5, 6]
+  const special = 7
 
   const cases = [
-    { name: '頭獎 k=5', betCode: '01,02,03,04,05', tierKey: 'd539JackpotAssign', tiers: { d539JackpotAssign: 8000000 } },
-    { name: '二獎 k=4', betCode: '01,02,03,04,10', tierKey: 'd539SecondAssign', tiers: { d539SecondAssign: 20000 } },
-    { name: '三獎 k=3', betCode: '01,02,03,10,11', tierKey: 'd539ThirdAssign', tiers: { d539ThirdAssign: 300 } },
-    { name: '四獎 k=2', betCode: '01,02,10,11,12', tierKey: 'd539FourthAssign', tiers: { d539FourthAssign: 50 } },
-    { name: '不中獎 k=1', betCode: '01,10,11,12,13', tierKey: null, tiers: {} },
-    { name: '不中獎 k=0', betCode: '20,21,22,23,24', tierKey: null, tiers: {} }
+    { name: '頭獎 k=6', betCode: '01,02,03,04,05,06', tierKey: 'jackpotAssign', tiers: { jackpotAssign: 268000000 } },
+    { name: '二獎 k=5+特別號', betCode: '01,02,03,04,05,07', tierKey: 'secondAssign', tiers: { secondAssign: 5000000 } },
+    { name: '三獎 k=5 不含特別號', betCode: '01,02,03,04,05,09', tierKey: 'thirdAssign', tiers: { thirdAssign: 300000 } },
+    { name: '四獎 k=4+特別號', betCode: '01,02,03,04,09,07', tierKey: 'fourthAssign', tiers: { fourthAssign: 20000 } },
+    { name: '五獎 k=4 不含特別號', betCode: '01,02,03,04,09,10', tierKey: 'fifthAssign', tiers: { fifthAssign: 2000 } },
+    { name: '六獎 k=3+特別號', betCode: '01,02,03,09,10,07', tierKey: 'sixthAssign', tiers: { sixthAssign: 300 } },
+    { name: '七獎 k=3 不含特別號', betCode: '01,02,03,09,10,11', tierKey: 'seventhAssign', tiers: { seventhAssign: 400 } },
+    { name: '普獎 k=2+特別號', betCode: '01,02,09,10,11,07', tierKey: 'normalAssign', tiers: { normalAssign: 400 } },
+    { name: '不中獎', betCode: '40,41,42,43,44,45', tierKey: null, tiers: {} }
   ]
 
   for (const testCase of cases) {
     const { status, body } = await settle({
       betCodes: [testCase.betCode],
       winningNumbers,
+      special,
       tiers: testCase.tiers
     })
     const row = body?.settledRows?.[0]
@@ -165,17 +162,18 @@ async function testTiers() {
 async function testMultiSlotIndependence() {
   section('A~E 多組互不影響')
   const { status, body } = await settle({
-    betCodes: ['01,02,03,04,05', '01,02,30,31,32', '10,11,12,13,14'],
-    winningNumbers: [1, 2, 3, 4, 5],
-    tiers: { d539JackpotAssign: 5000000, d539FourthAssign: 50 }
+    betCodes: ['01,02,03,04,05,06', '01,02,20,21,22,07', '40,41,42,43,44,45'],
+    winningNumbers: [1, 2, 3, 4, 5, 6],
+    special: 7,
+    tiers: { jackpotAssign: 500000000, normalAssign: 400 }
   })
   const rows = body?.settledRows ?? []
-  ok('第一組判定頭獎（k=5）', rows[0]?.tierKey === 'd539JackpotAssign' && rows[0]?.winAmount === 5000000)
-  ok('第二組判定四獎（k=2）', rows[1]?.tierKey === 'd539FourthAssign' && rows[1]?.winAmount === 50)
-  ok('第三組不中獎（k=0）', rows[2]?.tierKey === null && rows[2]?.winAmount === 0)
+  ok('第一組判定頭獎', rows[0]?.tierKey === 'jackpotAssign' && rows[0]?.winAmount === 500000000)
+  ok('第二組判定普獎', rows[1]?.tierKey === 'normalAssign' && rows[1]?.winAmount === 400)
+  ok('第三組不中獎', rows[2]?.tierKey === null && rows[2]?.winAmount === 0)
   ok(
-    '可領金額為三組加總（5,000,000 + 50）不互相稀釋',
-    status === 200 && Number(body?.claimable?.amount) === 5000050,
+    '可領金額為三組加總（500,000,000 + 400）不互相稀釋',
+    status === 200 && Number(body?.claimable?.amount) === 500000400,
     JSON.stringify(body?.claimable)
   )
 }
@@ -185,20 +183,22 @@ async function testIdempotency() {
   const reuseIssue = `TEST-IDEMPOTENT-${Date.now()}`
 
   const first = await settle({
-    betCodes: ['01,02,03,04,05'],
-    winningNumbers: [1, 2, 3, 4, 5],
-    tiers: { d539JackpotAssign: 8000000 },
+    betCodes: ['01,02,03,04,05,06'],
+    winningNumbers: [1, 2, 3, 4, 5, 6],
+    special: 7,
+    tiers: { jackpotAssign: 111111111 },
     reuseIssue
   })
   ok('首次結算：alreadySettledBefore = false', first.body?.alreadySettledBefore === false)
-  ok('首次結算：正確判定頭獎', first.body?.settledRows?.[0]?.tierKey === 'd539JackpotAssign')
+  ok('首次結算：正確判定頭獎', first.body?.settledRows?.[0]?.tierKey === 'jackpotAssign')
   const recordLenAfterFirst = Number(first.body?.recordOpenCodeLength)
   const jackpotAfterFirst = Number(first.body?.lastJackpotPrize)
 
   const second = await settle({
-    betCodes: ['01,02,03,04,05'],
-    winningNumbers: [1, 2, 3, 4, 5],
-    tiers: { d539JackpotAssign: 9999999 },
+    betCodes: ['01,02,03,04,05,06'],
+    winningNumbers: [1, 2, 3, 4, 5, 6],
+    special: 7,
+    tiers: { jackpotAssign: 999999999 },
     reuseIssue
   })
   ok('第二次呼叫：alreadySettledBefore = true', second.body?.alreadySettledBefore === true)
@@ -217,24 +217,25 @@ async function testIdempotency() {
 
 async function testDrawAndSettlement() {
   section('開獎＋結算整條流程（真正的 currentIssue，測試不會讓真正期別推進）')
-  await waitForOpen('/api/lottery-tw/d539/current')
 
-  const before = await api('/api/lottery-tw/d539/current')
+  const before = await api('/api/lottery-tw/dlt/current')
   const issueBefore = String(before.body?.issue ?? '')
   ok('取得目前真正的 currentIssue', issueBefore.length > 0, issueBefore)
 
+  const betCode = '02,04,06,08,10,12'
   const bet = await api('/api/lottery/bet', {
     method: 'POST',
-    body: JSON.stringify({ lottery: { id: LOTTERY_ID, key: LOTTERY_KEY }, amount: 50, slots: [{ numbers: [4, 8, 12, 16, 20] }] })
+    body: JSON.stringify({ lottery: { id: 11001, key: 'DLT' }, amount: 50, slots: [{ numbers: [2, 4, 6, 8, 10, 12] }] })
   })
   const orderId = bet.body?.orders?.[0]?.orderId
   ok('對真正的 currentIssue 下注成功', bet.status === 200 && Boolean(orderId), JSON.stringify(bet.body))
 
-  const draw = await api('/api/admin/d539-test-draw', {
+  const draw = await api('/api/admin/dlt-test-draw', {
     method: 'POST',
     body: JSON.stringify({
-      winningNumbers: [4, 8, 12, 16, 20],
-      tiers: { d539JackpotAssign: 8888888 },
+      winningNumbers: [2, 4, 6, 8, 10, 12],
+      special: 20,
+      tiers: { jackpotAssign: 168800000 },
       period: `115TEST${Date.now()}`
     })
   })
@@ -255,17 +256,17 @@ async function testDrawAndSettlement() {
     draw.body?.recordOpenCodeTail?.issue
   )
 
-  const record = await api('/api/lottery-tw/d539/user-record')
+  const record = await api('/api/lottery-tw/dlt/user-record')
   const settledRow = (record.body?.betHistory ?? []).find((row) => row.orderId === orderId)
   ok(
     '透過真實 /api/lottery/bet 送出的注單，經開獎+結算流程後正確判定頭獎',
-    settledRow?.tierKey === 'd539JackpotAssign' && settledRow?.winAmount === 8888888,
+    settledRow?.tierKey === 'jackpotAssign' && settledRow?.winAmount === 168800000,
     JSON.stringify(settledRow)
   )
 }
 
 async function main() {
-  console.log(`D539 測試腳本開始，目標：${BASE_URL}`)
+  console.log(`DLT 測試腳本開始，目標：${BASE_URL}`)
   await login()
   await testCurrentInfo()
   await testBetting()

@@ -4,8 +4,8 @@
  *
  * 用法：
  *   npm run test:k3-of
- *   node scripts/test-k3-of.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-k3-of.mjs
+ *   node test/test-k3-of.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-k3-of.mjs
  *
  * 前提：同 test-k3-cd.mjs——dev server 要跑著、用種子帳號登入、依賴保留下來的
  * 管理員限定測試工具 server/api/admin/k3of-test-settle.post.ts。

@@ -697,7 +697,7 @@ export default class P4Class extends LOTTERY_BASE {
   /**
    * 測試用：強制立刻跑一次 `_attemptSettlement()`，用假資料取代外部官方 API 呼叫，
    * 不用等真實開獎時間、也不受目前 currentStatus 是否為 pending-settlement 限制
-   * （見 server/api/admin/p4-test-draw.post.ts，供 scripts/test-p4.mjs 隨時呼叫）。
+   * （見 server/api/admin/p4-test-draw.post.ts，供 test/test-p4.mjs 隨時呼叫）。
    */
   async debugForceSettleNow(override: { period: string; lotNumber: number[]; tiers: Partial<Record<P4TierKey, number>> }) {
     this._testFetchOverride = override

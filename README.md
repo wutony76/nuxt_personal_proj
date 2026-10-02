@@ -65,7 +65,7 @@ npm run preview
 
 ## 測試
 
-各盤口／玩法的派彩與中獎邏輯皆有對應的回歸測試腳本（[`scripts/`](scripts)），例如：
+各盤口／玩法的派彩與中獎邏輯皆有對應的回歸測試腳本（[`test/`](test)），例如：
 
 ```bash
 npm run test:dlt        # 大樂透

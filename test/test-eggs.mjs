@@ -4,8 +4,8 @@
  *
  * 用法：
  *   npm run test:eggs
- *   node scripts/test-eggs.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-eggs.mjs
+ *   node test/test-eggs.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-eggs.mjs
  *
  * 前提：同其他彩種——dev server 要跑著、用種子帳號登入、依賴保留下來的
  * 管理員限定測試工具 server/api/admin/eggs-test-settle.post.ts。

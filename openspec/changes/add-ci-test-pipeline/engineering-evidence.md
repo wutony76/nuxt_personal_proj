@@ -4,7 +4,7 @@
 
 - 對應變更：`add-ci-test-pipeline`（落實 `openspec/reference/ci-pipeline-plan.md` Phase 5）
 - 變更檔案清單：
-  - `scripts/ci-test-all.mjs`（新增）
+  - `test/ci-test-all.mjs`（新增）
   - `package.json`（新增 `scripts.test`）
   - `.github/workflows/ci.yml`（新增 `test` job）
 - Commit / PR 參考：（待 commit 後補上 hash）

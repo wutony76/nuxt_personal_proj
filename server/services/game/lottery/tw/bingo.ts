@@ -573,7 +573,7 @@ export default class BingoClass extends LOTTERY_BASE {
 
   /**
    * 測試用：強制立刻跑一次 `_attemptSettlement()`，用假資料取代外部官方 API 呼叫
-   * （見 server/api/admin/bingo-test-draw.post.ts，供 scripts/test-bingo.mjs 隨時呼叫）。
+   * （見 server/api/admin/bingo-test-draw.post.ts，供 test/test-bingo.mjs 隨時呼叫）。
    */
   async debugForceSettleNow(override: { period: string; lotNumber: number[]; lotBigSmall: string; lotOddEven: string }) {
     this._testFetchOverride = override

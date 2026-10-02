@@ -7,7 +7,7 @@ import { SUPERLOTTO_TIERS, SUPERLOTTO_BET_AMOUNT, type SuperlottoTierKey } from 
  * 威力彩（SUPERLOTTO）開發用測試工具：手動模擬開獎結算，不用等真實開獎日、也不打外部官方 API。
  *
  * ⚠️ 這支是**保留下來的開發測試工具**（管理員限定），比照 dlt-test-settle.post.ts，供
- * scripts/test-superlotto.mjs 重複呼叫。正式環境部署前應評估是否要用環境變數關閉或整支移除。
+ * test/test-superlotto.mjs 重複呼叫。正式環境部署前應評估是否要用環境變數關閉或整支移除。
  *
  * 在一個獨立的合成期別（預設 TEST-<timestamp>，可用 reuseIssue 指定固定值來測試「已結算
  * 期別不重複結算」）下建立測試注單並立刻結算，不會影響真實的 currentIssue／recordOpenCode 追蹤狀態。

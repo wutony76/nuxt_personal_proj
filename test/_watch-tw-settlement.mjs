@@ -3,7 +3,7 @@ import { createTestRunner } from './_test-utils.mjs'
 /**
  * 一次性驗證腳本：確認 6 款每日開獎的 tw 玩法在今晚真實截止＋結算時，
  * 期別會正確從「開盤中」→「結算中（等待官方資料）」→ 推進到下一期「開盤中」，
- * 不會卡在等待官方資料的狀態。用法同 test-*.mjs：BASE_URL=http://localhost:6100 node scripts/_watch-tw-settlement.mjs
+ * 不會卡在等待官方資料的狀態。用法同 test-*.mjs：BASE_URL=http://localhost:6100 node test/_watch-tw-settlement.mjs
  *
  * 背景：賓果賓果（5 分鐘一期）已手動驗證過同一套流程正常，只是等待官方資料要花約 1~2 分鐘；
  * 這 6 款每日一期的玩法用同一套輪詢重試架構，但今天沒機會等到真實截止時間，

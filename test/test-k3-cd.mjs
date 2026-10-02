@@ -4,8 +4,8 @@
  *
  * 用法：
  *   npm run test:k3-cd
- *   node scripts/test-k3-cd.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-k3-cd.mjs
+ *   node test/test-k3-cd.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-k3-cd.mjs
  *
  * 前提：
  *   - dev server 要跑著（`npm run dev`，預設 port 6100）

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * 49樂合彩（M649）隨時可跑的端到端測試腳本（比照 scripts/test-d539.mjs / test-dlt.mjs）。
+ * 49樂合彩（M649）隨時可跑的端到端測試腳本（比照 test/test-d539.mjs / test-dlt.mjs）。
  *
  * 用法：
- *   node scripts/test-m649.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-m649.mjs
+ *   node test/test-m649.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-m649.mjs
  *   npm run test:m649
  *
  * 前提：

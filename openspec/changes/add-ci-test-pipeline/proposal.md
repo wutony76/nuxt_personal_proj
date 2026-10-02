@@ -2,7 +2,7 @@
 
 ## 變更名稱
 
-`add-ci-test-pipeline` — CI 自動跑完所有 `scripts/test-*.mjs`（OpenSpec CI 建置計劃 Phase 5）
+`add-ci-test-pipeline` — CI 自動跑完所有 `test/test-*.mjs`（OpenSpec CI 建置計劃 Phase 5）
 
 ## 背景
 
@@ -10,7 +10,7 @@
 已上線（見 `.github/workflows/ci.yml`、commit `c177d9a`）。Phase 5（自動化測試）當時明訂「目前零測試，
 先讓 CI 準備好『有測試就會跑』，不要為了填格子硬寫假測試」——刻意擱置。
 
-現在專案已經累積 30+ 支 `scripts/test-*.mjs`（涵蓋台彩 8 款玩法、BG 15 個盤口、retro 遊戲中心 30 款、
+現在專案已經累積 30+ 支 `test/test-*.mjs`（涵蓋台彩 8 款玩法、BG 15 個盤口、retro 遊戲中心 30 款、
 復古童玩 8 款、後台角色/權限 RBAC、WebSocket 聊天室），且本次 session 另外發現並修好了 8 支童玩測試
 腳本因為先前 `feat(toy-shop)` 那次賠率校準 commit 沒有同步更新而全數壞掉、兩週沒人發現的真實案例——
 這正是 Phase 5 reference doc 說的「有測試就會跑」的時機已經成熟，且凸顯了沒有 CI 安全網的實際代價。
@@ -23,7 +23,7 @@
 ## 範圍
 
 - 包含：
-  - 新增 `scripts/ci-test-all.mjs`：從 `package.json` 動態抓出所有 `test:` 開頭的 script 依序執行、彙總結果
+  - 新增 `test/ci-test-all.mjs`：從 `package.json` 動態抓出所有 `test:` 開頭的 script 依序執行、彙總結果
   - `package.json` 新增 `"test"` script（指到上面那支彙總器，符合 `npm test` 慣例）
   - `.github/workflows/ci.yml` 新增 `test` job：啟動 dev server（背景＋curl 輪詢就緒）→ `npm test`
 - 不包含：
@@ -36,7 +36,7 @@
 ## 影響面
 
 - CI 設定：`.github/workflows/ci.yml` 新增一個 job
-- 新增檔案：`scripts/ci-test-all.mjs`
+- 新增檔案：`test/ci-test-all.mjs`
 - 設定或常數：`package.json` 的 `scripts.test`
 
 ## 風險與對策

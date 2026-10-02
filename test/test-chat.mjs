@@ -5,8 +5,8 @@
  *
  * 用法：
  *   npm run test:chat
- *   node scripts/test-chat.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-chat.mjs
+ *   node test/test-chat.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-chat.mjs
  *
  * 前提：
  *   - dev server 要跑著（預設 port 6100），種子帳號 admin@example.com／123456、

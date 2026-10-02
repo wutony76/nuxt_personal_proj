@@ -7,7 +7,7 @@ import { M539_TIERS, M539_BET_AMOUNT, M539_DRAW_COUNT, type M539TierKey } from '
  * 39樂合彩（M539）開發用測試工具：手動模擬開獎結算，不用等真實開獎日、也不打外部官方 API。
  *
  * ⚠️ 這支是**保留下來的開發測試工具**（管理員限定），比照 dlt-test-settle.post.ts／
- * d539-test-settle.post.ts，供 scripts/test-m539.mjs 重複呼叫。正式環境部署前應評估是否要用
+ * d539-test-settle.post.ts，供 test/test-m539.mjs 重複呼叫。正式環境部署前應評估是否要用
  * 環境變數關閉或整支移除。
  *
  * 在一個獨立的合成期別（預設 TEST-<timestamp>，可用 reuseIssue 指定固定值來測試「已結算

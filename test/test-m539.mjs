@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * 39樂合彩（M539）隨時可跑的端到端測試腳本（比照 scripts/test-m649.mjs）。
+ * 39樂合彩（M539）隨時可跑的端到端測試腳本（比照 test/test-m649.mjs）。
  *
  * 用法：
- *   node scripts/test-m539.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-m539.mjs
+ *   node test/test-m539.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-m539.mjs
  *   npm run test:m539
  *
  * 前提：

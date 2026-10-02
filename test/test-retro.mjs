@@ -4,8 +4,8 @@
  *
  * 用法：
  *   npm run test:retro
- *   node scripts/test-retro.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-retro.mjs
+ *   node test/test-retro.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-retro.mjs
  *
  * 前提：
  *   - dev server 要跑著（`npm run dev`，預設 port 6100）

@@ -51,7 +51,7 @@ jobs:
           cat dev-server.log
           exit 1
 
-      # 跑全部 test:* 腳本（見 scripts/ci-test-all.mjs，動態從 package.json 抓，
+      # 跑全部 test:* 腳本（見 test/ci-test-all.mjs，動態從 package.json 抓，
       # 新增測試腳本不需要回來改這個 workflow 檔案）
       - run: npm test
 

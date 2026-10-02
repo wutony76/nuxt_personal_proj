@@ -6,8 +6,8 @@
  *
  * 用法：
  *   npm run test:games
- *   node scripts/test-games-all.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-games-all.mjs
+ *   node test/test-games-all.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-games-all.mjs
  *
  * 前提：同各子腳本——dev server 要跑著、用種子帳號登入。
  *

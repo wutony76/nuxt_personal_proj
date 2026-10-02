@@ -7,7 +7,7 @@ import { DLT_TIERS, type DltTierKey } from '#shared/config/dlt'
  * 大樂透（DLT）開發用測試工具：手動模擬開獎結算，不用等真實開獎日、也不打外部官方 API。
  *
  * ⚠️ 這支是**保留下來的開發測試工具**（管理員限定），跟 add-dlt 實作期間那支「用完即刪」的
- * 臨時探測路由不同——使用者要求要能「隨時測試」，所以這支不刪，供 scripts/test-dlt.mjs
+ * 臨時探測路由不同——使用者要求要能「隨時測試」，所以這支不刪，供 test/test-dlt.mjs
  * 重複呼叫。正式環境部署前應評估是否要用環境變數關閉或整支移除。
  *
  * 在一個獨立的合成期別（預設 TEST-<timestamp>，可用 reuseIssue 指定固定值來測試「已結算

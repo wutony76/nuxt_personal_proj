@@ -1,20 +1,22 @@
 #!/usr/bin/env node
 /**
- * 福彩3D（FC3D）隨時可跑的端到端測試腳本。
+ * 排列3（PL3）隨時可跑的端到端測試腳本。
  *
  * 用法：
- *   npm run test:fc3d
- *   node scripts/test-fc3d.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-fc3d.mjs
+ *   npm run test:pl3
+ *   node test/test-pl3.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-pl3.mjs
  *
  * 前提：同其他彩種——dev server 要跑著、用種子帳號登入、依賴保留下來的
- * 管理員限定測試工具 server/api/admin/fc3d-test-settle.post.ts。
+ * 管理員限定測試工具 server/api/admin/pl3-test-settle.post.ts。
  *
- * ⚠️ FC3D 只有官方盤（沒有信用盤），全站只有一個 instance，跟 EGGS／KL10／KL8 同構，
- * 而且同時有兩個獨立的池：全站爆池（開豹子觸發，carryJackpot）與三星直選分層彩池
- * （carryPool）。settleIssuePrize 單次呼叫就對兩者都無條件覆寫，沒有其他彩種 CD/OF
- * 成對盤口那種「等雙方交件才真的分配」的天然緩衝。測試工具對兩者都做「呼叫前快照、
- * 呼叫後同步還原」，本腳本的「彩池與爆池安全性」段落會分別驗證這兩個池。
+ * ⚠️ PL3 與福彩3D（FC3D）架構逐行同構（只有 tabId 前綴 191xxx vs 181xxx、
+ * LOTTERY key/id 不同），本腳本直接比照 test/test-fc3d.mjs。PL3 只有官方盤
+ * （沒有信用盤），全站只有一個 instance，跟 EGGS／KL10／KL8／FC3D 同構，同時有
+ * 兩個獨立的池：全站爆池（開豹子觸發，carryJackpot）與三星直選分層彩池（carryPool）。
+ * settleIssuePrize 單次呼叫就對兩者都無條件覆寫，沒有其他彩種 CD/OF 成對盤口那種
+ * 「等雙方交件才真的分配」的天然緩衝。測試工具對兩者都做「呼叫前快照、呼叫後同步
+ * 還原」，本腳本的「彩池與爆池安全性」段落會分別驗證這兩個池。
  *
  * 涵蓋範圍：
  *   1. 當期資訊格式（issue／openCode，3 個 0~9 可重複）
@@ -30,7 +32,7 @@
  *   6. 已結算期別不重複結算（冪等性）
  *
  * ⚠️ 這支腳本會留下測試紀錄（不清除也不需要清除），所有測試期別都是獨立的合成期別
- * （`TEST-FC3D-*`），不會動到真實的 currentIndex／recordOpenCode。
+ * （`TEST-PL3-*`），不會動到真實的 currentIndex／recordOpenCode。
  */
 
 import { createTestRunner } from './_test-utils.mjs'
@@ -38,13 +40,13 @@ import { createTestRunner } from './_test-utils.mjs'
 const { api, ok, section, login, summary, waitForOpen } = createTestRunner()
 
 async function getCoin() {
-  const { body } = await api('/api/lottery/userInfo?lottery=FC3D')
+  const { body } = await api('/api/lottery/userInfo?lottery=PL3')
   return Number(body?.coin ?? NaN)
 }
 
 async function testCurrentInfo() {
   section('當期資訊')
-  const { status, body } = await api('/api/lottery/fc3d/current')
+  const { status, body } = await api('/api/lottery/pl3/current')
   ok('current API 回 200', status === 200)
   ok('issue 有值', typeof body?.issue === 'string' && body.issue.length > 0, body?.issue)
   ok('currentStatus 有值', typeof body?.currentStatus === 'string' && body.currentStatus.length > 0)
@@ -53,15 +55,15 @@ async function testCurrentInfo() {
 
 async function testBetting() {
   section('下注與拒單')
-  await waitForOpen('/api/lottery/fc3d/current')
+  await waitForOpen('/api/lottery/pl3/current')
   const before = await getCoin()
 
   const oddsBet = await api('/api/lottery/bet', {
     method: 'POST',
     body: JSON.stringify({
-      lottery: { id: 9001, key: 'FC3D' },
+      lottery: { id: 10001, key: 'PL3' },
       amount: 100,
-      groups: [{ playKey: 'dingwei', playTypeName: '定位膽', selectTabId: 181101010, playList: [{ label: '百位7', amount: 100 }] }]
+      groups: [{ playKey: 'dingwei', playTypeName: '定位膽', selectTabId: 191101010, playList: [{ label: '百位7', amount: 100 }] }]
     })
   })
   ok('定位膽下注成功', oddsBet.status === 200 && oddsBet.body?.orders?.length === 1, JSON.stringify(oddsBet.body))
@@ -69,9 +71,9 @@ async function testBetting() {
   const poolBet = await api('/api/lottery/bet', {
     method: 'POST',
     body: JSON.stringify({
-      lottery: { id: 9001, key: 'FC3D' },
+      lottery: { id: 10001, key: 'PL3' },
       amount: 10,
-      groups: [{ playKey: 'sanxing', selectTabId: 181121010, playList: [{ label: '三星直選123', amount: 10 }] }]
+      groups: [{ playKey: 'sanxing', selectTabId: 191121010, playList: [{ label: '三星直選123', amount: 10 }] }]
     })
   })
   ok('三星直選下注成功', poolBet.status === 200 && poolBet.body?.orders?.length === 1, JSON.stringify(poolBet.body))
@@ -87,9 +89,9 @@ async function testBetting() {
   const invalidCode = await api('/api/lottery/bet', {
     method: 'POST',
     body: JSON.stringify({
-      lottery: { id: 9001, key: 'FC3D' },
+      lottery: { id: 10001, key: 'PL3' },
       amount: 100,
-      groups: [{ playKey: 'dingwei', selectTabId: 181101010, playList: [{ label: '不存在', amount: 100 }] }]
+      groups: [{ playKey: 'dingwei', selectTabId: 191101010, playList: [{ label: '不存在', amount: 100 }] }]
     })
   })
   ok('拒單：不存在的注碼 → 400', invalidCode.status === 400)
@@ -102,7 +104,7 @@ async function testBetting() {
 }
 
 async function settle(payload, reuseIssue) {
-  return api('/api/admin/fc3d-test-settle', {
+  return api('/api/admin/pl3-test-settle', {
     method: 'POST',
     body: JSON.stringify({ ...payload, ...(reuseIssue ? { reuseIssue } : {}) })
   })
@@ -112,22 +114,22 @@ async function testPlayJudging() {
   section('5 個固定賠率玩法判定與派彩')
 
   const cases = [
-    { name: '定位膽「百位7」中獎（百位=7）', playKey: 'dingwei', tabId: 181101010, betCode: '百位7', openCode: [7, 3, 3], winAmount: 960, coin: 100 },
-    { name: '定位膽「百位7」不中（開333）', playKey: 'dingwei', tabId: 181101010, betCode: '百位7', openCode: [3, 3, 3], winAmount: 0, coin: 100 },
-    { name: '前二直選「前二直選12」中獎（百十=1,2，有序）', playKey: 'zhixuan', tabId: 181111010, betCode: '前二直選12', openCode: [1, 2, 5], winAmount: 4800, coin: 50 },
-    { name: '前二直選「前二直選12」不中（順序相反）', playKey: 'zhixuan', tabId: 181111010, betCode: '前二直選12', openCode: [2, 1, 5], winAmount: 0, coin: 50 },
-    { name: '前二組選「前二組選12」中獎（不分順序）', playKey: 'zhixuan', tabId: 181111110, betCode: '前二組選12', openCode: [2, 1, 5], winAmount: 2400, coin: 50 },
-    { name: '三星組三「三星組三112」中獎（恰兩碼相同）', playKey: 'sanxing', tabId: 181121110, betCode: '三星組三112', openCode: [1, 1, 2], winAmount: 3200, coin: 10 },
-    { name: '三星組三「三星組三112」不中（開111豹子，非{A,A,B}）', playKey: 'sanxing', tabId: 181121110, betCode: '三星組三112', openCode: [1, 1, 1], winAmount: 0, coin: 10 },
-    { name: '三星組六「三星組六123」中獎（三碼互異）', playKey: 'sanxing', tabId: 181121111, betCode: '三星組六123', openCode: [3, 2, 1], winAmount: 1600, coin: 10 },
-    { name: '三星直選和值「三星直選和值9」中獎（開333豹子，和值算）', playKey: 'sanxing', tabId: 181121012, betCode: '三星直選和值9', openCode: [3, 3, 3], winAmount: 174.5, coin: 10 },
-    { name: '⚠️ 三星組選和值「三星組選和值9」不中（開333豹子，被排除——跟上一項相反判定）', playKey: 'sanxing', tabId: 181121112, betCode: '三星組選和值9', openCode: [3, 3, 3], winAmount: 0, coin: 10 },
-    { name: '一碼不定位「一碼不定位5」中獎（5出現在某一位）', playKey: 'budingwei', tabId: 181131010, betCode: '一碼不定位5', openCode: [5, 1, 1], winAmount: 35.4, coin: 10 },
-    { name: '一碼不定位「一碼不定位5」不中', playKey: 'budingwei', tabId: 181131010, betCode: '一碼不定位5', openCode: [1, 1, 1], winAmount: 0, coin: 10 },
-    { name: '二碼不定位「二碼不定位12」中獎（1、2都出現）', playKey: 'budingwei', tabId: 181131011, betCode: '二碼不定位12', openCode: [1, 2, 5], winAmount: 177.8, coin: 10 },
-    { name: '大小單雙「大小單雙前二大大」中獎（百十皆≥5）', playKey: 'daxiao', tabId: 181141010, betCode: '大小單雙前二大大', openCode: [6, 7, 3], winAmount: 38.4, coin: 10 },
-    { name: '大小單雙「大小單雙後二單雙」中獎（十=3單、個=4雙）', playKey: 'daxiao', tabId: 181141011, betCode: '大小單雙後二單雙', openCode: [6, 3, 4], winAmount: 38.4, coin: 10 },
-    { name: '⚠️ 無法辨識注碼視為和局全額退還', playKey: 'dingwei', tabId: 181101010, betCode: '亂碼XYZ', openCode: [7, 3, 3], winAmount: 40, coin: 40 }
+    { name: '定位膽「百位7」中獎（百位=7）', playKey: 'dingwei', tabId: 191101010, betCode: '百位7', openCode: [7, 3, 3], winAmount: 960, coin: 100 },
+    { name: '定位膽「百位7」不中（開333）', playKey: 'dingwei', tabId: 191101010, betCode: '百位7', openCode: [3, 3, 3], winAmount: 0, coin: 100 },
+    { name: '前二直選「前二直選12」中獎（百十=1,2，有序）', playKey: 'zhixuan', tabId: 191111010, betCode: '前二直選12', openCode: [1, 2, 5], winAmount: 4800, coin: 50 },
+    { name: '前二直選「前二直選12」不中（順序相反）', playKey: 'zhixuan', tabId: 191111010, betCode: '前二直選12', openCode: [2, 1, 5], winAmount: 0, coin: 50 },
+    { name: '前二組選「前二組選12」中獎（不分順序）', playKey: 'zhixuan', tabId: 191111110, betCode: '前二組選12', openCode: [2, 1, 5], winAmount: 2400, coin: 50 },
+    { name: '三星組三「三星組三112」中獎（恰兩碼相同）', playKey: 'sanxing', tabId: 191121110, betCode: '三星組三112', openCode: [1, 1, 2], winAmount: 3200, coin: 10 },
+    { name: '三星組三「三星組三112」不中（開111豹子，非{A,A,B}）', playKey: 'sanxing', tabId: 191121110, betCode: '三星組三112', openCode: [1, 1, 1], winAmount: 0, coin: 10 },
+    { name: '三星組六「三星組六123」中獎（三碼互異）', playKey: 'sanxing', tabId: 191121111, betCode: '三星組六123', openCode: [3, 2, 1], winAmount: 1600, coin: 10 },
+    { name: '三星直選和值「三星直選和值9」中獎（開333豹子，和值算）', playKey: 'sanxing', tabId: 191121012, betCode: '三星直選和值9', openCode: [3, 3, 3], winAmount: 174.5, coin: 10 },
+    { name: '⚠️ 三星組選和值「三星組選和值9」不中（開333豹子，被排除——跟上一項相反判定）', playKey: 'sanxing', tabId: 191121112, betCode: '三星組選和值9', openCode: [3, 3, 3], winAmount: 0, coin: 10 },
+    { name: '一碼不定位「一碼不定位5」中獎（5出現在某一位）', playKey: 'budingwei', tabId: 191131010, betCode: '一碼不定位5', openCode: [5, 1, 1], winAmount: 35.4, coin: 10 },
+    { name: '一碼不定位「一碼不定位5」不中', playKey: 'budingwei', tabId: 191131010, betCode: '一碼不定位5', openCode: [1, 1, 1], winAmount: 0, coin: 10 },
+    { name: '二碼不定位「二碼不定位12」中獎（1、2都出現）', playKey: 'budingwei', tabId: 191131011, betCode: '二碼不定位12', openCode: [1, 2, 5], winAmount: 177.8, coin: 10 },
+    { name: '大小單雙「大小單雙前二大大」中獎（百十皆≥5）', playKey: 'daxiao', tabId: 191141010, betCode: '大小單雙前二大大', openCode: [6, 7, 3], winAmount: 38.4, coin: 10 },
+    { name: '大小單雙「大小單雙後二單雙」中獎（十=3單、個=4雙）', playKey: 'daxiao', tabId: 191141011, betCode: '大小單雙後二單雙', openCode: [6, 3, 4], winAmount: 38.4, coin: 10 },
+    { name: '⚠️ 無法辨識注碼視為和局全額退還', playKey: 'dingwei', tabId: 191101010, betCode: '亂碼XYZ', openCode: [7, 3, 3], winAmount: 40, coin: 40 }
   ]
 
   for (const testCase of cases) {
@@ -185,7 +187,7 @@ async function testPoolAndJackpotSafety() {
   section('彩池與爆池安全性（驗證測試不會污染正式 carryPool／carryJackpot）')
 
   const jackpotResult = await settle({
-    bets: [{ playKey: 'dingwei', tabId: 181101010, betCode: '百位7', coin: 1000 }],
+    bets: [{ playKey: 'dingwei', tabId: 191101010, betCode: '百位7', coin: 1000 }],
     openCode: [7, 7, 7]
   })
   ok('豹子開獎結算成功（觸發全站爆池條件）', jackpotResult.status === 200 && jackpotResult.body?.settledRows?.[0]?.winStatus === 'win', JSON.stringify(jackpotResult.body?.settledRows?.[0]))
@@ -215,17 +217,17 @@ async function testPoolAndJackpotSafety() {
 
 async function testIdempotency() {
   section('已結算期別不重複結算（冪等性）')
-  const reuseIssue = `TEST-FC3D-IDEMPOTENT-${Date.now()}`
+  const reuseIssue = `TEST-PL3-IDEMPOTENT-${Date.now()}`
 
   const first = await settle(
-    { bets: [{ playKey: 'dingwei', tabId: 181101010, betCode: '百位7', coin: 100 }], openCode: [7, 3, 3] },
+    { bets: [{ playKey: 'dingwei', tabId: 191101010, betCode: '百位7', coin: 100 }], openCode: [7, 3, 3] },
     reuseIssue
   )
   ok('首次結算：alreadySettledBefore = false', first.body?.alreadySettledBefore === false)
   ok('首次結算：可領金額正確（960）', Number(first.body?.claimable?.amount) === 960)
 
   const second = await settle(
-    { bets: [{ playKey: 'dingwei', tabId: 181101010, betCode: '百位7', coin: 100 }], openCode: [7, 3, 3] },
+    { bets: [{ playKey: 'dingwei', tabId: 191101010, betCode: '百位7', coin: 100 }], openCode: [7, 3, 3] },
     reuseIssue
   )
   ok('第二次呼叫：alreadySettledBefore = true', second.body?.alreadySettledBefore === true)
@@ -242,7 +244,7 @@ async function testIdempotency() {
 }
 
 async function main() {
-  console.log('FC3D 測試腳本開始')
+  console.log('PL3 測試腳本開始')
   await login()
   await testCurrentInfo()
   await testBetting()

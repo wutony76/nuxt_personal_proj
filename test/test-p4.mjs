@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * 4星彩（P4）隨時可跑的端到端測試腳本（比照 scripts/test-p3.mjs / test-m649.mjs）。
+ * 4星彩（P4）隨時可跑的端到端測試腳本（比照 test/test-p3.mjs / test-m649.mjs）。
  *
  * 用法：
- *   node scripts/test-p4.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-p4.mjs
+ *   node test/test-p4.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-p4.mjs
  *   npm run test:p4
  *
  * 前提：

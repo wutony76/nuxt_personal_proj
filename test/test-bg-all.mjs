@@ -5,8 +5,8 @@
  *
  * 用法：
  *   npm run test:bg
- *   node scripts/test-bg-all.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-bg-all.mjs
+ *   node test/test-bg-all.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-bg-all.mjs
  *
  * 前提：同各盤口個別腳本——dev server 要跑著、用種子帳號登入。
  *

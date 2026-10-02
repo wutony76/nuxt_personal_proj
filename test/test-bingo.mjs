@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * 賓果賓果（BINGO）隨時可跑的端到端測試腳本（比照 scripts/test-p3.mjs）。
+ * 賓果賓果（BINGO）隨時可跑的端到端測試腳本（比照 test/test-p3.mjs）。
  *
  * 用法：
- *   node scripts/test-bingo.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-bingo.mjs
+ *   node test/test-bingo.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-bingo.mjs
  *   npm run test:bingo
  *
  * 前提：

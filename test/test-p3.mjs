@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * 3星彩（P3）隨時可跑的端到端測試腳本（比照 scripts/test-m649.mjs / test-d539.mjs）。
+ * 3星彩（P3）隨時可跑的端到端測試腳本（比照 test/test-m649.mjs / test-d539.mjs）。
  *
  * 用法：
- *   node scripts/test-p3.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-p3.mjs
+ *   node test/test-p3.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-p3.mjs
  *   npm run test:p3
  *
  * 前提：

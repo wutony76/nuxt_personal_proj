@@ -8,7 +8,7 @@
 
 ## 2. CI 測試彙總器
 
-- [x] 新增 `scripts/ci-test-all.mjs`：動態讀 `package.json`、過濾 `test:` 開頭的 script、依序 spawn 執行
+- [x] 新增 `test/ci-test-all.mjs`：動態讀 `package.json`、過濾 `test:` 開頭的 script、依序 spawn 執行
 - [x] 彙總結果輸出（✔/✘ 清單 + 總計），任何一支失敗 `process.exitCode = 1`
 - [x] `package.json` 新增 `"test"` script 指到這支彙總器
 

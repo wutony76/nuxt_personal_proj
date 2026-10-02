@@ -5,8 +5,8 @@
  *
  * 用法：
  *   npm run test:roles
- *   node scripts/test-roles.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-roles.mjs
+ *   node test/test-roles.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-roles.mjs
  *
  * 前提：dev server 要跑著、admin 種子帳號（admin@example.com/123456）存在。
  *

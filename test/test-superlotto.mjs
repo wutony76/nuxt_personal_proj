@@ -3,8 +3,8 @@
  * 威力彩（SUPERLOTTO）隨時可跑的端到端測試腳本。
  *
  * 用法：
- *   node scripts/test-superlotto.mjs            # 預設打 http://localhost:6100
- *   BASE_URL=http://localhost:6100 node scripts/test-superlotto.mjs
+ *   node test/test-superlotto.mjs            # 預設打 http://localhost:6100
+ *   BASE_URL=http://localhost:6100 node test/test-superlotto.mjs
  *   npm run test:superlotto
  *
  * 前提：

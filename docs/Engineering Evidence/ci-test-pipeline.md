@@ -3,8 +3,8 @@
 ## 變更摘要
 
 - 對應 openspec change：`add-ci-test-pipeline`
-- 前置狀態：這次 session 在幫忙評估「這個 repo 拿去面試可不可以」時，建立了 `scripts/test-bg-all.mjs`
-  （BG 15 盤口彙總，6hc-cd 因限額機制尚不完整故意排除）跟 `scripts/test-games-all.mjs`
+- 前置狀態：這次 session 在幫忙評估「這個 repo 拿去面試可不可以」時，建立了 `test/test-bg-all.mjs`
+  （BG 15 盤口彙總，6hc-cd 因限額機制尚不完整故意排除）跟 `test/test-games-all.mjs`
   （retro 30 款 + 童玩 8 款彙總），跑 `test:games` 時發現**全部 8 支童玩測試腳本壞掉**（retro 30 款正常）
 - 根因：`feat(toy-shop)` 那次 commit（柑仔店櫥仔新增難度/賠率倍數設定）重新校準了 8 款玩法的派彩倍數、
   並把「中不中獎」接進 `difficulty.ts` 的 `resolveFate()`/`resolveWithFate()` 難度機制，但沒有同步更新
@@ -13,11 +13,11 @@
 | # | 項目 | 內容 |
 |---|------|------|
 | 1 | 修復範圍 | 8 支童玩測試腳本（lucky-draw/big-pig/cards/soda-whistle/bamboo-copter/gummy/whistle-candy/pog） |
-| 2 | 新增測試 | `scripts/test-roles.mjs`（後台 RBAC）、`scripts/test-chat.mjs`（WebSocket 聊天室）、
-  `scripts/test-bg-all.mjs`、`scripts/test-games-all.mjs`（彙總器） |
-| 3 | CI 管線 | `scripts/ci-test-all.mjs`（動態彙總全部 `test:*`）、`package.json` 新增 `npm test`、
+| 2 | 新增測試 | `test/test-roles.mjs`（後台 RBAC）、`test/test-chat.mjs`（WebSocket 聊天室）、
+  `test/test-bg-all.mjs`、`test/test-games-all.mjs`（彙總器） |
+| 3 | CI 管線 | `test/ci-test-all.mjs`（動態彙總全部 `test:*`）、`package.json` 新增 `npm test`、
   `.github/workflows/ci.yml` 新增 `test` job |
-| 4 | 共用工具擴充 | `scripts/_test-utils.mjs` 新增 `createHttpClient()`／`actor()`，支援同一支腳本內
+| 4 | 共用工具擴充 | `test/_test-utils.mjs` 新增 `createHttpClient()`／`actor()`，支援同一支腳本內
   多個身分各自登入（角色權限測試需要同時模擬 admin／demo／一般會員／未登入四種身分） |
 
 ## 驗證佐證

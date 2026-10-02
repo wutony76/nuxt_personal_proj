@@ -4,8 +4,8 @@
  *
  * 用法：
  *   npm run test:kl10
- *   node scripts/test-kl10.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-kl10.mjs
+ *   node test/test-kl10.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-kl10.mjs
  *
  * 前提：同其他彩種——dev server 要跑著、用種子帳號登入、依賴保留下來的
  * 管理員限定測試工具 server/api/admin/kl10-test-settle.post.ts。

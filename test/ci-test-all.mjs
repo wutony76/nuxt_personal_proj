@@ -9,7 +9,7 @@
  *
  * 用法：
  *   npm test
- *   node scripts/ci-test-all.mjs
+ *   node test/ci-test-all.mjs
  *   BASE_URL=http://localhost:6100 npm test
  *
  * 前提：同所有子腳本——dev server 要跑著、種子帳號存在。

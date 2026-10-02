@@ -4,8 +4,8 @@
  *
  * 用法：
  *   npm run test:x5-cd
- *   node scripts/test-x5-cd.mjs
- *   BASE_URL=http://localhost:6100 node scripts/test-x5-cd.mjs
+ *   node test/test-x5-cd.mjs
+ *   BASE_URL=http://localhost:6100 node test/test-x5-cd.mjs
  *
  * 前提：同其他彩種——dev server 要跑著、用種子帳號登入、依賴保留下來的
  * 管理員限定測試工具 server/api/admin/x5cd-test-settle.post.ts。
