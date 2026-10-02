@@ -21,3 +21,40 @@ jobs:
       - run: npm ci
 
       - run: npm run build
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: 'npm'
+
+      - run: npm ci
+
+      # dev server 跑在背景：npm run dev 本身不會結束，用 nohup 讓它在這個 step
+      # 的 shell 結束後仍存活到後面的 step（同一個 job 共用同一台 VM），
+      # 再用 curl 輪詢直到服務啟動完成（或逾時直接把 log 吐出來方便排查）。
+      - name: Start dev server
+        run: |
+          nohup npm run dev > dev-server.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:6100/ > /dev/null; then
+              echo "dev server ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "dev server 在 60 秒內沒有就緒，以下是 log："
+          cat dev-server.log
+          exit 1
+
+      # 跑全部 test:* 腳本（見 scripts/ci-test-all.mjs，動態從 package.json 抓，
+      # 新增測試腳本不需要回來改這個 workflow 檔案）
+      - run: npm test
+
+      - name: Dump dev server log on failure
+        if: failure()
+        run: cat dev-server.log || true

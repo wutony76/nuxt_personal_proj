@@ -137,6 +137,20 @@ server/
 - 各盤口純資料設定（cd、of、eggscd、fc3dof、k3cd/of、kl10cd、kl8cd、pk10cd/of、pl3of、ssccd/of、x5cd/of）
 - 特例：此目錄下皆為純 JS 宣告檔，禁止 `import`（Nitro 對 `shared` 走 Node 原生 ESM，不認別名）
 
+## 測試與 CI
+
+- `scripts/test-*.mjs`：對真實 dev server（`http://localhost:6100`）送出真實 HTTP／WebSocket 請求的
+  端到端測試腳本，共用 `scripts/_test-utils.mjs` 的 `createTestRunner()`（login/api/ok/section/summary）；
+  需要同一腳本內模擬多個身分（如角色權限測試）時用其 `actor()`／`createHttpClient()`
+- 彙總器（固定列舉子腳本，各自表達一個有業務意義的分組）：
+  - `scripts/test-bg-all.mjs` → `npm run test:bg`：BG 15 盤口（6hc-cd 因限額機制尚不完整故意排除，
+    見 [[project_quota_p2_pending]]，需要時另外跑 `npm run test:6hc-cd`）
+  - `scripts/test-games-all.mjs` → `npm run test:games`：retro 遊戲中心 30 款 + 復古童玩 8 款
+- `scripts/ci-test-all.mjs` → `npm test`：CI 專用彙總器，動態從 `package.json` 抓出全部 `test:` 開頭的
+  script 執行（不手動列舉，新增測試腳本自動被涵蓋），供 `.github/workflows/ci.yml` 的 `test` job 呼叫
+- `.github/workflows/ci.yml`：`build`（`npm run build`）與 `test`（背景啟動 dev server + `npm test`）
+  兩個獨立 job，詳見 `openspec/reference/ci-pipeline-plan.md`（5 階段 CI 導入規劃，Phase 1/5 已上線）
+
 ## 開發規範重點（詳見 `openspec/project.md`）
 
 - 命名：TS 為主（僅 `shared/config` 例外）；composable=`useXxx`、store=`storeXxx`、action=`fetchXxx`/`submitXxx`
@@ -149,4 +163,4 @@ server/
 
 ---
 
-最後更新：2026-09-30（新增後台存取模型段落）
+最後更新：2026-10-02（新增測試與 CI 段落）

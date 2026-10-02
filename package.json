@@ -8,6 +8,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
+    "test": "node scripts/ci-test-all.mjs",
     "test:dlt": "node scripts/test-dlt.mjs",
     "test:superlotto": "node scripts/test-superlotto.mjs",
     "test:d539": "node scripts/test-d539.mjs",
@@ -16,6 +17,7 @@
     "test:p3": "node scripts/test-p3.mjs",
     "test:p4": "node scripts/test-p4.mjs",
     "test:bingo": "node scripts/test-bingo.mjs",
+    "test:bg": "node scripts/test-bg-all.mjs",
     "test:k3-cd": "node scripts/test-k3-cd.mjs",
     "test:k3-of": "node scripts/test-k3-of.mjs",
     "test:6hc-cd": "node scripts/test-6hc-cd.mjs",
@@ -32,6 +34,9 @@
     "test:fc3d": "node scripts/test-fc3d.mjs",
     "test:pl3": "node scripts/test-pl3.mjs",
     "test:retro": "node scripts/test-retro.mjs",
+    "test:games": "node scripts/test-games-all.mjs",
+    "test:roles": "node scripts/test-roles.mjs",
+    "test:chat": "node scripts/test-chat.mjs",
     "test:toy-lucky-draw": "node scripts/test-toy-lucky-draw.mjs",
     "test:toy-cards": "node scripts/test-toy-cards.mjs",
     "test:toy-soda-whistle": "node scripts/test-toy-soda-whistle.mjs",
@@ -73,7 +78,8 @@
     "sass": "^1.98.0",
     "tailwindcss": "^4.2.2",
     "vite-svg-loader": "^5.1.1",
-    "vite-tsconfig-paths": "^6.1.1"
+    "vite-tsconfig-paths": "^6.1.1",
+    "ws": "^8.18.0"
   },
   "volta": {
     "node": "22.22.2"
