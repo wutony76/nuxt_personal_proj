@@ -20,7 +20,8 @@ import { useAdminAuth } from '~/composables/useAdminAuth'
 
 const forwardedHeaders = useRequestHeaders(['cookie'])
 
-const { $dialog } = useNuxtApp()
+const nuxtApp = useNuxtApp()
+const { $dialog } = nuxtApp
 
 const props = defineProps<{
   active: 'overview' | 'roles' | 'gamemgmt' | 'npc' | 'reports'
@@ -60,7 +61,22 @@ const NAV = [
 const adminInitial = computed(() => (user.value?.name ?? '').slice(0, 1))
 
 const _actions = {
+  /**
+   * `nuxtApp.isHydrating` 只在「client 端正在把 SSR 產出的 HTML 接管成互動頁面」的
+   * 這一瞬間是 true，之後（包含之後任何一次 client-side 導覽切到另一個 admin 頁面）
+   * 永遠是 false。只有在這個瞬間、且 `checked.value` 已經是 true（代表 SSR 階段的
+   * guard 已經完整跑過一次、useState 已經把正確結果序列化帶到瀏覽器）時，才跳過重打
+   * /api/me、/api/admin/me——避免 resetAdminAuth() 把 SSR 已經正確灌好的狀態洗掉，
+   * 又在瀏覽器重打一次一模一樣的請求（實測過曾經誤用 useAsyncData 包這段邏輯，雖然
+   * 解決了 hydration 重複請求，但副作用是「後台頁面之間切換」也會被一併跳過驗證——
+   * 不符合這裡要保留的「每次掛載都重新跟伺服器確認一次 session」語意，所以改用這個
+   * 只命中一次的判斷，不碰任何跨元件共用的快取機制）。
+   */
   guard: async () => {
+    if (nuxtApp.isHydrating && checked.value) {
+      sessionReady.value = true
+      return
+    }
     sessionReady.value = false
     resetAdminAuth()
     await refreshAuth({ headers: forwardedHeaders })
