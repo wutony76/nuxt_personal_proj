@@ -557,7 +557,20 @@ export default class BingoClass extends LOTTERY_BASE {
       this.lastKnownOfficialPeriod = period
       const seedPeriod = _laterOfficialPeriod(this.lastKnownOfficialPeriod, settledIssue)
       this.currentIssue = _nextOfficialPeriod(seedPeriod)
-      const drawAt = _nextFiveMinuteBoundary(new Date(this.drawAt + 1000)).getTime()
+      /**
+       * ⚠️ 用真正的 `now`（這次結算當下的實際時間）當基準算下一個 5 分鐘整點，不能用
+       * `this.drawAt`（舊的內部時間）往後推 5 分鐘——後者一旦落後真實時間（例如本機
+       * 休眠一整晚，process 暫停期間完全沒有 circle() 輪詢），每次結算都只會從「自己
+       * 原本就落後的那個值」再往後推 5 分鐘，落後的絕對時間差永遠不會縮小，等於
+       * `cutoffAt` 永遠停在過去、`_refreshStatus()` 的 `nowMs < this.cutoffAt` 永遠
+       * 為假，狀態永久卡在「結算中（等待官方資料）」、無法再開放下注——這正是實測
+       * 重現的「bingo 一直卡在結算中，無法遊戲」成因：`lastKnownOfficialPeriod`（期別
+       * 序號追蹤）本身會隨每次輪詢自然校正回真實進度，但 `drawAt`／`cutoffAt`（下注
+       * 時間窗）用的是「疊加自己過去的值」這種永遠回不去真實時間的算法，兩者各自
+       * 獨立運作、沒有互相校正。改成一律以 `now` 為基準，每次結算都重新對齊到「真正
+       * 現在」的下一個 5 分鐘整點，不管中間累積了多少次暫停／延遲都能立刻校正。
+       */
+      const drawAt = _nextFiveMinuteBoundary(now).getTime()
       this.cutoffAt = drawAt
       this.drawAt = drawAt
       this.pendingSince = 0
