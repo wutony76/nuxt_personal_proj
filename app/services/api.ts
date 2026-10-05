@@ -1383,6 +1383,8 @@ export type ScratchModel03Round = {
   title: string
   color: 'red' | 'black'
   play: [string, string]
+  /** 雙方猜拳手勢原始數值（0=剪刀/1=石頭/2=布），卡片視覺還原用，見 ScratchModel03Card.vue */
+  handValues: [0 | 1 | 2, 0 | 1 | 2]
   coin: number
   getCoin: number
 }

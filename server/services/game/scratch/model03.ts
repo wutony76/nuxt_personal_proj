@@ -34,11 +34,16 @@ import {
  *    傳回去，不是重新計算出來的
  */
 
-/** 單局模擬結果：顯示用標題、該局是否原本判定為贏/平手（影響顯示色）、雙方手勢文字、該局金額、該局「得到金額」 */
+/**
+ * 單局模擬結果：顯示用標題、該局是否原本判定為贏/平手（影響顯示色）、雙方手勢文字、
+ * 雙方手勢原始數值（`handValues`，給卡片視覺還原用——對應 item_0/1/2.png 這三個
+ * 猜拳手勢圖示，`play` 的中文字只給純文字列表顯示用）、該局金額、該局「得到金額」
+ */
 export type Model03RoundResult = {
   title: string
   color: 'red' | 'black'
   play: [string, string]
+  handValues: [HandValue, HandValue]
   coin: number
   getCoin: number
 }
@@ -153,6 +158,7 @@ export function analyzeModel03Card(cardCredit: number): Model03AnalyzeResult | n
       title: `第${idx + 1}回`,
       color,
       play: [HAND_LABELS[myHand], HAND_LABELS[enemyHand]],
+      handValues: [myHand, enemyHand],
       coin: round.coin,
       getCoin
     }

@@ -5,6 +5,9 @@
  *
  * model03 的機率表移植自外部 Python 專案 py3_AVScratch_proj，目前只做了這一個 model——
  * 其餘 8 個 model 之後視需要再擴充，不在本次範圍內。
+ *
+ * 卡片視覺還原（底圖＋手勢/金額圖示疊圖）見 AdminScratchModel03Card.vue，純文字版的
+ * 回合明細表格保留在卡片視覺下方，給需要精確核對數字的情境用。
  */
 import { reactive } from 'vue'
 import { api, type ScratchModel03Card } from '~/services/api'
@@ -89,6 +92,9 @@ const click = {
               <span class="admin-en">Card #{{ cardIdx + 1 }}</span>
               <span class="ags-card-target">目標金額：{{ card.winCoin.toLocaleString('zh-TW') }}</span>
             </div>
+
+            <AdminScratchModel03Card class="ags-card-visual" :card="card" />
+
             <div class="ags-rounds">
               <div v-for="(round, roundIdx) in card.rounds" :key="roundIdx" class="ags-round" :class="round.color">
                 <div class="ags-round-title">{{ round.title }}</div>
@@ -163,6 +169,10 @@ const click = {
   justify-content: space-between;
   margin-bottom: 10px;
   font-size: 13px;
+}
+
+.ags-card-visual {
+  margin-bottom: 14px;
 }
 
 .ags-card-target {

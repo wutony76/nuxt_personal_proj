@@ -57,3 +57,23 @@
 
 - [x] 完成 `proposal.md`／`design.md`／`tasks.md`／`validation.md`
 - [x] 新增 `docs/Engineering Evidence/add-scratch-model03-simulator.md`
+
+## 7. 追加：卡片視覺還原
+
+- [x] 使用者實測回報「目前有資料但是沒有全部還原與卡片融合的樣子」
+- [x] 讀 `get_scratch_card.py` 的 `get_model03()`／`get_model03_plist()`，
+      理解底圖＋材質圖集疊圖邏輯與版面座標規律
+- [x] 用一次性 Python 腳本依 `av03_texture.plist` 的矩形座標，從
+      `av03_texture.png` 切出 15 張獨立透明 PNG（11 種金額文字、3 種
+      手勢圖示、1 個中獎紅圈），連同底圖 JPG 存進
+      `public/images/scratch/model03/`
+- [x] 擴充 `Model03RoundResult`／`ScratchModel03Round` 型別，新增
+      `handValues`（雙方猜拳手勢原始數值），供前端挑選對應手勢圖示
+- [x] 新增 `app/components/admin/ScratchModel03Card.vue`：純展示用元件，
+      依原始碼的 `cx += 35, cy += 65` 規律疊圖，中獎局疊紅圈
+- [x] 調整「目標金額」大徽章位置（原始碼座標 Y 為負值、疊圖時會被裁掉，
+      改放右上角徽章）
+- [x] Playwright 驗證：圖片素材皆正確載入（`naturalWidth > 0`）、DOM
+      元素數量正確（10 個手勢圖示、5 個金額圖示）、無 console 錯誤
+- [x] `npm test`（38 支測試腳本）：全數通過，過程中的失敗項目單獨重跑
+      即全過，確認是既有 transient 現象
