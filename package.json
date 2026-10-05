@@ -46,7 +46,8 @@
     "test:toy-gummy": "node test/test-toy-gummy.mjs",
     "test:toy-big-pig": "node test/test-toy-big-pig.mjs",
     "test:toy-whistle-candy": "node test/test-toy-whistle-candy.mjs",
-    "test:toy-pog": "node test/test-toy-pog.mjs"
+    "test:toy-pog": "node test/test-toy-pog.mjs",
+    "test:scratch-model03": "node test/test-scratch-model03.mjs"
   },
   "dependencies": {
     "@nuxt/content": "^3.12.0",

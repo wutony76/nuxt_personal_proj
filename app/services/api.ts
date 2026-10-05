@@ -1378,6 +1378,20 @@ export type MemberSummary = {
   dataNote: string
 }
 
+/** 刮刮樂 model03（剪刀石頭布）試算：單局結果，見 add-scratch-model03-simulator */
+export type ScratchModel03Round = {
+  title: string
+  color: 'red' | 'black'
+  play: [string, string]
+  coin: number
+  getCoin: number
+}
+
+export type ScratchModel03Card = {
+  rounds: ScratchModel03Round[]
+  winCoin: number
+}
+
 export type ChatScheduleRepeat = 'daily' | 'once' | 'interval'
 
 export type ChatSchedule = {
@@ -2051,6 +2065,14 @@ export const api = {
           method: 'PATCH',
           body: { enabled }
         })
+    },
+    gameSimulator: {
+      /** 刮刮樂 model03（剪刀石頭布）試算，見 add-scratch-model03-simulator */
+      scratchModel03: (input: { cardWinCoin: number; count?: number }) =>
+        $fetch<{ cards: ScratchModel03Card[]; elapsedMs: number }>(
+          '/api/admin/game-simulator/scratch-model03',
+          { method: 'POST', body: input }
+        )
     }
   },
   lottery: {
