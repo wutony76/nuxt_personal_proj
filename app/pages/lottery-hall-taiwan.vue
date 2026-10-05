@@ -264,7 +264,7 @@ onMounted(async () => {
           <NuxtLink to="/" class="tw-tag tw-home-link">首頁</NuxtLink>
           <span class="tw-tag tw-pill-live">
             <span class="tw-blink-dot"></span>
-            開獎中
+            營業中
           </span>
           <span class="tw-tag">今仔日 {{ todayLabel }}</span>
           <!-- <button type="button" class="tw-btn tw-btn-secondary" :disabled="state.loading"
@@ -394,7 +394,8 @@ onMounted(async () => {
         <div class="tw-shelf-head">
           <h2>柑仔店櫥仔</h2>
           <span>懷舊零嘴 · 古早玩具</span>
-          <button type="button" class="tw-btn tw-btn-secondary tw-shelf-history-btn" @click="click.openHistory">購買紀錄</button>
+          <button type="button" class="tw-btn tw-btn-secondary tw-shelf-history-btn"
+            @click="click.openHistory">購買紀錄</button>
         </div>
         <p v-if="state.shelf.loading" class="tw-shelf-note">櫥仔準備中...</p>
         <p v-else-if="state.shelf.error" class="tw-shelf-note">{{ state.shelf.error }}</p>
