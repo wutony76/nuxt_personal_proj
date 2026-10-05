@@ -1378,20 +1378,37 @@ export type MemberSummary = {
   dataNote: string
 }
 
-/** 刮刮樂 model03（剪刀石頭布）試算：單局結果，見 add-scratch-model03-simulator */
-export type ScratchModel03Round = {
-  title: string
-  color: 'red' | 'black'
-  play: [string, string]
-  /** 雙方猜拳手勢原始數值（0=剪刀/1=石頭/2=布），卡片視覺還原用，見 ScratchModel03Card.vue */
-  handValues: [0 | 1 | 2, 0 | 1 | 2]
-  coin: number
-  getCoin: number
+/**
+ * 刮刮樂試算：model01~09 的原始回傳結構因玩法不同而異（play_one/
+ * play_two/play_three 各自形狀不固定），故用寬鬆型別接住，見
+ * replace-scratch-simulator-with-python-proxy。資料與卡片圖（b64card）
+ * 皆由使用者本機長期在跑的 Python 試算服務計算/渲染，Nuxt 端只負責轉發。
+ */
+export type ScratchSimResult = {
+  win_coin: number
+  play_one?: unknown
+  play_two?: unknown
+  play_three?: unknown
+  /** 已渲染好的卡片圖（data URL），model07 沒有卡片素材故可能不存在 */
+  b64card?: string
 }
 
-export type ScratchModel03Card = {
-  rounds: ScratchModel03Round[]
-  winCoin: number
+export type ScratchSimResponse = {
+  model: string
+  coin: number
+  count: number
+  results: ScratchSimResult[]
+  errors?: string[]
+}
+
+export type ScratchModelInfo = {
+  name: string
+  url: string
+  valid_coins: number[]
+}
+
+export type ScratchInfoResponse = {
+  models: Record<string, ScratchModelInfo>
 }
 
 export type ChatScheduleRepeat = 'daily' | 'once' | 'interval'
@@ -2069,12 +2086,11 @@ export const api = {
         })
     },
     gameSimulator: {
-      /** 刮刮樂 model03（剪刀石頭布）試算，見 add-scratch-model03-simulator */
-      scratchModel03: (input: { cardWinCoin: number; count?: number }) =>
-        $fetch<{ cards: ScratchModel03Card[]; elapsedMs: number }>(
-          '/api/admin/game-simulator/scratch-model03',
-          { method: 'POST', body: input }
-        )
+      /** 刮刮樂 model01~09 名稱＋各自支援金額清單，見 replace-scratch-simulator-with-python-proxy */
+      scratchInfo: () => $fetch<ScratchInfoResponse>('/api/admin/game-simulator/scratch-info'),
+      /** 刮刮樂試算，直接轉呼叫本機 Python 服務，見 replace-scratch-simulator-with-python-proxy */
+      scratch: (input: { model: string; coin: number; count?: number }) =>
+        $fetch<ScratchSimResponse>('/api/admin/game-simulator/scratch', { query: input })
     }
   },
   lottery: {

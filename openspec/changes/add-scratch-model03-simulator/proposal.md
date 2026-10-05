@@ -1,5 +1,11 @@
 # Proposal
 
+> ⚠️ **本 change 已被 `replace-scratch-simulator-with-python-proxy` 取代**
+> ——改成直接轉呼叫原始 Python 專案既有的 REST API（連卡片圖都一併
+> 回傳），這裡移植的機率表、消費邏輯、卡片視覺元件、素材資料夾皆已
+> 刪除。本文件保留當歷史紀錄，記錄當初的移植過程、OpenCV 精確量測
+> 等踩過的坑。
+
 ## 變更名稱
 
 add-scratch-model03-simulator — 在 `/admin/game-simulator` 加入刮刮樂

@@ -1,0 +1,66 @@
+# Tasks
+
+## 1. 發現既有 API，確認架構轉向
+
+- [x] 使用者提及可以改用 `http://127.0.0.1:8000/api/scratch/01?coin=
+      1000&count=3` 抓資料，實測確認這支 API 真的存在且可用
+- [x] 讀 `admin_site/api_views.py`，理解 `/api/scratch/<model_id>` 與
+      `/api/scratch/info` 的參數、回傳格式、驗證邏輯、model07 無
+      `b64card` 的特例
+- [x] 跟使用者確認改動範圍：全部改成呼叫這支 API（含已完成的
+      model02/model03），且這支 Python 服務是使用者自己長期在跑的本機
+      開發用服務
+
+## 2. Nuxt 後端薄代理層
+
+- [x] `server/api/admin/game-simulator/scratch-info.get.ts`：轉發
+      `/api/scratch/info`，連線失敗回 502 並附上目前連的網址
+- [x] `server/api/admin/game-simulator/scratch.get.ts`：轉發
+      `/api/scratch/<model>?coin=&count=&image=1`，把 Python 服務的
+      400/404 錯誤內容轉成 Nuxt `createError`
+
+## 3. 刪除舊的 model02/model03 專屬實作
+
+- [x] 刪除 `server/services/game/scratch/`（`model02.ts`／
+      `model02Data.ts`／`model03.ts`／`model03Data.ts`）
+- [x] 刪除 `server/api/admin/game-simulator/scratch-model02.post.ts`／
+      `scratch-model03.post.ts`
+- [x] 刪除 `app/components/admin/ScratchModel02Card.vue`／
+      `ScratchModel03Card.vue`
+- [x] 刪除 `public/images/scratch/`（model02/03 素材資料夾）
+- [x] 刪除 `test/test-scratch-model02.mjs`／`test-scratch-model03.mjs`，
+      `package.json` 移除對應的 `test:scratch-model02`／
+      `test:scratch-model03`
+- [x] `app/services/api.ts`：移除 `ScratchModel02*`／`ScratchModel03*`
+      型別與 `scratchModel02()`／`scratchModel03()` 呼叫
+
+## 4. 前端改寫
+
+- [x] `app/services/api.ts` 新增通用型別 `ScratchSimResult`／
+      `ScratchSimResponse`／`ScratchModelInfo`／`ScratchInfoResponse`，
+      與 `admin.gameSimulator.scratchInfo()`／`scratch()` 呼叫
+- [x] `app/pages/admin/game-simulator.vue` 改寫成通用畫面：9 個 model
+      動態 tab（名稱與金額選項皆來自 `scratch-info`）、卡片圖
+      （`b64card`，有的話）＋格式化 JSON 原始資料（`<details>` 收合）
+
+## 5. 測試
+
+- [x] 新增 `test/test-scratch-sim.mjs`：偵測不到本機 Python 服務時
+      直接略過（exit 0，不當 CI 失敗）；服務在線時驗證 model 清單、
+      不合法 model/金額拒絕、張數夾擠、model02 正常試算含卡片圖、
+      model07 正確地沒有卡片圖
+- [x] 加進 `package.json` 的 `test:scratch-sim`
+- [x] Playwright 開 `/admin/game-simulator`：9 個 model tab 皆可切換
+      並試算，一般 model 正確顯示卡片圖、model07 正確顯示無素材提示，
+      無 console/網路錯誤
+- [x] `npm test`（38 支測試腳本，移除 2 支舊腳本、新增 1 支）：全數
+      通過
+
+## 6. 文件交付
+
+- [x] 完成 `proposal.md`／`design.md`／`tasks.md`／`validation.md`
+- [x] 新增
+      `docs/Engineering Evidence/replace-scratch-simulator-with-python-proxy.md`
+- [x] 在舊的 `add-scratch-model02-simulator`／
+      `add-scratch-model03-simulator` 的 `proposal.md` 加註已被本次
+      變更取代，保留文件本身當歷史紀錄

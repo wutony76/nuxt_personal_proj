@@ -1,110 +1,159 @@
 <script setup lang="ts">
 /**
- * 遊戲試算（/admin/game-simulator）：刮刮樂 model03（剪刀石頭布）機率/派彩驗證工具。
- * 純模擬運算，不扣款、不派彩，見 add-scratch-model03-simulator。
+ * 遊戲試算（/admin/game-simulator）：刮刮樂機率/派彩驗證工具，純模擬運算，
+ * 不扣款、不派彩。
  *
- * model03 的機率表移植自外部 Python 專案 py3_AVScratch_proj，目前只做了這一個 model——
- * 其餘 8 個 model 之後視需要再擴充，不在本次範圍內。
+ * 見 replace-scratch-simulator-with-python-proxy：機率表、消費邏輯、卡片
+ * 視覺渲染全部不在 Nuxt 內重做，直接轉呼叫使用者本機長期在跑的 Python
+ * 試算服務（`SCRATCH_PY_API_BASE`，預設 `http://127.0.0.1:8000`），包含
+ * 它已經算好、渲染好的卡片圖（`b64card`）一併顯示——取代先前逐個 model
+ * 手動移植機率表＋用 HTML/CSS 疊圖還原卡片視覺的做法（model02/03 皆是
+ * 用這種方式做的，過程中光是版面對齊就反覆調整多輪，改用這支既有的
+ * Python API 後不再需要）。
  *
- * 卡片視覺還原（底圖＋手勢/金額圖示疊圖）見 AdminScratchModel03Card.vue，純文字版的
- * 回合明細表格保留在卡片視覺下方，給需要精確核對數字的情境用。
+ * model01~09 的 `play_one`/`play_two`/`play_three` 形狀因玩法而異（猜拳、
+ * 撲克牌、號碼配對...），不針對每個 model 另外刻版面，統一用格式化 JSON
+ * 呈現原始資料，足夠「機率/派彩驗證」這個用途；卡片圖本身已經是正式
+ * 畫面呈現，視覺還原交給它負責。
  */
-import { reactive } from 'vue'
-import { api, type ScratchModel03Card } from '~/services/api'
+import { computed, onMounted, reactive } from 'vue'
+import { api, type ScratchModelInfo, type ScratchSimResult } from '~/services/api'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
-const WIN_COIN_OPTIONS = [600000, 60000, 10000, 5000, 1500, 800, 500, 300, 200, 100, 0]
-
 const state = reactive({
-  status: 'idle' as AsyncStatus,
-  error: '',
-  cardWinCoin: 1500,
+  infoStatus: 'idle' as AsyncStatus,
+  infoError: '',
+  models: {} as Record<string, ScratchModelInfo>,
+
+  model: '',
+  coin: 0,
   count: 10,
-  elapsedMs: 0,
-  cards: [] as ScratchModel03Card[]
+
+  runStatus: 'idle' as AsyncStatus,
+  runError: '',
+  results: [] as ScratchSimResult[]
 })
 
+const modelKeys = computed(() => Object.keys(state.models).sort())
+const validCoins = computed(() => state.models[state.model]?.valid_coins ?? [])
+
 const _actions = {
-  run: async () => {
-    if (state.status === 'loading') return
-    state.status = 'loading'
-    state.error = ''
+  loadInfo: async () => {
+    state.infoStatus = 'loading'
+    state.infoError = ''
     try {
-      const res = await api.admin.gameSimulator.scratchModel03({
-        cardWinCoin: state.cardWinCoin,
+      const res = await api.admin.gameSimulator.scratchInfo()
+      state.models = res.models
+      const firstModel = modelKeys.value[0]
+      if (firstModel) {
+        state.model = firstModel
+        state.coin = state.models[firstModel]?.valid_coins[0] ?? 0
+      }
+      state.infoStatus = 'success'
+    } catch (e: unknown) {
+      state.infoError = (e as { message?: string })?.message ?? '無法取得 model 清單'
+      state.infoStatus = 'error'
+    }
+  },
+  run: async () => {
+    if (state.runStatus === 'loading' || !state.model) return
+    state.runStatus = 'loading'
+    state.runError = ''
+    try {
+      const res = await api.admin.gameSimulator.scratch({
+        model: state.model,
+        coin: state.coin,
         count: state.count
       })
-      state.cards = res.cards
-      state.elapsedMs = res.elapsedMs
-      state.status = 'success'
+      state.results = res.results
+      state.runStatus = 'success'
     } catch (e: unknown) {
-      state.error = (e as { message?: string })?.message ?? '試算失敗'
-      state.status = 'error'
+      state.runError = (e as { message?: string })?.message ?? '試算失敗'
+      state.runStatus = 'error'
     }
   }
 }
 
 const click = {
+  setModel: (model: string) => {
+    state.model = model
+    state.coin = state.models[model]?.valid_coins[0] ?? 0
+  },
   run: () => _actions.run()
 }
+
+onMounted(() => _actions.loadInfo())
 </script>
 
 <template>
-  <AdminShell active="gamemgmt" kicker="Simulator" title="遊戲試算" desc="刮刮樂 model03（剪刀石頭布）機率/派彩驗證，純模擬不扣款。">
+  <AdminShell
+    active="gamemgmt"
+    kicker="Simulator"
+    title="遊戲試算"
+    desc="刮刮樂機率/派彩驗證，純模擬不扣款。資料與卡片圖由本機 Python 試算服務提供。"
+  >
     <div class="ags-layout">
       <AdminGameNav active="simulator" />
       <div class="ags-content">
-        <div class="ags-rule admin-panel">
-          <p>玩法說明：刮開任一局，若「您的猜拳」勝過「對手猜拳」，即得該局對應的獎金（不可跨局對獎）；若平手，則該局可得對應獎金的一半。</p>
-          <p class="ags-rule-note">
-            ⚠️ 忠實移植自原始系統的已知落差：原始程式碼裡「贏」這個狀態實際上永遠不會產生非零的「得到金額」
-            （猜拳規則下「贏」必然雙方手勢不同，只有「平手」手勢才會相同），所以下方結果裡紅字（原本判定為贏/平手）
-            的回合，「得到金額」欄位只有在雙方手勢真的相同（平手）時才會是非零值。這不是本次移植新增的 bug，
-            是原始系統既有的行為，刻意保留不擅自修正。
-          </p>
+        <div v-if="state.infoStatus === 'error'" class="admin-empty" style="color:#b91c1c">
+          {{ state.infoError }}
         </div>
 
-        <div class="ags-form">
-          <div class="admin-field">
-            <label>目標金額</label>
-            <select v-model.number="state.cardWinCoin" class="admin-input">
-              <option v-for="coin in WIN_COIN_OPTIONS" :key="coin" :value="coin">{{ coin.toLocaleString('zh-TW') }}</option>
-            </select>
+        <template v-else-if="state.infoStatus === 'success'">
+          <div class="ags-model-tabs">
+            <button
+              v-for="key in modelKeys"
+              :key="key"
+              type="button"
+              class="ags-model-tab"
+              :class="{ active: state.model === key }"
+              @click="click.setModel(key)"
+            >
+              Model{{ key }} · {{ state.models[key]?.name }}
+            </button>
           </div>
-          <div class="admin-field">
-            <label>模擬張數</label>
-            <input v-model.number="state.count" type="number" min="1" max="50" class="admin-input" />
-          </div>
-          <button type="button" class="admin-btn admin-btn-primary ags-run-btn" @click="click.run()">
-            {{ state.status === 'loading' ? '試算中…' : '隨機試算' }}
-          </button>
-        </div>
 
-        <div v-if="state.status === 'error'" class="admin-empty" style="color:#b91c1c">{{ state.error }}</div>
-        <div v-else-if="state.status === 'idle'" class="admin-empty">設定好目標金額與張數後按「隨機試算」。</div>
-
-        <template v-else-if="state.status === 'success'">
-          <div class="ags-meta">共 {{ state.cards.length }} 張，耗時 {{ state.elapsedMs }}ms</div>
-
-          <div v-for="(card, cardIdx) in state.cards" :key="cardIdx" class="ags-card admin-panel">
-            <div class="ags-card-head">
-              <span class="admin-en">Card #{{ cardIdx + 1 }}</span>
-              <span class="ags-card-target">目標金額：{{ card.winCoin.toLocaleString('zh-TW') }}</span>
+          <div class="ags-form">
+            <div class="admin-field">
+              <label>目標金額</label>
+              <select v-model.number="state.coin" class="admin-input">
+                <option v-for="coin in validCoins" :key="coin" :value="coin">{{ coin.toLocaleString('zh-TW') }}</option>
+              </select>
             </div>
+            <div class="admin-field">
+              <label>模擬張數</label>
+              <input v-model.number="state.count" type="number" min="1" max="50" class="admin-input" />
+            </div>
+            <button type="button" class="admin-btn admin-btn-primary ags-run-btn" @click="click.run()">
+              {{ state.runStatus === 'loading' ? '試算中…' : '隨機試算' }}
+            </button>
+          </div>
 
-            <AdminScratchModel03Card class="ags-card-visual" :card="card" />
+          <div v-if="state.runStatus === 'error'" class="admin-empty" style="color:#b91c1c">{{ state.runError }}</div>
+          <div v-else-if="state.runStatus === 'idle'" class="admin-empty">設定好目標金額與張數後按「隨機試算」。</div>
 
-            <div class="ags-rounds">
-              <div v-for="(round, roundIdx) in card.rounds" :key="roundIdx" class="ags-round" :class="round.color">
-                <div class="ags-round-title">{{ round.title }}</div>
-                <div class="ags-round-play">{{ round.play[0] }} vs {{ round.play[1] }}</div>
-                <div class="ags-round-coin">面額：{{ round.coin.toLocaleString('zh-TW') }}</div>
-                <div class="ags-round-get">得到：{{ round.getCoin.toLocaleString('zh-TW') }}</div>
+          <template v-else-if="state.runStatus === 'success'">
+            <div class="ags-meta">共 {{ state.results.length }} 張</div>
+
+            <div v-for="(result, idx) in state.results" :key="idx" class="ags-card admin-panel">
+              <div class="ags-card-head">
+                <span class="admin-en">Card #{{ idx + 1 }}</span>
+                <span class="ags-card-target">得獎金額：{{ result.win_coin.toLocaleString('zh-TW') }}</span>
               </div>
+
+              <img v-if="result.b64card" class="ags-card-img" :src="result.b64card" :alt="`Model${state.model} 卡片 #${idx + 1}`" />
+              <div v-else class="ags-no-card-img">此 model 無卡片圖素材（原始系統本來就沒有）</div>
+
+              <details class="ags-raw">
+                <summary>原始資料（play_one / play_two / play_three）</summary>
+                <pre>{{ JSON.stringify({ play_one: result.play_one, play_two: result.play_two, play_three: result.play_three }, null, 2) }}</pre>
+              </details>
             </div>
-          </div>
+          </template>
         </template>
+
+        <div v-else class="admin-empty">載入中…</div>
       </div>
     </div>
   </AdminShell>
@@ -121,24 +170,28 @@ const click = {
   min-width: 0;
 }
 
-.ags-rule {
+.ags-model-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
   margin-bottom: 20px;
-  padding: 14px 18px;
-  font-size: 13px;
-  line-height: 1.7;
-
-  p {
-    margin: 0 0 8px;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
+  border-bottom: 1px solid var(--line, #e5e7eb);
 }
 
-.ags-rule-note {
+.ags-model-tab {
+  padding: 10px 16px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
   color: var(--muted, #6b7280);
-  font-size: 12px;
+  border-bottom: 2px solid transparent;
+
+  &.active {
+    color: inherit;
+    font-weight: 700;
+    border-bottom-color: var(--ink, #1c1c22);
+  }
 }
 
 .ags-form {
@@ -171,42 +224,41 @@ const click = {
   font-size: 13px;
 }
 
-.ags-card-visual {
-  margin-bottom: 14px;
-}
-
 .ags-card-target {
   font-weight: 700;
 }
 
-.ags-rounds {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-
-  @media (max-width: 900px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.ags-card-img {
+  display: block;
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  margin-bottom: 10px;
 }
 
-.ags-round {
-  border: 1px solid var(--line, #e5e7eb);
-  padding: 8px 10px;
+.ags-no-card-img {
+  margin-bottom: 10px;
+  padding: 10px;
+  font-size: 12.5px;
+  color: var(--muted, #6b7280);
+  border: 1px dashed var(--line, #e5e7eb);
+}
+
+.ags-raw {
   font-size: 12px;
-  line-height: 1.6;
 
-  &.red {
-    color: #b91c1c;
-    border-color: #b91c1c;
+  summary {
+    cursor: pointer;
+    color: var(--muted, #6b7280);
   }
 
-  &.black {
-    color: inherit;
+  pre {
+    margin-top: 8px;
+    padding: 10px;
+    background: #f8f8f8;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
   }
-}
-
-.ags-round-title {
-  font-weight: 700;
-  margin-bottom: 4px;
 }
 </style>
