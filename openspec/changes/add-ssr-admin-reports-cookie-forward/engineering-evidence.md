@@ -61,4 +61,4 @@
 - [x] 變更檔案與風險說明已整理完成
 - [x] `npm run dev` 確認正常
 - [x] 效能數據已寫入 `ssr-performance-log.md`，誠實呈現、未美化
-- [ ] 尚未 commit——等使用者確認後再建立
+- [x] Commit：`fa7bffb`

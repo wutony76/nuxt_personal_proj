@@ -38,7 +38,7 @@
 
 ## 效能驗證（誠實呈現，不只看單一指標）
 
-依 `add-ssr-lottery-hall-pools` code review 的教訓，同時量 4 個指標，改造前後各 5 次
+依 `add-ssr-lottery-hall-pools` review 的教訓，同時量 4 個指標，改造前後各 5 次
 取中位數（完整樣本見 `ssr-performance-log.md`）：
 
 | 指標 | 改造前 | 改造後 | 說明 |

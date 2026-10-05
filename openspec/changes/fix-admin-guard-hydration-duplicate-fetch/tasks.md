@@ -1,8 +1,8 @@
 # Tasks
 
-## 1. 問題確認（使用者 code review 提出）
+## 1. 問題確認（review 提出）
 
-- [x] 讀 `Shell.vue`／`useAuth.ts`／`useAdminAuth.ts` 現況程式碼，確認使用者指出的
+- [x] 讀 `Shell.vue`／`useAuth.ts`／`useAdminAuth.ts` 現況程式碼，確認 review 指出的
       根因屬實：`resetAdminAuth()` 把 `checked` 洗回 `false`，`refreshAuth()`
       （`useAuth.ts` 的 `refresh()`）本身完全沒有跳過判斷
 - [x] Playwright 驗證：重整 `/admin/reports`，hydration 期間 `/api/me`、
@@ -19,7 +19,7 @@
 - [x] 讀 `node_modules/nuxt/dist/app/composables/asyncData.js` 原始碼確認根因：
       `nuxtApp._asyncData[key]` 是跨元件實例共用的快取，新頁面的 `AdminShell`
       在舊頁面卸載、快取釋放前就已經掛載並讀到舊的 `status: 'success'`
-- [x] 跟使用者確認（`AskUserQuestion`）：放棄 Option 1，改用 Option 2
+- [x] 決定放棄 Option 1，改用 Option 2
 
 ## 3. 實作 Option 2（`nuxtApp.isHydrating` + `checked.value` 判斷）
 
@@ -56,7 +56,7 @@
 - [x] 回頭更新 `add-ssr-admin-reports-cookie-forward` 的
       `engineering-evidence.md`「後續追蹤事項」，加上指向本次變更的追蹤紀錄
 
-## 6. 使用者第二輪 code review（2 項追加修正）
+## 6. 第二輪 review（2 項追加修正）
 
 - [x] 用 `nuxt build && node .output/server/index.mjs`（獨立 port 6200，避開
       既有 dev server）重新量測 20 次，列出 p50/p90，驗證 production build 下

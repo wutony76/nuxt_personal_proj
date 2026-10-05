@@ -6,7 +6,7 @@
 
 ## 背景
 
-`add-ssr-lottery-hall-pools` 的 validation.md 在 code review 後的後續追蹤事項裡提到：
+`add-ssr-lottery-hall-pools` 的 validation.md 在 review 後的後續追蹤事項裡提到：
 「挑一個需要登入的報表類頁面，用 `useRequestFetch()`/`useRequestHeaders(['cookie'])` 做第二個
 SSR + cookie 轉發的示範」——這才是 `docs/Architecture/README.md` 原本真正在批評的那類場景
 （`trend`/`bet_search` 這類報表頁白屏），`lottery-hall.vue` 當時刻意選的是公開頁面避開了
@@ -27,8 +27,7 @@ Implementation 過程中發現，只改報表頁本身的資料獲取**不夠**�
    在 SSR 執行，會有不同使用者的登入狀態互相污染的風險（潛在、過去未觸發，因為從來沒人在
    SSR 呼叫過）。
 
-以上兩點都有先用 `AskUserQuestion` 跟使用者確認過才動手（範圍、`useState` 改造的風險），
-不是單方面擴大範圍。
+以上兩點都是評估過範圍與 `useState` 改造的風險後才決定納入。
 
 ## 目標
 

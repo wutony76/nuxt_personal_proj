@@ -30,8 +30,7 @@
 - [x]（規劃階段未預見、Implementation 時發現必須一併處理）`app/services/api.ts` 原本
       `import { $fetch } from 'ofetch'`，裸 ofetch 在 Node（SSR）環境呼叫相對路徑會直接噴
       `Failed to parse URL`（已實測確認），改成不自行 import、改用 Nuxt 自動注入且有 SSR
-      情境感知能力的全域 `$fetch`——這個決定有先用 AskUserQuestion 跟使用者確認過才動手，
-      因為會讓影響面超出「只動 lottery-hall.vue」的原訂範圍
+      情境感知能力的全域 `$fetch`——這個決定會讓影響面超出「只動 lottery-hall.vue」的原訂範圍
 
 ## 4. 錯誤處理與體驗
 
@@ -58,7 +57,7 @@
       `/admin`、`/login`）皆仍正常回應 HTTP 200
 - [x] 變更檔案與風險說明整理完成，已進入 Validation 階段（見 `validation.md`）
 
-## 7. Code review 修正（使用者完整 review 後提出 4 項問題）
+## 7. Review 修正（4 項問題）
 
 - [x] **效能數字框架誤導**：`test/perf-ssr-lottery-hall.mjs` 改版，同時量 TTFB／首次真實
       數字／settled／LCP 四項指標；重新確認「改造前」基準點是真正原始 CSR 版本（用
@@ -80,12 +79,12 @@
 - [x] 修正後重新驗證：`curl` SSR 含真實數字、`npm test` 36/36 全過、Playwright 導覽與
       hydration 檢查皆過
 
-## 8. 使用者實測回饋：補回首次載入動畫（UX）
+## 8. 實機回饋：補回首次載入動畫（UX）
 
 - [x] 確認「彩池金額沒有跳動」不是 bug：10 秒輪詢正常運作，是本機 dev 環境彩池數字本來
       就靜止（直接查 API 確認 5 秒內無變化）
 - [x] 確認真正原因：首次載入刻意不經過 `_animatePoolTo`，犧牲了原本的視覺效果
-- [x] 跟使用者確認處理方式（`AskUserQuestion`）：SSR 仍顯示最終值，`onMounted` 後補一次
+- [x] 決定處理方式：SSR 仍顯示最終值，`onMounted` 後補一次
       從 0 跳到實值的動畫
 - [x] 實作並用 Playwright 驗證：SSR 正確值 → 重置 0 → 平滑爬升回去，無 hydration
       mismatch，`npm test` 36/36 全過

@@ -20,7 +20,7 @@
 
 `npm test`（36 支既有測試腳本）：本次改動僅涉及
 `app/composables/useAdminReportData.ts`，與任何遊戲伺服端邏輯無關；執行過程
-中若有失敗項目，與本次變更的檔案範圍無關（詳見同一輪 code review 的其他
+中若有失敗項目，與本次變更的檔案範圍無關（詳見同一輪 review 的其他
 變更 `fix-admin-guard-hydration-duplicate-fetch`／
 `fix-lottery-hall-pool-reveal-flash` 的 validation 記錄）。
 

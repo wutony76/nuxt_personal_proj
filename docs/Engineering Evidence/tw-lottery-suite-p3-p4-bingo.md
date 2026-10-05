@@ -63,7 +63,7 @@
 - **BINGO 未做跨玩家單期總量限額（quota）**：P3/P4 有「依上一期頭獎金額推算單期最多受理注數」
   機制，BINGO 賠率固定無「頭獎」概念可供推算，目前只用 `BINGO_MAX_SLOTS`（單次送單上限）防護，
   沒有全站單期總量上限——若上線後需要控管單期派彩風險，需另外設計
-  （對照既有 [[project_quota_p2_pending]] 6hc-cd 限額擱置的類似決策，屬同一類「暫不處理」風險）
+  （與 6hc-cd 跨分頁 / 玩家層級限額暫緩實作屬同一類「暫不處理」風險）
 - **BINGO 省略 `Road.vue`（冷熱號）／`PopularPicks.vue`（熱門選號）**：4 種混合投注碼不易套用
   單一號碼池的冷熱統計／熱門選號邏輯，design.md／tasks.md 對 BINGO 的檔案清單也只明講 Board.vue
   需容納 4 種類型，本次不補這兩個錦上添花功能，其餘 Header/CurrItems/Controls/Report/History/
@@ -79,7 +79,7 @@
   對應未完工的 `openspec/changes/bg-lottery-report-center/`）與 `app/components/toys/**`
   （柑仔店櫥仔內嵌彈窗，與 `app/components/toys/ToyPlayDialog.vue` 相關）；本次 3 次 commit
   皆已用 `git add <明確路徑清單>` 方式只暫存 P3/P4/BINGO 自己的檔案，未夾帶對方尚未完工的變更
-  （比照 [[project_pixel_games_17-25_proposals]] 記錄過的相同處理方式）
+  （比照像素遊戲 17-25 提案的相同處理方式，見 `game-17-25-pixel-games.md`）
 
 ## 封存前檢查
 
@@ -88,7 +88,7 @@
 - [x] `add-tw-lottery-suite/tasks.md` 第 7、8、9 節已全部勾選為 `[x]`
 - [ ] `add-tw-lottery-suite/tasks.md` 第 2 節「期別 helper 重構」、第 10 節「全站回歸與交付檢查」
       尚未完成，暫不建議 `openspec archive`
-- [ ] 4星彩組彩分級規則（二元簡化假設）尚待使用者確認是否符合預期，或是否需要更精確的官方
+- [ ] 4星彩組彩分級規則（二元簡化假設）尚待確認是否符合預期，或是否需要更精確的官方
       逐模式分級
 
 ---

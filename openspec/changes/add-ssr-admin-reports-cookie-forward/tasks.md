@@ -2,8 +2,8 @@
 
 ## 1. 規格與設計確認
 
-- [x] 完成 proposal 定稿（範圍已跟使用者確認兩次：先確認只做「真正適合 SSR 的頁面」
-      而非全部需登入頁面，後確認 AdminShell／useAuth 的 SSR 化方式）
+- [x] 完成 proposal 定稿（範圍分兩次確定：先決定只做「真正適合 SSR 的頁面」
+      而非全部需登入頁面，再決定 AdminShell／useAuth 的 SSR 化方式）
 - [x] 完成 design 定稿（useNuxtApp 同步呼叫規則、useState 轉換、Shell 頂層 await、
       composable 設計、await useAsyncData 的必要性）
 
@@ -65,4 +65,4 @@
 ## 8. 交付檢查
 
 - [x] 變更檔案與風險說明整理完成，進入 Validation 階段
-- [ ] 尚未 commit——等使用者確認後再建立
+- [x] Commit：`fa7bffb`

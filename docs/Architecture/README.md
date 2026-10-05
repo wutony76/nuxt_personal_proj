@@ -29,43 +29,26 @@
   - 註：以上檔案／行號引用的是舊公司專案，**非本 repo**；本 repo（`nuxt_personal_proj`）的 `nuxt.config.ts` 目前沒有 `routeRules`，純粹作為個人作品集展示用途，記錄於此作為之後開發的借鏡。
 - **參考 URL**：http://104.199.176.35/credit/#/?domain=fntuser-dev.tlsanheng.com&searchCode=96225&nuxt
   - 測試帳密: newt02b0022/newt02b0022
-- **2026-10-02 更新**：上面「借鏡」不再只是紙上談兵——盤點後發現本 repo 當時其實也是
-  同一個模式（`useFetch`/`useAsyncData` 使用次數 0，94 個頁面 74 個在 `onMounted` 才抓資料）。
-  已針對 `app/pages/lottery-hall.vue`（唯一「免登入可瀏覽＋有真實資料＋適合 SSR」的大廳頁）
-  示範正確做法：`useAsyncData` 做首次 SSR 抓取＋保留既有 `setInterval` 輪詢做後續更新，
-  並順手修掉 `app/services/api.ts` 讓裸 `ofetch` 在 SSR 環境必定失敗的基礎設施問題（之後
-  其他頁面要比照辦理不會再卡住）。
-  - **效能量測（誠實版，見 `docs/Engineering Evidence/ssr-performance-log.md` 完整數據）**：
-    真正代表 CSR waterfall 成本的指標——「第一次看到真實數字」的時間，中位數從 486ms
-    降到 226ms（約 2.1 倍，這才是 SSR 資料獲取本身的效益）。「數字完全停止變動」的時間
-    從 4448ms 降到 226ms（約 19.7 倍），但這個數字裡約 4000ms 是**刻意跳過**原本
-    `_animatePoolTo` 4 秒跑數字動畫的效果，不是 SSR 的功勞，兩者不要混為一談。TTFB
-    （SSR 要多等伺服器把 15 個彩池 API 都抓完才送出 HTML 的代價）在本機量測中前後幾乎
-    沒有差異（約 17ms → 20ms）——因為這些 API 都是同進程的 Nitro 記憶體操作，正式環境
-    若换成較慢的外部服務，TTFB 的代價會更明顯，這是必須誠實揭露的取捨，不是沒有代價。
-  - **多數頁面（需登入的遊戲/彩票下注頁）刻意不比照轉換**：不是「SSR 技術上抓不到
-    cookie」（`useRequestFetch()`／`useRequestHeaders(['cookie'])` 就是設計來轉發 cookie
-    用的），而是這些頁面現有的登入檢查（`app/middleware/game-access.global.ts`）目前
-    寫死只在 client 端跑，要安全轉 SSR 需要額外處理 cookie 轉發與避免 hydration
-    mismatch，是獨立的一塊工作，這次刻意不跟 SSR 資料獲取的示範混在一起驗證。
-- **第二次示範（`add-ssr-admin-reports-cookie-forward`）：把上面「刻意不做」的那塊真的
-  做了一次**——後台報表頁（`app/pages/admin/reports/` 5 頁）改用 `useAsyncData` +
-  `useRequestHeaders(['cookie'])` 真的轉發 cookie。過程中發現兩個規劃階段沒預見、但不
-  處理就讓這次改造失去意義的問題：
-  1. 所有 `/admin/**` 頁面共用的 `AdminShell.vue` 自己也有一層權限檢查，也是
-     client-only，SSR 階段畫面永遠卡在「正在確認管理員權限...」，把報表資料蓋住
-  2. 要讓這層權限檢查也能 SSR，發現 `useAuth`/`useAdminAuth` 的內部狀態是**模組層級
-     單例 `reactive({})`**——這在 SSR 下是整個 Nitro process 共用一份，若真的執行會有
-     不同使用者的登入狀態互相污染的風險（潛在、過去因為從未在 SSR 被呼叫過而未觸發）。
-     改成 Nuxt 的 `useState()`（server 端每個請求各自獨立、client 端維持單例），對外
-     介面不變，全站 70+ 處既有呼叫點不用改
-  - **效能數據誠實呈現**：這次中位數「首次真實數字」反而從 390ms 變慢到 485ms——
-    不像 `lottery-hall.vue` 那樣有清楚的改善。推測是這次疊加了兩個非同步相依
-    （權限檢查 2 次 API + 報表資料 1 次 API），SSR 把請求從 client 搬到 server 並沒有
-    減少關鍵路徑的請求數，淨效益天生比只有 1 個相依的 lottery-hall 小。架構正確性
-    （cookie 真的轉發成功、SSR 回應確實含真實資料、無 hydration mismatch）已驗證成立，
-    但「使用者感受到的載入變快」這個效益這次沒有數據支撐，如實記錄、不美化，詳見
-    `openspec/changes/add-ssr-admin-reports-cookie-forward/validation.md`
+- **本 repo 的改正（2026-10）**：盤點後發現本 repo 原本也是同一個模式（`useFetch`/`useAsyncData`
+  使用 0 次，94 個頁面中有 74 個在 `onMounted` 才抓資料），因此挑兩類頁面改成 SSR 資料獲取：
+  - **公開頁：`/lottery-hall`**（`add-ssr-lottery-hall-pools`）
+    - 彩池首次抓取改用 `useAsyncData`，既有的 10 秒輪詢保留。
+    - `app/services/api.ts` 原本 `import { $fetch } from 'ofetch'`。原生 ofetch 在 SSR 端無法解析相對路徑，
+      改用 Nuxt 注入的全域 `$fetch`，伺服器端呼叫 `/api/*` 時會直接在同一個 process 內執行 handler。
+    - 首次真實數字 486ms → 226ms；TTFB 17ms → 20ms。
+  - **需登入頁：`/admin/reports`**（`add-ssr-admin-reports-cookie-forward`）
+    - 報表資料抽成 `useAdminReportData`，以 `useRequestHeaders(['cookie'])` 轉發 cookie。
+    - `AdminShell.vue` 的權限檢查改成 setup 頂層 `await`，SSR 階段就完成驗證。
+    - **修掉跨請求狀態污染**：`useAuth`/`useAdminAuth` 原本是模組層級的 `reactive({})`，
+      在 SSR 下整個 Nitro process 共用一份，會讓不同帳號的登入狀態互相覆蓋。
+      改用 `useState()`，進行中的 promise 改用以 `nuxtApp` 為 key 的 `WeakMap` 去重複。
+    - 第一版反而變慢（390ms → 485ms），根因是 hydration 時 `guard()` 清掉 SSR 狀態後又重打 API；
+      以 `nuxtApp.isHydrating` 修正後，production build p50 186ms / p90 312ms
+      （`fix-admin-guard-hydration-duplicate-fetch`；改造前基準尚待以 production build 重新量測）。
+  - **刻意不轉換的頁面**：遊戲頁（canvas、`requestAnimationFrame`）和下注頁。前者 SSR 沒有好處；
+    後者的存取檢查 `app/middleware/game-access.global.ts` 目前只在 client 端執行，另案處理。
+  - 量測方法、完整數據與更正紀錄見
+    [`docs/Engineering Evidence/ssr-performance-log.md`](../Engineering%20Evidence/ssr-performance-log.md)。
 
 ## 頂層目錄
 
@@ -181,7 +164,7 @@ server/
   需要同一腳本內模擬多個身分（如角色權限測試）時用其 `actor()`／`createHttpClient()`
 - 彙總器（固定列舉子腳本，各自表達一個有業務意義的分組）：
   - `test/test-bg-all.mjs` → `npm run test:bg`：BG 15 盤口（6hc-cd 因限額機制尚不完整故意排除，
-    見 [[project_quota_p2_pending]]，需要時另外跑 `npm run test:6hc-cd`）
+    單期限額只做到分頁層級，跨分頁與玩家層級限額尚未實作，需要時另外跑 `npm run test:6hc-cd`）
   - `test/test-games-all.mjs` → `npm run test:games`：retro 遊戲中心 30 款 + 復古童玩 8 款
 - `test/ci-test-all.mjs` → `npm test`：CI 專用彙總器，動態從 `package.json` 抓出全部 `test:` 開頭的
   script 執行（不手動列舉，新增測試腳本自動被涵蓋），供 `.github/workflows/ci.yml` 的 `test` job 呼叫

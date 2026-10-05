@@ -63,8 +63,8 @@
 - **`npm test` 對 `test:bg`／`test:games` 內部子腳本有重複執行**：刻意的取捨（見
   `add-ci-test-pipeline/design.md` 第 2 節），目前總時間可接受，測試數量大幅成長後需要重新評估
 - **發現但本次未處理**：執行期間另外發現白名單裡有一個非本次建立的 admin 帳號
-  （`promote-e2e-*@test.cc`），疑似先前某次手動測試升級後忘記降回來，已回報給使用者、
-  尚待使用者決定是否要降回 user
+  （`promote-e2e-*@test.cc`），疑似先前某次手動測試升級後忘記降回來，已記錄，
+  尚待決定是否要降回 user
 - **尚未接上分支保護規則**：CI 綠燈/紅燈目前只有顯示作用，要讓它真的擋住 merge 需要到 GitHub repo
   的 Settings → Branches 另外設定（`ci-pipeline-plan.md` 踩雷點⑤已註明，不在本次變更範圍）
 

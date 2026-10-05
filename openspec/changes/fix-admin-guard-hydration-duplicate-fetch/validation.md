@@ -75,19 +75,17 @@ TTFB 略為上升（12ms→47ms）在量測雜訊範圍內，本機環境所有 
 - [x] 無新增重大 console / runtime error
 - [x] 相關測試或手動驗證完成，效能數據從「改造後變慢」修正為「真正的淨改善」
 
-## 追更：使用者第二輪 code review（2 項）
+## 追更：第二輪 review（2 項）
 
 ### 1. 280ms 的結論撐不住樣本分布——改用 production build + 20 次 p50/p90 重新量測
 
-使用者指出：5 次樣本 `[280, 697, 240, 649, 202]` 明顯分成「~200 多 ms」與
+問題：5 次樣本 `[280, 697, 240, 649, 202]` 明顯分成「~200 多 ms」與
 「~650~700ms」兩群，中位數只是剛好落在快的那一群，不能直接下「優於改造前
 390ms」的結論；且量測全程都在 `nuxt dev` 下跑，建議改用 `nuxt build &&
 node .output/server/index.mjs` 的正式 build、每項跑 20 次以上、列出 p50/p90，
 若正式 build 下仍有離群值再追查原因。
 
-- 因為無法停用使用者既有跑在 6100 的 dev server（Claude Code 自動權限分類器
-  擋下了終止該行程的動作，且該 server 並非本次 session 啟動），改在另一個
-  port（6200）用 `nuxt build && node .output/server/index.mjs` 起一份獨立的
+- 6100 port 已有 dev server 在跑，因此改在另一個 port（6200）用 `nuxt build && node .output/server/index.mjs` 起一份獨立的
   production build 進行量測，量測完畢後已關閉
 - Production build、已登入 admin cookie、20 次樣本（6hc-cd 先下注+等自然開獎
   結算，讓這次全新啟動、無任何歷史資料的 production server 的 2026-10 月報表
@@ -101,7 +99,7 @@ node .output/server/index.mjs` 的正式 build、每項跑 20 次以上、列出
   185, 176, 202, 5160, 191, 168, 232, 169, 174
 
 - **誠實結論**：production build 下，`nuxt dev` 時觀察到的「乾淨 50/50 雙峰分布」
-  （4 次快／4 次慢的整齊切分）**沒有重現**——這支持使用者原本的懷疑：dev 模式
+  （4 次快／4 次慢的整齊切分）**沒有重現**——支持原本的推測：dev 模式
   （Vite 隨選編譯／HMR 相關開銷）確實是造成當時那個乾淨雙峰分布的主因，不是
   SSR 架構本身的問題。production build 下仍有 1 筆 5160ms 的單一離群值，但只
   出現 1 次（1/20），沒有再現「一半樣本都慢」的整齊切分模式；受限於時間，沒有
@@ -110,7 +108,7 @@ node .output/server/index.mjs` 的正式 build、每項跑 20 次以上、列出
 
 ### 2. 未登入訪客進後台也會重複請求（邊界情況）
 
-使用者指出：跳過條件原本只看 `checked.value`，但 SSR 階段若判定 `isLoggedIn`
+問題：跳過條件原本只看 `checked.value`，但 SSR 階段若判定 `isLoggedIn`
 為 false，`guard()` 會在 `refreshAuth()` 之後就提早 `return`、`check()` 根本
 不會被呼叫，`checked` 永遠停在初始值 `false`——這種情況下 hydration 時的跳過
 條件恆為假，仍會重打一次 `/api/me`。

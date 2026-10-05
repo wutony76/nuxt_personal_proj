@@ -9,7 +9,7 @@
   - `app/components/lottery/tw/dlt/block/DialogRule.vue`
   - `app/pages/lottery/tw/dlt.vue`
   - `openspec/changes/align-dlt-dialogs-with-6hc-of/{proposal,design,tasks,validation}.md`
-- Commit / PR 參考：（尚未 commit，待使用者確認後再建立）
+- Commit / PR 參考：`78cb6b8`
 
 ## 驗證佐證
 
@@ -21,15 +21,15 @@
 ## 風險與後續追蹤
 
 - 已知風險：
-  - 三個彈窗的排序／篩選／分頁籤／命中標記僅完成程式碼層級驗證，尚未由使用者在瀏覽器實際操作確認
-  - `DialogRule.vue` 內容為改寫（DLT 無彩池，不可照搬 6hc-of 的獎池滾存章節），文字用語需使用者確認是否符合預期
+  - 三個彈窗的排序／篩選／分頁籤／命中標記僅完成程式碼層級驗證，尚未在瀏覽器實際操作確認
+  - `DialogRule.vue` 內容為改寫（DLT 無彩池，不可照搬 6hc-of 的獎池滾存章節），文字用語需再確認是否符合預期
 - 後續追蹤事項（Open Questions 延伸）：
-  - 使用者登入後手動驗證三個彈窗的互動與排版，若有落差再回頭調整
+  - 登入後手動驗證三個彈窗的互動與排版，若有落差再回頭調整
   - 若後續要幫 DLT 補自動化 UI 測試（目前 `test:dlt` 只測 API/結算邏輯，不含彈窗互動），可另開變更處理
 
 ## 封存前檢查
 
-- [x] validation.md 已完成且結論為「有條件通過」（非純「通過」，因彈窗互動待使用者手動確認）
+- [x] validation.md 已完成且結論為「有條件通過」（非純「通過」，因彈窗互動待手動確認）
 - [x] 變更檔案與風險說明已整理完成
 - [x] `npm run dev`（既有 process）已確認 `/lottery/tw/dlt` 回應正常；`npm run test:dlt` 40 項全數通過
-- [ ] 可執行 `openspec archive` — 建議等使用者完成手動互動驗證後再封存
+- [ ] 可執行 `openspec archive` — 完成手動互動驗證後再封存

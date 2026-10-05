@@ -10,7 +10,7 @@
   - `server/api/lottery-tw/dlt/opencode-history.get.ts`
   - `scripts/test-dlt.mjs`
   - `openspec/changes/align-dlt-issue-with-official-period/{proposal,design,tasks,validation}.md`
-- Commit / PR 參考：（尚未 commit，待使用者確認後再建立）
+- Commit / PR 參考：`ef12d9c`
 
 ## 驗證佐證
 
@@ -40,7 +40,7 @@
 - 後續追蹤事項（Open Questions 延伸）：
   - 若之後要讓 `test:dlt` 可重複執行不受歷史狀態影響，需另外設計「測試前重置」機制
   - 舊格式（YYYYMMDD）的 dev 測試資料不會回溯轉換（純記憶體資料，重啟即清空，非正式風險）
-  - 若使用者希望回填更多筆數或涵蓋跨年度，屬於獨立的後續調查（需先確認能否可靠推算跨年
+  - 若需要回填更多筆數或涵蓋跨年度，屬於獨立的後續調查（需先確認能否可靠推算跨年
     序號起點），不在本次範圍內
 
 ## 封存前檢查
@@ -48,4 +48,4 @@
 - [x] validation.md 已完成且結論為「通過」
 - [x] 變更檔案與風險說明已整理完成
 - [x] `npm run dev`（既有 process）搭配 `npm run test:dlt` 已確認 40/40 全數通過
-- [ ] 可執行 `openspec archive` — 建議使用者確認後再封存
+- [ ] 可執行 `openspec archive` 

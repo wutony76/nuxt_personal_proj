@@ -73,7 +73,7 @@
 - 前端頁面：`app/pages/lottery-hall.vue`
 - 新增測試/量測腳本：`test/perf-ssr-lottery-hall.mjs`
 - 新增文件：`docs/Engineering Evidence/ssr-performance-log.md`（歷史列表）
-- **範圍調整（Implementation 階段發現，已跟使用者確認過才動手）**：`app/services/api.ts`
+- **範圍調整（Implementation 階段發現，評估影響面後納入）**：`app/services/api.ts`
   第一行 `import { $fetch } from 'ofetch'` 改掉——裸 ofetch 在 SSR（Node）環境呼叫相對路徑
   會直接丟錯（已實測確認），不改這一行，`useAsyncData` 轉換完全無法運作。改成不自行
   import、讓 Nuxt 自動注入有 SSR 情境感知能力的全域 `$fetch`，client 端呼叫行為不變

@@ -9,7 +9,7 @@
   - `app/pages/project/index.vue`（Header meta／標題／描述分層 stagger 進場；每筆專案列拆成編號（左滑入）／中間內容（下滑入）／右側狀態（右滑入）三段式分層進場；`<main>` 加上 `pf-main-textured`）
   - `app/layouts/portfolio.vue`（新增 `hasTexture` computed，僅在路徑為 `/` 或 `/project` 時對 `<header>`/`<footer>` 加上 `pf-header-textured`/`pf-footer-textured`，其餘頁面—尤其 11 個專案詳細頁—維持原本乾淨版面）
   - `app/assets/style/project.scss`（新增 `pf-reveal-left/right/scale` 方向 modifier、`pf-fade-slide-in-left/right`、`pf-fade-scale-in` 等 keyframes；Hero 人像／meta／CTA 按鈕群組獨立進場動畫；`prefers-reduced-motion` 一併涵蓋新增樣式；`pf-proj-row`／`pf-btn-primary` hover 箭頭位移與文字變色；新增 `.pf-header-textured`/`.pf-footer-textured`（噪點顆粒 + 45°/135° 刻痕線 + 青綠色調漸層）與 `.pf-main-textured`（三層不同尺度噪點 + 暈影 radial-gradient + inset box-shadow）—CSS 內容取自參考檔 `SAMPLE/Industry/texture/page_texture.html` 解碼出的 SVG feTurbulence noise data URI，數值原封不動沿用）
-- Commit / PR 參考：（尚未 commit，待使用者確認後再提交）
+- Commit / PR 參考：`335849b`、`564b118`
 
 ## 驗證佐證
 
@@ -30,7 +30,7 @@
 
 - 已知風險：
   - `v-reveal` 依賴 `IntersectionObserver`，未做舊瀏覽器 polyfill（專案目前無明確瀏覽器相容需求，暫不處理）
-  - 動畫效果未做真實瀏覽器手動視覺確認（僅驗證 HTTP 狀態與 class 掛載），建議使用者實際開啟頁面滾動確認觀感
+  - 動畫效果未做真實瀏覽器手動視覺確認（僅驗證 HTTP 狀態與 class 掛載），需實際開啟頁面滾動確認觀感
   - 材質紋理以多層 SVG data URI + repeating-linear-gradient 疊加，屬持續重繪的裝飾背景，理論上比純色背景略增繪製成本；在 `.pf-header`/`.pf-footer`（固定高度小區塊）與 `.pf-main`（單層 fixed-size 平舖圖層）影響應可忽略，但未做效能量測
   - `.pf-main-textured` 的 `background-image`/`background-size` 需在 SCSS 原始碼順序上排在 `.pf-main`（其 `background: var(--proj-bg)` 簡寫會重置 background-image 為 none）**之後**，才能正確覆蓋；已將材質區塊放在 `.pf-main` 定義之後，如未來調整檔案順序需留意此耦合
 - 後續追蹤事項（Open Questions 延伸）：
@@ -40,5 +40,5 @@
 
 - [x] 變更檔案與風險說明已整理完成
 - [x] 現有 dev server（6100）已確認頁面正常回應
-- [ ] 使用者實機瀏覽確認動畫觀感
+- [ ] 實機瀏覽確認動畫觀感
 - [ ] 本次未建立對應 OpenSpec change 資料夾（純視覺變更，範圍與風險皆低，未走完整 proposal/design/tasks；如需補齊請告知）

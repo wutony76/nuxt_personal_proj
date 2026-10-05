@@ -12,9 +12,8 @@
   - `test/perf-ssr-lottery-hall.mjs`（新增，後改版為同時量測 4 項指標：
     TTFB／首次真實數字／settled／LCP）
   - `docs/Engineering Evidence/ssr-performance-log.md`（新增 4 列：2 列原始量測
-    + 2 列 code review 後的更正量測）
-- Commit / PR 參考：（待 commit 後補上 hash；本次是在第一版 commit 之後，依使用者
-  code review 意見做的修正，屬於同一個 openspec change 的延續）
+    + 2 列 review 後的更正量測）
+- Commit / PR 參考：`55e300f`（首版）、`363460a`（review 後修正）、`abca4c5`（補回首次動畫）
 
 ## 驗證佐證
 
@@ -52,9 +51,9 @@
 
 ## 封存前檢查
 
-- [x] validation.md 已完成，結論為「通過」，含 4 項 code review 修正的完整記錄
+- [x] validation.md 已完成，結論為「通過」，含 4 項 review 修正的完整記錄
 - [x] 變更檔案與風險說明已整理完成
 - [x] `npm run dev` 確認正常
 - [x] 效能數據已更正並寫入 `ssr-performance-log.md`（保留原始誤導性數據列、標註說明、
       新增更正列，未刪除既有內容）
-- [ ] 尚未 commit——等使用者確認後再建立 commit
+- [x] Commit：`55e300f`、`363460a`、`abca4c5`

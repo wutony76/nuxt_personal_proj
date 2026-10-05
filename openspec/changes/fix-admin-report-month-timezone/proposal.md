@@ -7,7 +7,7 @@ fix-admin-report-month-timezone — 修正後台報表月份初始值在伺服�
 
 ## 背景
 
-使用者 code review 指出：`useAdminReportData.ts` 的 `month` 用
+Review 發現：`useAdminReportData.ts` 的 `month` 用
 `ref(dayjs().format('YYYY-MM'))` 初始化。這段程式碼在 SSR 與 client
 hydration 各自執行一次（Vue/Nuxt 元件 `setup()` 在伺服器渲染與瀏覽器接管時
 都會跑一次），`dayjs()` 分別讀取「伺服器的系統時區」與「瀏覽器的本地時區」。

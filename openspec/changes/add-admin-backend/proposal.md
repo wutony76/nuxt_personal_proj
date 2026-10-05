@@ -23,7 +23,7 @@
   - `/admin/game-simulator`：遊戲試算，本次僅佔位，實質功能留待後續 change
   - `/admin/reports`：報表分析，本次僅佔位，實質功能留待後續 change
 - **新增後台專屬 server API**（`server/api/admin/**`），在既有 `sessionController.require` 之外再加一層「是否為管理員」的門禁檢查
-- **Server 端資料可變化**：把原本寫死在建構子的 coin 三常數、client 端寫死的 PAC-MAN 固定樣板迷宮，改為可被後台 API 讀寫的可變狀態，沿用現有 in-memory `Storage` 架構、不引入資料庫（代表後台改的值伺服器重啟就會消失，這點需要在 design.md 明確跟使用者確認是否可接受，或是否要加一層簡單的檔案持久化）
+- **Server 端資料可變化**：把原本寫死在建構子的 coin 三常數、client 端寫死的 PAC-MAN 固定樣板迷宮，改為可被後台 API 讀寫的可變狀態，沿用現有 in-memory `Storage` 架構、不引入資料庫（代表後台改的值伺服器重啟就會消失，這點需要在 design.md 明確決定是否可接受，或是否要加一層簡單的檔案持久化）
 
 ## Capabilities
 

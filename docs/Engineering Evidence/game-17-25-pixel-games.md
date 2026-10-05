@@ -35,7 +35,7 @@
 ## 風險與後續追蹤
 
 - **DINO RUN（原規劃 id 25）**：已拍板方案 B，不新增為獨立遊戲；`openspec/changes/add-dino-run-game/` 下 README/proposal/design/tasks 已標記「不執行，保留為分析紀錄」
-- Double Jump／Day-Night／Challenge Mode 改列入未來 RUNNER 擴充提案（例如 `update-runner-game-endless-extras`，**尚未建立**），需使用者明確指示才會建立
+- Double Jump／Day-Night／Challenge Mode 改列入未來 RUNNER 擴充提案（例如 `update-runner-game-endless-extras`，**尚未建立**），確定要做時再建立
 - 實作期間偵測到同一 repo 有其他並行 session 在修改 `api.ts`／`game-hall.vue`（後台角色管理／聊天排程功能），改用「只 patch 自己新增的行到 git index」手法（`git apply --cached` + 手刻 diff）避免夾帶對方未完成工作
 - `server/api/admin/members.post.ts`（對方檔案）曾有 import 路徑錯誤（多一層 `../`）導致整個 dev server 起不來，已就地修正兩行 import 路徑但**未 commit**（屬另一 session 工作範圍）
 
@@ -44,7 +44,7 @@
 - [x] 8 款遊戲皆完成 validation（單元測試 + Playwright 手動驗證）
 - [x] 8 款遊戲皆已 commit（見上方 commit 清單）
 - [ ] `add-2048-game` ～ `add-arkanoid-game` 8 個 openspec change 尚未執行 `openspec archive`
-- [ ] `add-dino-run-game` 尚未決定是否直接 archive（方案 B 不實作，需使用者確認保留現況或封存）
+- [ ] `add-dino-run-game` 尚未決定是否直接 archive（方案 B 不實作，待決定保留現況或封存）
 
 ---
 最後更新：2026-09-09

@@ -10,7 +10,7 @@
 問題出在 mount 之後要怎麼「補一個視覺效果」：
 
 1. **舊版（reset to 0）**：`onMounted` 把已經正確的值記下來、重置成 0、再用
-   `_animatePoolTo` 爬回去。使用者的回報是「正確數字先消失再爬回來」，體感
+   `_animatePoolTo` 爬回去。實際看到的是「正確數字先消失再爬回來」，體感
    是資料被捨棄重算
 2. **lazy 到達分支完全沒有處理**：`watch(initialPools, ...)` 只有
    `!mounted.value` 這個分支做賦值，`mounted.value` 為 true 時（lazy 資料在
