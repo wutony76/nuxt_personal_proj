@@ -689,7 +689,15 @@ export default class P3Class extends LOTTERY_BASE {
       // 這一期結算完成，往下一個開獎日推進。序號基準取「官方最新已知期別」與「剛結算掉的
       // 內部期別」兩者較大的一個——理論上兩者這時應該相等，保留這層比較純粹是防禦性寫法。
       const seedPeriod = _laterOfficialPeriod(this.lastKnownOfficialPeriod, settledIssue)
-      const { drawDate, cutoffAt, drawAt } = _nextDrawWindow(new Date(this.drawAt + 60_000))
+      /**
+       * ⚠️ 用真正的 now（這次結算當下的實際時間）當基準找下一個開獎日，不能用
+       * this.drawAt（舊的內部時間）往後推——後者一旦落後真實時間（例如本機休眠
+       * 超過一個完整開獎週期），_nextDrawWindow() 會從落後的起點繼續往後搜尋，
+       * 絕對的時間差永遠不會縮小，cutoffAt 永遠停在過去，狀態永久卡在「結算中
+       * （等待官方資料）」、無法再開放下注（見 fix-bingo-stuck-settlement-clock-
+       * drift，bingo.ts 實測重現過同一個根因，這裡用同一套修法）。
+       */
+      const { drawDate, cutoffAt, drawAt } = _nextDrawWindow(now)
       this.currentIssue = _nextOfficialPeriod(drawDate, seedPeriod)
       this.cutoffAt = cutoffAt
       this.drawAt = drawAt
