@@ -126,6 +126,62 @@ const DEFAULT_SCHEDULE: NpcSchedule = {
   bgBetAmountMax: 150
 }
 
+/**
+ * NPC 玩家原型：自動新增會員時隨機抽一個，決定「偏好玩哪些分類」＋「該分類裡實際
+ * 勾選幾成的遊戲」，取代舊版「每個 NPC 預設全選所有已支援遊戲」的做法（見
+ * `_allowedGamesOf()` 原本的行為、`_assignArchetype()`）。
+ *
+ * 目的：後台「資料統計／會員」頁的每款遊戲不重複人數，原本因為 20 個 NPC 都勾選
+ * 全部 61 款遊戲、且共用同一組全域權重，數字會不自然地平均分散在每一款上；改成
+ * 每個 NPC 隨機抽一種原型、同原型裡也用隨機比例決定實際勾選哪些遊戲（不是固定
+ * 清單），讓熱門/冷門遊戲的分佈更接近真實玩家「各有偏好、不會每款都碰」的樣子。
+ *
+ * `weight` 是抽中這個原型的相對機率（總和不必是 100，`_pickArchetype()` 會自己
+ * 用總和正規化）；`gameSharePct` 是這個原型在該分類裡，實際勾選遊戲數佔該分類
+ * 總數的隨機百分比區間 `[min, max]`（含 0，代表這個原型的 NPC 可能完全不碰該
+ * 分類），每個 NPC 各自在區間內重新擲一次、再從該分類隨機抽對應數量的遊戲
+ * （不是固定抽前 N 個），確保同原型的不同 NPC 彼此勾選的遊戲也不會完全一樣。
+ */
+type NpcArchetype = {
+  name: string
+  weight: number
+  categoryWeights: Pick<NpcMemberSetting, 'bgWeight' | 'retroWeight' | 'twWeight' | 'toysWeight'>
+  gameSharePct: Record<NpcGameCategory, [min: number, max: number]>
+}
+
+const NPC_ARCHETYPES: NpcArchetype[] = [
+  {
+    name: 'BG 彩迷',
+    weight: 20,
+    categoryWeights: { bgWeight: 80, retroWeight: 10, twWeight: 15, toysWeight: 5 },
+    gameSharePct: { bg: [30, 60], retro: [5, 15], tw: [10, 30], toys: [0, 15] }
+  },
+  {
+    name: '復古遊戲宅',
+    weight: 20,
+    categoryWeights: { bgWeight: 10, retroWeight: 80, twWeight: 10, toysWeight: 15 },
+    gameSharePct: { bg: [5, 20], retro: [30, 60], tw: [5, 20], toys: [5, 25] }
+  },
+  {
+    name: '台彩鐵粉',
+    weight: 15,
+    categoryWeights: { bgWeight: 15, retroWeight: 10, twWeight: 80, toysWeight: 5 },
+    gameSharePct: { bg: [5, 20], retro: [5, 20], tw: [40, 80], toys: [0, 15] }
+  },
+  {
+    name: '柑仔店熟客',
+    weight: 15,
+    categoryWeights: { bgWeight: 10, retroWeight: 20, twWeight: 10, toysWeight: 70 },
+    gameSharePct: { bg: [0, 15], retro: [10, 25], tw: [0, 15], toys: [40, 80] }
+  },
+  {
+    name: '雜食玩家',
+    weight: 30,
+    categoryWeights: { bgWeight: 50, retroWeight: 40, twWeight: 50, toysWeight: 30 },
+    gameSharePct: { bg: [20, 45], retro: [20, 45], tw: [25, 60], toys: [20, 50] }
+  }
+]
+
 const DEFAULT_MEMBER_DAILY_MAX_SPEND = 50_000
 const DEFAULT_MEMBER_TOPUP_AMOUNT = 2_000
 const DEFAULT_ACTION_INTERVAL_SEC = 20
@@ -269,6 +325,60 @@ function _fullCatalog(): Array<{ category: NpcGameCategory; key: string; name: s
   const base = roleGamePermsService.catalog()
   const toys = TOY_CATALOG.map((t) => ({ category: 'toys' as const, key: t.slug, name: t.name }))
   return [...base, ...toys]
+}
+
+/** 依 `NPC_ARCHETYPES` 的 `weight` 做加權隨機抽一個原型 */
+function _pickArchetype(): NpcArchetype {
+  const total = NPC_ARCHETYPES.reduce((sum, a) => sum + a.weight, 0)
+  let roll = Math.random() * total
+  for (const archetype of NPC_ARCHETYPES) {
+    roll -= archetype.weight
+    if (roll <= 0) return archetype
+  }
+  return NPC_ARCHETYPES[NPC_ARCHETYPES.length - 1] as NpcArchetype
+}
+
+/** Fisher-Yates 洗牌，回傳新陣列、不動原陣列 */
+function _shuffled<T>(items: T[]): T[] {
+  const copy = [...items]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const tmp = copy[i] as T
+    copy[i] = copy[j] as T
+    copy[j] = tmp
+  }
+  return copy
+}
+
+/** 在 `[minPct, maxPct]`（0~100）區間隨機擲一個百分比，從 `items` 隨機抽對應數量（允許抽到 0 個） */
+function _randomSharePick<T>(items: T[], minPct: number, maxPct: number): T[] {
+  if (items.length === 0) return []
+  const pct = minPct + Math.random() * (maxPct - minPct)
+  const count = Math.round((items.length * pct) / 100)
+  return _shuffled(items).slice(0, count)
+}
+
+/**
+ * 新建 NPC 會員時呼叫：隨機抽一個玩家原型，把「這個分類玩多少比例的遊戲」
+ * 具體落實成一份 `allowedGames` 清單（取代原本 `_allowedGamesOf()` 的全選預設），
+ * 並把原型的分類權重直接存成這個 NPC 的個別設定（不留給 `_memberSettingOf()`
+ * 退回全域權重，否則所有 NPC 權重又會變回一樣）。
+ */
+function _assignArchetype(userId: string): void {
+  const archetype = _pickArchetype()
+  const catalog = _fullCatalog().filter((g) => SUPPORTED_CATEGORIES.has(g.category))
+
+  const allowed = new Set<string>()
+  for (const category of SUPPORTED_CATEGORIES) {
+    const itemsInCategory = catalog.filter((g) => g.category === category)
+    const [minPct, maxPct] = archetype.gameSharePct[category]
+    _randomSharePick(itemsInCategory, minPct, maxPct)
+      .forEach((g) => allowed.add(_compositeKey(g.category, g.key)))
+  }
+  _allowedGamesByUser.set(userId, allowed)
+
+  const base = _memberSettingOf(userId)
+  _memberSettings.set(userId, { ...base, ...archetype.categoryWeights })
 }
 
 function _dateKey(d: Date = new Date()): string {
@@ -462,7 +572,14 @@ export const npcAutoPlayService = {
     }
     const name = _generateUniqueMemberName()
     const email = `${name}${NPC_EMAIL_DOMAIN}`
-    return adminAccessService.createMember({ name, email, password: AUTO_CREATE_PASSWORD, role: 'npc' })
+    const user = adminAccessService.createMember({ name, email, password: AUTO_CREATE_PASSWORD, role: 'npc' })
+    // 隨機抽一個玩家原型，差異化這個 NPC 實際會碰哪些遊戲、各分類的權重——
+    // 不這麼做的話 `_allowedGamesOf()` 會在第一次被存取時預設全選所有已支援遊戲，
+    // 20 個 NPC 全部都玩全部遊戲，後台「資料統計／會員」的每款遊戲人數會失真地
+    // 平均分散（見 fix-npc-game-diversity 的 proposal.md）。管理員之後仍可在
+    // 「NPC 管理」面板手動調整這裡抽到的結果。
+    _assignArchetype(user.id)
+    return user
   },
 
   setMemberGameAllowed: (userId: string, category: NpcGameCategory, key: string, allowed: boolean): string[] => {
