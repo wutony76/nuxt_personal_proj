@@ -38,7 +38,7 @@ import { fetchTaiwanLotteryLastNumberOf } from './taiwanLotteryApi'
  *   猜大小/猜單雙）的賠率全部查 `shared/config/bingo.ts` 的固定常數表，不查任何官方 API。
  *
  * ── 每 5 分鐘連續開一期，不是「星期幾開獎」的日曆模式 ─────────────────────
- *   跟 P3/P4/M649 那種「找下一個開獎日」完全不同，本檔**不**使用日曆式 `_nextDrawWindow`，
+ *   跟 P3/P4/M649 那種「找下一個開獎日」完全不同，本檔**不**使用日曆式的 `nextDrawWindow()`（`./drawSchedule.ts`），
  *   改用「對齊下一個 5 分鐘整點」（`_nextFiveMinuteBoundary`）＋「已知官方最新期別序號 +1」
  *   （`_nextOfficialPeriod`，不依賴日期反推民國年）推進期別。`cutoffAt` 直接等於 `drawAt`
  *   （下注開放到開獎那一刻為止，沒有跨日等待的「已封盤」中間態）。

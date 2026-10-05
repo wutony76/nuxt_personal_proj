@@ -61,9 +61,21 @@ npm run build
 
 # 本地預覽正式建置
 npm run preview
+
+# 直接啟動正式建置產物
+npm run start
 ```
 
+> 伺服器時區固定為台灣時間：`dev`／`preview`／`start` 都會帶 `TZ=Asia/Taipei` 啟動，
+> 開獎與鎖單時間不受主機時區影響（見 [`docs/Architecture/README.md`](docs/Architecture/README.md#時區)）。
+
 ## 測試
+
+純函式的單元測試使用 Vitest（[`test/unit/`](test/unit)），以 `TZ=UTC` 執行，確認結果與主機時區無關：
+
+```bash
+npm run test:unit       # 例如台彩開獎時間計算（跨週、跨年、鎖單邊界、伺服器休眠後）
+```
 
 各盤口／玩法的派彩與中獎邏輯皆有對應的回歸測試腳本（[`test/`](test)），例如：
 

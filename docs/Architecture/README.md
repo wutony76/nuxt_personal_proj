@@ -157,8 +157,20 @@ server/
 - 各盤口純資料設定（cd、of、eggscd、fc3dof、k3cd/of、kl10cd、kl8cd、pk10cd/of、pl3of、ssccd/of、x5cd/of）
 - 特例：此目錄下皆為純 JS 宣告檔，禁止 `import`（Nitro 對 `shared` 走 Node 原生 ESM，不認別名）
 
+## 時區
+
+- 整個 server 固定在 `Asia/Taipei`。台彩、BG 盤口大量使用 `getHours()`／`setHours()`／`getDay()` 等本地時間 API，
+  雲端主機與 GitHub Actions 預設 UTC，不固定會讓開獎與鎖單時間差 8 小時。
+- 主要機制：`package.json` 的 `dev`／`preview`／`start` 啟動時帶 `TZ=Asia/Taipei`。`nuxt dev` 的 Nitro 跑在
+  worker thread，執行期修改 `process.env.TZ` 不會生效，所以必須在 process 啟動時決定。
+- 保底：`server/plugins/00.timezone.ts` 在 production 主執行緒執行期設定時區，仍不正確時印出 `TTT---WARN.TIMEZONE`。
+- 台彩日曆式開獎（DLT／D539／M539／M649／P3／P4／SUPERLOTTO）共用
+  `server/services/game/lottery/tw/drawSchedule.ts` 的 `nextDrawWindow()`，明確以 UTC+8 計算，不依賴上述設定。
+
 ## 測試與 CI
 
+- `test/unit/**/*.test.ts` → `npm run test:unit`：Vitest 單元測試，只測不依賴 Nuxt／Nitro runtime 的純函式，
+  以 `TZ=UTC` 執行；設定見 `vitest.config.ts`
 - `test/test-*.mjs`：對真實 dev server（`http://localhost:6100`）送出真實 HTTP／WebSocket 請求的
   端到端測試腳本，共用 `test/_test-utils.mjs` 的 `createTestRunner()`（login/api/ok/section/summary）；
   需要同一腳本內模擬多個身分（如角色權限測試）時用其 `actor()`／`createHttpClient()`

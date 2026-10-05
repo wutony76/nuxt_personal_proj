@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "build": "nuxt build",
-    "dev": "nuxt dev --port 6100",
+    "dev": "TZ=Asia/Taipei nuxt dev --port 6100",
     "generate": "nuxt generate",
-    "preview": "nuxt preview",
+    "preview": "TZ=Asia/Taipei nuxt preview",
+    "start": "TZ=Asia/Taipei node .output/server/index.mjs",
     "postinstall": "nuxt prepare",
     "test": "node test/ci-test-all.mjs",
+    "test:unit": "TZ=UTC vitest run",
     "test:dlt": "node test/test-dlt.mjs",
     "test:superlotto": "node test/test-superlotto.mjs",
     "test:d539": "node test/test-d539.mjs",
@@ -79,6 +81,7 @@
     "tailwindcss": "^4.2.2",
     "vite-svg-loader": "^5.1.1",
     "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.11",
     "ws": "^8.18.0"
   },
   "volta": {

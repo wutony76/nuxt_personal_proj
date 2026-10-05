@@ -1,6 +1,7 @@
 import { Storage } from 'serv/services/storage'
 import { LOTTERY, STATUS_TIME } from '~/config/constants'
 import LOTTERY_BASE from './base'
+import { nextDrawWindow, type DrawSchedule } from './drawSchedule'
 import { MEMORY } from 'serv/services/base'
 import {
   P3_BET_AMOUNT,
@@ -52,7 +53,7 @@ import {
  *      p3IsBackPairMatch），互不影響——同一組數字若同時下前二對彩與後二對彩（各佔一組注單），
  *      兩組各自判定，都中則各發 750、合計 1,500，不可只算一次。
  *   2. 開獎頻率：每天開獎（週一至週六），跟今彩539同一組時間參數（20:00 截止、20:30 開獎），
- *      期別推進邏輯直接比照 d539.ts 複製一份（_nextDrawWindow 等），只換常數來源。
+ *      期別推進邏輯比照 d539.ts，開獎日計算共用 `./drawSchedule.ts`，只換常數來源。
  *   3. 開獎號碼固定 3 碼（P3_DIGIT_COUNT），不是 M649 的 6 碼／D539 的 5 碼。
  *
  * ── 架構決策（design.md Decision 5，獨立性同 Decision 3）─────────────────
@@ -194,29 +195,11 @@ function _prevOfficialPeriods(latest: string, count: number): string[] {
   return periods.reverse()
 }
 
-/**
- * 找出「以 fromDate 為基準，下一個尚未截止投注的開獎日」，回傳當天的鎖單時間與開獎時間
- * （皆為 epoch ms）。3星彩跟今彩539/49樂合彩一樣每天（週一至週六）開獎——判斷條件
- * `P3_DRAW_WEEKDAYS.includes(probe.getDay())` 複製 D539 的日曆邏輯。
- * ⚠️ 絕不 mutate 傳入的 fromDate（呼叫端可能直接傳 MEMORY.now 這個全站共用的 Date 物件）。
- */
-function _nextDrawWindow(fromDate: Date): { drawDate: Date; cutoffAt: number; drawAt: number } {
-  const fromMs = fromDate.getTime()
-  for (let i = 0; i <= 13; i++) {
-    const probe = new Date(fromDate)
-    probe.setDate(probe.getDate() + i)
-    probe.setHours(0, 0, 0, 0)
-    if (!P3_DRAW_WEEKDAYS.includes(probe.getDay())) continue // 週日不開獎，找下一天
-    const cutoffAt = new Date(probe).setHours(P3_CUTOFF_HOUR, P3_CUTOFF_MINUTE, 0, 0)
-    if (fromMs >= cutoffAt) continue // 這天的鎖單時間已過，找下一個開獎日
-    const drawAt = new Date(probe).setHours(P3_DRAW_HOUR, P3_DRAW_MINUTE, 0, 0)
-    return { drawDate: probe, cutoffAt, drawAt }
-  }
-  // 理論上頂多隔一天（週日）就有開獎日，這裡只是型別安全網，不應該真的走到
-  const probe = new Date(fromDate)
-  const fallbackCutoff = new Date(probe).setHours(P3_CUTOFF_HOUR, P3_CUTOFF_MINUTE, 0, 0)
-  const fallbackDraw = new Date(probe).setHours(P3_DRAW_HOUR, P3_DRAW_MINUTE, 0, 0)
-  return { drawDate: probe, cutoffAt: fallbackCutoff, drawAt: fallbackDraw }
+/** 開獎與鎖單時間（台灣時間）；下一期的計算見 `./drawSchedule.ts` 的 `nextDrawWindow()` */
+const DRAW_SCHEDULE: DrawSchedule = {
+  weekdays: P3_DRAW_WEEKDAYS,
+  cutoff: { hour: P3_CUTOFF_HOUR, minute: P3_CUTOFF_MINUTE },
+  draw: { hour: P3_DRAW_HOUR, minute: P3_DRAW_MINUTE }
 }
 
 export default class P3Class extends LOTTERY_BASE {
@@ -585,7 +568,7 @@ export default class P3Class extends LOTTERY_BASE {
       return
     }
     if (!this.currentIssue || !this.cutoffAt || !this.drawAt) {
-      const { drawDate, cutoffAt, drawAt } = _nextDrawWindow(now)
+      const { drawDate, cutoffAt, drawAt } = nextDrawWindow(now, DRAW_SCHEDULE)
       this.currentIssue = _nextOfficialPeriod(drawDate, this.lastKnownOfficialPeriod)
       this.cutoffAt = cutoffAt
       this.drawAt = drawAt
@@ -692,12 +675,12 @@ export default class P3Class extends LOTTERY_BASE {
       /**
        * ⚠️ 用真正的 now（這次結算當下的實際時間）當基準找下一個開獎日，不能用
        * this.drawAt（舊的內部時間）往後推——後者一旦落後真實時間（例如本機休眠
-       * 超過一個完整開獎週期），_nextDrawWindow() 會從落後的起點繼續往後搜尋，
+       * 超過一個完整開獎週期），nextDrawWindow() 會從落後的起點繼續往後搜尋，
        * 絕對的時間差永遠不會縮小，cutoffAt 永遠停在過去，狀態永久卡在「結算中
        * （等待官方資料）」、無法再開放下注（見 fix-bingo-stuck-settlement-clock-
        * drift，bingo.ts 實測重現過同一個根因，這裡用同一套修法）。
        */
-      const { drawDate, cutoffAt, drawAt } = _nextDrawWindow(now)
+      const { drawDate, cutoffAt, drawAt } = nextDrawWindow(now, DRAW_SCHEDULE)
       this.currentIssue = _nextOfficialPeriod(drawDate, seedPeriod)
       this.cutoffAt = cutoffAt
       this.drawAt = drawAt
