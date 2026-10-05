@@ -8,14 +8,16 @@
  * 矩形座標切出 15 張獨立小圖（11 種金額文字＋3 種手勢圖示＋1 個中獎紅圈），
  * 存成 `public/images/scratch/model03/*.png`，不是執行期才切圖。
  *
- * 版面座標忠實沿用原始 Python 版 `get_scratch_card.py` 的
- * `get_model03_plist()`：底圖是 600×384px，5 局手勢圖示沿對角線排列
- * （`cx += 35, cy += 65` 每局往右下偏移），跟底圖上事先印好的 5 組圈圈
- * 位置對應。唯一調整的是「目標金額」徽章的位置——原始碼寫的
- * `(450-100, -30)` Y 座標是負值，疊圖時會被裁掉大半、幾乎看不到，這裡
- * 改放到右上角一個有底色的徽章內，純粹是版面微調，不影響任何機率/
- * 派彩邏輯（那些已經在 `server/services/game/scratch/model03.ts` 忠實
- * 移植過了）。
+ * 版面座標參考原始 Python 版 `get_scratch_card.py` 的 `get_model03_plist()`：
+ * 底圖是 600×384px，5 局手勢圖示沿對角線排列、每局往右下偏移。原始碼寫的
+ * 偏移量是 `cx += 35, cy += 65`，但疊到這份底圖素材上跟事先印好的 5 組
+ * 圈圈位置會跑位，使用者實機比對後調整成 `ROUND_STEP_LEFT = 45`／
+ * `ROUND_STEP_TOP = 60`（見下方常數），這組才是跟底圖真正對齊的值。
+ *
+ * 另外調整「目標金額」徽章的位置——原始碼寫的 `(450-100, -30)` Y 座標是
+ * 負值，疊圖時會被裁掉大半、幾乎看不到，這裡改放到右上角一個有底色的
+ * 徽章內。以上兩處都純粹是版面微調，不影響任何機率/派彩邏輯（那些已經
+ * 在 `server/services/game/scratch/model03.ts` 忠實移植過了）。
  */
 import { computed } from 'vue'
 import type { ScratchModel03Card } from '~/services/api'
@@ -26,14 +28,23 @@ const props = defineProps<{
 
 const ASSET_BASE = '/images/scratch/model03'
 
+/**
+ * ⚠️ 每局的 left/top 間距（45px／60px）是使用者實機比對底圖上事先印好的
+ * 圈圈位置後微調過的，不是原始 Python 版 `get_scratch_card.py` 的
+ * 35px／65px——原始座標疊出來的圖示跟底圖圈圈有跑位，這組數值才是跟
+ * 這份底圖素材真正對齊的值。
+ */
+const ROUND_STEP_LEFT = 45
+const ROUND_STEP_TOP = 60
+
 const rounds = computed(() =>
   props.card.rounds.map((round, idx) => ({
     ...round,
     style: {
-      myHand: { left: `${10 + idx * 35}px`, top: `${10 + idx * 65}px` },
-      enemyHand: { left: `${10 + idx * 35 + 130}px`, top: `${10 + idx * 65 - 20}px` },
-      coin: { left: `${10 + idx * 35 + 65}px`, top: `${10 + idx * 65 + 10}px` },
-      winCircle: { left: `${10 + idx * 35 + 65}px`, top: `${10 + idx * 65 - 10}px` }
+      myHand: { left: `${10 + idx * ROUND_STEP_LEFT}px`, top: `${10 + idx * ROUND_STEP_TOP}px` },
+      enemyHand: { left: `${10 + idx * ROUND_STEP_LEFT + 130}px`, top: `${10 + idx * ROUND_STEP_TOP - 20}px` },
+      coin: { left: `${10 + idx * ROUND_STEP_LEFT + 65}px`, top: `${10 + idx * ROUND_STEP_TOP + 10}px` },
+      winCircle: { left: `${10 + idx * ROUND_STEP_LEFT + 65}px`, top: `${10 + idx * ROUND_STEP_TOP - 10}px` }
     }
   }))
 )
