@@ -71,6 +71,14 @@ async function testAccessBoundaries(tempUserId) {
   const { status: demoViewStatus } = await member.api('/api/admin/roles')
   ok('demo 角色打唯讀端點 → 200', demoViewStatus === 200, `實際 ${demoViewStatus}`)
 
+  // 見 replace-scratch-simulator-with-python-proxy 的追加修正：遊戲試算（刮刮樂）
+  // 純模擬運算、不扣款不派彩，原本誤用 requireAdmin 把 demo 角色擋在外面，改成
+  // requireAdminView 後 demo 應該能打得通——這裡只驗證不是 403（RBAC 本身的事），
+  // 不要求一定是 200，因為這支端點依賴使用者本機可選的 Python 試算服務，服務沒開
+  // 時會回 502，那是另一回事、不代表 RBAC 設錯。
+  const { status: demoScratchInfoStatus } = await member.api('/api/admin/game-simulator/scratch-info')
+  ok('demo 角色打「遊戲試算」唯讀端點不應被 403 擋下', demoScratchInfoStatus !== 403, `實際 ${demoScratchInfoStatus}`)
+
   const { status: demoMeStatus, body: demoMeBody } = await member.api('/api/admin/me')
   ok('/api/admin/me 回報 isDemo=true、isAdmin=false', demoMeStatus === 200 && demoMeBody?.isDemo === true && demoMeBody?.isAdmin === false, JSON.stringify(demoMeBody))
 

@@ -89,3 +89,30 @@
 - [x] Playwright 逐一切換全部 9 個 model 試算，確認皆無 console 錯誤、
       得獎金額皆正確顯示（05/06/08/09 正確退回成呼叫時的金額）
 - [x] `npm run test:scratch-sim`（17 項）全數通過
+
+## 8. 追加：model tab 改用正式名稱
+
+- [x] 使用者提供全部 9 個 model 的正式中文名稱（跟
+      `avscratch_test_views.py` 的 `ALL_MODEL_NAMES` 一致），因為
+      `/api/scratch/info` 的 `MODEL_NAMES` 只填了 01／07，其餘還是
+      「Model 0X」佔位字串
+- [x] 新增前端常數 `MODEL_LABELS` 覆蓋 tab 顯示文字，不用等 Python 端
+      補完；Playwright 實測 9 個 tab 文字皆正確、無 console 錯誤
+
+## 9. 追加：Demo 角色打不了遊戲試算
+
+- [x] 使用者要求 Demo 角色（唯讀瀏覽後台的內建角色，見
+      `roleDefs.ts`）需要能使用「遊戲試算」功能
+- [x] 追查發現兩支代理 API 誤用 `sessionController.requireAdmin`
+      （僅白名單 admin 可過），應該跟專案其他純讀取 admin 端點一樣用
+      `requireAdminView`（白名單 admin 或 demoMode 角色皆可通過）——
+      這支工具本來就是純模擬運算、不扣款不派彩不寫入任何玩家帳務，
+      沒有理由比照寫入端點的權限門檻
+- [x] 改用 `requireAdminView`；用內建 demo 展示帳號
+      `test04@test.cc`／`222222` 實測確認 `scratch-info`／`scratch`
+      兩支端點皆從 403 變成可正常回應
+- [x] `test/test-roles.mjs` 新增回歸測試：demo 角色打
+      `/api/admin/game-simulator/scratch-info` 不應被 403 擋下（不要求
+      一定是 200，因為這支端點依賴使用者本機可選的 Python 服務，服務
+      沒開時回 502 是另一回事，不代表 RBAC 設錯）
+- [x] `npm test`（38 支）全數通過

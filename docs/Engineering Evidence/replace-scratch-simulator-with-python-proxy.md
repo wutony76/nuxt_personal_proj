@@ -81,6 +81,23 @@
 兩個修正都用 Playwright 實測逐一切換全部 9 個 model 試算確認無
 console 錯誤，`test-scratch-sim.mjs`（17 項）全數通過。
 
+### 追加：model tab 改用正式名稱、Demo 角色打不了遊戲試算
+
+1. **model tab 名稱**：`/api/scratch/info` 的 `MODEL_NAMES` 只填了
+   01／07，其餘還是「Model 0X」佔位字串。使用者提供跟
+   `avscratch_test_views.py` 的 `ALL_MODEL_NAMES` 一致的正式中文名稱，
+   新增前端常數 `MODEL_LABELS` 覆蓋 tab 顯示文字，不用等 Python 端補完
+2. **Demo 角色打不了遊戲試算**：兩支代理 API 誤用
+   `sessionController.requireAdmin`（僅白名單 admin 可過），應該跟
+   專案其他純讀取 admin 端點一樣用 `requireAdminView`（白名單 admin 或
+   demoMode 角色皆可通過）——這支工具本來就是純模擬運算、不扣款不派彩
+   不寫入任何玩家帳務，沒有理由比照寫入端點的權限門檻。改用
+   `requireAdminView` 後，用內建 demo 展示帳號 `test04@test.cc`／
+   `222222` 實測確認兩支端點皆從 403 變成可正常回應；`test-roles.mjs`
+   新增回歸測試鎖定這個行為
+
+`npm test`（38 支）全數通過。
+
 ## 風險與後續
 
 - **已知風險（本次變更引入）**：這支工具現在完全依賴使用者本機的

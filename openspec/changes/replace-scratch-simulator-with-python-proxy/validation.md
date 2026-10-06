@@ -101,6 +101,20 @@ ALL_OK: true
 `test-scratch-sim.mjs`（17 項，新增 model05 的 `win_coin` 缺欄位回歸
 測試）：全數通過。
 
+## 追加驗證：Demo 角色存取權限
+
+兩支代理 API 原本誤用 `requireAdmin`（僅白名單 admin 可過），改成
+`requireAdminView` 後，用內建 demo 展示帳號 `test04@test.cc`／`222222`
+實測：
+
+```
+scratch-info status: 200
+scratch status: 200
+```
+
+`test/test-roles.mjs`（新增 1 項，共 34 項）：demo 角色打
+`scratch-info` 不應被 403 擋下，全數通過。
+
 ## 成功標準檢查
 
 - [x] `/admin/game-simulator` 可以切換全部 9 個 model 並實際試算
@@ -112,3 +126,5 @@ ALL_OK: true
       版本
 - [x] 預設金額改為隨機非 0，視覺呈現與 `avscratch_all` 一致
 - [x] model05/06/08/09 缺少 `win_coin` 欄位時正確退回顯示，不報錯
+- [x] model tab 顯示正式中文名稱，不是 Python API 的佔位字串
+- [x] Demo 角色可以正常使用遊戲試算（唯讀端點不被 403 擋下）

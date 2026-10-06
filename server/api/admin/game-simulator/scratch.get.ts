@@ -9,9 +9,12 @@ import { sessionController } from 'serv/services/auth'
  * query: { model: '01'~'09', coin: number, count?: number }
  * 金額合法性、張數上限 50 的夾擠，都交給 Python 服務本身做，這裡只負責
  * 轉發與把它的錯誤訊息轉成前端看得懂的格式。
+ *
+ * 純模擬運算、不扣款不派彩不寫入任何玩家帳務，用 requireAdminView（白名單
+ * admin 或 demoMode 角色皆可通過），讓 Demo 角色也能使用這個試算工具。
  */
 export default defineEventHandler(async (event) => {
-  sessionController.requireAdmin(event)
+  sessionController.requireAdminView(event)
 
   const query = getQuery(event)
   const model = String(query.model ?? '').trim()
