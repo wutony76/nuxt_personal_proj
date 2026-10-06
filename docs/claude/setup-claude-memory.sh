@@ -376,7 +376,7 @@ EOF
 cat > "$MEMORY_DIR/project_postgres_migration_plan.md" << 'EOF'
 ---
 name: project-postgres-migration-plan
-description: Postgres+Docker 持久化遷移規劃分三個 OpenSpec change（Phase 1/2/3）；Phase 1 已實作完成，Phase 2/3 仍是規劃
+description: Postgres+Docker 持久化遷移規劃分三個 OpenSpec change（Phase 1/2/3）；Phase 1/2 已實作完成，Phase 3 仍是規劃
 metadata:
   type: project
 ---
@@ -387,13 +387,18 @@ change，依序推進：
 - `openspec/changes/add-postgres-docker/`（Phase 1）：**已實作完成並驗證通過（2026-10-06）**。
   Docker Compose（postgres:16-alpine + named volume）、`server/services/db.ts`（Drizzle +
   postgres.js，`isDbEnabled()` 統一判斷點、`ping()`）、`server/services/sync.ts`（`SyncScheduler`
-  5 分鐘批次、`SyncSource` 介面、空註冊表）。ORM 已定案為 **Drizzle**。本機 `.env`/Postgres container
-  目前仍維持啟用狀態供後續 Phase 接續開發。`add-postgres-docker` 這個 change 尚未封存
-  （`openspec archive`），因為 Phase 2/3 會繼續擴充它定義的介面，待三個 Phase 全部完成再一併封存。
-- `openspec/changes/migrate-members-roledefs-postgres/`（Phase 2，**尚未實作，仍是規劃**）：
-  members/role-defs 改用 **write-through**（即時寫 DB，不用 Phase 1 批次機制，因為是低頻、不可接受
-  遺失的資料）+ 開機回填。調查發現這兩份資料其實是純記憶體 Map/Set，不是 JSON 檔案（Phase 1 文件曾
-  誤寫，已訂正）。
+  5 分鐘批次、`SyncSource` 介面、空註冊表）。ORM 已定案為 **Drizzle**。
+- `openspec/changes/migrate-members-roledefs-postgres/`（Phase 2）：**已實作完成並驗證通過
+  （2026-10-06）**。`server/services/db/schema.ts` 定義 `role_defs`/`members` schema（`role_id`
+  與 `is_admin` 正交欄位，`role_id` FK `ON DELETE SET DEFAULT 'user'`）；`roleDefs.ts`/
+  `adminAccess.ts` 的 CRUD 方法改為 async write-through（先 DB 後記憶體，DB 失敗就讓操作失敗）；
+  新增開機回填：`Storage.adminInitPromise`（`Storage.init()` 簽名維持同步不變）+
+  `server/plugins/init.ts` 改成 async plugin 並 await 它，DB 已有資料時完全跳過種子迴圈、從 DB
+  重建記憶體。實作過程中發現並修正一個 bug：`seedBootAdminsToDb()` 一度把已經透過 `createMember()`
+  write-through 寫入的帳號又整批重 INSERT 一次，撞 primary key——修正為只接受明確的 id 清單。
+  也發現一個尚未解決的副作用：`test-roles.mjs` 的臨時 QA 會員沒有清理機制，持久化後會在
+  `members` 表永久累積（過去純記憶體時代重啟即消失、無害），已記錄進該 change 的 tasks.md 第 7 節
+  追蹤，**沒有**在本次修改測試腳本或新增刪除會員 API（超出 Phase 2 範圍）。
 - `openspec/changes/migrate-game-history-postgres/`（Phase 3，**尚未實作，仍是規劃**）：遊戲紀錄
   （下注/復古遊戲/彩池稽核）走 Phase 1 批次機制 + 同步後裁剪記憶體（解決 `Storage.lottery.orders`
   永不清空的無上限成長問題，使用者明確要求一併處理）；`dailyGrants`（復古遊戲每日 coin 核發計數器）
@@ -401,24 +406,27 @@ change，依序推進：
   （`validateBetQuota`）本身維持只讀記憶體，不受 DB 最終一致影響。
 
 **Why:** 架構決策分階段是為了控制風險——Phase 1 先打地基，Phase 2/3 各自選擇適合自己資料特性的同步
-策略（低頻正確性優先 vs 高頻可接受最終一致），不是每個 Phase 都套用同一種機制。使用者在 Phase 1
-design/tasks 完成後明確要求「先做 Phase 1，完成測試驗證後再繼續」，確認分階段推進的節奏。
+策略（低頻正確性優先 vs 高頻可接受最終一致），不是每個 Phase 都套用同一種機制。使用者每個 Phase
+完成後都明確回覆確認才繼續下一個，維持「做完一個驗證一個」的節奏。
 
 **How to apply:**
 
-- 要繼續往下做 Phase 2 或 Phase 3 時，依賴 Phase 1 已實作的 `isDbEnabled()`/`getDb()`（`db.ts`）與
-  `SyncScheduler`/`registerSyncSource()`（`sync.ts`），不用重新設計連線層
-- Phase 2/3 進入 Implementation 前，記得走六階段流程（Proposal→Design→Tasks 已有，接下來是
-  Implementation→Validation→Engineering Evidence），完成後要更新對應 change 的 `tasks.md` 勾選狀態
-  並補上 `validation.md`/`engineering-evidence.md`（見 [[feedback_openspec_6stage_required]]）
-- 使用者再要求往下規劃新範圍時（例如 Phase 4 / Redis、或 Phase 3 排除的 `claimableIssues`/quota P2
-  擴充），延續同樣的「先問資料特性該用 write-through 還是批次同步」的判斷框架
+- 要繼續往下做 Phase 3 時，依賴 Phase 1 的 `isDbEnabled()`/`getDb()`/`SyncScheduler` 與 Phase 2 的
+  write-through 模式（可參考但不要套用在 Phase 3——遊戲紀錄高頻寫入，設計上明確選擇批次同步而非
+  write-through，見 Phase 3 design.md 決策記錄）
+- Phase 3 進入 Implementation 前，記得走六階段流程，完成後更新對應 change 的 `tasks.md` 勾選狀態並
+  補上 `validation.md`/`engineering-evidence.md`（見 [[feedback_openspec_6stage_required]]）
 - 與 [[project_quota_p2_pending]]、[[project_game_history_coin_reward]] 兩份既有待辦互相呼應，Phase 3
   design.md 明確把這兩塊列為排除範圍
-- 操作上的教訓：手動重啟 dev server 時容易因為舊 process 沒有真正死掉而產生殭屍 `nuxt dev` process
-  （埠號衝突、Nitro 噴 `No worker available` 並陷入重啟迴圈），下次需要重啟時務必先
-  `pkill -9 -f "nuxt dev"` 徹底清乾淨再啟動單一實例，不要疊加 `nohup npm run dev &`（見
-  [[feedback_temp_dev_server_testing]]）
+- 操作上的教訓：
+  1. 手動重啟 dev server 時容易因為舊 process 沒有真正死掉而產生殭屍 `nuxt dev` process（埠號衝突、
+     Nitro 噴 `No worker available` 並陷入重啟迴圈），下次需要重啟時務必先
+     `pkill -9 -f "nuxt dev"` 徹底清乾淨再啟動單一實例，不要疊加 `nohup npm run dev &`
+  2. 寫 write-through 的開機種子/回填邏輯時，小心「哪些帳號已經透過某個 helper 函式自動寫入過 DB」
+     與「我現在要手動補寫哪些帳號」的邊界——`seedBootAdminsToDb()` 的 bug 就是把這兩者混為一談
+  3. 持久化上線後，舊的「假設重啟會清空一切」的測試腳本（例如 `test-roles.mjs` 建臨時帳號從不刪除）
+     會開始累積垃圾資料，每次驗證完記得用 SQL 手動清理（`DELETE FROM members WHERE email LIKE
+     'qa-%'`），這類腳本本身的修正留給之後決定要不要做
 EOF
 
 # ── MEMORY.md 索引 ────────────────────────────────────────────
@@ -439,7 +447,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [OpenSpec 流程擴充為 6 階段](project_openspec_workflow_6stages.md) — 新增 Validation、Engineering Evidence 兩份文件與範本（僅文件層級，未動 CLI schema）
 - [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
 - [台彩7款玩法全數完工](project_tw_lottery_suite_complete.md) — P3/P4/BINGO 補完，含期別helper重構/quota/組彩分級假設等已知待辦
-- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — Phase 1（Docker地基）已實作完成；Phase 2/3（members-roledefs write-through／遊戲紀錄批次同步+記憶體裁剪）仍是規劃
+- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — Phase 1/2 已實作完成；Phase 3（遊戲紀錄批次同步+記憶體裁剪）仍是規劃
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
