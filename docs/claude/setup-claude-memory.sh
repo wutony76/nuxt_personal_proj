@@ -376,33 +376,49 @@ EOF
 cat > "$MEMORY_DIR/project_postgres_migration_plan.md" << 'EOF'
 ---
 name: project-postgres-migration-plan
-description: Postgres+Docker 持久化遷移規劃分三個 OpenSpec change（Phase 1/2/3），純規劃未執行，各自有待確認決策點
+description: Postgres+Docker 持久化遷移規劃分三個 OpenSpec change（Phase 1/2/3）；Phase 1 已實作完成，Phase 2/3 仍是規劃
 metadata:
   type: project
 ---
 
 使用者決定把目前完全純記憶體（重啟全歸零）的架構導入 PostgreSQL（Docker 部署），拆成三個獨立 OpenSpec
-change，依序規劃（**截至目前都只有 proposal/design/tasks 文件，完全沒有執行任何程式碼或指令**）：
+change，依序推進：
 
-- `openspec/changes/add-postgres-docker/`（Phase 1）：Docker Compose + 連線層 + 通用「5 分鐘批次同步」
-  `SyncScheduler`/`SyncSource` 機制設計。**待確認**：ORM/migration 工具選型（傾向 Drizzle，未定案）。
-- `openspec/changes/migrate-members-roledefs-postgres/`（Phase 2）：members/role-defs 改用
-  **write-through**（即時寫 DB，不用 Phase 1 批次機制，因為是低頻、不可接受遺失的資料）+ 開機回填。
-  調查發現這兩份資料其實是純記憶體 Map/Set，不是 JSON 檔案（Phase 1 文件曾誤寫，已訂正）。
-- `openspec/changes/migrate-game-history-postgres/`（Phase 3）：遊戲紀錄（下注/復古遊戲/彩池稽核）走
-  Phase 1 批次機制 + 同步後裁剪記憶體（解決 `Storage.lottery.orders` 永不清空的無上限成長問題，使用者
-  明確要求一併處理）；`dailyGrants`（復古遊戲每日 coin 核發計數器）改走 write-through + 回填，修正
-  「重啟導致當日配額歸零」的既有邏輯缺口。配額驗證（`validateBetQuota`）本身維持只讀記憶體，不受 DB
-  最終一致影響。
+- `openspec/changes/add-postgres-docker/`（Phase 1）：**已實作完成並驗證通過（2026-10-06）**。
+  Docker Compose（postgres:16-alpine + named volume）、`server/services/db.ts`（Drizzle +
+  postgres.js，`isDbEnabled()` 統一判斷點、`ping()`）、`server/services/sync.ts`（`SyncScheduler`
+  5 分鐘批次、`SyncSource` 介面、空註冊表）。ORM 已定案為 **Drizzle**。本機 `.env`/Postgres container
+  目前仍維持啟用狀態供後續 Phase 接續開發。`add-postgres-docker` 這個 change 尚未封存
+  （`openspec archive`），因為 Phase 2/3 會繼續擴充它定義的介面，待三個 Phase 全部完成再一併封存。
+- `openspec/changes/migrate-members-roledefs-postgres/`（Phase 2，**尚未實作，仍是規劃**）：
+  members/role-defs 改用 **write-through**（即時寫 DB，不用 Phase 1 批次機制，因為是低頻、不可接受
+  遺失的資料）+ 開機回填。調查發現這兩份資料其實是純記憶體 Map/Set，不是 JSON 檔案（Phase 1 文件曾
+  誤寫，已訂正）。
+- `openspec/changes/migrate-game-history-postgres/`（Phase 3，**尚未實作，仍是規劃**）：遊戲紀錄
+  （下注/復古遊戲/彩池稽核）走 Phase 1 批次機制 + 同步後裁剪記憶體（解決 `Storage.lottery.orders`
+  永不清空的無上限成長問題，使用者明確要求一併處理）；`dailyGrants`（復古遊戲每日 coin 核發計數器）
+  改走 write-through + 回填，修正「重啟導致當日配額歸零」的既有邏輯缺口。配額驗證
+  （`validateBetQuota`）本身維持只讀記憶體，不受 DB 最終一致影響。
 
 **Why:** 架構決策分階段是為了控制風險——Phase 1 先打地基，Phase 2/3 各自選擇適合自己資料特性的同步
-策略（低頻正確性優先 vs 高頻可接受最終一致），不是每個 Phase 都套用同一種機制。
+策略（低頻正確性優先 vs 高頻可接受最終一致），不是每個 Phase 都套用同一種機制。使用者在 Phase 1
+design/tasks 完成後明確要求「先做 Phase 1，完成測試驗證後再繼續」，確認分階段推進的節奏。
 
-**How to apply:** 使用者再要求往下規劃時（例如 Phase 4 / Redis、或 Phase 3 排除的
-`claimableIssues`/quota P2 擴充），延續同樣的「先問資料特性該用 write-through 還是批次同步」的判斷
-框架，並維持「先規劃不執行」直到使用者明確要求 Implementation（見 [[feedback_plan_first_spec_only]]）。
-與 [[project_quota_p2_pending]]、[[project_game_history_coin_reward]] 兩份既有待辦互相呼應，Phase 3
-design.md 明確把這兩塊列為本次排除範圍。
+**How to apply:**
+
+- 要繼續往下做 Phase 2 或 Phase 3 時，依賴 Phase 1 已實作的 `isDbEnabled()`/`getDb()`（`db.ts`）與
+  `SyncScheduler`/`registerSyncSource()`（`sync.ts`），不用重新設計連線層
+- Phase 2/3 進入 Implementation 前，記得走六階段流程（Proposal→Design→Tasks 已有，接下來是
+  Implementation→Validation→Engineering Evidence），完成後要更新對應 change 的 `tasks.md` 勾選狀態
+  並補上 `validation.md`/`engineering-evidence.md`（見 [[feedback_openspec_6stage_required]]）
+- 使用者再要求往下規劃新範圍時（例如 Phase 4 / Redis、或 Phase 3 排除的 `claimableIssues`/quota P2
+  擴充），延續同樣的「先問資料特性該用 write-through 還是批次同步」的判斷框架
+- 與 [[project_quota_p2_pending]]、[[project_game_history_coin_reward]] 兩份既有待辦互相呼應，Phase 3
+  design.md 明確把這兩塊列為排除範圍
+- 操作上的教訓：手動重啟 dev server 時容易因為舊 process 沒有真正死掉而產生殭屍 `nuxt dev` process
+  （埠號衝突、Nitro 噴 `No worker available` 並陷入重啟迴圈），下次需要重啟時務必先
+  `pkill -9 -f "nuxt dev"` 徹底清乾淨再啟動單一實例，不要疊加 `nohup npm run dev &`（見
+  [[feedback_temp_dev_server_testing]]）
 EOF
 
 # ── MEMORY.md 索引 ────────────────────────────────────────────
@@ -423,7 +439,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [OpenSpec 流程擴充為 6 階段](project_openspec_workflow_6stages.md) — 新增 Validation、Engineering Evidence 兩份文件與範本（僅文件層級，未動 CLI schema）
 - [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
 - [台彩7款玩法全數完工](project_tw_lottery_suite_complete.md) — P3/P4/BINGO 補完，含期別helper重構/quota/組彩分級假設等已知待辦
-- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — 純規劃未執行，三個 OpenSpec change：Docker地基/members-roledefs write-through/遊戲紀錄批次同步+記憶體裁剪
+- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — Phase 1（Docker地基）已實作完成；Phase 2/3（members-roledefs write-through／遊戲紀錄批次同步+記憶體裁剪）仍是規劃
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
