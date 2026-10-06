@@ -21,6 +21,25 @@ import { api, type ScratchModelInfo, type ScratchSimResult } from '~/services/ap
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
+/**
+ * `/api/scratch/info` 的 `MODEL_NAMES` 目前只填了 01／07，其餘 7 個還是
+ * 「Model 0X」佔位字串（Python 專案本身的字典還沒填完整，見
+ * replace-scratch-simulator-with-python-proxy 的 design.md「已知限制」）。
+ * 這裡用使用者提供的正式名稱（跟 avscratch_test_views.py 的
+ * `ALL_MODEL_NAMES` 一致）覆蓋 tab 顯示文字，不用等 Python 那邊補完。
+ */
+const MODEL_LABELS: Record<string, string> = {
+  '01': 'CARD01.龍門一路發',
+  '02': 'CARD02.紅包任你刮',
+  '03': 'CARD03.賞你錢錢拳',
+  '04': 'CARD04.鈔票數不完',
+  '05': 'CARD05.胡胡胡翻天',
+  '06': 'CARD06.閃亮十二星',
+  '07': 'CARD07.點十成黃金',
+  '08': 'CARD08.金獎一擊棒',
+  '09': 'CARD09.樂透水金球'
+}
+
 const state = reactive({
   infoStatus: 'idle' as AsyncStatus,
   infoError: '',
@@ -123,7 +142,7 @@ onMounted(() => _actions.loadInfo())
               :class="{ active: state.model === key }"
               @click="click.setModel(key)"
             >
-              Model{{ key }} · {{ state.models[key]?.name }}
+              {{ MODEL_LABELS[key] ?? `Model${key} · ${state.models[key]?.name}` }}
             </button>
           </div>
 
