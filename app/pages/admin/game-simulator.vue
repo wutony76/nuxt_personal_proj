@@ -38,6 +38,19 @@ const state = reactive({
 const modelKeys = computed(() => Object.keys(state.models).sort())
 const validCoins = computed(() => state.models[state.model]?.valid_coins ?? [])
 
+/**
+ * 預設挑一個隨機的非 0 金額，不要固定挑清單第一個（每個 model 的
+ * valid_coins 清單第一個幾乎都是 0，0 分的卡面不會有任何中獎標記，
+ * 看起來會跟 avscratch_all 隨機抽到的卡差很多）——對應原始 Python
+ * 測試頁 `avscratch_all_models_view` 的
+ * `random.choice([c for c in valid_coins if c > 0] or valid_coins)`。
+ */
+function _pickDefaultCoin(coins: number[]): number {
+  const nonZero = coins.filter((c) => c > 0)
+  const pool = nonZero.length > 0 ? nonZero : coins
+  return pool[Math.floor(Math.random() * pool.length)] ?? 0
+}
+
 const _actions = {
   loadInfo: async () => {
     state.infoStatus = 'loading'
@@ -48,7 +61,7 @@ const _actions = {
       const firstModel = modelKeys.value[0]
       if (firstModel) {
         state.model = firstModel
-        state.coin = state.models[firstModel]?.valid_coins[0] ?? 0
+        state.coin = _pickDefaultCoin(state.models[firstModel]?.valid_coins ?? [])
       }
       state.infoStatus = 'success'
     } catch (e: unknown) {
@@ -78,7 +91,7 @@ const _actions = {
 const click = {
   setModel: (model: string) => {
     state.model = model
-    state.coin = state.models[model]?.valid_coins[0] ?? 0
+    state.coin = _pickDefaultCoin(state.models[model]?.valid_coins ?? [])
   },
   run: () => _actions.run()
 }
@@ -139,7 +152,7 @@ onMounted(() => _actions.loadInfo())
             <div v-for="(result, idx) in state.results" :key="idx" class="ags-card admin-panel">
               <div class="ags-card-head">
                 <span class="admin-en">Card #{{ idx + 1 }}</span>
-                <span class="ags-card-target">得獎金額：{{ result.win_coin.toLocaleString('zh-TW') }}</span>
+                <span class="ags-card-target">得獎金額：{{ (result.win_coin ?? state.coin).toLocaleString('zh-TW') }}</span>
               </div>
 
               <img v-if="result.b64card" class="ags-card-img" :src="result.b64card" :alt="`Model${state.model} 卡片 #${idx + 1}`" />

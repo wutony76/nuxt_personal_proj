@@ -55,9 +55,31 @@
 
 | 項目 | 方法 | 結果 |
 |---|---|---|
-| API 行為 | `test/test-scratch-sim.mjs`（15 項，本機 Python 服務在線時） | 全數通過：model 清單、不合法 model/金額拒絕、張數夾擠、model02 正常試算含卡片圖、model07 正確無卡片圖 |
+| API 行為 | `test/test-scratch-sim.mjs`（17 項，本機 Python 服務在線時） | 全數通過：model 清單、不合法 model/金額拒絕、張數夾擠、model02 正常試算含卡片圖、model07 正確無卡片圖、model05 正確沒有 win_coin 欄位 |
 | 面板渲染 | Playwright 開 `/admin/game-simulator` | 9 個 model tab 皆可切換並試算，一般 model 正確顯示卡片圖，model07 正確顯示無素材提示，無 console/網路錯誤 |
 | 回歸測試 | `npm test` | 38/38（移除 2 支舊腳本、新增 1 支通用腳本） |
+
+### 追加：commit 後使用者實測回報兩個問題，皆已修正
+
+1. **「API 圖片內容跟 avscratch_all 不太一樣」**：逐一比對同 model/同
+   金額的 `b64card`，確認兩邊是同一個 `analyze_card()` 產出、版面與
+   字型完全一致，差異只是隨機抽卡；但發現根因——頁面預設金額固定挑
+   `valid_coins[0]`（每個 model 清單第一個都是 0），0 分的卡沒有任何
+   中獎紅圈，視覺上確實比 `avscratch_all` 預設隨機抽非 0 金額的卡
+   「黯淡」。修正：進頁與切換 model 時都隨機挑一個非 0 金額
+   （`_pickDefaultCoin`，對應原始測試頁 `avscratch_test_views.py` 的
+   `random.choice([c for c in valid_coins if c > 0] or valid_coins)`）
+2. **「只有 01~04 正常，其他的都有錯誤」**：追查確認 model05/06/08/09
+   的 `analyze_card()` 完全不回傳 `win_coin` 欄位（`image=0` 時
+   `results[0]` 是空物件 `{}`），原本頁面寫死
+   `result.win_coin.toLocaleString(...)` 沒有退回機制，`undefined`
+   直接讓整頁 TypeError。修正為 `result.win_coin ?? state.coin`（對應
+   原始系統 `avscratch_test_views.py` 的 `data.get('win_coin', coin)`
+   退回邏輯），型別改成可選並加註說明，`test-scratch-sim.mjs` 新增
+   model05 的回歸測試鎖定這個「本來就會缺欄位」的事實
+
+兩個修正都用 Playwright 實測逐一切換全部 9 個 model 試算確認無
+console 錯誤，`test-scratch-sim.mjs`（17 項）全數通過。
 
 ## 風險與後續
 

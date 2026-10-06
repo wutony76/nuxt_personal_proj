@@ -64,3 +64,28 @@
 - [x] 在舊的 `add-scratch-model02-simulator`／
       `add-scratch-model03-simulator` 的 `proposal.md` 加註已被本次
       變更取代，保留文件本身當歷史紀錄
+
+## 7. 追加：commit 後使用者實測回報的兩個問題
+
+- [x] 使用者回報「API 圖片抓到的內容與 avscratch_all 抓到的內容不太
+      一樣」，追查後確認：兩邊是同一個 `analyze_card()`／同一份
+      `b64card`，差異只是隨機抽卡本身——但發現頁面預設金額固定挑
+      `valid_coins[0]`（每個 model 都是 0），0 分的卡不會有任何中獎
+      紅圈，看起來比 `avscratch_all` 預設隨機抽非 0 金額的卡「黯淡」；
+      改成進頁與切換 model 時都隨機挑一個非 0 金額（`_pickDefaultCoin`，
+      對應 `avscratch_test_views.py` 的
+      `random.choice([c for c in valid_coins if c > 0] or valid_coins)`）
+- [x] 使用者回報「只有 01~04 是正常的，其他的都有錯誤」，追查後確認：
+      model05/06/08/09 的 `analyze_card()` 回傳的 `analyze_data`
+      **完全沒有 `win_coin` 欄位**（`image=0` 時 `results[0]` 是空物件
+      `{}`），原始系統的 `avscratch_all_models_view` 本來就用
+      `data.get('win_coin', coin)` 退回成呼叫時的金額；我的頁面原本
+      寫死 `result.win_coin.toLocaleString(...)`，沒有這個退回，
+      `win_coin` 是 `undefined` 時整頁直接 TypeError
+- [x] 修正：`result.win_coin` 改成 `??` state.coin` 退回；
+      `ScratchSimResult.win_coin` 型別改成可選（`number | undefined`）
+      並加註說明；`test-scratch-sim.mjs` 新增 model05 的回歸測試，鎖定
+      「這個欄位本來就會缺」這個事實，避免之後誤改成假設一定有值
+- [x] Playwright 逐一切換全部 9 個 model 試算，確認皆無 console 錯誤、
+      得獎金額皆正確顯示（05/06/08/09 正確退回成呼叫時的金額）
+- [x] `npm run test:scratch-sim`（17 項）全數通過

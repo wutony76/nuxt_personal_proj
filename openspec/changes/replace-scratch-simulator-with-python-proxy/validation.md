@@ -53,11 +53,62 @@
 `npm test`（38 支測試腳本：移除 `test:scratch-model02`／
 `test:scratch-model03`，新增 `test:scratch-sim`）：全數通過。
 
+## 追加驗證：commit 後使用者實測回報的兩個問題
+
+### 問題 1：預設金額固定挑 0，看起來跟 avscratch_all 不一樣
+
+逐一比對同 model/同金額的 `b64card`（例如 model02、coin=1500）：尺寸
+（600×384）、版面、字型完全一致，唯一差異是隨機抽到的號碼/紅包位置不同
+——確認是同一個 `analyze_card()` 產出，不是代理邏輯錯誤。
+
+進一步比對 coin=0 與 coin=1500 的卡：coin=0 的卡沒有任何中獎紅圈（`$0`
+徽章、黑字號碼無高亮），視覺上確實比 `avscratch_all` 預設隨機抽非 0
+金額的卡「黯淡」很多——找到根因：頁面預設挑 `valid_coins[0]`（每個
+model 清單第一個都是 0）。
+
+修正後（`_pickDefaultCoin`）：Playwright 實測進頁與切換 model 皆正確
+挑到非 0 金額（例如 model01 預設挑到 300）。
+
+### 問題 2：model05/06/08/09「有錯誤」
+
+```
+model 05 errors: ["TypeError: Cannot read properties of undefined (reading 'toLocaleString')"]
+model 06 errors: ["TypeError: Cannot read properties of undefined (reading 'toLocaleString')"]
+model 07 errors: []
+model 08 errors: ["TypeError: Cannot read properties of undefined (reading 'toLocaleString')"]
+model 09 errors: ["TypeError: Cannot read properties of undefined (reading 'toLocaleString')"]
+```
+
+追查確認：`image=0` 時這 4 個 model 的 `results[0]` 是空物件 `{}`，
+`analyze_card()` 完全不回傳 `win_coin` 欄位（牌面依指定金額產生，
+原始系統 `avscratch_test_views.py` 本來就用 `data.get('win_coin', coin)`
+退回成呼叫時的金額）。修正為 `result.win_coin ?? state.coin` 後，
+Playwright 逐一切換全部 9 個 model 試算：
+
+```
+model 01: target="得獎金額：300" errors=[]
+model 02: target="得獎金額：1,000" errors=[]
+model 03: target="得獎金額：300" errors=[]
+model 04: target="得獎金額：300" errors=[]
+model 05: target="得獎金額：100,000" errors=[]
+model 06: target="得獎金額：100" errors=[]
+model 07: target="得獎金額：1,000" errors=[]
+model 08: target="得獎金額：100" errors=[]
+model 09: target="得獎金額：100,000" errors=[]
+ALL_OK: true
+```
+
+`test-scratch-sim.mjs`（17 項，新增 model05 的 `win_coin` 缺欄位回歸
+測試）：全數通過。
+
 ## 成功標準檢查
 
 - [x] `/admin/game-simulator` 可以切換全部 9 個 model 並實際試算
 - [x] 有卡片素材的 model 正確顯示 Python 服務渲染好的卡片圖
 - [x] 無卡片素材的 model（07）正確顯示提示文字，不報錯
-- [x] 無新增重大 console / runtime error
+- [x] 無新增重大 console / runtime error（含追加驗證的 9 個 model 全
+      數無錯誤）
 - [x] 舊的 model02/model03 專屬程式碼與素材已清除，相關測試改用通用
       版本
+- [x] 預設金額改為隨機非 0，視覺呈現與 `avscratch_all` 一致
+- [x] model05/06/08/09 缺少 `win_coin` 欄位時正確退回顯示，不報錯

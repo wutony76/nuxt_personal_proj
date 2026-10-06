@@ -1385,7 +1385,12 @@ export type MemberSummary = {
  * 皆由使用者本機長期在跑的 Python 試算服務計算/渲染，Nuxt 端只負責轉發。
  */
 export type ScratchSimResult = {
-  win_coin: number
+  /**
+   * model05/06/08/09 的 analyze_card() 完全不回傳這個欄位（牌面依指定
+   * 金額產生，原始系統的測試頁面直接拿呼叫時的 coin 當中獎金額顯示，
+   * 見 admin_site/avscratch_test_views.py 的 `data.get('win_coin', coin)`）。
+   */
+  win_coin?: number
   play_one?: unknown
   play_two?: unknown
   play_three?: unknown

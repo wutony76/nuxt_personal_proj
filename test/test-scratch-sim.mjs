@@ -60,6 +60,16 @@ async function main() {
     ok('model07 結果沒有 b64card（原始系統本來就沒有這個 model 的卡片素材）', !run07.body?.results?.[0]?.b64card)
   }
 
+  section('model05 已知沒有 win_coin 欄位（曾導致前端 .toLocaleString() 整頁噴錯，現已改用 ?? 目標金額退回）')
+  if (models['05']) {
+    const nonZero05 = (models['05']?.valid_coins ?? []).filter((c) => c > 0)
+    const coin05 = nonZero05[0] ?? models['05']?.valid_coins?.[0] ?? 0
+    const run05 = await api(`/api/admin/game-simulator/scratch?model=05&coin=${coin05}&count=1`)
+    ok('model05 API 回 200', run05.status === 200, JSON.stringify(run05.body))
+    ok('model05 結果確實沒有 win_coin（確認這個退回情境持續存在，不是曾經才發生的暫時現象）',
+      run05.body?.results?.[0]?.win_coin === undefined)
+  }
+
   summary()
 }
 
