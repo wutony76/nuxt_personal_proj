@@ -64,7 +64,8 @@ Phase 1 當初設計這套機制時設想的場景。
 
 因此 `dailyGrants` 採跟 Phase 2 相同的策略：每次核發 coin 時，記憶體更新與 DB 寫入在同一次請求內完成
 （write-through），且 server 啟動時從 DB 回填當天（`todayKey`）的計數器，確保「重啟不會讓每日上限
-防呆失效」。
+防呆失效」。跟 Phase 2 一樣遵守 `add-postgres-docker` 定義的 `isDbEnabled()` guard：沒接 DB 時，核發
+流程只更新記憶體（等同現況行為，不報錯），開機回填整段略過。
 
 ## 5. Schema 設計
 
@@ -210,6 +211,6 @@ members.get.ts / bg-summary.get.ts（規劃後的查詢邏輯）
     上限
   - 刻意讓 DB 斷線一輪：確認下注流程完全不受影響（orders 繼續寫記憶體），只有批次同步那輪失敗記 log
 - 回歸風險與檢查點：
-  - 確認 `DATABASE_URL` 未設定時，`Storage.lottery.orders` 完全不裁剪、退回現狀（無限累積但不出錯），
-    報表查詢走原本的純記憶體邏輯
+  - 確認 `isDbEnabled()` 為 false 時，`SyncScheduler` 不啟動、`Storage.lottery.orders` 完全不裁剪、
+    退回現狀（無限累積但不出錯），報表查詢走原本的純記憶體邏輯
   - 確認既有 `npm test`（含 `test:bg`、`test:games`）全數通過

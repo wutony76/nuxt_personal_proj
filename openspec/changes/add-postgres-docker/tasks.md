@@ -17,15 +17,16 @@
 ## 3. 連線層
 
 - [ ] 安裝選定的 ORM/driver 依賴（`package.json`）
-- [ ] 建立 `server/services/db.ts`（連線 pool singleton + `ping()`）
-- [ ] 確認 `DATABASE_URL` 未設定時，既有 `Storage`/`npm run dev` 流程不受影響
+- [ ] 建立 `server/services/db.ts`（連線 pool singleton + `ping()` + `isDbEnabled()`，見 design.md 5.1 節）
+- [ ] 確認 `isDbEnabled()` 為 false 時，既有 `Storage`/`npm run dev` 流程不受影響
 
 ## 4. 定時同步機制（Memory → SQL，通用，見 design.md 第 8 節）
 
 - [ ] 建立 `server/services/sync.ts`：`SyncScheduler`（自重啟 async timer，`intervalMs` 預設 300_000）
 - [ ] 定義 `SyncSource` 介面（`table` / `primaryKey` / `snapshot()`）與空的註冊表
 - [ ] 實作 `runSyncTick()`：逐一呼叫已註冊 `SyncSource.snapshot()` → 組 upsert SQL → 單一 transaction 寫入
-- [ ] `server/plugins/init.ts` 註冊 `SyncScheduler`（與既有 300ms 遊戲 tick 各自獨立 timer）
+- [ ] `server/plugins/init.ts` 註冊 `SyncScheduler` 前先檢查 `isDbEnabled()`，false 時完全不啟動這個
+      timer（而非啟動了但每輪都靜默失敗）
 - [ ] 失敗處理：try/catch 包住整輪同步，失敗只記錄 log、不中斷主流程
 - [ ] 日誌輸出：每輪同步印出耗時與各 `SyncSource` 寫入列數
 
@@ -36,6 +37,8 @@
 - [ ] `docker compose down` 後以 `docker compose up` 重啟，確認 volume 資料仍在
 - [ ] 註冊假 `SyncSource` 測試：兩輪同步確認 upsert 冪等（無重複列）
 - [ ] 刻意斷開 DB 測試：確認同步失敗不影響主流程與遊戲 tick、log 有記錄、恢復後自動補上
+- [ ] 完全不設定 `DATABASE_URL`（模擬本機沒裝 Docker）：`npm run dev` 正常啟動、`SyncScheduler` 不啟動、
+      所有功能行為與遷移前完全一致
 - [ ] 既有 `npm test`（36+ 支）全數通過，確認無回歸
 
 ## 6. 交付檢查

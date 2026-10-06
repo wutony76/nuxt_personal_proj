@@ -94,6 +94,10 @@ CREATE TABLE members (
 ```
 API handler（server/api/admin/role-defs/[id].delete.ts 等，既有 async function，簽名不變）
   → adminAccessService / roleDefsService 的方法改為 async
+      0. 檢查 add-postgres-docker 定義的 isDbEnabled()：
+         - false（本機沒接 DB）→ 直接跳到步驟 3，只做記憶體 mutation，等同目前的程式碼行為、
+           API 不會因為沒接 DB 而失敗
+         - true → 繼續下面的步驟 1-4
       1. 先做現有的記憶體前置檢查（唯一 admin 防呆、自我降級防呆、email 格式等，純邏輯不變）
       2. 開一個 DB transaction，執行對應的 SQL（INSERT/UPDATE/DELETE）
       3. transaction 成功 → 更新記憶體 Map/Set/Record（跟現有程式碼相同的 mutation，只是往後移到
@@ -103,6 +107,10 @@ API handler（server/api/admin/role-defs/[id].delete.ts 等，既有 async funct
 
 這個順序（先 DB、後記憶體）保證記憶體永遠不會領先 DB——如果 server 在「DB 寫入成功」與「記憶體更新」
 之間 crash，下次啟動會從 DB 回填出正確狀態，不會有「記憶體有、DB 沒有」的不一致。
+
+**步驟 0 的 guard 只在「完全沒接 DB」時跳過整個 DB 流程**；若 DB 有設定但連線失敗（`DATABASE_URL` 有
+值、DB 卻連不上），仍然走步驟 2-4、在步驟 4 讓操作失敗——「沒接 DB」與「DB 故障」是兩種不同狀態，
+前者是刻意選擇的純記憶體模式（不該因此報錯），後者是異常（本來就該讓操作失敗，見第 2 節決策記錄）。
 
 ### 刪除角色的交易邊界
 
@@ -139,8 +147,8 @@ hfyyManage.ts: setStartData()（規劃調整後的流程）
 獨立（role_defs 與 members 分開判斷），因為兩者在「全新環境」下的因果順序是 role_defs 要先建好，
 members 的 `role_id` 外鍵才有對象可以指。
 
-若 `DATABASE_URL` 未設定（沿用 Phase 1「DB 選用」的設計），本次開機回填整段略過，完全退回現有的
-純記憶體 + 每次重啟都跑種子邏輯的行為——不強制要求本機開發一定要有 Postgres 才能跑。
+若 `isDbEnabled()` 為 false（沿用 Phase 1「DB 可選」的統一 guard），本次開機回填整段略過，完全退回
+現有的純記憶體 + 每次重啟都跑種子邏輯的行為——不強制要求本機開發一定要有 Postgres 才能跑。
 
 ## 6. 與 Phase 1 基礎設施的關係
 

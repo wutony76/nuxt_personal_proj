@@ -30,7 +30,7 @@
 
 - [ ] `hfyyManage.ts` 的 `setStartData()` 改為：`COUNT(*)` 判斷 `role_defs`/`members` 是否為空
 - [ ] 空 → 執行現有種子邏輯並寫回 DB；非空 → 從 DB 查詢重建記憶體 Map/Set/Record，不跑種子
-- [ ] 確認 `DATABASE_URL` 未設定時，整段回填邏輯略過，退回現有純記憶體行為
+- [ ] 確認 `isDbEnabled()` 為 false 時，整段回填邏輯與 write-through 的 DB 步驟都略過，退回現有純記憶體行為
 
 ## 5. 驗證
 

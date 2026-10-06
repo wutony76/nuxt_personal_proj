@@ -82,6 +82,32 @@ volumes:
 - 若 `DATABASE_URL` 未設定，現有 `Storage` 流程完全不受影響（維持純記憶體模式），確保本機不裝 Docker
   也能照常 `npm run dev`
 
+### 5.1 DB 可選原則（統一開關，Phase 2/3 都必須遵守）
+
+「沒有資料庫也能跑起來」不是只靠開機時判斷一次就夠，而是**每一個會碰 DB 的程式碼路徑都要各自檢查**，
+否則容易漏掉其中一處（例如寫對了開機回填的 guard，卻忘了幫寫入路徑也加 guard）。本次統一設計成一個
+集中判斷點，供後續所有 Phase 共用：
+
+```ts
+// server/services/db.ts
+export function isDbEnabled(): boolean {
+  return Boolean(process.env.DATABASE_URL)
+}
+```
+
+三類呼叫端都必須依此 guard 分流，行為定義如下：
+
+| 呼叫端類型 | `isDbEnabled()` 為 false 時的行為 | 對應範例 |
+| --- | --- | --- |
+| **開機回填** | 整段略過，完全退回現有「每次重啟都跑種子邏輯」的行為 | Phase 2 `setStartData()`、Phase 3 `dailyGrants` 回填 |
+| **write-through 寫入** | 跳過 DB 步驟，只做記憶體 mutation（等於退回目前的程式碼行為，不會因為沒接 DB 而讓 API 失敗） | Phase 2 `createMember`/`setRole`…、Phase 3 `dailyGrants` 核發 |
+| **批次 `SyncScheduler`** | **根本不啟動**這個 timer（而不是啟動了但每輪都靜默失敗），避免沒意義的空轉與多餘的錯誤 log | Phase 1 本身、Phase 3 的 orders/retro history 同步 |
+
+`server/plugins/init.ts` 在註冊 `SyncScheduler`/呼叫開機回填前，統一先檢查 `isDbEnabled()`；write-through
+的 service 方法則在函式最前面檢查，為 false 時直接跳過「開 transaction / 寫 DB」那幾行，後面的記憶體
+mutation 邏輯完全不變——也就是說，**有沒有接 DB，只差在要不要多做「DB 那一步」，記憶體邏輯本身永遠執行、
+永遠是現況的超集，不會因為沒接 DB 而讓任何既有功能壞掉或行為不一致**。
+
 ## 6. 環境變數與設定（規劃）
 
 - `.env.example` 新增：`POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` / `POSTGRES_PORT` / `DATABASE_URL`

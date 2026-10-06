@@ -30,7 +30,7 @@
 
 - [ ] `retroGames.history` 的 `add.dailyGrant()` 改為 async，寫入順序：DB upsert → 記憶體累加
 - [ ] server 啟動時從 DB 回填當天（`todayKey`）的 `dailyGrants` 到記憶體
-- [ ] 確認 `DATABASE_URL` 未設定時，整段邏輯略過，退回現有純記憶體行為
+- [ ] 確認 `isDbEnabled()` 為 false 時，開機回填與 write-through 的 DB 步驟都略過，退回現有純記憶體行為
 
 ## 5. 後台報表讀取路徑調整
 
