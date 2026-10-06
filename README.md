@@ -69,6 +69,19 @@ npm run start
 > 伺服器時區固定為台灣時間：`dev`／`preview`／`start` 都會帶 `TZ=Asia/Taipei` 啟動，
 > 開獎與鎖單時間不受主機時區影響（見 [`docs/Architecture/README.md`](docs/Architecture/README.md#時區)）。
 
+### 選用：接上 PostgreSQL（Docker）
+
+預設完全不需要資料庫，`npm run dev` 一樣照常跑純記憶體模式。若要接上持久化：
+
+```bash
+cp .env.example .env     # 依需要調整 POSTGRES_* 變數
+docker compose up -d     # 啟動 postgres container
+npm run dev              # DATABASE_URL 有設定時會自動連線、開始定時同步
+```
+
+沒有 `.env` 或沒設定 `DATABASE_URL`：伺服器完全不會嘗試連線，所有功能與目前純記憶體行為一致
+（見 `openspec/changes/add-postgres-docker/design.md` 第 5.1 節「DB 可選原則」）。
+
 ## 測試
 
 純函式的單元測試使用 Vitest（[`test/unit/`](test/unit)），以 `TZ=UTC` 執行，確認結果與主機時區無關：

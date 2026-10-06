@@ -2,6 +2,8 @@
 import { Storage } from '../services/storage'
 import BaseClass from '../services/base'
 import TestClass from '../services/test'
+import { isDbEnabled, ping } from '../services/db'
+import { SyncScheduler } from '../services/sync'
 
 export default defineNitroPlugin((_nitroApp) => {
   console.log('')
@@ -10,6 +12,20 @@ export default defineNitroPlugin((_nitroApp) => {
   console.log('')
   console.log('***NEW---------SERV.INIT')
   Storage.init()
+
+  // 定時同步（見 openspec/changes/add-postgres-docker/design.md 第 8 節）：
+  // 跟下面的 300ms 遊戲 tick 是各自獨立的 timer，避免同步耗時卡住遊戲邏輯。
+  // isDbEnabled() 為 false 時完全不啟動，不是啟動了但每輪都靜默失敗。
+  if (isDbEnabled()) {
+    void ping()
+      .then(() => console.log('SUCCESS ---BASE>db.ping'))
+      .catch((error) => console.error('FAILED ---BASE>db.ping', error))
+    new SyncScheduler().start()
+    console.log('SUCCESS ---BASE>sync.scheduler.start')
+  } else {
+    console.log('SKIP ---BASE>sync.scheduler（DATABASE_URL 未設定，維持純記憶體模式）')
+  }
+
   new BaseClass().runCircle(() => {
     // console.log('BaseClass.runCircle.Task')
     // console.log(Storage.games)
