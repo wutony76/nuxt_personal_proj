@@ -346,6 +346,65 @@ Proposal → Design → Tasks → Implementation → Validation → Engineering 
 4. 若使用者只說「先幫我規劃」，比照 feedback-plan-first-spec-only，只到 proposal/design/tasks 為止，Validation／Engineering Evidence 等實際動手實作後才補
 EOF
 
+# ── 14. 台彩7款玩法全數完工 ──────────────────────────────
+cat > "$MEMORY_DIR/project_tw_lottery_suite_complete.md" << 'EOF'
+---
+name: project-tw-lottery-suite-complete
+description: add-tw-lottery-suite 的 7 款台彩玩法已全數實作完成（P3/P4/BINGO 是最後 3 款），含已知待辦
+metadata:
+  type: project
+---
+
+`openspec/changes/add-tw-lottery-suite/` 規劃的 7 款台彩玩法（DLT/SUPERLOTTO/D539/M649/M539/P3/P4/BINGO 為 8 款，扣除 DLT 屬更早的 `add-dlt` 變更）已在 2026-09-17 全數完工：3星彩（P3）、4星彩（P4）、賓果賓果（BINGO）這最後 3 款由本次 session 依序完成，各自 commit（`82eb5f4`/`2f97d99`/`2542b4a`），Engineering Evidence 見 `docs/Engineering Evidence/tw-lottery-suite-p3-p4-bingo.md`。
+
+**Why:** 使用者在 `lottery-hall-taiwan.vue` 頁面上看到 8 款玩法只有 5 款能點進去下注，要求「繼續處理未完成的玩法」，比對 openspec tasks.md 才發現 P3/P4/BINGO 尚未實作。
+
+**How to apply:**
+
+- 若之後被要求「調整某款台彩玩法的下注規則/賠率」，先確認是這 8 款的哪一款，每款都是獨立 service（`server/services/game/lottery/tw/<key>.ts`），彼此不互相 import（design.md Decision 3 的獨立性要求）
+- **已知待辦，尚未執行**（見 Engineering Evidence 文件「風險與後續追蹤」）：
+  1. `tasks.md` 第 2 節「期別 helper 重構」（DLT/D539/M649/M539/P3/P4 目前各自複製一份 `_nextDrawWindow`/`_parseOfficialPeriod`，未抽共用 helper）
+  2. `tasks.md` 第 10 節「全站回歸與交付檢查」（後台 roleGamePerms UI 能否看到/停用 P3/P4/BINGO 尚未人工確認）
+  3. **4星彩「組彩」二獎/三獎分級規則是假設**（4 碼互異→二獎，任何重複→三獎），非官方文件確認，見 `shared/config/p4.ts` 註解
+  4. BINGO 沒有跨玩家單期總量限額（quota），也沒有 `Road.vue`（冷熱號）/`PopularPicks.vue`（熱門選號）
+  5. BINGO 無法回填開獎歷史（官方 1102 沒有單期查詢端點）
+- 這 3 款玩法都是委託 general-purpose agent 依 P3→P4→BINGO 順序實作（P4/BINGO 各自以「複製前一款的架構」為範本），每款完工後獨立重跑測試腳本驗證、只 `git add` 明確路徑清單再 commit（避免夾帶同 repo 並行 session 的其他未完工變更，見 [[project_pixel_games_17-25_proposals]] 提過的相同手法）
+- BINGO 的官方 API 行為（`lotSpecial`＝超級獎號、`lotNumber` 保留原始開獎順序、`lotBigSmall`/`lotOddEven` 官方已算好含和局「－」）已現場實測驗證過兩個連續期別，不是假設
+EOF
+
+# ── 15. Postgres 遷移規劃（Phase 1-3） ──────────────────────────────
+cat > "$MEMORY_DIR/project_postgres_migration_plan.md" << 'EOF'
+---
+name: project-postgres-migration-plan
+description: Postgres+Docker 持久化遷移規劃分三個 OpenSpec change（Phase 1/2/3），純規劃未執行，各自有待確認決策點
+metadata:
+  type: project
+---
+
+使用者決定把目前完全純記憶體（重啟全歸零）的架構導入 PostgreSQL（Docker 部署），拆成三個獨立 OpenSpec
+change，依序規劃（**截至目前都只有 proposal/design/tasks 文件，完全沒有執行任何程式碼或指令**）：
+
+- `openspec/changes/add-postgres-docker/`（Phase 1）：Docker Compose + 連線層 + 通用「5 分鐘批次同步」
+  `SyncScheduler`/`SyncSource` 機制設計。**待確認**：ORM/migration 工具選型（傾向 Drizzle，未定案）。
+- `openspec/changes/migrate-members-roledefs-postgres/`（Phase 2）：members/role-defs 改用
+  **write-through**（即時寫 DB，不用 Phase 1 批次機制，因為是低頻、不可接受遺失的資料）+ 開機回填。
+  調查發現這兩份資料其實是純記憶體 Map/Set，不是 JSON 檔案（Phase 1 文件曾誤寫，已訂正）。
+- `openspec/changes/migrate-game-history-postgres/`（Phase 3）：遊戲紀錄（下注/復古遊戲/彩池稽核）走
+  Phase 1 批次機制 + 同步後裁剪記憶體（解決 `Storage.lottery.orders` 永不清空的無上限成長問題，使用者
+  明確要求一併處理）；`dailyGrants`（復古遊戲每日 coin 核發計數器）改走 write-through + 回填，修正
+  「重啟導致當日配額歸零」的既有邏輯缺口。配額驗證（`validateBetQuota`）本身維持只讀記憶體，不受 DB
+  最終一致影響。
+
+**Why:** 架構決策分階段是為了控制風險——Phase 1 先打地基，Phase 2/3 各自選擇適合自己資料特性的同步
+策略（低頻正確性優先 vs 高頻可接受最終一致），不是每個 Phase 都套用同一種機制。
+
+**How to apply:** 使用者再要求往下規劃時（例如 Phase 4 / Redis、或 Phase 3 排除的
+`claimableIssues`/quota P2 擴充），延續同樣的「先問資料特性該用 write-through 還是批次同步」的判斷
+框架，並維持「先規劃不執行」直到使用者明確要求 Implementation（見 [[feedback_plan_first_spec_only]]）。
+與 [[project_quota_p2_pending]]、[[project_game_history_coin_reward]] 兩份既有待辦互相呼應，Phase 3
+design.md 明確把這兩塊列為本次排除範圍。
+EOF
+
 # ── MEMORY.md 索引 ────────────────────────────────────────────
 cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 # Memory Index
@@ -363,6 +422,8 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [「先幫我規劃」只寫 spec](feedback_plan_first_spec_only.md) — 只建立 OpenSpec 文件，不寫程式碼，等使用者明確要求才實作
 - [OpenSpec 流程擴充為 6 階段](project_openspec_workflow_6stages.md) — 新增 Validation、Engineering Evidence 兩份文件與範本（僅文件層級，未動 CLI schema）
 - [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
+- [台彩7款玩法全數完工](project_tw_lottery_suite_complete.md) — P3/P4/BINGO 補完，含期別helper重構/quota/組彩分級假設等已知待辦
+- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — 純規劃未執行，三個 OpenSpec change：Docker地基/members-roledefs write-through/遊戲紀錄批次同步+記憶體裁剪
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
