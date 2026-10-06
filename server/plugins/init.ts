@@ -4,6 +4,11 @@ import BaseClass from '../services/base'
 import TestClass from '../services/test'
 import { isDbEnabled, ping } from '../services/db'
 import { SyncScheduler } from '../services/sync'
+import { registerGameOrdersSyncSource } from '../services/game/lottery/ordersSyncSource'
+import { registerRetroHistorySyncSource } from '../services/game/retro/historySyncSource'
+import { registerPoolAuditSyncSources } from '../services/game/lottery/bg/poolAuditSyncSource'
+import { rehydrateTodayDailyGrantsFromDb } from '../services/game/retro/history'
+import RETRO_GAME_BASE from '../services/game/retro/base'
 
 export default defineNitroPlugin(async (_nitroApp) => {
   console.log('')
@@ -24,6 +29,13 @@ export default defineNitroPlugin(async (_nitroApp) => {
     void ping()
       .then(() => console.log('SUCCESS ---BASE>db.ping'))
       .catch((error) => console.error('FAILED ---BASE>db.ping', error))
+    // 遊戲紀錄/配額的批次同步來源（見 openspec/changes/migrate-game-history-postgres/design.md）
+    registerGameOrdersSyncSource()
+    registerRetroHistorySyncSource()
+    registerPoolAuditSyncSources()
+    // dailyGrants 開機回填（見 migrate-game-history-postgres/design.md 第 4 節）：只回填今天，
+    // 修正「重啟導致當日配額歸零」的既有缺口
+    await rehydrateTodayDailyGrantsFromDb(RETRO_GAME_BASE.formatDateKey(new Date()))
     new SyncScheduler().start()
     console.log('SUCCESS ---BASE>sync.scheduler.start')
   } else {

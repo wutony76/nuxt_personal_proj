@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, integer, timestamp } from 'drizzle-orm/pg-core'
+import { pgTable, text, boolean, integer, numeric, timestamp, jsonb, index, primaryKey } from 'drizzle-orm/pg-core'
 
 /**
  * 對應 server/services/admin/modules/roleDefs.ts 的 RoleDef（見
@@ -31,3 +31,73 @@ export const members = pgTable('members', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 })
+
+/**
+ * 23 款彩票玩法（15 BG + 8 TW）統一成一張表，取代各自獨立的 `OrdersClass` 記憶體結構，
+ * 見 openspec/changes/migrate-game-history-postgres/design.md 第 5 節。走批次同步（非
+ * write-through），只歸檔已結算期別，見 `server/services/game/lottery/ordersSyncSource.ts`。
+ */
+export const gameOrders = pgTable('game_orders', {
+  orderId: text('order_id').primaryKey(),
+  gameKey: text('game_key').notNull(),
+  issue: text('issue').notNull(),
+  userId: text('user_id').notNull(),
+  tabId: text('tab_id'),
+  /** 玩法 key（tema/zhengma/ball…），design.md 原始 schema 沒列，Implementation 階段發現
+   *  bg-summary.get.ts 的玩法排行需要這個欄位才補上（比照 tab_id 獨立成欄，不塞進 bet_code JSONB）。 */
+  playKey: text('play_key'),
+  coin: numeric('coin').notNull(),
+  betCode: jsonb('bet_code').notNull(),
+  odds: numeric('odds'),
+  tiers: jsonb('tiers'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+}, (table) => [
+  index('idx_game_orders_game_issue').on(table.gameKey, table.issue),
+  index('idx_game_orders_user_month').on(table.userId, table.createdAt)
+])
+
+/** 30 款復古遊戲共用一張表，全量快照同步（不裁剪，見 design.md 第 7 節）。 */
+export const retroGameHistory = pgTable('retro_game_history', {
+  id: text('id').primaryKey(),
+  gameKey: text('game_key').notNull(),
+  userId: text('user_id').notNull(),
+  score: integer('score').notNull(),
+  level: integer('level'),
+  meta: jsonb('meta'),
+  playedAt: timestamp('played_at', { withTimezone: true }).notNull()
+}, (table) => [
+  index('idx_retro_history_user_month').on(table.userId, table.playedAt)
+])
+
+/** 彩池重骰事件，全站共用，全量快照同步（記憶體有 2000→1800 上限，DB 保留完整歷史）。 */
+export const poolAuditReseed = pgTable('pool_audit_reseed', {
+  id: text('id').primaryKey(),
+  lotteryKey: text('lottery_key').notNull(),
+  issue: text('issue').notNull(),
+  before: numeric('before').notNull(),
+  after: numeric('after').notNull(),
+  happenedAt: timestamp('happened_at', { withTimezone: true }).notNull()
+})
+
+/** 保底超付事件，同上。 */
+export const poolAuditOverpay = pgTable('pool_audit_overpay', {
+  id: text('id').primaryKey(),
+  lotteryKey: text('lottery_key').notNull(),
+  issue: text('issue').notNull(),
+  overpay: numeric('overpay').notNull(),
+  happenedAt: timestamp('happened_at', { withTimezone: true }).notNull()
+})
+
+/**
+ * 復古遊戲每日 coin 核發計數器，write-through（非批次同步），修正重啟導致當日配額歸零的
+ * 既有缺口，見 design.md 第 4 節決策記錄。
+ */
+export const retroDailyGrants = pgTable('retro_daily_grants', {
+  userId: text('user_id').notNull(),
+  gameKey: text('game_key').notNull(),
+  dateKey: text('date_key').notNull(),
+  amount: integer('amount').notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.gameKey, table.dateKey] })
+])

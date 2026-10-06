@@ -91,7 +91,7 @@ export default class RETRO_GAME_BASE {
 
   actions = {
     /** 寫入一筆遊戲紀錄，並在同一次呼叫內完成 coin 結算（比照 6hc bet.post.ts 一次做完扣款+建單） */
-    record: (userId: string, input: RecordInput): RecordResult => {
+    record: async (userId: string, input: RecordInput): Promise<RecordResult> => {
       const safeScore = this.validateScore(input.score)
       const record = this._get.history().add.record(userId, {
         gameKey: this.key,
@@ -100,12 +100,12 @@ export default class RETRO_GAME_BASE {
         ...(input.level !== undefined ? { level: input.level } : {}),
         ...(input.meta ? { meta: input.meta } : {})
       })
-      const reward = this.actions.settleReward(userId, safeScore)
+      const reward = await this.actions.settleReward(userId, safeScore)
       retroLeaderboardBroadcast.push()
       return { record, ...reward }
     },
 
-    settleReward: (userId: string, score: number): SettleRewardResult => {
+    settleReward: async (userId: string, score: number): Promise<SettleRewardResult> => {
       const history = this._get.history()
       const todayKey = RETRO_GAME_BASE.formatDateKey(new Date())
       const grantedToday = history.get.dailyGranted(userId, todayKey)
@@ -133,7 +133,7 @@ export default class RETRO_GAME_BASE {
           createdAt: Date.now(),
           note: `${this.name} 遊戲結算 +${coinReward} coin`
         })
-        history.add.dailyGrant(userId, todayKey, coinReward)
+        await history.add.dailyGrant(userId, todayKey, coinReward)
       }
 
       return {

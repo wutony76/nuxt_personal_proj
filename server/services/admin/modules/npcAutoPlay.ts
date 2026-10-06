@@ -906,7 +906,12 @@ function _playRandomRetro(userId: string): void {
   const setting = _memberSettingOf(userId)
   const pct = setting.retroScoreMinPct + Math.random() * (setting.retroScoreMaxPct - setting.retroScoreMinPct)
   const score = Math.floor(game.maxReasonableScore() * (pct / 100))
-  game.actions.record(userId, { score })
+  // actions.record() 現在是 async（dailyGrant write-through，見 migrate-game-history-postgres
+  // design.md 第 4 節）；NPC 自動遊玩是背景排程觸發、呼叫端本身是同步的 300ms tick 迴圈，
+  // 不適合整條鏈都改 async，改成 fire-and-forget + 記錄失敗，不讓未捕捉的 rejection 冒出來。
+  void game.actions.record(userId, { score }).catch((error) => {
+    console.error('NPC.playRandomRetro.record.failed', userId, error)
+  })
 }
 
 function _playRandomBg(userId: string): void {
@@ -968,7 +973,7 @@ export type TestPlayResultItem = {
  * @param userId NPC 會員 id
  * @returns 每款遊戲的執行結果列表
  */
-export function testPlayAll(userId: string): TestPlayResultItem[] {
+export async function testPlayAll(userId: string): Promise<TestPlayResultItem[]> {
   const allowed = [..._allowedGamesOf(userId)]
   const catalog = _fullCatalog()
   const setting = _memberSettingOf(userId)
@@ -983,7 +988,7 @@ export function testPlayAll(userId: string): TestPlayResultItem[] {
       if (cat === 'retro') {
         const game = (Storage.retroGames.instances as Record<string, {
           maxReasonableScore: () => number
-          actions: { record: (userId: string, input: { score: number }) => unknown }
+          actions: { record: (userId: string, input: { score: number }) => Promise<unknown> }
         } | undefined>)[key]
         if (!game) {
           results.push({ compositeKey, category: cat, key, name, status: 'skipped', note: '遊戲未載入' })
@@ -991,7 +996,7 @@ export function testPlayAll(userId: string): TestPlayResultItem[] {
         }
         const pct = setting.retroScoreMinPct + Math.random() * (setting.retroScoreMaxPct - setting.retroScoreMinPct)
         const score = Math.floor(game.maxReasonableScore() * (pct / 100))
-        game.actions.record(userId, { score })
+        await game.actions.record(userId, { score })
         results.push({ compositeKey, category: cat, key, name, status: 'ok', note: `score: ${score}` })
 
       } else if (cat === 'bg') {

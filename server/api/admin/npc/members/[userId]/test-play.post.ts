@@ -7,7 +7,7 @@ import { testPlayAll } from 'serv/services/admin/modules/npcAutoPlay'
  * 不受總開關、時段、每日上限、行動節流限制，僅供測試驗證用途。
  * @returns { results: TestPlayResultItem[] }
  */
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
   sessionController.requireAdmin(event)
 
   const userId = getRouterParam(event, 'userId') ?? ''
@@ -15,6 +15,6 @@ export default defineEventHandler((event) => {
     throw createError({ statusCode: 400, message: '此會員不是 NPC 角色。' })
   }
 
-  const results = testPlayAll(userId)
+  const results = await testPlayAll(userId)
   return { results }
 })

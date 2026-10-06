@@ -1,5 +1,6 @@
 import { sessionController } from 'serv/services/auth'
 import { Storage } from 'serv/services/storage'
+import { queryArchivedOrdersForMonth } from 'serv/services/game/lottery/gameOrdersReportQuery'
 
 /**
  * 會員月度玩法分佈 API
@@ -99,7 +100,7 @@ function filterNpc(playerSets: Record<string, Set<string>>, isNpc: (userId: stri
   return out
 }
 
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
   sessionController.requireAdminView(event)
 
   const query = getQuery(event)
@@ -144,6 +145,25 @@ export default defineEventHandler((event) => {
     }
   }
 
+  // ── 已歸檔到 DB 的部分（記憶體已裁剪，見 add-postgres-docker/migrate-game-history-postgres
+  // design.md）：DB 未啟用或這個月份完全沒有被裁剪過的資料時，下面這段只是空陣列，等同不執行 ──
+  const archivedRows = await queryArchivedOrdersForMonth(month)
+  for (const row of archivedRows) {
+    const isTw = TW_LOTTERY_KEYS.has(row.gameKey)
+    if (isTw) {
+      // BG 資料的 created_at 是同步時間，查當月時可能巧合落在區間內，必須用 gameKey 類別
+      // 再篩一次，見 queryArchivedOrdersForMonth() 的檔頭說明
+      if (!tsToDate(row.createdAt).startsWith(month)) continue
+      if (!twPlayers[row.gameKey]) twPlayers[row.gameKey] = new Set()
+      twPlayers[row.gameKey].add(row.userId)
+    } else {
+      const dateStr = parseIssueDate(row.issue)
+      if (!dateStr || !dateStr.startsWith(month)) continue
+      if (!bgPlayers[row.gameKey]) bgPlayers[row.gameKey] = new Set()
+      bgPlayers[row.gameKey].add(row.userId)
+    }
+  }
+
   // ── GAME（game-hall 像素小遊戲）：從 retro 遊玩紀錄去重 userId ───────────
   const historyMap = Storage.retroGames.history as Record<string, { records?: Record<string, Array<{ playedAt: string }>> }>
   const instancesMap = Storage.retroGames.instances as Record<string, { name?: string }>
@@ -171,6 +191,11 @@ export default defineEventHandler((event) => {
       tw: buildRanking(filterNpc(twPlayers, isNpc), (key) => TW_GAME_NAMES[key] ?? key),
       game: buildRanking(filterNpc(gamePlayers, isNpc), (key) => instancesMap[key]?.name ?? key),
     },
-    dataNote: '資料為 in-memory，伺服器重啟後清空。「人數」為當月至少玩過一次的不重複會員數（依 userId 去重，同一人玩多次也只算一次；同一人玩多款玩法會分別計入各款，故加總可能大於當類別總人數）。BG 依 issue 日期篩選；台彩依下注時間（createdAt）篩選；GAME 依遊玩時間（playedAt）篩選。以上數字為全部會員（含 NPC）合計，npc 欄位是其中 NPC 角色會員的部分。',
+    dataNote: 'BG/TW 數字合併記憶體（近期未歸檔）與 PostgreSQL（已歸檔，DB 啟用時才有）兩個來源；'
+      + 'GAME 僅記憶體（復古遊戲紀錄不裁剪，見 openspec/changes/migrate-game-history-postgres）。'
+      + '「人數」為當月至少玩過一次的不重複會員數（依 userId 去重，同一人玩多次也只算一次；同一人玩'
+      + '多款玩法會分別計入各款，故加總可能大於當類別總人數）。BG 依 issue 日期篩選；台彩依下注時間'
+      + '（createdAt）篩選；GAME 依遊玩時間（playedAt）篩選。以上數字為全部會員（含 NPC）合計，'
+      + 'npc 欄位是其中 NPC 角色會員的部分。',
   }
 })

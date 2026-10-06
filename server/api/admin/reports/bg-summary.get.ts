@@ -1,5 +1,6 @@
 import { sessionController } from 'serv/services/auth'
 import { Storage } from 'serv/services/storage'
+import { queryArchivedOrdersForMonth } from 'serv/services/game/lottery/gameOrdersReportQuery'
 
 /**
  * BG 彩票月度統計 API
@@ -231,7 +232,7 @@ function _summarize(bucket: Bucket, month: string, days: string[]) {
   }
 }
 
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
   sessionController.requireAdminView(event)
 
   const query = getQuery(event)
@@ -252,6 +253,40 @@ export default defineEventHandler((event) => {
   const allBucket = _emptyBucket()
   const npcBucket = _emptyBucket()
 
+  /** 單筆訂單的分桶邏輯，記憶體與 DB 歸檔資料共用（見 migrate-game-history-postgres design.md 第 8 節） */
+  function accumulate(gameKey: string, isTw: boolean, coin: number, userId: string, dateInput: string, playKey: string) {
+    if (!Number.isFinite(coin) || coin <= 0) return
+    const isNpc = access.roleOf(userId) === 'npc'
+    const targets = isNpc ? [allBucket, npcBucket] : [allBucket]
+
+    if (isTw) {
+      if (!dateInput.startsWith(month)) return
+      for (const bucket of targets) {
+        bucket.twDailyMap[dateInput] = (bucket.twDailyMap[dateInput] ?? 0) + coin
+        if (!bucket.twGameMap[gameKey]) bucket.twGameMap[gameKey] = { sales: 0, orders: 0 }
+        bucket.twGameMap[gameKey].sales += coin
+        bucket.twGameMap[gameKey].orders += 1
+      }
+      return
+    }
+
+    if (!dateInput.startsWith(month)) return
+    for (const bucket of targets) {
+      bucket.dailyMap[dateInput] = (bucket.dailyMap[dateInput] ?? 0) + coin
+
+      if (!bucket.gameMap[gameKey]) bucket.gameMap[gameKey] = { sales: 0, orders: 0 }
+      bucket.gameMap[gameKey].sales += coin
+      bucket.gameMap[gameKey].orders += 1
+
+      const pk = playKey.trim()
+      if (pk) {
+        if (!bucket.playMap[pk]) bucket.playMap[pk] = { sales: 0, orders: 0 }
+        bucket.playMap[pk].sales += coin
+        bucket.playMap[pk].orders += 1
+      }
+    }
+  }
+
   for (const [gameKey, instance] of Object.entries(ordersMap)) {
     if (!instance || typeof instance.orders !== 'object') continue
     const isTw = TW_LOTTERY_KEYS.has(gameKey)
@@ -259,43 +294,34 @@ export default defineEventHandler((event) => {
       if (!Array.isArray(orderRows)) continue
       for (const row of orderRows) {
         const coin = Number(row.coin ?? 0)
-        if (!Number.isFinite(coin) || coin <= 0) continue
-        const isNpc = access.roleOf(String(row.userId ?? '')) === 'npc'
-        const targets = isNpc ? [allBucket, npcBucket] : [allBucket]
-
+        const userId = String(row.userId ?? '')
         if (isTw) {
           const ts = Number(row.createdAt ?? 0)
           if (!ts) continue
-          const dateStr = tsToDate(ts)
-          if (!dateStr.startsWith(month)) continue
-          for (const bucket of targets) {
-            bucket.twDailyMap[dateStr] = (bucket.twDailyMap[dateStr] ?? 0) + coin
-            if (!bucket.twGameMap[gameKey]) bucket.twGameMap[gameKey] = { sales: 0, orders: 0 }
-            bucket.twGameMap[gameKey].sales += coin
-            bucket.twGameMap[gameKey].orders += 1
-          }
-          continue
-        }
-
-        const dateStr = parseIssueDate(row.issue ?? _issue)
-        if (!dateStr) continue
-        if (!dateStr.startsWith(month)) continue
-
-        for (const bucket of targets) {
-          bucket.dailyMap[dateStr] = (bucket.dailyMap[dateStr] ?? 0) + coin
-
-          if (!bucket.gameMap[gameKey]) bucket.gameMap[gameKey] = { sales: 0, orders: 0 }
-          bucket.gameMap[gameKey].sales += coin
-          bucket.gameMap[gameKey].orders += 1
-
-          const pk = String(row.playKey ?? '').trim()
-          if (pk) {
-            if (!bucket.playMap[pk]) bucket.playMap[pk] = { sales: 0, orders: 0 }
-            bucket.playMap[pk].sales += coin
-            bucket.playMap[pk].orders += 1
-          }
+          accumulate(gameKey, true, coin, userId, tsToDate(ts), '')
+        } else {
+          const dateStr = parseIssueDate(row.issue ?? _issue)
+          if (!dateStr) continue
+          accumulate(gameKey, false, coin, userId, dateStr, String(row.playKey ?? ''))
         }
       }
+    }
+  }
+
+  // ── 已歸檔到 DB 的部分（記憶體已裁剪，見 add-postgres-docker/migrate-game-history-postgres
+  // design.md）：DB 未啟用或這個月份完全沒有被裁剪過的資料時，下面這段只是空陣列，等同不執行 ──
+  const archivedRows = await queryArchivedOrdersForMonth(month)
+  for (const row of archivedRows) {
+    const isTw = TW_LOTTERY_KEYS.has(row.gameKey)
+    if (isTw) {
+      // BG 資料的 created_at 是同步時間，查當月時可能巧合落在區間內，accumulate() 的
+      // dateInput.startsWith(month) 已經能擋掉「這筆其實不屬於這個月」的情況，但分類本身
+      // 仍要用 gameKey 類別判斷（不能只看有沒有命中 created_at 區間），見 query 檔頭說明
+      accumulate(row.gameKey, true, row.coin, row.userId, tsToDate(row.createdAt), '')
+    } else {
+      const dateStr = parseIssueDate(row.issue)
+      if (!dateStr) continue
+      accumulate(row.gameKey, false, row.coin, row.userId, dateStr, row.playKey)
     }
   }
 
@@ -307,7 +333,8 @@ export default defineEventHandler((event) => {
     month,
     ...all,
     npc,
-    dataNote: '資料為 in-memory，伺服器重啟後清空。BG 彩票依 issue 日期篩選；台彩依下注時間'
-      + '（createdAt）篩選。以上數字為全部會員（含 NPC）合計，npc 欄位是其中 NPC 角色會員的部分。',
+    dataNote: '數字合併記憶體（近期未歸檔）與 PostgreSQL（已歸檔，DB 啟用時才有）兩個來源。'
+      + 'BG 彩票依 issue 日期篩選；台彩依下注時間（createdAt）篩選。以上數字為全部會員（含 NPC）'
+      + '合計，npc 欄位是其中 NPC 角色會員的部分。',
   }
 })

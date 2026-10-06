@@ -14,6 +14,12 @@ export interface SyncSource {
   primaryKey: string[]
   /** 同步瞬間，從 Storage 取出要寫入的列（必須是同步函式，避免 read-tearing，見 design.md 8.4 節） */
   snapshot(): Record<string, unknown>[]
+  /**
+   * 可選（見 migrate-game-history-postgres/design.md 第 6 節）：DB 寫入成功後呼叫，傳入剛剛寫入
+   * 的那批資料。用於「增量來源」在確認落地後，從記憶體裁剪掉同一批資料。沒有提供這個欄位的來源
+   * （例如 Phase 2 的 members/role-defs）維持「每輪全量快照、不裁剪」的既有行為。
+   */
+  onSynced?(syncedRows: Record<string, unknown>[]): void
 }
 
 const _sources: SyncSource[] = []
@@ -27,11 +33,21 @@ export function _clearSyncSourcesForTest(): void {
   _sources.length = 0
 }
 
+/**
+ * postgres.js 透過 drizzle `sql` 模板組 query 時，不會像 db.insert(table).values() 那樣依 schema
+ * 欄位型別自動編碼——Date 物件直接當參數值丟進去會在底層 byteLength 檢查炸掉（已實測確認，見
+ * migrate-game-history-postgres 的 validation.md）。這裡統一轉成 ISO 字串，Postgres 的
+ * timestamptz 欄位本來就吃 ISO8601 字串。
+ */
+function _toSqlParam(value: unknown): unknown {
+  return value instanceof Date ? value.toISOString() : value
+}
+
 function _buildUpsertSql(source: SyncSource, rows: Record<string, unknown>[]) {
   const columns = Object.keys(rows[0])
   const columnsSql = sql.join(columns.map((c) => sql.identifier(c)), sql`, `)
   const valuesSql = sql.join(
-    rows.map((row) => sql`(${sql.join(columns.map((c) => sql`${row[c]}`), sql`, `)})`),
+    rows.map((row) => sql`(${sql.join(columns.map((c) => sql`${_toSqlParam(row[c])}`), sql`, `)})`),
     sql`, `
   )
   const conflictColumns = sql.join(source.primaryKey.map((c) => sql.identifier(c)), sql`, `)
@@ -60,6 +76,7 @@ async function runSyncTick(): Promise<void> {
       await db.execute(_buildUpsertSql(source, rows))
       totalRows += rows.length
       console.log(`SYNC.tick.source.success table=${source.table} rows=${rows.length}`)
+      source.onSynced?.(rows)
     } catch (error) {
       // 單一來源失敗不影響其他來源，也不影響主流程（見 design.md 第 8.6 節）
       console.error(`SYNC.tick.source.failed table=${source.table}`, error)

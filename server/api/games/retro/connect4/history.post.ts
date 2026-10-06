@@ -8,10 +8,10 @@ export default defineEventHandler(async (event) => {
   const login = sessionController.require(event)
   const body = await readBody<RecordInput>(event)
   const game = Storage.retroGames.instances[GAME_KEY] as {
-    actions?: { record?: (userId: string, input: RecordInput) => RecordResult }
+    actions?: { record?: (userId: string, input: RecordInput) => Promise<RecordResult> }
   } | undefined
 
-  const result = game?.actions?.record?.(String(login.id), {
+  const result = await game?.actions?.record?.(String(login.id), {
     score: Number(body?.score ?? 0),
     ...(body?.level !== undefined ? { level: Number(body.level) } : {}),
     ...(body?.meta ? { meta: body.meta } : {})
