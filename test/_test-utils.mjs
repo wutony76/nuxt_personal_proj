@@ -4,6 +4,22 @@
  * 避免每支腳本各自重複一份幾乎一樣的 login/api/ok/section 樣板。
  */
 
+import { createHash } from 'node:crypto'
+
+/**
+ * 跟 server/utils/encrypt.js 的 encodePassword() 演算法完全相同（SHA256(SHA256(email)+password)
+ * 轉 base64），但改用 Node 內建 crypto 模組重新實作——因為這支檔案是直接用
+ * `node test/xxx.mjs` 跑、沒有經過 Vite/Nitro 的 bundler，crypto-js 的 subpath import
+ * （例如 `crypto-js/enc-base64`）在純 Node ESM resolver 下會直接噴
+ * ERR_MODULE_NOT_FOUND（已實測確認），所以測試腳本不能直接 import encrypt.js。
+ * 兩種實作已用同樣的 (password, loginId) 組合比對過輸出完全一致。
+ */
+export function encodePassword(password, loginId) {
+  const sha256Hex = (str) => createHash('sha256').update(str, 'utf8').digest('hex')
+  const inner = sha256Hex(sha256Hex(loginId.toLowerCase()) + password)
+  return Buffer.from(inner, 'hex').toString('base64')
+}
+
 /**
  * 獨立的 cookie-based HTTP client（不帶 ok/section/summary 斷言計數）。
  * 供需要「同一支腳本內多個身分各自登入」的場景使用（例如角色權限測試要同時
@@ -68,7 +84,7 @@ export function createTestRunner({
     section('登入')
     const { status, body } = await api('/api/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password: encodePassword(password, email) })
     })
     ok(`登入成功（${email}）`, status === 200 && body?.user?.id, JSON.stringify(body))
     if (status !== 200) {
@@ -92,7 +108,7 @@ export function createTestRunner({
     async function actorLogin() {
       const { status, body } = await actorClient.api('/api/login', {
         method: 'POST',
-        body: JSON.stringify({ email: actorEmail, password: actorPassword })
+        body: JSON.stringify({ email: actorEmail, password: encodePassword(actorPassword, actorEmail) })
       })
       const success = status === 200 && Boolean(body?.user?.id)
       ok(`登入成功（${label || actorEmail}）`, success, JSON.stringify(body))

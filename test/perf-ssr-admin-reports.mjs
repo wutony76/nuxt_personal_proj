@@ -13,6 +13,7 @@
  */
 
 import { chromium } from 'playwright'
+import { encodePassword } from './_test-utils.mjs'
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:6100'
 const SCENARIO = process.env.SCENARIO || 'unlabeled'
@@ -26,7 +27,7 @@ async function loginAndGetCookie() {
   const res = await fetch(`${BASE_URL}/api/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'admin@example.com', password: '123456' })
+    body: JSON.stringify({ email: 'admin@example.com', password: encodePassword('123456', 'admin@example.com') })
   })
   const setCookie = res.headers.get('set-cookie')
   const [name, ...rest] = setCookie.split(';')[0].split('=')

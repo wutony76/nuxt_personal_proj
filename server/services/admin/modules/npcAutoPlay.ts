@@ -6,6 +6,7 @@ import { roleGamePermsService, type GameCategory } from './roleGamePerms'
 import { buildBgBetPayload } from './npcBgPayload'
 import { buildTwBetPayload } from './npcTwPayload'
 import { playRandomToy } from './npcToyPlay'
+import { encodePassword } from 'serv/utils/encrypt'
 
 export type NpcGameCategory = GameCategory | 'toys'
 
@@ -572,7 +573,14 @@ export const npcAutoPlayService = {
     }
     const name = _generateUniqueMemberName()
     const email = `${name}${NPC_EMAIL_DOMAIN}`
-    const user = adminAccessService.createMember({ name, email, password: AUTO_CREATE_PASSWORD, role: 'npc' })
+    // createMember() 現在預期收到已雜湊過的 password（見 api.ts），NPC 是伺服器內部直接建立、
+    // 沒有經過瀏覽器，手動套用同一道 encodePassword() 保持一致。
+    const user = adminAccessService.createMember({
+      name,
+      email,
+      password: encodePassword(AUTO_CREATE_PASSWORD, email),
+      role: 'npc'
+    })
     // 隨機抽一個玩家原型，差異化這個 NPC 實際會碰哪些遊戲、各分類的權重——
     // 不這麼做的話 `_allowedGamesOf()` 會在第一次被存取時預設全選所有已支援遊戲，
     // 20 個 NPC 全部都玩全部遊戲，後台「資料統計／會員」的每款遊戲人數會失真地

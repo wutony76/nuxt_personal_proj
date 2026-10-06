@@ -23,7 +23,7 @@
  *   4. 自訂角色（非內建）CRUD 全部建立後自行刪除，不留殘留角色。
  */
 
-import { createTestRunner } from './_test-utils.mjs'
+import { createTestRunner, encodePassword } from './_test-utils.mjs'
 
 const { api, ok, section, login, actor, summary } = createTestRunner()
 
@@ -34,7 +34,7 @@ async function createTempMember() {
   section('建立臨時測試帳號（不使用 test01～test05 種子帳號）')
   const { status, body } = await api('/api/admin/members', {
     method: 'POST',
-    body: JSON.stringify({ name: 'QA權限測試', email: TEMP_EMAIL, password: TEMP_PASSWORD })
+    body: JSON.stringify({ name: 'QA權限測試', email: TEMP_EMAIL, password: encodePassword(TEMP_PASSWORD, TEMP_EMAIL) })
   })
   ok('建立臨時帳號成功', status === 200 && Boolean(body?.user?.id), JSON.stringify(body))
   ok('臨時帳號預設角色為 user', body?.user?.role === 'user', body?.user?.role)

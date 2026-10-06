@@ -2,7 +2,7 @@ import type {
   AuthRecord,
   SessionRecord
 } from '../types/storage'
-import { encodePasswordBcjs } from '../utils/encrypt'
+import { encodePasswordBcjs, encodePassword } from '../utils/encrypt'
 import { compareSync } from 'bcryptjs'
 import UsersClass from './users'
 import { DEFAULT_MAZE_TEMPLATES, type MazeTemplate } from './game/retro/mazeTemplates'
@@ -221,13 +221,16 @@ export class Storage {
         id: 'U0xA000001',
         name: 'Admin',
         email: 'admin@example.com',
-        passwordHash: encodePasswordBcjs('123456')
+        // 密碼在前端送出前就先用 encodePassword(password, email) 雜湊過（見 server/utils/encrypt.js），
+        // 種子帳號是伺服器內部直接產生、沒有經過瀏覽器，這裡手動套用同一道雜湊，確保跟登入時
+        // 前端送來的值是同一種格式，比對才會一致。
+        passwordHash: encodePasswordBcjs(encodePassword('123456', 'admin@example.com'))
       },
       U0xA666666: {
         id: 'U0xA666666',
         name: 'HappyFatYoYo',
         email: 'hfyy@cc.cc',
-        passwordHash: encodePasswordBcjs('123456')
+        passwordHash: encodePasswordBcjs(encodePassword('123456', 'hfyy@cc.cc'))
       }
     }
     this.users = {

@@ -6,6 +6,7 @@ import { memberBalanceHistoryService } from './modules/memberBalanceHistory'
 import { roleDefsService } from './modules/roleDefs'
 import { roleGamePermsService } from './modules/roleGamePerms'
 import { npcAutoPlayService } from './modules/npcAutoPlay'
+import { encodePassword } from 'serv/utils/encrypt'
 
 /**
  * 後台會員／權限／聊天室管理入口：不分遊戲類別的後台功能掛在這裡。
@@ -57,10 +58,13 @@ export default class HFYYManage {
     // 提示文字——之前這裡是 123456，跟畫面上的提示對不起來，照著提示登入會失敗。
     // test04 固定指派 demo 角色，方便重啟後不用每次手動重新設定即可驗證唯讀後台體驗。
     ;['01', '02', '03', '04', '05'].forEach((n) => {
+      const email = `test${n}@test.cc`
       this.access.createMember({
         name: `test${n}`,
-        email: `test${n}@test.cc`,
-        password: '222222',
+        email,
+        // createMember() 現在預期收到的 password 已經是前端雜湊過的值（見 api.ts），
+        // 這裡是伺服器內部直接呼叫、沒有經過瀏覽器，手動套用同一道 encodePassword() 保持一致。
+        password: encodePassword('222222', email),
         role: n === '04' ? 'demo' : undefined
       })
     })

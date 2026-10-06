@@ -4,6 +4,7 @@
 // 呼叫方式與型別簽章完全相同，client 端行為不變），讓這個檔案的函式之後可以安全地被
 // useAsyncData／useFetch 在 SSR 階段呼叫（見 add-ssr-lottery-hall-pools）。
 import { LOTTERY } from '~/config/constants'
+import { encodePassword } from 'serv/utils/encrypt'
 
 export type AuthUser = {
   id: string | number
@@ -1861,10 +1862,12 @@ export const api = {
   auth: {
     /** @param opts.headers SSR 轉發用（useRequestHeaders(['cookie'])），見 add-ssr-admin-reports-cookie-forward */
     me: (opts?: { headers?: HeadersInit }) => $fetch<{ user: AuthUser }>('/api/me', { headers: opts?.headers }),
+    // 密碼不直接送明文：用 encodePassword(password, email) 雜湊後再送出，伺服器只會收到
+    // 雜湊值（見 server/utils/encrypt.js 的 encodePassword，以 email 當 salt 避免跨帳號的彩虹表攻擊）。
     login: (payload: { email: string; password: string }) =>
       $fetch<{ user: AuthUser }>('/api/login', {
         method: 'POST',
-        body: payload
+        body: { email: payload.email, password: encodePassword(payload.password, payload.email) }
       }),
     logout: () =>
       $fetch('/api/logout', {
@@ -1922,12 +1925,13 @@ export const api = {
     createMember: (payload: { name: string; email: string; password: string; role?: UserRole }) =>
       $fetch<{ user: AdminAccessUser }>('/api/admin/members', {
         method: 'POST',
-        body: payload
+        body: { ...payload, password: encodePassword(payload.password, payload.email) }
       }),
-    setMemberPassword: (id: string, password: string) =>
+    /** @param email 目標帳號的 email，雜湊密碼要用「被改密碼那個人」的 email 當 salt，不是操作者自己的 */
+    setMemberPassword: (id: string, password: string, email: string) =>
       $fetch<{ user: AdminAccessUser }>(`/api/admin/members/${id}`, {
         method: 'PATCH',
-        body: { password }
+        body: { password: encodePassword(password, email) }
       }),
     setMemberEmail: (id: string, email: string) =>
       $fetch<{ user: AdminAccessUser }>(`/api/admin/members/${id}`, {

@@ -224,7 +224,7 @@ const _actions = {
     state.passwordSaveStatus = 'loading'
     state.passwordSaveError = ''
     try {
-      const res = await api.admin.setMemberPassword(row.id, password)
+      const res = await api.admin.setMemberPassword(row.id, password, row.email)
       const idx = state.users.findIndex((u) => u.id === res.user.id)
       if (idx >= 0) state.users[idx] = res.user
       state.passwordEditing = false
