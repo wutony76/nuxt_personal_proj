@@ -20,6 +20,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: '角色不存在。' })
   }
 
-  const user = Storage.manager.admin.access.setRole(id, role, actor.id)
+  const user = await Storage.manager.admin.access.setRole(id, role, actor.id)
   return { user }
 })

@@ -76,6 +76,14 @@ export class Storage {
   constructor() { }
 
   static initialized = false
+  /**
+   * `manager.admin.init()` 內部會 await DB 開機回填（見 migrate-members-roledefs-postgres
+   * design.md 第 5 節），但 `Storage.init()` 本身必須維持同步簽名不變——這裡只是把那個
+   * promise 存起來，給 `server/plugins/init.ts` 在啟動序列裡 await，確保 Nitro 真正開始
+   * 接受請求之前，開機回填已經完成；`Storage.init()` 的其他既有呼叫端（例如 `Storage.get.*()`
+   * 內的防呆呼叫）完全不受影響，繼續拿到同步的 `undefined`。
+   */
+  static adminInitPromise: Promise<void> | null = null
   static config: Record<string, Record<string, unknown>> = {}
   static manager = {
     admin: new HFYYManageClass(),
@@ -246,7 +254,7 @@ export class Storage {
     this.handle.gamesInit()
     this.handle.gamesInitRetro()
 
-    this.manager.admin.init()
+    this.adminInitPromise = this.manager.admin.init()
   }
 
   static get = {

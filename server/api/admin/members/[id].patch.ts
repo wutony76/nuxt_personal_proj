@@ -28,10 +28,10 @@ export default defineEventHandler(async (event) => {
   const access = Storage.manager.admin.access
   let user = null as ReturnType<typeof access.setEmail> | null
   if (hasEmail) {
-    user = access.setEmail(id, body.email as string)
+    user = await access.setEmail(id, body.email as string)
   }
   if (hasPassword) {
-    user = access.setPassword(id, body.password as string)
+    user = await access.setPassword(id, body.password as string)
   }
   if (hasCoinDelta) {
     user = access.adjustCoin(id, Number(body.coinDelta))

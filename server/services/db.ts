@@ -1,6 +1,7 @@
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { sql } from 'drizzle-orm'
+import * as schema from './db/schema'
 
 /**
  * DB 可選原則（見 openspec/changes/add-postgres-docker/design.md 第 5.1 節）：
@@ -12,7 +13,7 @@ export function isDbEnabled(): boolean {
 }
 
 let _client: ReturnType<typeof postgres> | null = null
-let _db: ReturnType<typeof drizzle> | null = null
+let _db: ReturnType<typeof drizzle<typeof schema>> | null = null
 
 /** 連線 pool singleton；只有 isDbEnabled() 為 true 時才會真的建立連線。 */
 function getClient() {
@@ -21,14 +22,14 @@ function getClient() {
   }
   if (!_client) {
     _client = postgres(process.env.DATABASE_URL as string, { max: 10 })
-    _db = drizzle(_client)
+    _db = drizzle(_client, { schema })
   }
   return _client
 }
 
 export function getDb() {
   getClient()
-  return _db as ReturnType<typeof drizzle>
+  return _db as ReturnType<typeof drizzle<typeof schema>>
 }
 
 /** 最小健康檢查，本次（Phase 1）不建立任何 table 或 repository 方法。 */

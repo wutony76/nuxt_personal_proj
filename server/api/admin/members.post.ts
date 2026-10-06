@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
   const roleRaw = String(body?.role ?? 'user')
   const role: UserRole = Storage.manager.admin.roleDefs.exists(roleRaw) ? roleRaw : 'user'
 
-  const user = Storage.manager.admin.access.createMember({
+  const user = await Storage.manager.admin.access.createMember({
     name: typeof body?.name === 'string' ? body.name : '',
     email: typeof body?.email === 'string' ? body.email : '',
     password: typeof body?.password === 'string' ? body.password : '',

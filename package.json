@@ -9,6 +9,8 @@
     "preview": "TZ=Asia/Taipei nuxt preview",
     "start": "TZ=Asia/Taipei node .output/server/index.mjs",
     "postinstall": "nuxt prepare",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "test": "node test/ci-test-all.mjs",
     "test:unit": "TZ=UTC vitest run",
     "test:dlt": "node test/test-dlt.mjs",

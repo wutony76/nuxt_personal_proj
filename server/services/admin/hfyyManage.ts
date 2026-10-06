@@ -29,17 +29,26 @@ export default class HFYYManage {
     // 改由 Storage.init() 明確呼叫 init()，建構子不自己呼叫，避免重複執行
   }
 
-  init() {
+  async init(): Promise<void> {
     console.log('----- HFYY.Manager.init -----')
     socketHub.init()
-    this.setStartData()
+    await this.setStartData()
   }
   circle() {
     this.chatSchedule.tick()
     this.npcAutoPlay.tick()
   }
 
-  setStartData() {
+  /**
+   * 開機回填 / 種子邏輯（見 openspec/changes/migrate-members-roledefs-postgres/design.md 第 5 節）：
+   * - role_defs：`roleDefsService.rehydrateOrSeed()` 內部已經處理「DB 未啟用 / 全新環境 / 已有資料」
+   *   三種情況，這裡只需要呼叫，且必須排在 members 之前（members.role_id 外鍵依賴 role_defs 先存在）
+   * - members：DB 已有資料時，直接從 DB 回填、完全跳過下面的種子迴圈；DB 是空的（全新環境）或
+   *   未啟用 DB 時，照原本邏輯跑種子（write-through 會自然把這些寫進 DB，如果有接的話），
+   *   跑完後額外把 `Storage.init()` 已經直接建立、沒有經過 createMember() 的 2 筆種子 admin
+   *   帳號也補寫進 DB
+   */
+  async setStartData(): Promise<void> {
     // 聊天室排程：啟動時建幾筆 interval 測試排程，方便驗證聊天室訊息推播
     const SEED_ADMIN_ID = 'U0xA000001'
     const SEED_ADMIN_NAME = 'Admin'
@@ -53,29 +62,40 @@ export default class HFYYManage {
       })
     })
 
-    // 初始會員：啟動時建幾筆測試帳號，方便本機／測試環境驗證後台會員功能。
-    // 密碼固定 222222，對應 app/pages/login.vue 畫面上寫的「測試帳號 test02~04@test.cc / 222222」
-    // 提示文字——之前這裡是 123456，跟畫面上的提示對不起來，照著提示登入會失敗。
-    // test04 固定指派 demo 角色，方便重啟後不用每次手動重新設定即可驗證唯讀後台體驗。
-    ;['01', '02', '03', '04', '05'].forEach((n) => {
-      const email = `test${n}@test.cc`
-      this.access.createMember({
-        name: `test${n}`,
-        email,
-        // createMember() 現在預期收到的 password 已經是前端雜湊過的值（見 api.ts），
-        // 這裡是伺服器內部直接呼叫、沒有經過瀏覽器，手動套用同一道 encodePassword() 保持一致。
-        password: encodePassword('222222', email),
-        role: n === '04' ? 'demo' : undefined
-      })
-    })
+    await this.roleDefs.rehydrateOrSeed()
 
-    // 初始 NPC：啟動時自動建立 20 個 NPC 會員（從單字庫隨機組名）
-    for (let i = 0; i < 20; i++) {
-      try {
-        this.npcAutoPlay.autoCreateMember()
-      } catch {
-        // 名稱重複加後綴已由 autoCreateMember 處理，其餘例外略過
+    const hasExistingMembers = await this.access.hasExistingDbMembers()
+    if (hasExistingMembers) {
+      await this.access.rehydrateFromDb()
+    } else {
+      // 初始會員：啟動時建幾筆測試帳號，方便本機／測試環境驗證後台會員功能。
+      // 密碼固定 222222，對應 app/pages/login.vue 畫面上寫的「測試帳號 test02~04@test.cc / 222222」
+      // 提示文字——之前這裡是 123456，跟畫面上的提示對不起來，照著提示登入會失敗。
+      // test04 固定指派 demo 角色，方便重啟後不用每次手動重新設定即可驗證唯讀後台體驗。
+      for (const n of ['01', '02', '03', '04', '05']) {
+        const email = `test${n}@test.cc`
+        await this.access.createMember({
+          name: `test${n}`,
+          email,
+          // createMember() 現在預期收到的 password 已經是前端雜湊過的值（見 api.ts），
+          // 這裡是伺服器內部直接呼叫、沒有經過瀏覽器，手動套用同一道 encodePassword() 保持一致。
+          password: encodePassword('222222', email),
+          role: n === '04' ? 'demo' : undefined
+        })
       }
+
+      // 初始 NPC：啟動時自動建立 20 個 NPC 會員（從單字庫隨機組名）
+      for (let i = 0; i < 20; i++) {
+        try {
+          await this.npcAutoPlay.autoCreateMember()
+        } catch {
+          // 名稱重複加後綴已由 autoCreateMember 處理，其餘例外略過
+        }
+      }
+
+      // Storage.init() 已經直接建立的 2 筆種子 admin 帳號沒有經過 createMember()，
+      // 不會自動 write-through，這裡補寫一次（僅在確認 DB 是空的情況下才會真的執行 INSERT）
+      await this.access.seedBootAdminsToDb([SEED_ADMIN_ID, 'U0xA666666'])
     }
 
     // NPC 自動遊玩：預設開啟

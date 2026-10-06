@@ -6,9 +6,9 @@ import { Storage } from 'serv/services/storage'
  * 直接建立角色為 NPC 的新會員，不需要手動輸入
  * @returns 新建帳號（不含密碼）
  */
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
   sessionController.requireAdmin(event)
 
-  const user = Storage.manager.admin.npcAutoPlay.autoCreateMember()
+  const user = await Storage.manager.admin.npcAutoPlay.autoCreateMember()
   return { user }
 })

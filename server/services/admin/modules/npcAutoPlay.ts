@@ -567,15 +567,16 @@ export const npcAutoPlayService = {
    * 自動新增：從單字庫隨機組合出一個不重複的名稱、依同一組合推導 email
    * （`${名稱}@npc.hfyy.cc`），直接建立一個角色為 NPC 的新會員
    */
-  autoCreateMember: (): AdminAccessUser => {
+  autoCreateMember: async (): Promise<AdminAccessUser> => {
     if (_nameWords.length < 2) {
       throw createError({ statusCode: 400, message: '單字庫至少需要 2 個單字才能自動新增，請先到單字庫設定新增。' })
     }
     const name = _generateUniqueMemberName()
     const email = `${name}${NPC_EMAIL_DOMAIN}`
     // createMember() 現在預期收到已雜湊過的 password（見 api.ts），NPC 是伺服器內部直接建立、
-    // 沒有經過瀏覽器，手動套用同一道 encodePassword() 保持一致。
-    const user = adminAccessService.createMember({
+    // 沒有經過瀏覽器，手動套用同一道 encodePassword() 保持一致。write-through 寫入 DB，見
+    // migrate-members-roledefs-postgres/design.md。
+    const user = await adminAccessService.createMember({
       name,
       email,
       password: encodePassword(AUTO_CREATE_PASSWORD, email),

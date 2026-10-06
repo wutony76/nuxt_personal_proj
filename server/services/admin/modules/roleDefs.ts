@@ -1,3 +1,7 @@
+import { isDbEnabled, getDb } from 'serv/services/db'
+import { roleDefs as roleDefsTable } from 'serv/services/db/schema'
+import { eq } from 'drizzle-orm'
+
 export type RoleDef = {
   id: string
   name: string
@@ -32,7 +36,7 @@ const BUILTIN_ROLES: RoleDef[] = [
   { id: 'demo', name: 'Demo', builtin: true, ..._defaultSettings(), demoMode: true }
 ]
 
-/** 執行期角色清單；啟動時自種子複製，重啟回復。 */
+/** 執行期角色清單；啟動時自種子複製，重啟回復（DB 啟用時會在開機回填階段被覆蓋，見 rehydrateOrSeed）。 */
 const roles = new Map<string, RoleDef>(BUILTIN_ROLES.map((r) => [r.id, r]))
 
 /**
@@ -46,6 +50,31 @@ function _slug(name: string): string {
     .replace(/[^a-z0-9一-鿿]+/g, '-')
     .replace(/^-+|-+$/g, '')
   return base || `role-${Date.now().toString(36)}`
+}
+
+function _toDbRow(role: RoleDef) {
+  return {
+    id: role.id,
+    name: role.name,
+    builtin: role.builtin,
+    testMode: role.testMode,
+    npcMode: role.npcMode,
+    demoMode: role.demoMode,
+    dailyCoinRewardEnabled: role.dailyCoinReward.enabled,
+    dailyCoinRewardAmount: role.dailyCoinReward.amount
+  }
+}
+
+function _fromDbRow(row: typeof roleDefsTable.$inferSelect): RoleDef {
+  return {
+    id: row.id,
+    name: row.name,
+    builtin: row.builtin,
+    testMode: row.testMode,
+    npcMode: row.npcMode,
+    demoMode: row.demoMode,
+    dailyCoinReward: { enabled: row.dailyCoinRewardEnabled, amount: row.dailyCoinRewardAmount }
+  }
 }
 
 /**
@@ -72,11 +101,12 @@ export const roleDefsService = {
   get: (id: string): RoleDef | undefined => roles.get(id),
 
   /**
-   * 新增自訂角色
+   * 新增自訂角色（write-through：DB 啟用時先寫 DB 成功才更新記憶體，見
+   * migrate-members-roledefs-postgres/design.md 第 4 節）
    * @param input.name 角色名稱
    * @returns 新建角色
    */
-  create: (input: { name: string }): RoleDef => {
+  create: async (input: { name: string }): Promise<RoleDef> => {
     const name = String(input?.name ?? '').trim()
     if (!name) throw createError({ statusCode: 400, message: '請輸入角色名稱。' })
     if (name.length > MAX_NAME_LENGTH) {
@@ -95,18 +125,30 @@ export const roleDefsService = {
     }
 
     const role: RoleDef = { id, name, builtin: false, ..._defaultSettings() }
+
+    if (isDbEnabled()) {
+      await getDb().insert(roleDefsTable).values(_toDbRow(role))
+    }
+
     roles.set(id, role)
     return role
   },
 
   /**
-   * 刪除自訂角色（內建角色不可刪除）
+   * 刪除自訂角色（內建角色不可刪除）。DB 啟用時，`members.role_id` 的 `ON DELETE SET DEFAULT`
+   * 會自動把指向此角色的會員退回 'user'；呼叫端仍需呼叫 `adminAccessService.clearRoleAssignments()`
+   * 讓記憶體裡的 `memberRoleId` Map 跟 DB 的結果保持一致（見 design.md 刪除角色的交易邊界）。
    * @param id 角色 id
    */
-  remove: (id: string): void => {
+  remove: async (id: string): Promise<void> => {
     const role = roles.get(id)
     if (!role) throw createError({ statusCode: 404, message: '找不到該角色。' })
     if (role.builtin) throw createError({ statusCode: 400, message: '內建角色不可刪除。' })
+
+    if (isDbEnabled()) {
+      await getDb().delete(roleDefsTable).where(eq(roleDefsTable.id, id))
+    }
+
     roles.delete(id)
   },
 
@@ -116,12 +158,12 @@ export const roleDefsService = {
    * @param patch 欲更新的欄位，未帶到的欄位維持原值
    * @returns 更新後的角色定義
    */
-  updateSettings: (id: string, patch: {
+  updateSettings: async (id: string, patch: {
     testMode?: boolean
     npcMode?: boolean
     demoMode?: boolean
     dailyCoinReward?: { enabled?: boolean; amount?: number }
-  }): RoleDef => {
+  }): Promise<RoleDef> => {
     const role = roles.get(id)
     if (!role) throw createError({ statusCode: 404, message: '找不到該角色。' })
 
@@ -136,19 +178,51 @@ export const roleDefsService = {
       throw createError({ statusCode: 400, message: 'Demo 角色的唯讀模式固定為開啟，不可關閉。' })
     }
 
-    if (patch.testMode !== undefined) role.testMode = patch.testMode
-    if (patch.npcMode !== undefined) role.npcMode = patch.npcMode
-    if (patch.demoMode !== undefined) role.demoMode = patch.demoMode
+    // 先算出合併後的完整值（不 mutate 原物件），DB 寫入成功後才套用到記憶體
+    const next: RoleDef = {
+      ...role,
+      testMode: patch.testMode ?? role.testMode,
+      npcMode: patch.npcMode ?? role.npcMode,
+      demoMode: patch.demoMode ?? role.demoMode,
+      dailyCoinReward: { ...role.dailyCoinReward }
+    }
     if (patch.dailyCoinReward?.enabled !== undefined) {
-      role.dailyCoinReward.enabled = patch.dailyCoinReward.enabled
+      next.dailyCoinReward.enabled = patch.dailyCoinReward.enabled
     }
     if (patch.dailyCoinReward?.amount !== undefined) {
       const amount = patch.dailyCoinReward.amount
       if (!Number.isFinite(amount) || amount < 0 || amount > MAX_DAILY_COIN_AMOUNT) {
         throw createError({ statusCode: 400, message: `金額需介於 0～${MAX_DAILY_COIN_AMOUNT}。` })
       }
-      role.dailyCoinReward.amount = Math.floor(amount)
+      next.dailyCoinReward.amount = Math.floor(amount)
     }
+
+    if (isDbEnabled()) {
+      await getDb().update(roleDefsTable).set({ ..._toDbRow(next), updatedAt: new Date() })
+        .where(eq(roleDefsTable.id, id))
+    }
+
+    role.testMode = next.testMode
+    role.npcMode = next.npcMode
+    role.demoMode = next.demoMode
+    role.dailyCoinReward = next.dailyCoinReward
     return role
+  },
+
+  /**
+   * 開機回填（見 migrate-members-roledefs-postgres/design.md 第 5 節）：DB 未啟用時整段略過
+   * （維持模組載入時就種好的 BUILTIN_ROLES）；DB 為空（全新環境）時把目前記憶體內容寫回 DB；
+   * DB 已有資料時用 DB 內容覆蓋掉記憶體（不執行任何種子邏輯）。
+   */
+  rehydrateOrSeed: async (): Promise<void> => {
+    if (!isDbEnabled()) return
+    const db = getDb()
+    const existing = await db.select().from(roleDefsTable)
+    if (existing.length === 0) {
+      await db.insert(roleDefsTable).values(Array.from(roles.values()).map(_toDbRow))
+    } else {
+      roles.clear()
+      for (const row of existing) roles.set(row.id, _fromDbRow(row))
+    }
   }
 }

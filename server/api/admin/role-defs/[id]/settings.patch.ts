@@ -37,6 +37,6 @@ export default defineEventHandler(async (event) => {
     if (typeof body.dailyCoinReward.amount === 'number') patch.dailyCoinReward.amount = body.dailyCoinReward.amount
   }
 
-  const role = Storage.manager.admin.roleDefs.updateSettings(id, patch)
+  const role = await Storage.manager.admin.roleDefs.updateSettings(id, patch)
   return { role }
 })

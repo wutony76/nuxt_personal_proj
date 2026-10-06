@@ -12,7 +12,7 @@ type Body = {
 export default defineEventHandler(async (event) => {
   sessionController.requireAdmin(event)
   const body = await readBody<Body>(event)
-  const role = Storage.manager.admin.roleDefs.create({
+  const role = await Storage.manager.admin.roleDefs.create({
     name: typeof body?.name === 'string' ? body.name : ''
   })
   return { role }

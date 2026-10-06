@@ -5,13 +5,17 @@ import TestClass from '../services/test'
 import { isDbEnabled, ping } from '../services/db'
 import { SyncScheduler } from '../services/sync'
 
-export default defineNitroPlugin((_nitroApp) => {
+export default defineNitroPlugin(async (_nitroApp) => {
   console.log('')
   console.log('')
   console.log('')
   console.log('')
   console.log('***NEW---------SERV.INIT')
   Storage.init()
+  // Storage.init() 本身維持同步，但內部 this.manager.admin.init() 是 async（開機回填，
+  // 見 migrate-members-roledefs-postgres/design.md 第 5 節）。這裡 await 該 promise，
+  // 確保 Nitro 真正開始接受請求之前，members/role-defs 的 DB 回填已經完成。
+  await Storage.adminInitPromise
 
   // 定時同步（見 openspec/changes/add-postgres-docker/design.md 第 8 節）：
   // 跟下面的 300ms 遊戲 tick 是各自獨立的 timer，避免同步耗時卡住遊戲邏輯。
