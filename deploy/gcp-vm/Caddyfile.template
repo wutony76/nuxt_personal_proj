@@ -1,0 +1,9 @@
+# Caddy 反向代理設定。setup-vm.sh 會把 __DOMAIN__ 換成實際網域後放到 /etc/caddy/Caddyfile。
+#
+# - Caddy 會自動向 Let's Encrypt 申請並續期 HTTPS 憑證
+# - WebSocket（聊天室）不需要額外設定，reverse_proxy 會自動處理 Upgrade
+# - 必須是 HTTPS：production 的登入 cookie 設了 secure，純 HTTP 下瀏覽器不會儲存
+__DOMAIN__ {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+}

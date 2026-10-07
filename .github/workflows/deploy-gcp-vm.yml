@@ -1,0 +1,65 @@
+name: Deploy (GCP VM)
+
+# 手動觸發：GitHub → Actions → Deploy (GCP VM) → Run workflow
+#
+# 在 GitHub Actions（Linux x86）上 build，再把產物傳到 VM。不在 VM 上 build 的原因：
+# e2-micro 只有 1GB 記憶體，nuxt build 容易記憶體不足；而且在相同平台 build 才能確保
+# 產物裡的相依套件可以直接在 VM 上執行。
+#
+# 需要的 Repository secrets（設定方式見 docs/Deployment/gcp-vm.md）：
+#   GCP_VM_HOST         VM 的外部 IP 或網域
+#   GCP_VM_USER         SSH 使用者名稱
+#   GCP_VM_SSH_KEY      部署用 SSH 私鑰
+#   GCP_VM_KNOWN_HOSTS  VM 的 host key（ssh-keyscan 的輸出），避免中間人攻擊
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-gcp-vm
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 對齊 package.json 的 volta.node
+          node-version: '22.22.2'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run test:unit
+
+      - run: npm run build
+
+      - name: Package release
+        run: |
+          mkdir -p bundle
+          cp -R .output drizzle bundle/
+          cp -R deploy/gcp-vm/migrate bundle/migrate
+          cp deploy/gcp-vm/ecosystem.config.cjs bundle/
+          tar -czf release.tgz -C bundle .
+          ls -lh release.tgz
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.GCP_VM_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.GCP_VM_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Upload and deploy
+        env:
+          VM_HOST: ${{ secrets.GCP_VM_HOST }}
+          VM_USER: ${{ secrets.GCP_VM_USER }}
+        run: |
+          RELEASE_ID="$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}"
+          scp -i ~/.ssh/id_deploy release.tgz deploy/gcp-vm/remote-deploy.sh "$VM_USER@$VM_HOST:/tmp/"
+          ssh -i ~/.ssh/id_deploy "$VM_USER@$VM_HOST" "bash /tmp/remote-deploy.sh '$RELEASE_ID' /tmp/release.tgz"

@@ -22,6 +22,27 @@ jobs:
 
       - run: npm run build
 
+      # 實際啟動 production 產物：只 build 不啟動，抓不到「build 成功、執行時才失敗」的問題
+      # （例如 crypto-js 子路徑缺 .js 副檔名，見 openspec/changes/add-gcp-vm-deployment）
+      - name: Smoke test production build
+        env:
+          NODE_ENV: production
+          PORT: '3000'
+          SEED_ADMIN_PASSWORD: ci-only-admin
+          SEED_OWNER_PASSWORD: ci-only-owner
+        run: |
+          node .output/server/index.mjs > prod-server.log 2>&1 &
+          for _ in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:3000/; then
+              echo "production server ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "production server 在 60 秒內沒有就緒，以下是 log："
+          cat prod-server.log
+          exit 1
+
   test:
     runs-on: ubuntu-latest
     steps:

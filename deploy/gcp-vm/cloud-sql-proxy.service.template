@@ -1,0 +1,18 @@
+# Cloud SQL Auth Proxy 的 systemd 服務。setup-vm.sh 會替換 __INSTANCE_CONNECTION_NAME__ 後
+# 放到 /etc/systemd/system/cloud-sql-proxy.service。
+#
+# 透過 VM 的服務帳戶（需要 roles/cloudsql.client）向 Cloud SQL 驗證，連線自動加密，
+# 不需要開放資料庫的公開 IP 白名單，也不用在 VM 上放金鑰檔。
+[Unit]
+Description=Cloud SQL Auth Proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/cloud-sql-proxy --address 127.0.0.1 --port 5432 __INSTANCE_CONNECTION_NAME__
+Restart=always
+RestartSec=5
+DynamicUser=yes
+
+[Install]
+WantedBy=multi-user.target

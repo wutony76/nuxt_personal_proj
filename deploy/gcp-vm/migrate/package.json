@@ -1,0 +1,10 @@
+{
+  "name": "portfolio-migrate",
+  "private": true,
+  "type": "module",
+  "description": "部署時在 VM 上執行資料庫 migration 用。版本需與專案根目錄 package.json 一致。",
+  "dependencies": {
+    "drizzle-orm": "0.45.3",
+    "postgres": "3.4.9"
+  }
+}

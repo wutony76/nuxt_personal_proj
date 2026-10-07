@@ -3,6 +3,7 @@ import type {
   SessionRecord
 } from '../types/storage'
 import { encodePasswordBcjs, encodePassword } from '../utils/encrypt'
+import { seedPassword } from '../config/seedAccounts'
 import { compareSync } from 'bcryptjs'
 import UsersClass from './users'
 import { DEFAULT_MAZE_TEMPLATES, type MazeTemplate } from './game/retro/mazeTemplates'
@@ -224,10 +225,9 @@ export class Storage {
   static init() {
     if (this.initialized) return
     // DTAT.INIT.
-    // 正式環境上線前應透過 SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD 換成正式管理帳號，不要沿用這組
-    // 預設值（見 openspec/changes/harden-postgres-for-production/design.md 第 2 節）。
+    // 兩個種子管理員的密碼都由環境變數設定；production 沒設定會拒絕啟動（見 server/config/seedAccounts.ts）。
     const seedAdminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@example.com'
-    const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD || '123456'
+    const seedAdminPassword = seedPassword('SEED_ADMIN_PASSWORD')
     this.account = {
       U0xA000001: {
         id: 'U0xA000001',
@@ -242,7 +242,7 @@ export class Storage {
         id: 'U0xA666666',
         name: 'HappyFatYoYo',
         email: 'hfyy@cc.cc',
-        passwordHash: encodePasswordBcjs(encodePassword('123456', 'hfyy@cc.cc'))
+        passwordHash: encodePasswordBcjs(encodePassword(seedPassword('SEED_OWNER_PASSWORD'), 'hfyy@cc.cc'))
       }
     }
     this.users = {

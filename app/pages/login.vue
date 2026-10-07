@@ -3,9 +3,17 @@ import { onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 
+/**
+ * 預填帳號：開發環境用管理員帳號方便測試；正式環境改用 Demo 唯讀帳號（test04，可瀏覽後台
+ * 但無法寫入），不能在公開頁面預填擁有完整權限的管理員帳密（見 server/config/seedAccounts.ts）。
+ */
+const PREFILL = import.meta.dev
+  ? { email: 'hfyy@cc.cc', password: '123456' }
+  : { email: 'test04@test.cc', password: '222222' }
+
 const state = reactive({
-  email: 'hfyy@cc.cc',
-  password: '123456',
+  email: PREFILL.email,
+  password: PREFILL.password,
   errorMessage: '',
   isSubmitting: false
 })

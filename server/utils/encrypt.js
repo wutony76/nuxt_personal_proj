@@ -1,7 +1,9 @@
-import Base64 from 'crypto-js/enc-base64'
-import encUtf8 from 'crypto-js/enc-utf8'
-import sha256 from 'crypto-js/sha256'
-import Hex from 'crypto-js/enc-hex'
+// crypto-js 是沒有 exports 欄位的舊式套件：Vite 會自動補副檔名，但 production 由 Node 直接以 ESM
+// 載入時不會，少了 .js 會在啟動時丟 ERR_MODULE_NOT_FOUND（見 add-gcp-vm-deployment validation.md）
+import Base64 from 'crypto-js/enc-base64.js'
+import encUtf8 from 'crypto-js/enc-utf8.js'
+import sha256 from 'crypto-js/sha256.js'
+import Hex from 'crypto-js/enc-hex.js'
 import { hashSync } from 'bcryptjs'
 
 export function APIEncryptParams(obj) {

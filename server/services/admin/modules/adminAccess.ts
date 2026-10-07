@@ -1,6 +1,7 @@
 import { ADMIN_USER_IDS } from 'serv/config/admin'
 import { Storage } from 'serv/services/storage'
 import { encodePasswordBcjs, encodePassword } from 'serv/utils/encrypt'
+import { seedPassword } from 'serv/config/seedAccounts'
 import UsersClass from 'serv/services/users'
 import type { AuthRecord } from 'serv/types/storage'
 import { walletBalanceService } from 'serv/services/walletBalance'
@@ -444,7 +445,7 @@ export const adminAccessService = {
     const id = 'U0xA000001'
     const name = 'Admin'
     const email = process.env.SEED_ADMIN_EMAIL || 'admin@example.com'
-    const password = process.env.SEED_ADMIN_PASSWORD || '123456'
+    const password = seedPassword('SEED_ADMIN_PASSWORD')
     const passwordHash = encodePasswordBcjs(encodePassword(password, email))
 
     await getDb().insert(membersTable)

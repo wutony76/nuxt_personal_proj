@@ -1,0 +1,232 @@
+# 部署到 Google Cloud（Compute Engine VM + Cloud SQL）
+
+把這個專案部署成一台公開的作品集 Demo。
+
+```
+使用者 ──HTTPS──▶ Caddy（:443，自動憑證）──▶ Node / Nitro（127.0.0.1:3000，pm2 管理）
+                                                  │
+                                                  └─▶ Cloud SQL Auth Proxy（127.0.0.1:5432）──▶ Cloud SQL Postgres
+```
+
+| 元件 | 規格 | 說明 |
+|---|---|---|
+| VM | e2-micro、us-west1、Debian 12、30GB 標準磁碟 | 在 Google Cloud 免費額度內 |
+| 資料庫 | Cloud SQL Postgres 16、Enterprise 版、db-f1-micro、10GB HDD | 自動每日備份 |
+| HTTPS | Caddy + Let's Encrypt | 自動申請與續期 |
+| 部署 | GitHub Actions 手動觸發 | 在 CI build，傳到 VM，失敗自動回滾 |
+
+**每月大約費用**：VM 免費、Cloud SQL 約 US$10、外部 IPv4 約 US$3。以 [GCP 價格計算機](https://cloud.google.com/products/calculator) 為準，建議在帳單設定預算提醒。
+
+## 為什麼是這個架構
+
+- **只跑 1 個 Node process**：開獎排程、WebSocket 連線與部分資料都在記憶體裡，開多個會不一致。
+- **不在 VM 上 build**：e2-micro 只有 1GB 記憶體，`nuxt build` 容易記憶體不足。改在 GitHub Actions（同為 Linux x86）build 再上傳。
+- **一定要 HTTPS**：production 的登入 cookie 設了 `secure`，純 HTTP 下瀏覽器不會儲存，等於無法登入。
+- **Cloud SQL Auth Proxy**：用 VM 的服務帳戶驗證，連線自動加密，不用開放資料庫公開 IP 白名單，也不用在 VM 放金鑰檔。
+
+## 檔案
+
+| 檔案 | 用途 |
+|---|---|
+| `deploy/gcp-vm/setup-vm.sh` | VM 初始設定（只跑一次） |
+| `deploy/gcp-vm/remote-deploy.sh` | 每次部署時在 VM 上執行 |
+| `deploy/gcp-vm/ecosystem.config.cjs` | pm2 設定 |
+| `deploy/gcp-vm/Caddyfile.template` | Caddy 設定範本 |
+| `deploy/gcp-vm/cloud-sql-proxy.service.template` | Cloud SQL Auth Proxy 的 systemd 服務 |
+| `deploy/gcp-vm/env.production.example` | 環境變數範本 |
+| `deploy/gcp-vm/migrate/` | 部署時套用資料庫 migration |
+| `.github/workflows/deploy-gcp-vm.yml` | 部署 workflow |
+
+---
+
+## 步驟
+
+以下指令在本機執行，先設定變數（`PROJECT_ID` 換成你的專案 ID）：
+
+```bash
+export PROJECT_ID=your-project-id
+export REGION=us-west1
+export ZONE=us-west1-b
+```
+
+### 1. 準備 Google Cloud 專案
+
+1. 安裝 [gcloud CLI](https://cloud.google.com/sdk/docs/install)，登入並選擇專案：
+
+   ```bash
+   gcloud auth login
+   gcloud config set project $PROJECT_ID
+   ```
+
+2. 確認專案已連結帳單帳戶（新帳號通常有試用額度）。
+3. 啟用需要的 API：
+
+   ```bash
+   gcloud services enable compute.googleapis.com sqladmin.googleapis.com
+   ```
+
+### 2. 建立 Cloud SQL
+
+```bash
+gcloud sql instances create portfolio-db \
+  --database-version=POSTGRES_16 \
+  --edition=ENTERPRISE \
+  --tier=db-f1-micro \
+  --region=$REGION \
+  --availability-type=zonal \
+  --storage-type=HDD \
+  --storage-size=10 \
+  --backup-start-time=19:00
+
+gcloud sql databases create portfolio --instance=portfolio-db
+gcloud sql users create portfolio --instance=portfolio-db --password='換成強密碼'
+
+# 記下這個值，等一下要用（格式：專案ID:us-west1:portfolio-db）
+gcloud sql instances describe portfolio-db --format='value(connectionName)'
+```
+
+- 一定要指定 `--edition=ENTERPRISE`。主控台預設是 Enterprise Plus，最低規格貴很多。
+- `--backup-start-time=19:00` 是 UTC，等於台灣時間凌晨 3 點自動備份。
+
+### 3. 建立 VM 用的服務帳戶
+
+```bash
+gcloud iam service-accounts create portfolio-vm --display-name="Portfolio VM"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:portfolio-vm@$PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/cloudsql.client"
+```
+
+### 4. 建立 VM、固定 IP 與防火牆
+
+```bash
+gcloud compute addresses create portfolio-ip --region=$REGION
+gcloud compute addresses describe portfolio-ip --region=$REGION --format='value(address)'   # 記下 IP
+
+gcloud compute firewall-rules create portfolio-allow-web \
+  --allow=tcp:80,tcp:443 --target-tags=portfolio-web
+
+gcloud compute instances create portfolio-vm \
+  --zone=$ZONE \
+  --machine-type=e2-micro \
+  --image-family=debian-12 --image-project=debian-cloud \
+  --boot-disk-size=30GB --boot-disk-type=pd-standard \
+  --address=portfolio-ip \
+  --tags=portfolio-web \
+  --service-account=portfolio-vm@$PROJECT_ID.iam.gserviceaccount.com \
+  --scopes=cloud-platform
+```
+
+免費額度的條件：e2-micro、us-west1／us-central1／us-east1、標準磁碟 30GB 以內，每個帳單帳戶限 1 台。
+
+### 5. 設定網域
+
+二選一：
+
+- **自己的網域**：新增一筆 A 記錄指向上一步的 IP，例如 `portfolio.example.com`。
+- **沒有網域**：用 [sslip.io](https://sslip.io)，IP `34.82.1.2` 對應的網域是 `34-82-1-2.sslip.io`，不需要任何設定，Caddy 一樣能申請憑證。
+
+### 6. 初始化 VM
+
+```bash
+# 上傳部署檔案
+gcloud compute scp --recurse deploy/gcp-vm portfolio-vm:~/ --zone=$ZONE
+
+# 登入 VM
+gcloud compute ssh portfolio-vm --zone=$ZONE
+```
+
+在 VM 上：
+
+```bash
+cd ~/gcp-vm
+INSTANCE_CONNECTION_NAME=專案ID:us-west1:portfolio-db \
+DOMAIN=portfolio.example.com \
+bash setup-vm.sh
+
+# 填寫環境變數
+nano /srv/portfolio/shared/.env
+```
+
+`.env` 需要填寫：
+
+| 變數 | 說明 |
+|---|---|
+| `DATABASE_URL` | 把 `CHANGE_ME` 換成步驟 2 的資料庫密碼。含特殊字元要 URL encode（例如 `@` → `%40`） |
+| `SEED_ADMIN_PASSWORD` | `admin@example.com` 的密碼 |
+| `SEED_OWNER_PASSWORD` | `hfyy@cc.cc` 的密碼 |
+
+- production 沒設定這兩個密碼會拒絕啟動，避免沿用公開的預設密碼。
+- 這兩個密碼只在資料庫還沒有會員的**第一次啟動**時寫入，之後要改密碼請從後台修改。
+
+確認 Cloud SQL Auth Proxy 正常：
+
+```bash
+sudo systemctl status cloud-sql-proxy
+```
+
+### 7. 設定 GitHub Actions 的部署金鑰
+
+在本機產生一組部署專用的 SSH 金鑰：
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/portfolio_deploy -C github-actions-deploy -N ""
+```
+
+把公鑰加到 VM（在 VM 上執行，貼上 `~/.ssh/portfolio_deploy.pub` 的內容）：
+
+```bash
+echo 'ssh-ed25519 AAAA... github-actions-deploy' >> ~/.ssh/authorized_keys
+```
+
+取得 VM 的 host key，用來防止中間人攻擊（在 VM 上執行，把輸出的 IP 換成實際 IP）：
+
+```bash
+echo "$(curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip) $(cat /etc/ssh/ssh_host_ed25519_key.pub | cut -d' ' -f1,2)"
+```
+
+到 GitHub repo → Settings → Secrets and variables → Actions，新增：
+
+| Secret | 值 |
+|---|---|
+| `GCP_VM_HOST` | VM 的 IP |
+| `GCP_VM_USER` | VM 上的使用者名稱（在 VM 執行 `whoami`） |
+| `GCP_VM_SSH_KEY` | `~/.ssh/portfolio_deploy` 私鑰的完整內容 |
+| `GCP_VM_KNOWN_HOSTS` | 上一步 host key 指令的輸出 |
+
+### 8. 部署
+
+GitHub → Actions → **Deploy (GCP VM)** → Run workflow。
+
+workflow 會依序執行：單元測試 → build → 打包 → 上傳 → 在 VM 上套用 migration → 切換版本 → 健康檢查。健康檢查失敗時會自動回滾到上一版。
+
+### 9. 驗證
+
+- [ ] 打開 `https://你的網域`，瀏覽器顯示安全連線
+- [ ] 登入頁預填 `test04@test.cc`，登入後可以瀏覽後台，但無法修改
+- [ ] `admin@example.com` 用 `.env` 設定的密碼可以登入，用 `123456` 不行
+- [ ] 台彩大廳的鎖單與開獎時間是台灣時間（例如 20:00 / 20:30）
+- [ ] 聊天室可以收發訊息（WebSocket 正常）
+- [ ] VM 上 `pm2 logs portfolio --lines 50` 沒有 `TTT---WARN.TIMEZONE`，且有 `SUCCESS ---BASE>sync.scheduler.start`
+
+---
+
+## 日常維運
+
+| 情境 | 做法 |
+|---|---|
+| 部署新版本 | 再執行一次 Deploy (GCP VM) workflow |
+| 查看 log | `pm2 logs portfolio`；資料庫連線問題看 `sudo journalctl -u cloud-sql-proxy -n 50` |
+| 重啟 | `pm2 restart portfolio` |
+| 手動回滾 | `ls /srv/portfolio/releases` 找到上一版，執行 `ln -sfn /srv/portfolio/releases/<版本> /srv/portfolio/current && pm2 delete portfolio && pm2 start /srv/portfolio/current/ecosystem.config.cjs && pm2 save` |
+| 資料庫備份 | Cloud SQL 每日自動備份（預設保留 7 份），可在主控台還原 |
+| VM 系統更新 | `sudo apt-get update && sudo apt-get upgrade -y`，必要時重開機，pm2 會自動啟動 |
+
+**migration 注意事項**：回滾只會換回舊版程式，資料庫維持新的結構。新增的 migration 要讓舊版程式也能正常運作，例如先新增欄位，等確定不會回滾後再刪除舊欄位。
+
+## 上線前的已知事項
+
+- **production 模式的 E2E 不穩定**：production build 下約 34 項 E2E 失敗，集中在「強制結算後注單仍為 pending」，dev 模式全過。屬既有問題，尚未追查，見 `docs/Engineering Evidence/refactor-tw-draw-schedule-taipei-tz.md`。
+- **刮刮樂試算頁**：依賴本機 Python 服務（`SCRATCH_PY_API_BASE`），VM 上沒有這個服務，該頁面無法使用。
+- **資料不會全部保留**：接了資料庫後，會員、角色權限、遊戲紀錄、注單報表等會保留；彩票當期狀態等仍在記憶體，重啟後重置。
