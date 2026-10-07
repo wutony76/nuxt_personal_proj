@@ -69,6 +69,9 @@ export default class HFYYManage {
     // openspec/changes/harden-postgres-for-production/validation.md 的後續追蹤紀錄）。
     try {
       await this.roleDefs.rehydrateOrSeed()
+      // 角色遊戲權限開關沒有種子概念（空 DB 天然對應「全部開啟」的記憶體預設值），直接回填即可，
+      // 見 openspec/changes/migrate-role-game-perms-postgres/design.md 第 3 節
+      await this.roleGamePerms.rehydrateFromDb()
 
       const hasExistingMembers = await this.access.hasExistingDbMembers()
       if (hasExistingMembers) {

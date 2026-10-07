@@ -101,3 +101,25 @@ export const retroDailyGrants = pgTable('retro_daily_grants', {
 }, (table) => [
   primaryKey({ columns: [table.userId, table.gameKey, table.dateKey] })
 ])
+
+/**
+ * 角色遊戲權限開關，見 openspec/changes/migrate-role-game-perms-postgres/design.md。
+ * 稀疏表示法：一列存在 = 該角色該項目被關閉（跟現有記憶體 disabledByRole 語意一致）。
+ * role_id 用 ON DELETE CASCADE（不是 members 用的 SET DEFAULT）：這是角色的附屬設定，
+ * 角色沒了，設定也該一起消失。
+ */
+export const roleGamePerms = pgTable('role_game_perms', {
+  roleId: text('role_id').notNull().references(() => roleDefs.id, { onDelete: 'cascade' }),
+  category: text('category').notNull(),
+  key: text('key').notNull()
+}, (table) => [
+  primaryKey({ columns: [table.roleId, table.category, table.key] })
+])
+
+/** 遊戲/盤口的全站總閘開關，同上稀疏表示法：一列存在 = 全站關閉。 */
+export const gameGlobalDisabled = pgTable('game_global_disabled', {
+  category: text('category').notNull(),
+  key: text('key').notNull()
+}, (table) => [
+  primaryKey({ columns: [table.category, table.key] })
+])

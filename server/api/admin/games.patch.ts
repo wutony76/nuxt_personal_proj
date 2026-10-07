@@ -28,6 +28,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'enabled 必須是布林值。' })
   }
 
-  Storage.manager.admin.roleGamePerms.toggleGlobal(category, key, body.enabled)
+  await Storage.manager.admin.roleGamePerms.toggleGlobal(category, key, body.enabled)
   return { games: Storage.manager.admin.roleGamePerms.listGlobal() }
 })

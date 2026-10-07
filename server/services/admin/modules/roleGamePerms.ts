@@ -2,6 +2,9 @@ import { Storage } from 'serv/services/storage'
 import { LOTTERY } from '~/config/constants'
 import { RETRO_GAMES, BG_GAMES, TW_GAMES } from '#shared/config/gameSlugs'
 import { roleDefsService } from './roleDefs'
+import { isDbEnabled, getDb } from 'serv/services/db'
+import { roleGamePerms as roleGamePermsTable, gameGlobalDisabled } from 'serv/services/db/schema'
+import { and, eq } from 'drizzle-orm'
 
 export type GameCategory = 'bg' | 'retro' | 'tw'
 
@@ -81,15 +84,27 @@ export const roleGamePermsService = {
     !disabledGlobally.has(_compositeKey(category, key)),
 
   /**
-   * 切換單一項目的「總閘」：關閉後不分角色（含內建角色）全站都看不到／用不到
+   * 切換單一項目的「總閘」：關閉後不分角色（含內建角色）全站都看不到／用不到（write-through，
+   * 見 migrate-role-game-perms-postgres/design.md 第 2 節）
    * @param category 分類
    * @param key 該分類下的項目 key
    * @param enabled 開啟或關閉
    */
-  toggleGlobal: (category: GameCategory, key: string, enabled: boolean): void => {
+  toggleGlobal: async (category: GameCategory, key: string, enabled: boolean): Promise<void> => {
     if (!_catalog().some((item) => item.category === category && item.key === key)) {
       throw createError({ statusCode: 400, message: '分類或項目不存在。' })
     }
+
+    if (isDbEnabled()) {
+      const db = getDb()
+      if (enabled) {
+        await db.delete(gameGlobalDisabled)
+          .where(and(eq(gameGlobalDisabled.category, category), eq(gameGlobalDisabled.key, key)))
+      } else {
+        await db.insert(gameGlobalDisabled).values({ category, key }).onConflictDoNothing()
+      }
+    }
+
     const compositeKey = _compositeKey(category, key)
     if (enabled) {
       disabledGlobally.delete(compositeKey)
@@ -135,18 +150,32 @@ export const roleGamePermsService = {
   },
 
   /**
-   * 切換自訂角色的單一項目開關
+   * 切換自訂角色的單一項目開關（write-through，見
+   * migrate-role-game-perms-postgres/design.md 第 2 節）
    * @param roleId 角色 id
    * @param category 分類
    * @param key 該分類下的項目 key
    * @param enabled 開啟或關閉
    */
-  toggle: (roleId: string, category: GameCategory, key: string, enabled: boolean): void => {
+  toggle: async (roleId: string, category: GameCategory, key: string, enabled: boolean): Promise<void> => {
     const role = roleDefsService.get(roleId)
     if (!role) throw createError({ statusCode: 404, message: '找不到該角色。' })
     if (role.builtin) throw createError({ statusCode: 400, message: '內建角色不可調整遊戲權限。' })
     if (!_catalog().some((item) => item.category === category && item.key === key)) {
       throw createError({ statusCode: 400, message: '分類或項目不存在。' })
+    }
+
+    if (isDbEnabled()) {
+      const db = getDb()
+      if (enabled) {
+        await db.delete(roleGamePermsTable).where(and(
+          eq(roleGamePermsTable.roleId, roleId),
+          eq(roleGamePermsTable.category, category),
+          eq(roleGamePermsTable.key, key)
+        ))
+      } else {
+        await db.insert(roleGamePermsTable).values({ roleId, category, key }).onConflictDoNothing()
+      }
     }
 
     const compositeKey = _compositeKey(category, key)
@@ -159,10 +188,37 @@ export const roleGamePermsService = {
   },
 
   /**
-   * 刪除角色時呼叫：清掉該角色的開關紀錄，避免殘留（見 design.md Open Questions）。
+   * 刪除角色時呼叫：清掉該角色的開關紀錄，避免殘留（見 design.md Open Questions）。純記憶體
+   * 操作——DB 層的對應清理交給 `role_game_perms.role_id` 的 `ON DELETE CASCADE` 自動處理
+   * （角色本身的 DELETE 由 roleDefsService.remove() 負責），這裡只是讓記憶體跟 DB 結果一致，
+   * 跟 Phase 2 `adminAccessService.clearRoleAssignments()` 處理 members.role_id cascade 的
+   * 模式一致。
    * @param roleId 被刪除的角色 id
    */
   clearRole: (roleId: string): void => {
     disabledByRole.delete(roleId)
+  },
+
+  /**
+   * 開機回填：DB 啟用時用 DB 內容重建記憶體（見 migrate-role-game-perms-postgres/design.md
+   * 第 3 節）。這份資料沒有「種子」概念——空 DB 天然對應「全部開啟」的現有記憶體預設狀態，
+   * 不需要額外的種子分支。
+   */
+  rehydrateFromDb: async (): Promise<void> => {
+    if (!isDbEnabled()) return
+    const db = getDb()
+    const [globalRows, roleRows] = await Promise.all([
+      db.select().from(gameGlobalDisabled),
+      db.select().from(roleGamePermsTable)
+    ])
+
+    disabledGlobally.clear()
+    for (const row of globalRows) disabledGlobally.add(_compositeKey(row.category, row.key))
+
+    disabledByRole.clear()
+    for (const row of roleRows) {
+      if (!disabledByRole.has(row.roleId)) disabledByRole.set(row.roleId, new Set())
+      disabledByRole.get(row.roleId)!.add(_compositeKey(row.category, row.key))
+    }
   }
 }
