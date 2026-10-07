@@ -12,6 +12,9 @@
   - `.env.example`（新增 `SEED_DEMO_DATA`/`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` 與正式環境
     注意事項註解）
   - `docs/deployment/postgres-production-checklist.md`（新增：部署檢查清單文件）
+  - `server/services/admin/hfyyManage.ts`（追加修正：整段 admin/role-defs 開機邏輯包 try/catch，
+    DB 連不上時退回純記憶體繼續開機，不卡住遊戲引擎）
+  - `server/plugins/init.ts`（追加修正：`rehydrateTodayDailyGrantsFromDb()` 同樣包 try/catch）
   - `openspec/changes/harden-postgres-for-production/`（tasks.md 勾選完成、design.md 記錄
     Implementation 階段的調整）
 - Commit / PR 參考：（本次對話尚未 commit，待下一輪 commit 時附上 commit hash）
@@ -24,6 +27,10 @@
   - 「有會員但沒有 admin」邊界情境：手動清空 2 筆既有 admin 的 `is_admin`，重啟後自動補回
     `U0xA000001` 為 admin，且可用預設帳密登入
   - 未設定新環境變數：既有 27 筆 members/4 筆 role_defs 不變，`npm test`（38 支）穩定通過
+  - **追加修正驗證**：`docker compose stop postgres` 後重啟，確認 `SERV.RUN`/
+    `sync.scheduler.start` 正常出現（遊戲引擎沒有被 DB 連線失敗卡住）、能用預設帳密登入；
+    `docker compose start postgres` 後重啟確認完全恢復正常；DB enabled/disabled 兩種設定下
+    `npm test` 皆通過（詳見 validation.md「追加修正」章節）
 
 ## 風險與後續追蹤
 

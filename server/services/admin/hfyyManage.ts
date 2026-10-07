@@ -62,56 +62,70 @@ export default class HFYYManage {
       })
     })
 
-    await this.roleDefs.rehydrateOrSeed()
+    // 以下這段開機回填/種子邏輯全部需要查詢或寫入 DB（當 DATABASE_URL 有設定時）。如果 DB 當下
+    // 連不上（例如忘記先把 Docker/Postgres 啟動），任何一個 await 都可能丟出連線錯誤——整段包在
+    // try/catch 裡，失敗就記 log 退回「只有 Storage.init() 種的 2 筆硬編碼 admin」繼續開機，
+    // 絕不能讓 DB 連線問題卡住後面的遊戲 tick 迴圈／定時同步排程啟動（見
+    // openspec/changes/harden-postgres-for-production/validation.md 的後續追蹤紀錄）。
+    try {
+      await this.roleDefs.rehydrateOrSeed()
 
-    const hasExistingMembers = await this.access.hasExistingDbMembers()
-    if (hasExistingMembers) {
-      await this.access.rehydrateFromDb()
-    } else {
-      // SEED_DEMO_DATA=false（正式環境建議）時完全跳過 test/NPC 假帳號種子，只留下面的 admin
-      // 補寫（見 openspec/changes/harden-postgres-for-production/design.md 第 2、4 節）
-      const seedDemoData = process.env.SEED_DEMO_DATA !== 'false'
-      if (seedDemoData) {
-        // 初始會員：啟動時建幾筆測試帳號，方便本機／測試環境驗證後台會員功能。
-        // 密碼固定 222222，對應 app/pages/login.vue 畫面上寫的「測試帳號 test02~04@test.cc / 222222」
-        // 提示文字——之前這裡是 123456，跟畫面上的提示對不起來，照著提示登入會失敗。
-        // test04 固定指派 demo 角色，方便重啟後不用每次手動重新設定即可驗證唯讀後台體驗。
-        for (const n of ['01', '02', '03', '04', '05']) {
-          const email = `test${n}@test.cc`
-          await this.access.createMember({
-            name: `test${n}`,
-            email,
-            // createMember() 現在預期收到的 password 已經是前端雜湊過的值（見 api.ts），
-            // 這裡是伺服器內部直接呼叫、沒有經過瀏覽器，手動套用同一道 encodePassword() 保持一致。
-            password: encodePassword('222222', email),
-            role: n === '04' ? 'demo' : undefined
-          })
-        }
+      const hasExistingMembers = await this.access.hasExistingDbMembers()
+      if (hasExistingMembers) {
+        await this.access.rehydrateFromDb()
+      } else {
+        // SEED_DEMO_DATA=false（正式環境建議）時完全跳過 test/NPC 假帳號種子，只留下面的 admin
+        // 補寫（見 openspec/changes/harden-postgres-for-production/design.md 第 2、4 節）
+        const seedDemoData = process.env.SEED_DEMO_DATA !== 'false'
+        if (seedDemoData) {
+          // 初始會員：啟動時建幾筆測試帳號，方便本機／測試環境驗證後台會員功能。
+          // 密碼固定 222222，對應 app/pages/login.vue 畫面上寫的「測試帳號 test02~04@test.cc / 222222」
+          // 提示文字——之前這裡是 123456，跟畫面上的提示對不起來，照著提示登入會失敗。
+          // test04 固定指派 demo 角色，方便重啟後不用每次手動重新設定即可驗證唯讀後台體驗。
+          for (const n of ['01', '02', '03', '04', '05']) {
+            const email = `test${n}@test.cc`
+            await this.access.createMember({
+              name: `test${n}`,
+              email,
+              // createMember() 現在預期收到的 password 已經是前端雜湊過的值（見 api.ts），
+              // 這裡是伺服器內部直接呼叫、沒有經過瀏覽器，手動套用同一道 encodePassword() 保持一致。
+              password: encodePassword('222222', email),
+              role: n === '04' ? 'demo' : undefined
+            })
+          }
 
-        // 初始 NPC：啟動時自動建立 20 個 NPC 會員（從單字庫隨機組名）
-        for (let i = 0; i < 20; i++) {
-          try {
-            await this.npcAutoPlay.autoCreateMember()
-          } catch {
-            // 名稱重複加後綴已由 autoCreateMember 處理，其餘例外略過
+          // 初始 NPC：啟動時自動建立 20 個 NPC 會員（從單字庫隨機組名）
+          for (let i = 0; i < 20; i++) {
+            try {
+              await this.npcAutoPlay.autoCreateMember()
+            } catch {
+              // 名稱重複加後綴已由 autoCreateMember 處理，其餘例外略過
+            }
           }
         }
+
+        // Storage.init() 已經直接建立的 2 筆種子 admin 帳號沒有經過 createMember()，
+        // 不會自動 write-through，這裡補寫一次（僅在確認 DB 是空的情況下才會真的執行 INSERT）。
+        // 不受 SEED_DEMO_DATA 影響：admin 帳號本身不是「demo 資料」，任何環境都需要能登入。
+        await this.access.seedBootAdminsToDb([SEED_ADMIN_ID, 'U0xA666666'])
       }
 
-      // Storage.init() 已經直接建立的 2 筆種子 admin 帳號沒有經過 createMember()，
-      // 不會自動 write-through，這裡補寫一次（僅在確認 DB 是空的情況下才會真的執行 INSERT）。
-      // 不受 SEED_DEMO_DATA 影響：admin 帳號本身不是「demo 資料」，任何環境都需要能登入。
-      await this.access.seedBootAdminsToDb([SEED_ADMIN_ID, 'U0xA666666'])
+      // 不管上面走哪個分支，都獨立再檢查一次「DB 裡有沒有 admin」——修正 hasExistingDbMembers()
+      // 為 true 但剛好沒有任何 admin 的邊界情況（見 harden-postgres-for-production/design.md 第 4 節）
+      const hasAdmin = await this.access.hasExistingAdmin()
+      if (!hasAdmin) {
+        await this.access.seedMissingAdmin()
+      }
+    } catch (error) {
+      console.error(
+        'BOOT.admin-db-init.failed —— 開機時無法連線/查詢 Postgres（DATABASE_URL 有設定但 DB 當下' +
+        '連不上），暫時退回純記憶體模式繼續啟動：只會有 Storage.init() 建立的種子 admin 帳號，' +
+        '沒有測試/NPC 帳號、也沒有從 DB 回填既有資料。確認 Postgres 正常連線後重啟伺服器即可補齊。',
+        error
+      )
     }
 
-    // 不管上面走哪個分支，都獨立再檢查一次「DB 裡有沒有 admin」——修正 hasExistingDbMembers()
-    // 為 true 但剛好沒有任何 admin 的邊界情況（見 harden-postgres-for-production/design.md 第 4 節）
-    const hasAdmin = await this.access.hasExistingAdmin()
-    if (!hasAdmin) {
-      await this.access.seedMissingAdmin()
-    }
-
-    // NPC 自動遊玩：預設開啟
+    // 不管上面成功與否都要執行：NPC 自動遊玩預設開啟，不能讓 DB 問題連這個也卡住
     this.npcAutoPlay.setEnabled(true)
   }
 }

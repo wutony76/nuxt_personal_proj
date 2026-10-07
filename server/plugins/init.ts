@@ -34,8 +34,14 @@ export default defineNitroPlugin(async (_nitroApp) => {
     registerRetroHistorySyncSource()
     registerPoolAuditSyncSources()
     // dailyGrants 開機回填（見 migrate-game-history-postgres/design.md 第 4 節）：只回填今天，
-    // 修正「重啟導致當日配額歸零」的既有缺口
-    await rehydrateTodayDailyGrantsFromDb(RETRO_GAME_BASE.formatDateKey(new Date()))
+    // 修正「重啟導致當日配額歸零」的既有缺口。包 try/catch：DB 當下連不上的話，頂多當天配額計數器
+    // 從 0 開始（跟遷移前的既有行為一樣），不能讓這個查詢失敗卡住下面的 SyncScheduler 啟動與遊戲
+    // tick 迴圈（見 openspec/changes/harden-postgres-for-production/validation.md 的後續追蹤紀錄）。
+    try {
+      await rehydrateTodayDailyGrantsFromDb(RETRO_GAME_BASE.formatDateKey(new Date()))
+    } catch (error) {
+      console.error('BOOT.daily-grants-rehydrate.failed —— 開機回填今日配額計數器失敗，退回從 0 開始', error)
+    }
     new SyncScheduler().start()
     console.log('SUCCESS ---BASE>sync.scheduler.start')
   } else {

@@ -44,7 +44,28 @@
 - [x] 補齊 Validation 文件（`openspec/templates/validation.md`）
 - [x] 補齊 Engineering Evidence 文件（`openspec/templates/engineering-evidence.md`）
 
-## 6. 後續（不在本 change 範圍，僅記錄於此供追蹤）
+## 6. 追加修正：開機時 DB 連線失敗會卡住整個遊戲引擎（使用者追問後發現並修正）
+
+> 這是驗收本次變更後，使用者問「我這樣 dev 的執行步驟需要調整嗎」而發現的真實 bug，不在原始
+> proposal 範圍內，但直接關係到本次變更的「DB 可選」承諾是否真的成立，記錄在同一個 change 底下。
+
+- [x] 發現：`DATABASE_URL` 有設定但 Postgres 當下連不上（例如忘記先啟動 Docker）時，
+      `hfyyManage.ts` 的 `roleDefs.rehydrateOrSeed()` 會丟出未捕捉的例外，導致
+      `server/plugins/init.ts` 的 `await Storage.adminInitPromise` 整個中斷，後面的
+      `SyncScheduler.start()`／300ms 遊戲 tick 迴圈／`SERV.RUN` 全部沒有機會執行——網站 HTTP
+      服務看起來正常（200），但遊戲引擎完全沒有啟動，且沒有任何明顯錯誤畫面
+- [x] 修正一：`hfyyManage.ts` 的 `setStartData()` 把整段 admin/role-defs 開機回填/種子邏輯包進
+      `try/catch`，失敗時記清楚的 log 並退回「只有 `Storage.init()` 建立的 2 筆硬編碼種子 admin」
+      繼續開機；`npcAutoPlay.setEnabled(true)` 移到 `try/catch` 外層，確保無論如何都會執行
+- [x] 修正二：`server/plugins/init.ts` 的 `rehydrateTodayDailyGrantsFromDb()` 同樣包
+      `try/catch`，失敗時只是當天配額計數器從 0 開始（等同遷移前的既有行為），不會卡住後面的
+      `SyncScheduler.start()`
+- [x] 驗證：`docker compose stop postgres` 後重啟 dev server，確認 `SERV.RUN`／
+      `SUCCESS ---BASE>sync.scheduler.start` 都正常出現、能用預設帳密登入；`docker compose start
+      postgres` 恢復後重啟，確認完全正常（`SUCCESS ---BASE>db.ping` 等）；`npm test`（38 支）在
+      DB enabled/disabled 兩種設定下皆通過
+
+## 7. 後續（不在本 change 範圍，僅記錄於此供追蹤）
 
 - [ ] 實際在 GCP 建立 Compute Engine VM、部署 docker-compose.yml、套用正式環境變數
 - [ ] 視需求：`U0xA666666`（HappyFatYoYo 固定展示帳號）是否也要環境變數化

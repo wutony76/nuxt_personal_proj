@@ -66,6 +66,43 @@
   - 是否已重新驗證：是，多輪清乾淨重啟 + 完整測試套件皆正常執行，沒有任何與 `process` 存取相關的
     真實 runtime 錯誤
 
+## 追加修正：開機時 DB 連線失敗會卡住整個遊戲引擎
+
+使用者在完成上述驗證後追問「我這樣 dev 的執行步驟需要調整嗎」，促使我實際測試
+「`DATABASE_URL` 有設定但 Postgres 當下沒啟動」這個情境，結果發現一個嚴重缺口：
+
+- **問題**：`hfyyManage.ts` 的 `roleDefs.rehydrateOrSeed()`（開機回填的第一個 DB 呼叫）若因為
+  DB 連不上而丟出例外，會變成未捕捉的 rejection，讓 `server/plugins/init.ts` 的
+  `await Storage.adminInitPromise` 整個中斷——後面的 `SyncScheduler.start()`、300ms 遊戲 tick
+  迴圈（`new BaseClass().runCircle(...)`）、`SERV.RUN` 全部沒有機會執行。HTTP 健康檢查仍然回
+  200（Nitro 本身沒死），但整個遊戲引擎實質上沒有啟動，而且沒有任何明顯畫面告訴使用者發生了
+  什麼事
+- **發現方式**：故意 `docker compose stop postgres` 後重啟 dev server 實測，而不是只靠程式碼
+  走讀——實測後在 log 裡看到 `[unhandledRejection]`，且 `SERV.RUN`/`sync.scheduler.start` 兩行
+  完全沒出現，確認問題真實存在
+- **第二個同類問題**：修正第一個問題後重新實測，發現 `server/plugins/init.ts` 裡
+  `rehydrateTodayDailyGrantsFromDb()`（Phase 3 的 dailyGrants 開機回填）也有一模一樣的毛病，
+  擋在它後面的 `SyncScheduler.start()` 同樣沒有機會執行
+- **修正方式**：
+  1. `hfyyManage.ts` 的 `setStartData()` 把整段 admin/role-defs 開機邏輯包進 `try/catch`，失敗
+     時記錄清楚、可操作的錯誤訊息（告訴使用者要檢查 DB 連線），退回「只有 `Storage.init()` 的
+     2 筆硬編碼種子 admin」繼續開機；`npcAutoPlay.setEnabled(true)` 移到 `try/catch` 外層確保
+     必定執行
+  2. `server/plugins/init.ts` 的 `rehydrateTodayDailyGrantsFromDb()` 呼叫同樣包 `try/catch`，
+     失敗就讓當天配額計數器從 0 開始（等同遷移前的既有行為），不影響 `SyncScheduler` 啟動
+- **重新驗證**：
+  - `docker compose stop postgres` → 重啟 dev server → 確認 `SERV.RUN`/
+    `SUCCESS ---BASE>sync.scheduler.start` 正常出現、能用預設帳密（`admin@example.com`/`123456`）
+    登入、兩個「BOOT.xxx.failed」錯誤訊息清楚記錄在 log 裡
+  - `docker compose start postgres` → 重啟 → 確認完全恢復正常（`SUCCESS ---BASE>db.ping` 等），
+    DB 裡既有 27 筆 members / 4 筆 role_defs 資料未受影響
+  - `npm test`（38 支）在 DB enabled（含故意模擬斷線恢復後）/disabled 兩種設定下皆驗證過，皆為
+    38/38 或既有時序性 flaky（重跑即恢復，與本次變更無關）
+
+這個追加修正直接關係到本次變更標題「正式環境上線前的……強化」的核心承諾——如果 DB 連線問題能讓
+整個遊戲引擎啞火，前面做的種子資料/密碼調整的意義就大打折扣，所以雖然不在原始 proposal 範圍內，
+仍記錄在同一個 change 底下（見 tasks.md 第 6 節）。
+
 ## 結論
 
 - 是否通過：是
