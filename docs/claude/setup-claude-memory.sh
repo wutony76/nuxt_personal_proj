@@ -543,12 +543,20 @@ async，風險極高且不符合這個專案的規模（個人作品集 Demo，�
 真的在讀 DB）皆正確運作。DB enabled/disabled 兩種設定下 `npm test` 通過（2 支已知 BG flaky
 測試重跑後 100% 通過）。
 
+**`openspec/changes/fix-member-balance-history-tw-gap/`（2026-10-07，已實作完成並驗證通過）**：
+使用者在「盤點清單全數完成」後追問「db 還未處理的部分」，對照 `migrate-wallet-and-reports-postgres`
+明確記錄的延後事項，補上 `memberBalanceHistoryService`（後台「會員個人異動明細」）缺漏的 8 個
+台彩來源（既有缺陷，過去完全看不到任何台彩下注/派彩紀錄）+ 接上 `wallet_balance_changes` 的
+記憶體+DB 合併查詢，讓這條查詢路徑跟其他 4 條（遊戲紀錄/彩池稽核/F幣統計/台彩派彩）看齊。
+已用真實 API 呼叫驗證：22 個來源全部正確顯示，重啟後記憶體清空時立即查詢回傳 300 筆（上限），
+證實資料來自 DB。DB enabled/disabled 兩種設定下 `npm test` 全數通過（38/38，0 失敗）。
+
 **盤點清單全貌（已全數完成，使用者的「後台功能 vs DB 持久化」盤點到此告一段落）**：已處理
 （members/role-defs/game-orders/retro-history/pool-audit/daily-grants/role-game-perms/
-登入紀錄/遊戲的設定/聊天室排程/NPC設定/刪除會員/**F幣餘額與交易明細/遊戲紀錄查詢路徑/
-彩池稽核查詢路徑/F幣統計報表/台彩派彩統計報表**）。使用者當初指定的優先序批次（遊戲設定→
-聊天室排程→NPC設定）+ 後續主動要求的刪除會員功能 + 最後「都幫我一起完善處理」的剩餘 5 項，
-已全數完成。
+登入紀錄/遊戲的設定/聊天室排程/NPC設定/刪除會員/F幣餘額與交易明細/遊戲紀錄查詢路徑/
+彩池稽核查詢路徑/F幣統計報表/台彩派彩統計報表/會員個人異動明細的台彩缺口）。使用者當初
+指定的優先序批次（遊戲設定→聊天室排程→NPC設定）+ 後續主動要求的刪除會員功能 +「都幫我一起
+完善處理」的剩餘 5 項 + 事後追問「db 還未處理的部分」挖出的會員異動明細缺口，已全數完成。
 
 **Why:** 架構決策分階段是為了控制風險——Phase 1 先打地基，Phase 2/3 各自選擇適合自己資料特性的同步
 策略。使用者每個 Phase 完成後都明確回覆「好的」確認才繼續下一個。
@@ -572,6 +580,16 @@ async，風險極高且不符合這個專案的規模（個人作品集 Demo，�
   以後新表只要用到 `numeric()` 型別都要記得這點，`npm run dev`/`npm test` 不會抓到（postgres.js
   底層照樣把 number 轉成字串送出去，只有 TypeScript 編譯期型別檢查會過不了），要跑
   `npx nuxi typecheck` 才看得到
+- **重要分辨：「還未處理的 DB 工作」vs「刻意的架構決策」**——使用者問過一次「db 還未處理的
+  部分」，答案是 `memberBalanceHistory.ts` 缺 8 個 TW 來源這種**真的被明確記錄為延後處理**
+  的項目（design.md/validation.md 寫「不在本次範圍」）。以下這些是**刻意決策、不是待辦**，
+  不要被問到類似問題時誤認成還要修：`coin` 批次同步 5 分鐘延遲（不是 write-through）、
+  `wallet_balance_changes`/`tw_payout_events`/`retro_game_history`/`pool_audit_*`/
+  `login_history` 都不回填記憶體（只當 DB 永久備份）、刪除會員後 `game_orders` 等 5 張無 FK
+  表會變孤兒資料、23 款彩種/30 款復古遊戲的記憶體歷史結構不會被刪除會員清理、聊天室排程運行
+  游標不持久化、NPC 既有（上線前）未寫入過的資料不會回填、quota P2（見
+  [[project_quota_p2_pending]]，使用者已明確決定不做）。真的要重新考慮這些取捨，要等使用者
+  明確提出，不要主動「順便修掉」
 EOF
 
 # ── MEMORY.md 索引 ────────────────────────────────────────────
@@ -592,7 +610,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [OpenSpec 流程擴充為 6 階段](project_openspec_workflow_6stages.md) — 新增 Validation、Engineering Evidence 兩份文件與範本（僅文件層級，未動 CLI schema）
 - [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
 - [台彩7款玩法全數完工](project_tw_lottery_suite_complete.md) — P3/P4/BINGO 補完，含期別helper重構/quota/組彩分級假設等已知待辦
-- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — 全部盤點項目（含F幣餘額/交易明細、4條查詢路徑接DB）皆已實作完成並驗證通過，盤點清單全數完成
+- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — 全部盤點項目皆已實作完成並驗證通過（含會員異動明細補台彩來源），盤點清單全數完成
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
