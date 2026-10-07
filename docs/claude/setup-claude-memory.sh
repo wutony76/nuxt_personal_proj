@@ -423,6 +423,12 @@ change，**全部已實作完成並驗證通過（2026-10-06）**：
   - 重啟會遺失「進行中期別」的 orders（配額驗證對那期重新從 0 算），刻意取捨，Phase 3 design.md
     已記錄為已知限制
 
+**後續規劃（2026-10-07，純規劃未執行）**：`openspec/changes/harden-postgres-for-production/` ——
+上線前把 Phase 2 開機種子邏輯（寫死 admin 密碼 `admin@example.com`/`123456`、自動產生 5 筆測試+20 筆
+NPC 假帳號）改成環境變數可控（`SEED_DEMO_DATA`/`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`，未設定時
+fallback 回現況、向下相容），並整理一份部署檢查清單文件（密碼/防火牆/備份）。這是使用者問「真正上線
+資料庫要怎麼建立」後延伸出的規劃，只到 proposal/design/tasks，**尚未實作**。
+
 **Why:** 架構決策分階段是為了控制風險——Phase 1 先打地基，Phase 2/3 各自選擇適合自己資料特性的同步
 策略。使用者每個 Phase 完成後都明確回覆「好的」確認才繼續下一個。
 
