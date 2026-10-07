@@ -11,8 +11,14 @@
 
 - [ ] `server/services/storage.ts`：`Storage.init()` 的 2 筆種子帳號，第一筆（`U0xA000001`）改讀
       `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`（未設定時 fallback 回現有字面值）
-- [ ] `server/services/admin/hfyyManage.ts`：`setStartData()` 新增 `SEED_DEMO_DATA` 判斷，`false`
-      時跳過 test01~05 與 20 筆 NPC 種子迴圈，但 `seedBootAdminsToDb()` 永遠執行
+- [ ] `server/services/admin/modules/adminAccess.ts`：新增 `hasExistingAdmin()`（查 DB 是否已有
+      `is_admin = true` 的 member）與 `seedMissingAdmin(ids)`（只在沒有 admin 時呼叫，取代原本的
+      `seedBootAdminsToDb()` 呼叫方式；若對應 id 在 DB 已存在但不是 admin，改用 UPDATE 補
+      `is_admin = true`，不要硬 INSERT 撞 primary key）
+- [ ] `server/services/admin/hfyyManage.ts`：`setStartData()` 新增 `SEED_DEMO_DATA` 判斷（`false`
+      時跳過 test01~05 與 20 筆 NPC 種子迴圈），並在 `hasExistingDbMembers()`/`rehydrateFromDb()`
+      分支執行**之後**，獨立呼叫 `hasExistingAdmin()` 判斷是否需要 `seedMissingAdmin()`（見
+      design.md 第 4 節的完整矩陣）
 - [ ] `.env.example` 補充 `SEED_DEMO_DATA`/`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` 與正式環境
       注意事項註解
 
@@ -26,6 +32,8 @@
 - [ ] `SEED_DEMO_DATA=false`：開機後 `members` 表只有 2 筆種子 admin，無 test01~05/NPC 帳號
 - [ ] `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` 自訂值：開機後能用自訂帳密登入 `U0xA000001`
 - [ ] 未設定任何新環境變數：行為與 Phase 2/3 完成時的現狀完全一致（向下相容）
+- [ ] `hasExistingAdmin()` 四種情境矩陣（見 design.md 第 4 節）都各自驗證一次，尤其「DB 已有會員、
+      但沒有任何 admin」這個新修正的缺口：手動塞一筆非 admin member、重啟後確認系統自動補建 admin
 - [ ] 既有 `npm test`（含 `test:roles`）全數通過，確認無回歸
 
 ## 5. 交付檢查

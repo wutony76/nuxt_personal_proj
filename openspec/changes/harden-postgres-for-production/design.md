@@ -18,10 +18,17 @@ server/services/admin/hfyyManage.ts  setStartData()
      a. for test01~test05：this.access.createMember(...)       ← 本次要加開關的地方
      b. for 20 次：this.npcAutoPlay.autoCreateMember()          ← 本次要加開關的地方
      c. this.access.seedBootAdminsToDb([SEED_ADMIN_ID, 'U0xA666666'])（把上面 storage.ts 建立的
-        2 筆 admin 補寫進 DB，跟本次無關，不動——但其讀取的帳號內容會因本次調整而改變）
+        2 筆 admin 補寫進 DB）——**只在 `hasExistingDbMembers()` 為 false 這個分支裡才會執行**
 ```
 
 兩個帳號种子（admin）與測試/NPC種子目前是**同一個 `else` 分支裡的連續程式碼**，沒有獨立開關。
+
+**現況有一個缺口（本次一併修正，使用者明確要求）**：admin 帳號的建立完全綁死在
+「`hasExistingDbMembers()` 為 false」這個分支下——換句話說，只要 DB 裡已經有**任何一筆** member
+（哪怕只是測試帳號、或未來手動匯入的一般會員，完全沒有 admin），開機就會直接走
+`rehydrateFromDb()`、永遠不會檢查「有沒有 admin」這件事、更不會補建。正式環境萬一發生這種邊界情況
+（例如 admin 帳號被誤刪、或資料庫是從別處只搬了部分會員過來），會導致**完全沒有人能登入後台**。
+本次改成「admin 是否存在」獨立判斷，不依附在 `hasExistingDbMembers()` 底下。
 
 ## 2. 環境變數設計
 
@@ -62,23 +69,63 @@ this.account = {
 （有設定才覆蓋，語意上是「明碼只存在於部署當下的環境變數，雜湊後才落地」，符合既有
 `feedback`/`fix(auth)` 那次雜湊修正的精神）。
 
-## 4. `hfyyManage.ts` 調整
+## 4. `hfyyManage.ts` 調整：admin 判斷獨立出來，不再依附 `hasExistingDbMembers()`
 
 ```ts
-// setStartData() 的 else 分支內
-const seedDemoData = process.env.SEED_DEMO_DATA !== 'false'   // 預設 true
+// setStartData()（調整後的整體流程）
+await this.roleDefs.rehydrateOrSeed()
 
-if (seedDemoData) {
-  for (const n of ['01', '02', '03', '04', '05']) { /* 不變 */ }
-  for (let i = 0; i < 20; i++) { /* 不變 */ }
+const hasExistingMembers = await this.access.hasExistingDbMembers()
+if (hasExistingMembers) {
+  await this.access.rehydrateFromDb()
+} else {
+  const seedDemoData = process.env.SEED_DEMO_DATA !== 'false'   // 預設 true
+  if (seedDemoData) {
+    for (const n of ['01', '02', '03', '04', '05']) { /* 不變 */ }
+    for (let i = 0; i < 20; i++) { /* 不變 */ }
+  }
 }
 
-await this.access.seedBootAdminsToDb([SEED_ADMIN_ID, 'U0xA666666'])   // 永遠執行，不受開關影響
+// ↓ 本次新增：不管上面走哪個分支，都獨立再檢查一次「DB 裡有沒有 admin」
+const hasAdmin = await this.access.hasExistingAdmin()
+if (!hasAdmin) {
+  await this.access.seedMissingAdmin([SEED_ADMIN_ID, 'U0xA666666'])
+}
 ```
 
-`seedBootAdminsToDb()` 永遠執行：不管 `SEED_DEMO_DATA` 是否關閉，`Storage.init()` 建立的 2 筆
-admin 帳號（本次調整後讀取環境變數的那 2 筆）都要正確寫進 DB，這是正式環境唯一需要、也必須存在的
-種子資料。
+`adminAccessService` 新增兩個方法（取代原本直接呼叫的 `seedBootAdminsToDb()`，命名與語意都更貼近
+「這是在補一個缺口」而不是「開機固定動作」）：
+
+```ts
+/** DB 裡是否已經存在至少一筆 is_admin = true 的 member（跟「有沒有任何 member」是兩件事）。 */
+hasExistingAdmin: async (): Promise<boolean> => {
+  if (!isDbEnabled()) return false
+  const rows = await getDb().select({ id: membersTable.id })
+    .from(membersTable).where(eq(membersTable.isAdmin, true)).limit(1)
+  return rows.length > 0
+}
+
+/**
+ * 只在「DB 裡完全沒有 admin」時才會被呼叫（見 setStartData()）。把 Storage.init() 已經直接建立、
+ * 讀了 SEED_ADMIN_EMAIL/PASSWORD 的那幾筆種子 admin 帳號寫進 DB；若這幾個 id 在 DB 裡其實已經
+ * 存在（例如先前 hasExistingMembers 分支已經 rehydrate 過、只是剛好不是 admin），改用 UPDATE
+ * 把對應列的 is_admin 補成 true，而不是硬 INSERT 撞 primary key。
+ */
+seedMissingAdmin: async (ids: string[]): Promise<void> => { /* ... */ }
+```
+
+**行為對照（跟 Phase 2 既有邏輯合併後的完整矩陣）：**
+
+| DB 現況 | `hasExistingMembers` | `hasExistingAdmin` | 實際行為 |
+| --- | --- | --- | --- |
+| 全新空 DB | false | false | 跑 test/npc 種子（視 `SEED_DEMO_DATA`）→ 補建 admin |
+| 已有會員、其中有 admin | true | true | `rehydrateFromDb()` 讀回全部，admin 判斷為 true，不動 |
+| 已有會員、但沒有 admin（本次要修的缺口） | true | false | `rehydrateFromDb()` 讀回全部 → 另外補建 admin |
+| 只曾經種過 admin、沒有其他會員 | true | true | 同第二列，正常 |
+
+這個表格裡第三列就是使用者這次明確要求補上的情境：「先看看有沒有 admin 的資料，有的話預設不新增，
+沒有才直接跑種子流程」——`hasExistingAdmin()` 的判斷永遠獨立執行一次，不管前面 `hasExistingMembers`
+走的是哪一分支。
 
 ## 5. `.env.example` 補充
 
@@ -121,6 +168,9 @@ SEED_ADMIN_PASSWORD=123456
   - `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` 有設定時，種子 admin 帳號確實用這組帳密可以登入
     （而非預設值）
   - 兩個環境變數都未設定時，行為與現狀完全一致（向下相容驗證）
+  - **`hasExistingAdmin()` 四種情境矩陣**（見第 4 節表格）都要各自驗證一次，尤其是「已有會員但
+    沒有 admin」這個新修正的缺口：手動在 DB 塞一筆非 admin 的 member、不存在任何 admin 列，重啟後
+    確認系統會補建一筆 admin，而不是維持「完全沒有 admin 可登入」的狀態
 - 手動測試案例：
   - 全新 DB + `SEED_DEMO_DATA=false` + 自訂 `SEED_ADMIN_EMAIL`/`PASSWORD`：開機後確認 `members`
     表只有 2 筆（`U0xA000001` 用自訂帳密、`U0xA666666` 維持固定值，兩者皆不受 `SEED_DEMO_DATA`
