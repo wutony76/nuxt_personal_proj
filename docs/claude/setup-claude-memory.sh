@@ -414,9 +414,8 @@ change，**全部已實作完成並驗證通過（2026-10-06）**：
      整批重 INSERT 一次，撞 primary key——教訓是寫「補寫特定幾筆」的函式時要用明確的 id 清單，
      不要讀「目前記憶體裡的全部」
 - **尚未解決、記錄在案的限制**：
-  - `test-roles.mjs` 的臨時 QA 會員沒有刪除能力（後台本來就沒有刪除會員的 API/UI），持久化後會
-    永久累積在 `members` 表，每次驗證完需要手動 SQL 清理（`DELETE FROM members WHERE email LIKE
-    'qa-%'`）
+  - ~~`test-roles.mjs` 的臨時 QA 會員沒有刪除能力~~ **已解決**，見下方
+    `add-delete-member`（2026-10-07）
   - BG 玩法的 `OrderRow` 沒有真實下注時間戳，`game_orders.created_at` 對 BG 列只是同步時間，報表
     月份判斷正確地改用 `issue` 字串而非這個欄位
   - 重啟會遺失「進行中期別」的 orders（配額驗證對那期重新從 0 算），刻意取捨，Phase 3 design.md
@@ -506,11 +505,29 @@ drizzle 的 `numeric()` 欄位型別是 `string`，`retroGameRates.ts`/`toyShop.
 檔案。已用真實 API 呼叫+重啟驗證核心問題確實修正，`_gamePresetSeq` 不衝突，DB enabled/disabled
 兩種設定下 `npm test` 通過。
 
-**盤點清單全貌（已全數完成）**：已處理（members/role-defs/game-orders/retro-history/
-pool-audit/daily-grants/role-game-perms/登入紀錄/遊戲的設定/聊天室排程/**NPC設定**）vs 仍純記憶體
-（F幣餘額、F幣統計報表、台彩派彩統計報表、F幣異動明細查詢、遊戲紀錄查詢路徑接DB、彩池稽核查詢
-路徑接DB）vs 功能缺口（刪除會員 API 不存在）。使用者當初指定的優先序批次（遊戲設定→聊天室排程→
-NPC設定）已全數完成，剩下的都是未指定優先序、仍待使用者決定的項目。
+**`openspec/changes/add-delete-member/`（2026-10-07，已實作完成並驗證通過）**：後台一直只有
+新增/編輯會員、沒有刪除，是多次盤點都提到的既有功能缺口。新增 `adminAccessService.deleteMember
+(userId, actorId)`：`members` 表 write-through delete（既有 `ON DELETE CASCADE` 自動清
+`npc_member_settings`/`npc_member_games`/`npc_daily_spent` 三張 NPC 附屬表，不用額外處理），
+記憶體清理涵蓋 `Storage.account`/`Storage.users`（一次清掉 coin + 23 款彩種的
+balanceChanges/betHistory）/`adminIds`/`memberRoleId`/`loginHistory`/`npcAutoPlay` 的
+4 個 Map，並讓被刪除帳號的有效 session 立即失效（走訪 `Storage.sessions` 比對 `user.id`）。
+保護規則沿用既有 `setRole()` 的邏輯：不可刪除自己、不可直接刪除管理員帳號（需先降級）。**刻意
+不處理**的範圍（寫進 design.md 當已知限制）：`game_orders`/`retro_game_history`/
+`retro_daily_grants`/`login_history`/`chat_schedules.created_by` 本來就沒有 FK，刪除後變孤兒
+但維持「歷史稽核資料」定位；23 款彩種/30 款復古遊戲的記憶體歷史紀錄（`OrdersClass`/
+`RetroHistoryClass`）、`toys/pool.ts`/`whistleCandy.ts`/`chatService.ts` 的小型 per-user Map
+不處理，純粹殘留不影響功能。前台比照 `RoleList.vue` 既有的二次點擊確認模式。已用真實 API 呼叫
+驗證完整流程（含 session 失效），並**直接用新功能清除了 5 筆先前測試遺留、文件記錄為需要手動
+SQL 清理的 `qa-role-test-*` 帳號**——不只是理論驗證，是真的解決了那個待辦。UI 二次點擊確認流程
+因環境無瀏覽器自動化工具，沒有實際開瀏覽器點擊驗證，已在 validation.md 誠實記錄此限制。
+
+**盤點清單全貌（已全數完成，含使用者未指定優先序但主動詢問的刪除會員功能）**：已處理
+（members/role-defs/game-orders/retro-history/pool-audit/daily-grants/role-game-perms/
+登入紀錄/遊戲的設定/聊天室排程/NPC設定/**刪除會員**）vs 仍純記憶體（F幣餘額、F幣統計報表、
+台彩派彩統計報表、F幣異動明細查詢、遊戲紀錄查詢路徑接DB、彩池稽核查詢路徑接DB）。
+使用者當初指定的優先序批次（遊戲設定→聊天室排程→NPC設定）+ 後續主動要求的刪除會員功能，
+已全數完成，剩下的都是未指定優先序、仍待使用者決定的項目。
 
 **Why:** 架構決策分階段是為了控制風險——Phase 1 先打地基，Phase 2/3 各自選擇適合自己資料特性的同步
 策略。使用者每個 Phase 完成後都明確回覆「好的」確認才繼續下一個。
@@ -554,7 +571,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [OpenSpec 流程擴充為 6 階段](project_openspec_workflow_6stages.md) — 新增 Validation、Engineering Evidence 兩份文件與範本（僅文件層級，未動 CLI schema）
 - [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
 - [台彩7款玩法全數完工](project_tw_lottery_suite_complete.md) — P3/P4/BINGO 補完，含期別helper重構/quota/組彩分級假設等已知待辦
-- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — Phase1-3+種子強化+角色遊戲權限+登入紀錄+遊戲設定+聊天室排程+NPC設定持久化皆已實作完成並驗證通過
+- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — Phase1-3+種子強化+角色遊戲權限+登入紀錄+遊戲設定+聊天室排程+NPC設定持久化+刪除會員功能皆已實作完成並驗證通過
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
