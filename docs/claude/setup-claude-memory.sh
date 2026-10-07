@@ -481,11 +481,22 @@ enabled/disabled 兩種設定下 `npm test`（38 支）皆通過（3 支已知 B
 模式。已用真實 API 呼叫+重啟驗證四張表的 override-only/種子回填語意皆正確，DB enabled/disabled
 兩種設定下 `npm test` 通過。
 
+**`openspec/changes/migrate-chat-schedule-postgres/`（2026-10-07，已實作完成並驗證通過）**：
+`chatSchedule.ts` 設定欄位（text/hour/minute/repeat/enabled）write-through，運行游標
+（lastFiredKey/lastFiredAt）刻意不持久化（300ms tick 熱路徑不依賴 DB，重啟後 interval 排程
+計時重置、daily/once 視為尚未觸發，風險可忽略）。**順手修正一個實際缺口**：`hfyyManage.ts`
+原本每次開機無條件新增 4 筆種子排程，持久化後會無限疊加並撞上 `MAX_SCHEDULES=30`——改成
+`rehydrateOrSeed()`（DB 是空的才種子、已有資料則回填記憶體），比照 `roleDefs` 模式。已用真實
+API 呼叫 + 連續 2 次重啟驗證種子不再重複累加，DB enabled/disabled 兩種設定下 `npm test` 通過。
+（過程中意外撞見既有「No worker available」flaky 問題在單次 nohup 啟動內部重試 3 次、製造出
+12 筆種子資料——證實 `rehydrateOrSeed()` 的 select-then-insert 對併發重啟沒有防護，但這跟
+`roleDefs`/`mazeTemplates` 既有同構寫法一致，屬於「假設單一 boot 實例」的既有設計慣例，不是
+本次新增的缺陷，清乾淨單次重啟驗證無誤後繼續）
+
 **盤點清單全貌**（供之後繼續處理時參考，詳見對話記錄）：已處理（members/role-defs/game-orders/
-retro-history/pool-audit/daily-grants/role-game-perms/登入紀錄/**遊戲的設定**）vs 仍純記憶體
-（F幣餘額、NPC細部設定、F幣統計報表、台彩派彩統計報表、F幣異動明細查詢、遊戲紀錄查詢路徑接DB、
-**聊天室廣播排程**）vs 功能缺口（刪除會員 API 不存在）。使用者指定的下一批處理順序：
-**聊天室排程設定（進行中）→ NPC 設定**。
+retro-history/pool-audit/daily-grants/role-game-perms/登入紀錄/遊戲的設定/**聊天室排程**）vs
+仍純記憶體（F幣餘額、**NPC細部設定**、F幣統計報表、台彩派彩統計報表、F幣異動明細查詢、遊戲紀錄
+查詢路徑接DB）vs 功能缺口（刪除會員 API 不存在）。使用者指定的下一批（最後一項）：**NPC 設定**。
 
 **Why:** 架構決策分階段是為了控制風險——Phase 1 先打地基，Phase 2/3 各自選擇適合自己資料特性的同步
 策略。使用者每個 Phase 完成後都明確回覆「好的」確認才繼續下一個。
@@ -504,14 +515,8 @@ retro-history/pool-audit/daily-grants/role-game-perms/登入紀錄/**遊戲的�
 - 與 [[project_quota_p2_pending]]、[[project_game_history_coin_reward]] 兩份既有待辦互相呼應，
   Phase 3 design.md 明確把這兩塊列為排除範圍，仍待使用者決定是否要另開 change
 
-**聊天室排程 / NPC 設定（下一批，2026-10-07 已派 agent 研究完成，尚未實作）的關鍵設計筆記**：
+**NPC 設定（最後一批，2026-10-07 已派 agent 研究完成，尚未實作）的關鍵設計筆記**：
 
-- 聊天室排程（`chatSchedule.ts`）：config 欄位（text/hour/minute/repeat/enabled）write-through，
-  但 `lastFiredKey`/`lastFiredAt` 是 300ms tick 迴圈每次 fire 就寫的運行游標，不能 write-through
-  （會拖垮 tick）。**重要地雷**：`hfyyManage.ts` 的 `setStartData()` 目前每次開機都無條件新增
-  4 筆 interval 測試排程（30s/20s/10s/5s），一旦排程表接了 DB 持久化，這個種子邏輯必須比照
-  `SEED_DEMO_DATA` 的方式加開關，否則每次重啟都多 4 筆、約 7 次重啟後撞到 `MAX_SCHEDULES=30`
-  的上限直接報錯
 - NPC 設定（`npcAutoPlay.ts`，7 個 store）：`_memberSettings`/`_allowedGamesByUser`/
   `_nameWords`/`_gamePresets`/`_schedule`/`_enabled` 這幾個要 write-through；`_dailySpent`
   語意等同 `retro_daily_grants`（只是沒有 game_key），一樣的「重啟配額歸零」舊 bug 可以順便修；
@@ -542,7 +547,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [OpenSpec 流程擴充為 6 階段](project_openspec_workflow_6stages.md) — 新增 Validation、Engineering Evidence 兩份文件與範本（僅文件層級，未動 CLI schema）
 - [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
 - [台彩7款玩法全數完工](project_tw_lottery_suite_complete.md) — P3/P4/BINGO 補完，含期別helper重構/quota/組彩分級假設等已知待辦
-- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — Phase1-3+種子強化+角色遊戲權限+登入紀錄+遊戲設定持久化皆已實作完成並驗證通過
+- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — Phase1-3+種子強化+角色遊戲權限+登入紀錄+遊戲設定+聊天室排程持久化皆已實作完成並驗證通過
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
