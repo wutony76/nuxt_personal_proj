@@ -10,7 +10,9 @@ import { adminRetroGameRatesService } from './modules/retroGameRates'
 import { adminToyShopService } from './modules/toyShop'
 import { mazeTemplates } from 'serv/services/game/retro/mazeTemplates'
 import { encodePassword } from 'serv/utils/encrypt'
-import { isDbEnabled } from 'serv/services/db'
+import { isDbEnabled, getDb } from 'serv/services/db'
+import { walletCoin as walletCoinTable } from 'serv/services/db/schema'
+import { Storage } from 'serv/services/storage'
 
 /**
  * 後台會員／權限／聊天室管理入口：不分遊戲類別的後台功能掛在這裡。
@@ -148,6 +150,16 @@ export default class HFYYManage {
       // npc_daily_spent 都有 FK 指向 members.id，跟既有「members 先、附屬設定後」的順序
       // 保持一致，閱讀起來更合理。
       await this.npcAutoPlay.rehydrateOrSeed()
+
+      // F幣餘額開機回填（見 migrate-wallet-and-reports-postgres/design.md 第 3 節）：修正
+      // 「重啟後所有人 coin 變回 UsersClass 建構子寫死的 100000」這個既有痛點。只回填 coin，
+      // 交易明細（wallet_balance_changes）/台彩中獎事件（tw_payout_events）刻意不回填記憶體，
+      // 比照 login_history 既有 precedent，只當永久備份，查詢路徑改合併查詢。
+      const walletRows = await getDb().select().from(walletCoinTable)
+      for (const row of walletRows) {
+        ;(Storage.get.user(row.userId) as { coin?: number }).coin = Number(row.coin)
+      }
+
       dbInitSucceeded = true
     } catch (error) {
       console.error(

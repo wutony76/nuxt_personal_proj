@@ -268,3 +268,51 @@ export const npcDailySpent = pgTable('npc_daily_spent', {
   amount: numeric('amount').notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 })
+
+/**
+ * F幣即時餘額，批次快照（不是 write-through，見
+ * openspec/changes/migrate-wallet-and-reports-postgres/design.md 第 1 節決策）。
+ */
+export const walletCoin = pgTable('wallet_coin', {
+  userId: text('user_id').primaryKey().references(() => members.id, { onDelete: 'cascade' }),
+  coin: numeric('coin').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+/**
+ * F幣交易明細，批次全量快照（不裁剪，DB 保留永久完整歷史，見 design.md 第 1 節）。
+ * source = 22 個 *Record 欄位名稱其中之一，PK 用 (source, id) 複合鍵：id 格式在各來源檔案
+ * 不保證全域唯一，比照 memberBalanceHistory.ts 既有的 `${key}:${row.id}` 防禦寫法。
+ */
+export const walletBalanceChanges = pgTable('wallet_balance_changes', {
+  source: text('source').notNull(),
+  id: text('id').notNull(),
+  userId: text('user_id').notNull().references(() => members.id, { onDelete: 'cascade' }),
+  issue: text('issue').notNull(),
+  type: text('type').notNull(),
+  amount: numeric('amount').notNull(),
+  before: numeric('before').notNull(),
+  after: numeric('after').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  note: text('note').notNull()
+}, (table) => [
+  primaryKey({ columns: [table.source, table.id] }),
+  index('idx_wallet_balance_changes_user_month').on(table.userId, table.createdAt)
+])
+
+/**
+ * 台彩中獎事件（betHistory 裡 winStatus='win' 的列），批次全量快照，不碰 8 款 TW 玩法既有
+ * 結算邏輯。跟「領獎」（wallet_balance_changes 的 type='claim'）是兩個不同時間點的事件，
+ * 不能互相替代，見 design.md「Area D 的額外發現」。
+ */
+export const twPayoutEvents = pgTable('tw_payout_events', {
+  source: text('source').notNull(),
+  orderId: text('order_id').notNull(),
+  userId: text('user_id').notNull().references(() => members.id, { onDelete: 'cascade' }),
+  issue: text('issue').notNull(),
+  amount: numeric('amount').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull()
+}, (table) => [
+  primaryKey({ columns: [table.source, table.orderId] }),
+  index('idx_tw_payout_events_user_month').on(table.userId, table.createdAt)
+])

@@ -8,6 +8,7 @@ import { registerGameOrdersSyncSource } from '../services/game/lottery/ordersSyn
 import { registerRetroHistorySyncSource } from '../services/game/retro/historySyncSource'
 import { registerPoolAuditSyncSources } from '../services/game/lottery/bg/poolAuditSyncSource'
 import { registerLoginHistorySyncSource } from '../services/loginHistorySyncSource'
+import { registerWalletSyncSources } from '../services/walletSyncSource'
 import { rehydrateTodayDailyGrantsFromDb } from '../services/game/retro/history'
 import RETRO_GAME_BASE from '../services/game/retro/base'
 
@@ -35,6 +36,7 @@ export default defineNitroPlugin(async (_nitroApp) => {
     registerRetroHistorySyncSource()
     registerPoolAuditSyncSources()
     registerLoginHistorySyncSource()
+    registerWalletSyncSources()
     // dailyGrants 開機回填（見 migrate-game-history-postgres/design.md 第 4 節）：只回填今天，
     // 修正「重啟導致當日配額歸零」的既有缺口。包 try/catch：DB 當下連不上的話，頂多當天配額計數器
     // 從 0 開始（跟遷移前的既有行為一樣），不能讓這個查詢失敗卡住下面的 SyncScheduler 啟動與遊戲

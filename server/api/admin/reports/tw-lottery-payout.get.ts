@@ -1,5 +1,6 @@
 import { sessionController } from 'serv/services/auth'
 import { Storage } from 'serv/services/storage'
+import { queryArchivedTwPayoutsForMonth } from 'serv/services/walletReportQuery'
 
 /** 台彩鏡射玩法：user 物件上各玩法的注單/餘額紀錄欄位名稱與顯示名稱 */
 const TW_RECORDS = [
@@ -30,6 +31,7 @@ function tsToDateTime(ts: number): string {
 }
 
 type BetHistoryRow = {
+  orderId: string
   issue: string
   betTime: number
   winStatus: string
@@ -56,7 +58,7 @@ function _perGameOf(gameMap: Record<string, { amount: number; count: number }>) 
  * @returns 月 KPI + 各玩法中獎彩總 + 中獎明細（含期別，含 npc 子物件：僅 NPC 角色會員的
  * 同形狀統計；`records` 每筆多帶 `isNpc` 供前端篩選）
  */
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
   sessionController.requireAdminView(event)
 
   const query = getQuery(event)
@@ -78,11 +80,29 @@ export default defineEventHandler((event) => {
   const users = Storage.users as Record<string, UserLike>
   const access = Storage.manager.admin.access
 
-  for (const [userId, user] of Object.entries(users)) {
+  // 記憶體（近期，betHistory 無上限但重啟即清空）+ DB（tw_payout_events 全量快照，只收
+  // winStatus='win' 的列，完整歷史）合併，以 (field, orderId) 去重（記憶體版本優先），見
+  // migrate-wallet-and-reports-postgres/design.md 第 4d 節。
+  const archivedRows = await queryArchivedTwPayoutsForMonth(month)
+  const archivedByUser = new Map<string, typeof archivedRows>()
+  for (const row of archivedRows) {
+    if (!archivedByUser.has(row.userId)) archivedByUser.set(row.userId, [])
+    archivedByUser.get(row.userId)!.push(row)
+  }
+
+  const allUserIds = new Set([...Object.keys(users), ...archivedByUser.keys()])
+
+  for (const userId of allUserIds) {
     const isNpc = access.roleOf(userId) === 'npc'
+    const archivedForUser = archivedByUser.get(userId) ?? []
     for (const g of TW_RECORDS) {
-      const rows = user?.[g.field]?.betHistory ?? []
-      for (const row of rows) {
+      const memoryRows = users[userId]?.[g.field]?.betHistory ?? []
+      const memoryOrderIds = new Set(memoryRows.map((row) => row.orderId))
+      const archivedRowsForField = archivedForUser
+        .filter((row) => row.source === g.field && !memoryOrderIds.has(row.orderId))
+        .map((row) => ({ orderId: row.orderId, issue: row.issue, betTime: row.createdAt, winStatus: 'win', winAmount: row.amount }))
+
+      for (const row of [...memoryRows, ...archivedRowsForField]) {
         if (row.winStatus !== 'win') continue
         const dateStr = tsToDate(row.betTime)
         if (!dateStr.startsWith(month)) continue
@@ -125,7 +145,8 @@ export default defineEventHandler((event) => {
       totalCount: npcPerGame.reduce((sum, g) => sum + g.count, 0),
       perGame: npcPerGame,
     },
-    dataNote: '資料為本系統實際下注紀錄（in-memory，伺服器重啟後清空）。以「開獎判定為中獎」的注單金額計算，'
-      + '依下注時間所屬日期歸類，不代表玩家已實際請領。以上數字為全部會員（含 NPC）合計，npc 欄位是其中 NPC 角色會員的部分。',
+    dataNote: '資料為記憶體（近期）+ PostgreSQL（完整歷史，DB 啟用時才有）合併。以「開獎判定為中獎」'
+      + '的注單金額計算，依下注時間所屬日期歸類，不代表玩家已實際請領。以上數字為全部會員（含 NPC）'
+      + '合計，npc 欄位是其中 NPC 角色會員的部分。',
   }
 })

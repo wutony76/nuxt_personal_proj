@@ -1,5 +1,6 @@
 import { Storage } from 'serv/services/storage'
 import type { PoolReseedEvent, FloorOverpayEvent } from 'serv/services/game/lottery/bg/poolAudit'
+import { queryArchivedPoolAuditEvents } from 'serv/services/game/lottery/bg/poolAuditReportQuery'
 
 export type AdminPoolAuditRow = (PoolReseedEvent | FloorOverpayEvent) & { lotteryName: string; timeStr: string }
 export type AdminPoolAuditSummary = { key: string; name: string; reseedCount: number; totalOverpay: number }
@@ -46,18 +47,27 @@ function _formatTs(ts: number): string {
  */
 export const adminPoolAuditService = {
   /**
+   * 記憶體（近期，上限 2000→1800）+ DB（`pool_audit_reseed`/`pool_audit_overpay` 全量快照，
+   * 完整歷史）合併查詢，以 id 去重（記憶體版本優先），見
+   * migrate-wallet-and-reports-postgres/design.md 第 4b 節。
    * @param lotteryKey 篩選彩種 key（可選，空字串＝全部）
    * @param range 時間區間：7d / 30d / all（預設 all）
    * @returns 池底重骰＋保底超付事件列表、各彩種摘要統計
    */
-  list: (lotteryKey: string, range: string): AdminPoolAuditResult => {
+  list: async (lotteryKey: string, range: string): Promise<AdminPoolAuditResult> => {
     const audit = (Storage.lottery as any).poolAudit as { reseed: PoolReseedEvent[]; overpay: FloorOverpayEvent[] }
+    const archived = await queryArchivedPoolAuditEvents()
 
-    const reseed = [...(audit?.reseed ?? [])]
+    const memoryReseedIds = new Set((audit?.reseed ?? []).map((e) => e.id))
+    const memoryOverpayIds = new Set((audit?.overpay ?? []).map((e) => e.id))
+    const allReseed = [...(audit?.reseed ?? []), ...archived.reseed.filter((e) => !memoryReseedIds.has(e.id))]
+    const allOverpay = [...(audit?.overpay ?? []), ...archived.overpay.filter((e) => !memoryOverpayIds.has(e.id))]
+
+    const reseed = allReseed
       .filter((e) => (!lotteryKey || e.lotteryKey === lotteryKey) && _filterByTime(e.timestamp, range))
       .sort((a, b) => b.timestamp - a.timestamp)
 
-    const overpay = [...(audit?.overpay ?? [])]
+    const overpay = allOverpay
       .filter((e) => (!lotteryKey || e.lotteryKey === lotteryKey) && _filterByTime(e.timestamp, range))
       .sort((a, b) => b.timestamp - a.timestamp)
 

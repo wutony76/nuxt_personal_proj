@@ -1,6 +1,7 @@
 import { sessionController } from 'serv/services/auth'
 import { Storage } from 'serv/services/storage'
 import { TOY_CATALOG } from 'serv/services/game/toys/catalog'
+import { queryArchivedWalletChangesForMonth } from 'serv/services/walletReportQuery'
 
 const TOY_NAMES = new Set(TOY_CATALOG.map((t) => t.name))
 
@@ -107,7 +108,7 @@ function _summarize(bucket: Bucket, month: string) {
  * 後台：Game Center F幣 兌換月報
  * @returns 月 KPI + 每日流水 + 每款玩具明細（含 npc 子物件：僅 NPC 角色會員的同形狀統計）
  */
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
   sessionController.requireAdminView(event)
 
   const query = getQuery(event)
@@ -123,9 +124,27 @@ export default defineEventHandler((event) => {
   const users = Storage.users as Record<string, UserLike>
   const access = Storage.manager.admin.access
 
-  for (const [userId, user] of Object.entries(users)) {
+  // 記憶體（近期，每人 record.balanceChanges 上限 5000→4000）+ DB（wallet_balance_changes
+  // 的 source='record' 全量快照，完整歷史）合併，以 id 去重（記憶體版本優先），見
+  // migrate-wallet-and-reports-postgres/design.md 第 4c 節。DB 查詢已先用 created_at 粗篩
+  // 當月範圍，實際的月份判斷仍交給下面迴圈既有的 tsToDate()/startsWith() 做本地時區精確判斷。
+  const archivedRows = (await queryArchivedWalletChangesForMonth(month))
+    .filter((c) => c.source === 'record' && (c.type === 'toy-bet' || c.type === 'toy-reward' || c.type === 'game-reward'))
+  const archivedByUser = new Map<string, typeof archivedRows>()
+  for (const row of archivedRows) {
+    if (!archivedByUser.has(row.userId)) archivedByUser.set(row.userId, [])
+    archivedByUser.get(row.userId)!.push(row)
+  }
+
+  const allUserIds = new Set([...Object.keys(users), ...archivedByUser.keys()])
+
+  for (const userId of allUserIds) {
     const isNpc = access.roleOf(userId) === 'npc'
-    const changes = user?.record?.balanceChanges ?? []
+    const memoryChanges = users[userId]?.record?.balanceChanges ?? []
+    const memoryIds = new Set(memoryChanges.map((c) => c.id))
+    const archived = (archivedByUser.get(userId) ?? []).filter((c) => !memoryIds.has(c.id))
+    const changes: BalanceChange[] = [...memoryChanges, ...archived]
+
     for (const ch of changes) {
       if (ch.type !== 'toy-bet' && ch.type !== 'toy-reward' && ch.type !== 'game-reward') continue
       const dateStr = tsToDate(ch.createdAt)
@@ -146,7 +165,8 @@ export default defineEventHandler((event) => {
     month,
     ...all,
     npc,
-    dataNote: '資料為 in-memory，伺服器重啟後清空。統計 toy-bet、toy-reward、game-reward 三類 F幣 流水；'
-      + '以上數字為全部會員（含 NPC）合計，npc 欄位是其中 NPC 角色會員的部分。',
+    dataNote: '資料為記憶體（近期）+ PostgreSQL（完整歷史，DB 啟用時才有）合併。統計 toy-bet、'
+      + 'toy-reward、game-reward 三類 F幣 流水；以上數字為全部會員（含 NPC）合計，npc 欄位是其中 '
+      + 'NPC 角色會員的部分。',
   }
 })

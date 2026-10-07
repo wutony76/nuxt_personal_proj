@@ -50,6 +50,13 @@
       "when": 1791349416556,
       "tag": "0006_lean_marvex",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791356958773,
+      "tag": "0007_wise_bug",
+      "breakpoints": true
     }
   ]
 }
