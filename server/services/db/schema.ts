@@ -177,3 +177,20 @@ export const pacmanMazeTemplates = pgTable('pacman_maze_templates', {
   rows: jsonb('rows').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 })
+
+/**
+ * 聊天室廣播排程設定欄位，見 openspec/changes/migrate-chat-schedule-postgres/design.md。
+ * 只存設定欄位，運行游標（lastFiredKey/lastFiredAt）刻意不持久化（見 design.md 第 5 節）。
+ */
+export const chatSchedules = pgTable('chat_schedules', {
+  id: text('id').primaryKey(),
+  text: text('text').notNull(),
+  hour: integer('hour').notNull(),
+  minute: integer('minute').notNull(),
+  repeat: text('repeat').notNull(),
+  intervalSeconds: integer('interval_seconds'),
+  enabled: boolean('enabled').notNull(),
+  createdBy: text('created_by').notNull(),
+  createdByName: text('created_by_name').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull()
+})

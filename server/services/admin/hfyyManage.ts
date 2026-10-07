@@ -10,6 +10,7 @@ import { adminRetroGameRatesService } from './modules/retroGameRates'
 import { adminToyShopService } from './modules/toyShop'
 import { mazeTemplates } from 'serv/services/game/retro/mazeTemplates'
 import { encodePassword } from 'serv/utils/encrypt'
+import { isDbEnabled } from 'serv/services/db'
 
 /**
  * 後台會員／權限／聊天室管理入口：不分遊戲類別的後台功能掛在這裡。
@@ -52,18 +53,24 @@ export default class HFYYManage {
    *   帳號也補寫進 DB
    */
   async setStartData(): Promise<void> {
-    // 聊天室排程：啟動時建幾筆 interval 測試排程，方便驗證聊天室訊息推播
     const SEED_ADMIN_ID = 'U0xA000001'
     const SEED_ADMIN_NAME = 'Admin'
-    ;[30, 20, 10, 5].forEach((seconds) => {
-      this.chatSchedule.add({
-        text: `${seconds}s 發送測試訊息`,
-        repeat: 'interval',
-        intervalSeconds: seconds,
-        createdBy: SEED_ADMIN_ID,
-        createdByName: SEED_ADMIN_NAME
-      })
-    })
+
+    // 聊天室排程：DB 未啟用時維持原本行為（每次開機都建幾筆 interval 測試排程，方便驗證聊天室
+    // 訊息推播，純記憶體模式重啟本來就會歸零）。DB 啟用時改走下面 try/catch 裡的
+    // rehydrateOrSeed()（空則種子、有則回填），避免每次重啟都重複疊加種子排程撞到
+    // MAX_SCHEDULES 上限，見 migrate-chat-schedule-postgres/design.md 第 3 節。
+    if (!isDbEnabled()) {
+      for (const seconds of [30, 20, 10, 5]) {
+        await this.chatSchedule.add({
+          text: `${seconds}s 發送測試訊息`,
+          repeat: 'interval',
+          intervalSeconds: seconds,
+          createdBy: SEED_ADMIN_ID,
+          createdByName: SEED_ADMIN_NAME
+        })
+      }
+    }
 
     // 以下這段開機回填/種子邏輯全部需要查詢或寫入 DB（當 DATABASE_URL 有設定時）。如果 DB 當下
     // 連不上（例如忘記先把 Docker/Postgres 啟動），任何一個 await 都可能丟出連線錯誤——整段包在
@@ -82,6 +89,10 @@ export default class HFYYManage {
       await adminRetroGameRatesService.rehydrateFromDb()
       await adminToyShopService.rehydrateFromDb()
       await mazeTemplates.rehydrateOrSeed()
+
+      // 聊天室排程：空則種子 4 筆測試排程、有則覆蓋記憶體，見
+      // openspec/changes/migrate-chat-schedule-postgres/design.md 第 3 節
+      await this.chatSchedule.rehydrateOrSeed(SEED_ADMIN_ID, SEED_ADMIN_NAME)
 
       const hasExistingMembers = await this.access.hasExistingDbMembers()
       if (hasExistingMembers) {

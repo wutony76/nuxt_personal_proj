@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
     repeatRaw === 'once' ? 'once' : repeatRaw === 'interval' ? 'interval' : 'daily'
 
   if (repeat === 'interval') {
-    const schedule = Storage.manager.admin.chatSchedule.add({
+    const schedule = await Storage.manager.admin.chatSchedule.add({
       text: typeof body?.text === 'string' ? body.text : '',
       repeat: 'interval',
       intervalSeconds: Number(body?.intervalSeconds),
@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
     minute = Number(m[2])
   }
 
-  const schedule = Storage.manager.admin.chatSchedule.add({
+  const schedule = await Storage.manager.admin.chatSchedule.add({
     text: typeof body?.text === 'string' ? body.text : '',
     hour,
     minute,

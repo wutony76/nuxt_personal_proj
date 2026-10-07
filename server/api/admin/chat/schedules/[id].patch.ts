@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'enabled 須為 boolean。' })
   }
 
-  const schedule = Storage.manager.admin.chatSchedule.setEnabled(id, body.enabled)
+  const schedule = await Storage.manager.admin.chatSchedule.setEnabled(id, body.enabled)
   if (!schedule) throw createError({ statusCode: 404, message: '找不到該排程。' })
   return { schedule }
 })
