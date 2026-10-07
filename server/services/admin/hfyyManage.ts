@@ -6,6 +6,9 @@ import { memberBalanceHistoryService } from './modules/memberBalanceHistory'
 import { roleDefsService } from './modules/roleDefs'
 import { roleGamePermsService } from './modules/roleGamePerms'
 import { npcAutoPlayService } from './modules/npcAutoPlay'
+import { adminRetroGameRatesService } from './modules/retroGameRates'
+import { adminToyShopService } from './modules/toyShop'
+import { mazeTemplates } from 'serv/services/game/retro/mazeTemplates'
 import { encodePassword } from 'serv/utils/encrypt'
 
 /**
@@ -72,6 +75,13 @@ export default class HFYYManage {
       // 角色遊戲權限開關沒有種子概念（空 DB 天然對應「全部開啟」的記憶體預設值），直接回填即可，
       // 見 openspec/changes/migrate-role-game-perms-postgres/design.md 第 3 節
       await this.roleGamePerms.rehydrateFromDb()
+
+      // 遊戲設定（復古遊戲賠率/柑仔店：override-only 回填；Pac-Man 樣板：空則種子、有則覆蓋），
+      // 見 openspec/changes/migrate-game-settings-postgres/design.md 第 4 節，三者互相獨立、
+      // 不依賴 members/role_defs，順序無關
+      await adminRetroGameRatesService.rehydrateFromDb()
+      await adminToyShopService.rehydrateFromDb()
+      await mazeTemplates.rehydrateOrSeed()
 
       const hasExistingMembers = await this.access.hasExistingDbMembers()
       if (hasExistingMembers) {

@@ -17,5 +17,5 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'enabled 必須是 boolean。' })
   }
 
-  return Storage.manager.lotteryTw.toyShop.setGameEnabled(slug, body.enabled)
+  return await Storage.manager.lotteryTw.toyShop.setGameEnabled(slug, body.enabled)
 })

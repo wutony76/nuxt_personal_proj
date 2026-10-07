@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug') ?? ''
   const body = await readBody<Body>(event)
 
-  return Storage.manager.lotteryTw.toyShop.setOdds(slug, {
+  return await Storage.manager.lotteryTw.toyShop.setOdds(slug, {
     multiplier: Number(body?.multiplier),
     difficulty: Number(body?.difficulty)
   })

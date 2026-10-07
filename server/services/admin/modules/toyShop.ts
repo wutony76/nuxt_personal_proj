@@ -1,4 +1,7 @@
 import { TOY_CATALOG } from 'serv/services/game/toys/catalog'
+import { isDbEnabled, getDb } from 'serv/services/db'
+import { toyShopGames as toyShopGamesTable, toyShopSettings as toyShopSettingsTable } from 'serv/services/db/schema'
+import { eq } from 'drizzle-orm'
 
 export type ToyShopOddsItem = {
   slug: string
@@ -42,7 +45,13 @@ function _rowOf(slug: string, name: string): ToyShopOddsItem {
 export const adminToyShopService = {
   isEnabled: (): boolean => _enabled,
 
-  setEnabled: (enabled: boolean): boolean => {
+  /** write-through（見 migrate-game-settings-postgres/design.md 第 3b 節） */
+  setEnabled: async (enabled: boolean): Promise<boolean> => {
+    if (isDbEnabled()) {
+      await getDb().insert(toyShopSettingsTable)
+        .values({ id: 'default', enabled })
+        .onConflictDoUpdate({ target: toyShopSettingsTable.id, set: { enabled } })
+    }
     _enabled = enabled
     return _enabled
   },
@@ -58,7 +67,8 @@ export const adminToyShopService = {
 
   listOdds: (): ToyShopOddsItem[] => TOY_CATALOG.map((t) => _rowOf(t.slug, t.name)),
 
-  setOdds: (slug: string, input: { multiplier: number; difficulty: number }): ToyShopOddsItem => {
+  /** write-through（見 migrate-game-settings-postgres/design.md 第 3b 節） */
+  setOdds: async (slug: string, input: { multiplier: number; difficulty: number }): Promise<ToyShopOddsItem> => {
     const item = TOY_CATALOG.find((t) => t.slug === slug)
     if (!item) {
       throw createError({ statusCode: 404, message: `找不到玩法：${slug}` })
@@ -70,17 +80,60 @@ export const adminToyShopService = {
     if (!Number.isFinite(difficulty) || difficulty <= 0) {
       throw createError({ statusCode: 400, message: '難度必須是大於 0 的數字（預設 1）。' })
     }
+
+    if (isDbEnabled()) {
+      await getDb().insert(toyShopGamesTable)
+        .values({ slug, multiplier, difficulty, enabled: _gameEnabled[slug] ?? true })
+        .onConflictDoUpdate({
+          target: toyShopGamesTable.slug,
+          set: { multiplier, difficulty, updatedAt: new Date() }
+        })
+    }
+
     _odds[slug] = multiplier
     _difficulty[slug] = difficulty
     return _rowOf(item.slug, item.name)
   },
 
-  setGameEnabled: (slug: string, enabled: boolean): ToyShopOddsItem => {
+  /** write-through（見 migrate-game-settings-postgres/design.md 第 3b 節） */
+  setGameEnabled: async (slug: string, enabled: boolean): Promise<ToyShopOddsItem> => {
     const item = TOY_CATALOG.find((t) => t.slug === slug)
     if (!item) {
       throw createError({ statusCode: 404, message: `找不到玩法：${slug}` })
     }
+
+    if (isDbEnabled()) {
+      await getDb().insert(toyShopGamesTable)
+        .values({ slug, multiplier: _odds[slug] ?? 1, difficulty: _difficulty[slug] ?? 1, enabled })
+        .onConflictDoUpdate({
+          target: toyShopGamesTable.slug,
+          set: { enabled, updatedAt: new Date() }
+        })
+    }
+
     _gameEnabled[slug] = enabled
     return _rowOf(item.slug, item.name)
+  },
+
+  /**
+   * 開機回填：override-only，沒有種子分支（見 design.md 第 3b 節）。模組載入時已用
+   * TOY_CATALOG 填好預設值，DB 空＝維持目前預設行為。
+   */
+  rehydrateFromDb: async (): Promise<void> => {
+    if (!isDbEnabled()) return
+    const db = getDb()
+    const [gameRows, settingsRow] = await Promise.all([
+      db.select().from(toyShopGamesTable),
+      db.select().from(toyShopSettingsTable).where(eq(toyShopSettingsTable.id, 'default')).then((rows) => rows[0])
+    ])
+
+    for (const row of gameRows) {
+      if (!TOY_CATALOG.some((t) => t.slug === row.slug)) continue
+      _odds[row.slug] = Number(row.multiplier)
+      _difficulty[row.slug] = Number(row.difficulty)
+      _gameEnabled[row.slug] = row.enabled
+    }
+
+    if (settingsRow) _enabled = settingsRow.enabled
   }
 }

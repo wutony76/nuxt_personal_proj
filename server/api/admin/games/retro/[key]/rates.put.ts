@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   const key = getRouterParam(event, 'key') ?? ''
   const body = await readBody<Body>(event)
 
-  return Storage.manager.gameRetro.retroGameRates.setRates(key, {
+  return await Storage.manager.gameRetro.retroGameRates.setRates(key, {
     coinRate: Number(body?.coinRate),
     coinCapPerRun: Number(body?.coinCapPerRun),
     coinDailyCap: Number(body?.coinDailyCap)

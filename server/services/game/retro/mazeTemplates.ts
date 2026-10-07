@@ -1,4 +1,7 @@
 import { Storage } from 'serv/services/storage'
+import { isDbEnabled, getDb } from 'serv/services/db'
+import { pacmanMazeTemplates as pacmanMazeTemplatesTable } from 'serv/services/db/schema'
+import { eq } from 'drizzle-orm'
 
 /**
  * PAC-MAN 固定樣板迷宮，從 client 端程式碼常數搬到 server 端可變狀態（見
@@ -144,14 +147,51 @@ export function validateMazeRows(rows: string[]): { ok: true } | { ok: false; er
 
 export const mazeTemplates = {
   list: (): MazeTemplate[] => Storage.retroGames.pacmanMazeTemplates,
-  add: (name: string, rows: string[]): MazeTemplate => {
+
+  /** write-through（見 migrate-game-settings-postgres/design.md 第 3c 節） */
+  add: async (name: string, rows: string[]): Promise<MazeTemplate> => {
     const template: MazeTemplate = { id: `m${Date.now()}${Math.random().toString(16).slice(2, 6)}`, name, rows }
+
+    if (isDbEnabled()) {
+      await getDb().insert(pacmanMazeTemplatesTable).values(template)
+    }
+
     Storage.retroGames.pacmanMazeTemplates.push(template)
     return template
   },
-  remove: (id: string): boolean => {
+
+  /** write-through（見 migrate-game-settings-postgres/design.md 第 3c 節） */
+  remove: async (id: string): Promise<boolean> => {
     const before = Storage.retroGames.pacmanMazeTemplates.length
+    if (before === 0 || !Storage.retroGames.pacmanMazeTemplates.some((t) => t.id === id)) return false
+
+    if (isDbEnabled()) {
+      await getDb().delete(pacmanMazeTemplatesTable).where(eq(pacmanMazeTemplatesTable.id, id))
+    }
+
     Storage.retroGames.pacmanMazeTemplates = Storage.retroGames.pacmanMazeTemplates.filter((t) => t.id !== id)
     return Storage.retroGames.pacmanMazeTemplates.length < before
+  },
+
+  /**
+   * 開機回填（見 design.md 第 3c 節）：陣列型態沒有程式碼預設值可回退，DB 是空的（全新環境）
+   * 要把目前記憶體內容（模組載入時的 DEFAULT_MAZE_TEMPLATES）寫回 DB；DB 已有資料則整個
+   * 覆蓋記憶體，沿用 roleDefs.rehydrateOrSeed() 的模式。
+   */
+  rehydrateOrSeed: async (): Promise<void> => {
+    if (!isDbEnabled()) return
+    const db = getDb()
+    const existing = await db.select().from(pacmanMazeTemplatesTable)
+    if (existing.length === 0) {
+      await db.insert(pacmanMazeTemplatesTable).values(
+        Storage.retroGames.pacmanMazeTemplates.map((t) => ({ id: t.id, name: t.name, rows: t.rows }))
+      )
+    } else {
+      Storage.retroGames.pacmanMazeTemplates = existing.map((row) => ({
+        id: row.id,
+        name: row.name,
+        rows: row.rows as string[]
+      }))
+    }
   }
 }

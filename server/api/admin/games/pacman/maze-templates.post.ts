@@ -25,6 +25,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: result.error })
   }
 
-  const template = Storage.manager.gameRetro.mazeTemplates.add(name, rows)
+  const template = await Storage.manager.gameRetro.mazeTemplates.add(name, rows)
   return { template }
 })

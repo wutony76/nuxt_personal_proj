@@ -17,6 +17,6 @@ export default defineEventHandler(async (event) => {
   }
 
   return {
-    enabled: Storage.manager.lotteryTw.toyShop.setEnabled(body.enabled)
+    enabled: await Storage.manager.lotteryTw.toyShop.setEnabled(body.enabled)
   }
 })

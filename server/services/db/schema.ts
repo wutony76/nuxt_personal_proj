@@ -139,3 +139,41 @@ export const loginHistory = pgTable('login_history', {
 }, (table) => [
   index('idx_login_history_user').on(table.userId, table.createdAt)
 ])
+
+/**
+ * 復古遊戲 coin 兌換三常數，見 openspec/changes/migrate-game-settings-postgres/design.md 第 1 節。
+ * override-only：缺列＝用 RETRO_GAME_BASE 建構子的程式碼預設值，不是「種子」表。
+ */
+export const retroGameRates = pgTable('retro_game_rates', {
+  gameKey: text('game_key').primaryKey(),
+  coinRate: numeric('coin_rate').notNull(),
+  coinCapPerRun: integer('coin_cap_per_run').notNull(),
+  coinDailyCap: integer('coin_daily_cap').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+/** 柑仔店各玩法賠率/難度/上下架，override-only（缺列＝multiplier/difficulty 1、enabled true）。 */
+export const toyShopGames = pgTable('toy_shop_games', {
+  slug: text('slug').primaryKey(),
+  multiplier: numeric('multiplier').notNull(),
+  difficulty: numeric('difficulty').notNull(),
+  enabled: boolean('enabled').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+/** 柑仔店全站總開關，固定 1 列（id='default'）。 */
+export const toyShopSettings = pgTable('toy_shop_settings', {
+  id: text('id').primaryKey().default('default'),
+  enabled: boolean('enabled').notNull()
+})
+
+/**
+ * Pac-Man 固定樣板迷宮，完整複製（不是 override-only：陣列型態沒有程式碼預設值可回退，
+ * 見 design.md 第 3c 節，需要「空則種子」分支）。
+ */
+export const pacmanMazeTemplates = pgTable('pacman_maze_templates', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  rows: jsonb('rows').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+})
