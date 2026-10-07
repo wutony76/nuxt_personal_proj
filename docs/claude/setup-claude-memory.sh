@@ -493,10 +493,24 @@ API 呼叫 + 連續 2 次重啟驗證種子不再重複累加，DB enabled/disab
 `roleDefs`/`mazeTemplates` 既有同構寫法一致，屬於「假設單一 boot 實例」的既有設計慣例，不是
 本次新增的缺陷，清乾淨單次重啟驗證無誤後繼續）
 
-**盤點清單全貌**（供之後繼續處理時參考，詳見對話記錄）：已處理（members/role-defs/game-orders/
-retro-history/pool-audit/daily-grants/role-game-perms/登入紀錄/遊戲的設定/**聊天室排程**）vs
-仍純記憶體（F幣餘額、**NPC細部設定**、F幣統計報表、台彩派彩統計報表、F幣異動明細查詢、遊戲紀錄
-查詢路徑接DB）vs 功能缺口（刪除會員 API 不存在）。使用者指定的下一批（最後一項）：**NPC 設定**。
+**`openspec/changes/migrate-npc-settings-postgres/`（2026-10-07，已實作完成並驗證通過，盤點清單
+最後一項）**：`npcAutoPlay.ts` 的 7 個記憶體 store，新增 5 張表（`npc_settings` 全域單例、
+`npc_game_presets`、`npc_member_settings` 全列寫入、`npc_member_games` 稀疏表示法「列存在=允許」、
+`npc_daily_spent` PK 只用 user_id），皆 write-through（`_dailySpent` 因高頻改 fire-and-forget，
+不擋 300ms tick）。**這批不只是設定遺失**：重啟後 `_allowedGamesByUser`/`_memberSettings` 清空
+會讓 fallback 邏輯把所有 NPC 打回「全選+同權重」，正是 `fix-npc-game-diversity` 想修的問題會
+重新發生——持久化後才真正解決。順手修正 `hfyyManage.ts` 結尾無條件 `setEnabled(true)` 覆蓋管理員
+設定的問題（改成只在 DB 未啟用/回填失敗時才強制開啟）。**意外發現並修正 Area 1 遺留 bug**：
+drizzle 的 `numeric()` 欄位型別是 `string`，`retroGameRates.ts`/`toyShop.ts` 原本直接塞 number
+在 `onConflictDoUpdate` 會型別檢查失敗（當時 typecheck 核對不夠仔細沒抓到），這次一併修正三個
+檔案。已用真實 API 呼叫+重啟驗證核心問題確實修正，`_gamePresetSeq` 不衝突，DB enabled/disabled
+兩種設定下 `npm test` 通過。
+
+**盤點清單全貌（已全數完成）**：已處理（members/role-defs/game-orders/retro-history/
+pool-audit/daily-grants/role-game-perms/登入紀錄/遊戲的設定/聊天室排程/**NPC設定**）vs 仍純記憶體
+（F幣餘額、F幣統計報表、台彩派彩統計報表、F幣異動明細查詢、遊戲紀錄查詢路徑接DB、彩池稽核查詢
+路徑接DB）vs 功能缺口（刪除會員 API 不存在）。使用者當初指定的優先序批次（遊戲設定→聊天室排程→
+NPC設定）已全數完成，剩下的都是未指定優先序、仍待使用者決定的項目。
 
 **Why:** 架構決策分階段是為了控制風險——Phase 1 先打地基，Phase 2/3 各自選擇適合自己資料特性的同步
 策略。使用者每個 Phase 完成後都明確回覆「好的」確認才繼續下一個。
@@ -514,19 +528,12 @@ retro-history/pool-audit/daily-grants/role-game-perms/登入紀錄/遊戲的設�
   `pkill -9 -f "nuxt dev"` 徹底清乾淨再啟動單一實例，不要疊加 `nohup npm run dev &`
 - 與 [[project_quota_p2_pending]]、[[project_game_history_coin_reward]] 兩份既有待辦互相呼應，
   Phase 3 design.md 明確把這兩塊列為排除範圍，仍待使用者決定是否要另開 change
-
-**NPC 設定（最後一批，2026-10-07 已派 agent 研究完成，尚未實作）的關鍵設計筆記**：
-
-- NPC 設定（`npcAutoPlay.ts`，7 個 store）：`_memberSettings`/`_allowedGamesByUser`/
-  `_nameWords`/`_gamePresets`/`_schedule`/`_enabled` 這幾個要 write-through；`_dailySpent`
-  語意等同 `retro_daily_grants`（只是沒有 game_key），一樣的「重啟配額歸零」舊 bug 可以順便修；
-  `_nextActionAt`/`_lastTickAt` 是純排程 scratch，不用持久化。**這批的真正嚴重性**：重啟後
-  `_allowedGamesByUser`/`_memberSettings` 清空會讓 `_allowedGamesOf()`/`_memberSettingOf()`
-  的 fallback 邏輯啟動（视为「全部 61 款都選」+ 套用全域權重），這正是
-  `openspec/changes/fix-npc-game-diversity` 想修的那個「NPC 玩法分布被拉平」問題——該 change
-  目前只是暫時修好，下一次重啟就會打回原形，這是這批工作的真正立論基礎，不只是「操作設定遺失」
-  而已。另外 `setStartData()` 結尾無條件 `npcAutoPlay.setEnabled(true)`，持久化後這行也要拿掉
-  （不然管理員關閉 NPC 的設定一樣重啟就被蓋回開啟）
+- **drizzle `numeric()` 欄位踩過的坑**：型別是 `string`，不是 `number`——寫入/更新時直接塞
+  JS number 在 `onConflictDoUpdate` 會型別檢查失敗（`retroGameRates.ts`/`toyShop.ts`/
+  `npcAutoPlay.ts` 都中過），一律要 `String(n)` 轉換；讀回來時用 `Number(row.x)` 轉回數字。
+  以後新表只要用到 `numeric()` 型別都要記得這點，`npm run dev`/`npm test` 不會抓到（postgres.js
+  底層照樣把 number 轉成字串送出去，只有 TypeScript 編譯期型別檢查會過不了），要跑
+  `npx nuxi typecheck` 才看得到
 EOF
 
 # ── MEMORY.md 索引 ────────────────────────────────────────────
@@ -547,7 +554,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [OpenSpec 流程擴充為 6 階段](project_openspec_workflow_6stages.md) — 新增 Validation、Engineering Evidence 兩份文件與範本（僅文件層級，未動 CLI schema）
 - [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
 - [台彩7款玩法全數完工](project_tw_lottery_suite_complete.md) — P3/P4/BINGO 補完，含期別helper重構/quota/組彩分級假設等已知待辦
-- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — Phase1-3+種子強化+角色遊戲權限+登入紀錄+遊戲設定+聊天室排程持久化皆已實作完成並驗證通過
+- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — Phase1-3+種子強化+角色遊戲權限+登入紀錄+遊戲設定+聊天室排程+NPC設定持久化皆已實作完成並驗證通過
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
