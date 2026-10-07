@@ -123,3 +123,19 @@ export const gameGlobalDisabled = pgTable('game_global_disabled', {
 }, (table) => [
   primaryKey({ columns: [table.category, table.key] })
 ])
+
+/**
+ * 登入稽核紀錄，見 openspec/changes/migrate-login-history-postgres/design.md。
+ * 全量快照同步（不裁剪，記憶體本身已有每人 100 筆上限），扁平化 user_id 取代現有
+ * Map<userId, entries[]> 分桶。
+ */
+export const loginHistory = pgTable('login_history', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  email: text('email').notNull(),
+  ip: text('ip').notNull(),
+  userAgent: text('user_agent').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull()
+}, (table) => [
+  index('idx_login_history_user').on(table.userId, table.createdAt)
+])

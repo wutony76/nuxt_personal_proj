@@ -44,5 +44,13 @@ export const loginHistoryService = {
    */
   list: (userId: string): LoginHistoryEntry[] => {
     return (byUser.get(userId) ?? []).toSorted((a, b) => b.createdAt - a.createdAt).slice(0, MAX_ROWS)
+  },
+
+  /**
+   * 供 `loginHistorySyncSource.ts` 全量快照同步使用，見
+   * openspec/changes/migrate-login-history-postgres/design.md。
+   */
+  snapshotAll: (): LoginHistoryEntry[] => {
+    return Array.from(byUser.values()).flat()
   }
 }
