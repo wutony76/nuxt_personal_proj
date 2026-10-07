@@ -462,12 +462,20 @@ change，**全部已實作完成並驗證通過（2026-10-06）**：
 的記憶體預設值，比 Phase 2 更簡單（不需要「空就跑種子」的分支）。`clearRole()` 維持純記憶體，
 DB 層級聯清理交給 `ON DELETE CASCADE`，已實測刪除角色後自動清空對應列。
 
+**`openspec/changes/migrate-login-history-postgres/`（2026-10-07，已實作完成並驗證通過）**：
+盤點清單第二項，登入稽核紀錄（`server/services/loginHistory.ts` 的 `byUser` Map）改走批次同步
+（全量快照，不裁剪，比照 `retro_game_history`/`pool_audit_*`），刻意不做 write-through（登入是
+主流程，稽核寫入失敗不該擋登入；遺失幾分鐘稽核紀錄可接受）。新增 `loginHistoryService.snapshotAll()`
+供 `loginHistorySyncSource.ts` 使用，不做開機回填（重啟後記憶體清空，比照既有 precedent）。已用
+真實登入流量（curl + 背景測試腳本產生 22 筆）實測驗證下一輪排程同步正確落地 Postgres，DB
+enabled/disabled 兩種設定下 `npm test`（38 支）皆通過（3 支已知 BG/Bingo flaky 測試重跑後正常）。
+
 **盤點清單全貌**（供之後繼續處理時參考，詳見對話記錄）：已處理（members/role-defs/game-orders/
-retro-history/pool-audit/daily-grants/role-game-perms）vs 仍純記憶體（F幣餘額、NPC細部設定、
-F幣統計報表、台彩派彩統計報表、登入紀錄、F幣異動明細查詢、遊戲紀錄查詢路徑接DB、聊天室廣播排程）
-vs 功能缺口（刪除會員 API 不存在）。建議優先序：角色遊戲權限（已做）→ 登入紀錄（可套用
-pool_audit 全量快照 pattern）→ 遊戲紀錄查詢路徑接上既有 retro_game_history 表 → F幣餘額/交易明細
-（工程量最大，需要像 game_orders 一樣走批次同步+記憶體裁剪）。
+retro-history/pool-audit/daily-grants/role-game-perms/**登入紀錄**）vs 仍純記憶體（F幣餘額、
+NPC細部設定、F幣統計報表、台彩派彩統計報表、F幣異動明細查詢、遊戲紀錄查詢路徑接DB、聊天室廣播
+排程）vs 功能缺口（刪除會員 API 不存在）。建議優先序：角色遊戲權限（已做）→ 登入紀錄（已做）→
+遊戲紀錄查詢路徑接上既有 retro_game_history 表 → F幣餘額/交易明細（工程量最大，需要像
+game_orders 一樣走批次同步+記憶體裁剪）。
 
 **Why:** 架構決策分階段是為了控制風險——Phase 1 先打地基，Phase 2/3 各自選擇適合自己資料特性的同步
 策略。使用者每個 Phase 完成後都明確回覆「好的」確認才繼續下一個。
@@ -505,7 +513,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [OpenSpec 流程擴充為 6 階段](project_openspec_workflow_6stages.md) — 新增 Validation、Engineering Evidence 兩份文件與範本（僅文件層級，未動 CLI schema）
 - [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
 - [台彩7款玩法全數完工](project_tw_lottery_suite_complete.md) — P3/P4/BINGO 補完，含期別helper重構/quota/組彩分級假設等已知待辦
-- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — Phase1-3+種子強化+角色遊戲權限持久化皆已實作完成並驗證通過
+- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — Phase1-3+種子強化+角色遊戲權限+登入紀錄持久化皆已實作完成並驗證通過
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
