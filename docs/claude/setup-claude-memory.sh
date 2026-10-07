@@ -443,6 +443,18 @@ change，**全部已實作完成並驗證通過（2026-10-06）**：
 已用三種情境實測驗證：全新 DB + 自訂帳密（只產生 2 筆 admin）、「有會員無 admin」邊界情況（重啟
 自動補建）、未設定新環境變數（行為與現狀一致）。
 
+**追加修正（同一天，使用者問「dev 執行步驟需不需要調整」後發現並修正）**：實測
+「`DATABASE_URL` 有設定但 Postgres 當下連不上」（例如忘記先開 Docker）這個情境，發現嚴重缺口——
+`hfyyManage.ts` 的 `roleDefs.rehydrateOrSeed()` 丟出未捕捉例外時，會讓
+`server/plugins/init.ts` 的 `await Storage.adminInitPromise` 整個中斷，後面的
+`SyncScheduler.start()`／300ms 遊戲 tick 迴圈／`SERV.RUN` 全部不會執行——HTTP 健康檢查仍回 200，
+但整個遊戲引擎實質沒啟動，且沒有任何畫面提示。修正：`hfyyManage.ts` 的 admin/role-defs 開機邏輯
+整段包 try/catch（失敗退回純記憶體模式繼續開機）；`server/plugins/init.ts` 的
+`rehydrateTodayDailyGrantsFromDb()` 同樣包 try/catch。**重要教訓：這類「DB 設定了但連不上」的
+開機情境，先前所有 Phase 的測試都沒有刻意模擬過（都是先確保 Docker 開著才重啟測試），直到使用者
+問了一個實務操作問題才促使我實際測試出來**——以後類似「開機時依賴外部服務」的設計，要記得測試
+「服務設定了但當下不可用」這個情境，不能只測「服務完全沒設定」跟「服務設定了且正常」兩種。
+
 **Why:** 架構決策分階段是為了控制風險——Phase 1 先打地基，Phase 2/3 各自選擇適合自己資料特性的同步
 策略。使用者每個 Phase 完成後都明確回覆「好的」確認才繼續下一個。
 
