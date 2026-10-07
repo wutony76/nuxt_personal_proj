@@ -69,18 +69,59 @@ npm run start
 > 伺服器時區固定為台灣時間：`dev`／`preview`／`start` 都會帶 `TZ=Asia/Taipei` 啟動，
 > 開獎與鎖單時間不受主機時區影響（見 [`docs/Architecture/README.md`](docs/Architecture/README.md#時區)）。
 
-### 選用：接上 PostgreSQL（Docker）
+### 選用：接上 PostgreSQL（持久化）
 
-預設完全不需要資料庫，`npm run dev` 一樣照常跑純記憶體模式。若要接上持久化：
+預設完全不需要資料庫，`npm install` + `npm run dev` 一樣照常跑純記憶體模式（重啟全歸零）。
+要讓會員/角色/遊戲紀錄真正持久化，完整步驟如下：
 
 ```bash
-cp .env.example .env     # 依需要調整 POSTGRES_* 變數
-docker compose up -d     # 啟動 postgres container
-npm run dev              # DATABASE_URL 有設定時會自動連線、開始定時同步
+# 1. 確認 Docker Desktop 已啟動
+
+# 2. 複製環境變數範例檔，依需要調整密碼與種子資料設定（見下方說明）
+cp .env.example .env
+
+# 3. 啟動 Postgres container
+docker compose up -d
+
+# 4. 建立 / 更新資料表結構（第一次設定、或 pull 到新的 schema 變更時都要跑）
+npm run db:migrate
+
+# 5. 啟動開發伺服器——DATABASE_URL 有設定時會自動連線、開始 write-through 與定時同步
+npm run dev
 ```
 
-沒有 `.env` 或沒設定 `DATABASE_URL`：伺服器完全不會嘗試連線，所有功能與目前純記憶體行為一致
-（見 `openspec/changes/add-postgres-docker/design.md` 第 5.1 節「DB 可選原則」）。
+之後開發只要 Docker 持續跑著，直接 `npm run dev` 即可，不需要每次重複第 2-4 步。
+
+#### 環境變數（`.env`，完整範例見 `.env.example`）
+
+| 變數 | 說明 | 預設值（本機開發用） |
+| --- | --- | --- |
+| `POSTGRES_USER` / `PASSWORD` / `DB` / `PORT` | `docker-compose.yml` 的 Postgres 設定 | `portfolio` / `portfolio` / `portfolio` / `5432` |
+| `DATABASE_URL` | 應用程式連線字串；留空或整行刪除即退回純記憶體模式 | 對應上面四個變數組出的本機連線字串 |
+| `SEED_DEMO_DATA` | `false` 時不自動產生 5 筆測試帳號 + 20 筆 NPC 假會員 | `true`（本機開發保留測試資料較方便） |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | 首次建立的種子管理員帳密 | `admin@example.com` / `123456` |
+
+> 正式環境上線前務必調整這幾個變數，完整檢查清單見
+> [`docs/deployment/postgres-production-checklist.md`](docs/deployment/postgres-production-checklist.md)。
+
+#### 修改資料表結構（schema）
+
+編輯 `server/services/db/schema.ts` 後，用 `npm run db:generate` 產生對應的 migration 檔案
+（存在 `drizzle/`，會進版控），再用 `npm run db:migrate` 套用到本機 Postgres。
+
+#### DB 沒接 / 連不上時的行為
+
+- **完全沒設定 `DATABASE_URL`**：伺服器不會嘗試連線，所有功能與沒有這套持久化機制前完全一樣。
+- **設定了但當下連不上**（例如忘記先啟動 Docker）：伺服器仍會正常開機、遊戲正常運作，只是退回
+  純記憶體模式繼續跑（server log 會印出 `BOOT.admin-db-init.failed` 等訊息說明原因）——不會因為
+  忘記開 Docker 就讓整個網站壞掉，但這次開機期間的操作不會被持久化，等 DB 恢復連線後重啟伺服器
+  即可補齊。
+
+見 [`openspec/changes/add-postgres-docker/`](openspec/changes/add-postgres-docker)、
+[`migrate-members-roledefs-postgres/`](openspec/changes/migrate-members-roledefs-postgres)、
+[`migrate-game-history-postgres/`](openspec/changes/migrate-game-history-postgres)、
+[`harden-postgres-for-production/`](openspec/changes/harden-postgres-for-production) 四份規劃
+文件，完整記錄了架構決策、資料表設計與驗證過程。
 
 ## 測試
 
