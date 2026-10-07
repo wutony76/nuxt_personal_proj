@@ -224,15 +224,19 @@ export class Storage {
   static init() {
     if (this.initialized) return
     // DTAT.INIT.
+    // 正式環境上線前應透過 SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD 換成正式管理帳號，不要沿用這組
+    // 預設值（見 openspec/changes/harden-postgres-for-production/design.md 第 2 節）。
+    const seedAdminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@example.com'
+    const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD || '123456'
     this.account = {
       U0xA000001: {
         id: 'U0xA000001',
         name: 'Admin',
-        email: 'admin@example.com',
+        email: seedAdminEmail,
         // 密碼在前端送出前就先用 encodePassword(password, email) 雜湊過（見 server/utils/encrypt.js），
         // 種子帳號是伺服器內部直接產生、沒有經過瀏覽器，這裡手動套用同一道雜湊，確保跟登入時
         // 前端送來的值是同一種格式，比對才會一致。
-        passwordHash: encodePasswordBcjs(encodePassword('123456', 'admin@example.com'))
+        passwordHash: encodePasswordBcjs(encodePassword(seedAdminPassword, seedAdminEmail))
       },
       U0xA666666: {
         id: 'U0xA666666',

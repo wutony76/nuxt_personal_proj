@@ -68,34 +68,47 @@ export default class HFYYManage {
     if (hasExistingMembers) {
       await this.access.rehydrateFromDb()
     } else {
-      // 初始會員：啟動時建幾筆測試帳號，方便本機／測試環境驗證後台會員功能。
-      // 密碼固定 222222，對應 app/pages/login.vue 畫面上寫的「測試帳號 test02~04@test.cc / 222222」
-      // 提示文字——之前這裡是 123456，跟畫面上的提示對不起來，照著提示登入會失敗。
-      // test04 固定指派 demo 角色，方便重啟後不用每次手動重新設定即可驗證唯讀後台體驗。
-      for (const n of ['01', '02', '03', '04', '05']) {
-        const email = `test${n}@test.cc`
-        await this.access.createMember({
-          name: `test${n}`,
-          email,
-          // createMember() 現在預期收到的 password 已經是前端雜湊過的值（見 api.ts），
-          // 這裡是伺服器內部直接呼叫、沒有經過瀏覽器，手動套用同一道 encodePassword() 保持一致。
-          password: encodePassword('222222', email),
-          role: n === '04' ? 'demo' : undefined
-        })
-      }
+      // SEED_DEMO_DATA=false（正式環境建議）時完全跳過 test/NPC 假帳號種子，只留下面的 admin
+      // 補寫（見 openspec/changes/harden-postgres-for-production/design.md 第 2、4 節）
+      const seedDemoData = process.env.SEED_DEMO_DATA !== 'false'
+      if (seedDemoData) {
+        // 初始會員：啟動時建幾筆測試帳號，方便本機／測試環境驗證後台會員功能。
+        // 密碼固定 222222，對應 app/pages/login.vue 畫面上寫的「測試帳號 test02~04@test.cc / 222222」
+        // 提示文字——之前這裡是 123456，跟畫面上的提示對不起來，照著提示登入會失敗。
+        // test04 固定指派 demo 角色，方便重啟後不用每次手動重新設定即可驗證唯讀後台體驗。
+        for (const n of ['01', '02', '03', '04', '05']) {
+          const email = `test${n}@test.cc`
+          await this.access.createMember({
+            name: `test${n}`,
+            email,
+            // createMember() 現在預期收到的 password 已經是前端雜湊過的值（見 api.ts），
+            // 這裡是伺服器內部直接呼叫、沒有經過瀏覽器，手動套用同一道 encodePassword() 保持一致。
+            password: encodePassword('222222', email),
+            role: n === '04' ? 'demo' : undefined
+          })
+        }
 
-      // 初始 NPC：啟動時自動建立 20 個 NPC 會員（從單字庫隨機組名）
-      for (let i = 0; i < 20; i++) {
-        try {
-          await this.npcAutoPlay.autoCreateMember()
-        } catch {
-          // 名稱重複加後綴已由 autoCreateMember 處理，其餘例外略過
+        // 初始 NPC：啟動時自動建立 20 個 NPC 會員（從單字庫隨機組名）
+        for (let i = 0; i < 20; i++) {
+          try {
+            await this.npcAutoPlay.autoCreateMember()
+          } catch {
+            // 名稱重複加後綴已由 autoCreateMember 處理，其餘例外略過
+          }
         }
       }
 
       // Storage.init() 已經直接建立的 2 筆種子 admin 帳號沒有經過 createMember()，
-      // 不會自動 write-through，這裡補寫一次（僅在確認 DB 是空的情況下才會真的執行 INSERT）
+      // 不會自動 write-through，這裡補寫一次（僅在確認 DB 是空的情況下才會真的執行 INSERT）。
+      // 不受 SEED_DEMO_DATA 影響：admin 帳號本身不是「demo 資料」，任何環境都需要能登入。
       await this.access.seedBootAdminsToDb([SEED_ADMIN_ID, 'U0xA666666'])
+    }
+
+    // 不管上面走哪個分支，都獨立再檢查一次「DB 裡有沒有 admin」——修正 hasExistingDbMembers()
+    // 為 true 但剛好沒有任何 admin 的邊界情況（見 harden-postgres-for-production/design.md 第 4 節）
+    const hasAdmin = await this.access.hasExistingAdmin()
+    if (!hasAdmin) {
+      await this.access.seedMissingAdmin()
     }
 
     // NPC 自動遊玩：預設開啟

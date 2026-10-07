@@ -89,12 +89,12 @@ if (hasExistingMembers) {
 // ↓ 本次新增：不管上面走哪個分支，都獨立再檢查一次「DB 裡有沒有 admin」
 const hasAdmin = await this.access.hasExistingAdmin()
 if (!hasAdmin) {
-  await this.access.seedMissingAdmin([SEED_ADMIN_ID, 'U0xA666666'])
+  await this.access.seedMissingAdmin()
 }
 ```
 
-`adminAccessService` 新增兩個方法（取代原本直接呼叫的 `seedBootAdminsToDb()`，命名與語意都更貼近
-「這是在補一個缺口」而不是「開機固定動作」）：
+`adminAccessService` 新增兩個方法，與既有的 `seedBootAdminsToDb()` 並存（不是取代——見下方
+「Implementation 階段的調整」）：
 
 ```ts
 /** DB 裡是否已經存在至少一筆 is_admin = true 的 member（跟「有沒有任何 member」是兩件事）。 */
@@ -106,13 +106,24 @@ hasExistingAdmin: async (): Promise<boolean> => {
 }
 
 /**
- * 只在「DB 裡完全沒有 admin」時才會被呼叫（見 setStartData()）。把 Storage.init() 已經直接建立、
- * 讀了 SEED_ADMIN_EMAIL/PASSWORD 的那幾筆種子 admin 帳號寫進 DB；若這幾個 id 在 DB 裡其實已經
- * 存在（例如先前 hasExistingMembers 分支已經 rehydrate 過、只是剛好不是 admin），改用 UPDATE
- * 把對應列的 is_admin 補成 true，而不是硬 INSERT 撞 primary key。
+ * 只在「DB 裡完全沒有 admin」時才會被呼叫（見 setStartData()）。
  */
-seedMissingAdmin: async (ids: string[]): Promise<void> => { /* ... */ }
+seedMissingAdmin: async (): Promise<void> => { /* ... */ }
 ```
+
+**Implementation 階段的調整（跟最初設計不同，記錄原因）**：原本規劃 `seedMissingAdmin(ids: string[])`
+直接重用 `Storage.account[id]` 現有的記憶體資料（比照 `seedBootAdminsToDb()` 的做法）。實作時發現
+這個假設不成立：`hasExistingDbMembers()` 為 true 的分支會呼叫 `rehydrateFromDb()`，那個函式會把
+`Storage.account` **整個清空重建**，只放 DB 裡真實存在的列——若 DB 剛好沒有 `U0xA000001` 這個 id
+（例如正式環境的管理帳號本來就是別的 id），`seedMissingAdmin(['U0xA000001', ...])` 會在記憶體裡找
+不到對應資料而失敗或寫入空值。
+
+改成 `seedMissingAdmin()` 不吃參數、不依賴記憶體現況，直接用 `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`
+現場組一筆（固定 id `U0xA000001`），對 DB 做 `INSERT ... ON CONFLICT (id) DO UPDATE SET
+is_admin = true`——不管這個 id 在 DB 裡原本存不存在、原本是不是 admin，一次 upsert 就能讓它變成
+admin，同時補寫回記憶體（`Storage.account`/`adminIds`）。`U0xA666666`（HappyFatYoYo 固定展示帳號）
+不在這個「補缺口」流程裡——它只在「全新 DB」情境下由既有的 `seedBootAdminsToDb()` 寫入，`seedMissingAdmin()`
+補的是單一一筆、保證系統「有得登入」即可，不強求两筆固定種子帳號都存在。
 
 **行為對照（跟 Phase 2 既有邏輯合併後的完整矩陣）：**
 

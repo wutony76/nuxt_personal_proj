@@ -1,6 +1,6 @@
 import { ADMIN_USER_IDS } from 'serv/config/admin'
 import { Storage } from 'serv/services/storage'
-import { encodePasswordBcjs } from 'serv/utils/encrypt'
+import { encodePasswordBcjs, encodePassword } from 'serv/utils/encrypt'
 import UsersClass from 'serv/services/users'
 import type { AuthRecord } from 'serv/types/storage'
 import { walletBalanceService } from 'serv/services/walletBalance'
@@ -416,6 +416,51 @@ export const adminAccessService = {
       }))
     if (rows.length === 0) return
     await getDb().insert(membersTable).values(rows)
+  },
+
+  /**
+   * 開機回填用：DB 裡是否已經存在至少一筆 admin（`is_admin = true`）。跟 `hasExistingDbMembers()`
+   * 是兩個不同判斷——DB 可能已經有一般會員、但剛好沒有任何 admin（見
+   * harden-postgres-for-production/design.md 第 4 節的情境矩陣）。
+   * @returns DB 啟用且已有 admin 時為 true
+   */
+  hasExistingAdmin: async (): Promise<boolean> => {
+    if (!isDbEnabled()) return false
+    const rows = await getDb().select({ id: membersTable.id })
+      .from(membersTable).where(eq(membersTable.isAdmin, true)).limit(1)
+    return rows.length > 0
+  },
+
+  /**
+   * 開機回填用：只在 `hasExistingAdmin()` 為 false 時才應該被呼叫，確保重啟後一定有至少一筆可登入
+   * 的 admin。跟 `seedBootAdminsToDb()`（全新 DB 情境，直接搬運記憶體裡已經存在的種子帳號）不同，
+   * 這裡不假設記憶體裡有任何特定 id 可用——`hasExistingDbMembers()` 為 true 的分支會先整個重建
+   * `Storage.account`（見 `rehydrateFromDb()`），原本寫死的 `U0xA000001` 不一定還在記憶體裡，
+   * 所以改成直接用 `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` 現場組一筆，用 id upsert（`ON
+   * CONFLICT` 補 `is_admin = true`），不依賴記憶體現況。
+   */
+  seedMissingAdmin: async (): Promise<void> => {
+    if (!isDbEnabled()) return
+    const id = 'U0xA000001'
+    const name = 'Admin'
+    const email = process.env.SEED_ADMIN_EMAIL || 'admin@example.com'
+    const password = process.env.SEED_ADMIN_PASSWORD || '123456'
+    const passwordHash = encodePasswordBcjs(encodePassword(password, email))
+
+    await getDb().insert(membersTable)
+      .values({ id, name, email, passwordHash, roleId: 'user', isAdmin: true })
+      .onConflictDoUpdate({
+        target: membersTable.id,
+        set: { isAdmin: true, updatedAt: new Date() }
+      })
+
+    const accounts = Storage.account as Record<string, AuthRecord>
+    if (!accounts[id]) {
+      accounts[id] = { id, name, email, passwordHash }
+      new UsersClass(id)
+    }
+    adminIds.add(id)
+    memberRoleId.delete(id)
   },
 
   /**
