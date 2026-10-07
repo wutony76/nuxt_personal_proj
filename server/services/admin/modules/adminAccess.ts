@@ -154,6 +154,41 @@ export const adminAccessService = {
   },
 
   /**
+   * 刪除會員（write-through：DB 啟用時先刪 DB 成功才清記憶體，見
+   * openspec/changes/add-delete-member/design.md 第 1a 節）。
+   * - `members` 列刪除會透過既有 `ON DELETE CASCADE` 自動清掉 npc_member_settings/
+   *   npc_member_games/npc_daily_spent 三張表，這裡不需要額外處理
+   * - `Storage.users[userId]` 一併刪除，連帶清掉 coin 與 23 款彩種的
+   *   balanceChanges/betHistory/claimableIssues
+   * - 刪除後若該帳號還有有效 session，一併失效，避免已刪除帳號繼續通行
+   * @param userId 要刪除的帳號
+   * @param actorId 操作者（不可刪除自己）
+   */
+  deleteMember: async (userId: string, actorId: string): Promise<void> => {
+    const accounts = Storage.account as Record<string, AuthRecord>
+    if (!accounts[userId]) throw createError({ statusCode: 404, message: '找不到該會員。' })
+    if (userId === actorId) {
+      throw createError({ statusCode: 400, message: '不可刪除自己的帳號。' })
+    }
+    if (adminIds.has(userId)) {
+      throw createError({ statusCode: 400, message: '不可直接刪除管理員帳號，請先降級為一般角色再刪除。' })
+    }
+
+    if (isDbEnabled()) {
+      await getDb().delete(membersTable).where(eq(membersTable.id, userId))
+    }
+
+    delete accounts[userId]
+    delete Storage.users[userId]
+    adminIds.delete(userId)
+    memberRoleId.delete(userId)
+
+    for (const [token, session] of Storage.get.sessions().entries()) {
+      if (session.user.id === userId) Storage.get.sessions().delete(token)
+    }
+  },
+
+  /**
    * 列出全部帳號與角色（名稱排序）
    * @returns 帳號列表
    */

@@ -1040,6 +1040,19 @@ export const npcAutoPlayService = {
   },
 
   /**
+   * 刪除會員時呼叫（見 openspec/changes/add-delete-member/design.md 第 1c 節）。純記憶體操作，
+   * DB 端的 npc_member_settings/npc_member_games/npc_daily_spent 已經由 members 表的
+   * ON DELETE CASCADE 處理，這裡不需要、也不應該重複呼叫 DB delete。
+   * @param userId 被刪除的帳號
+   */
+  removeMemberData: (userId: string): void => {
+    _allowedGamesByUser.delete(userId)
+    _memberSettings.delete(userId)
+    _dailySpent.delete(userId)
+    _nextActionAt.delete(userId)
+  },
+
+  /**
    * 開機回填（見 migrate-npc-settings-postgres/design.md 第 3g 節）：全域設定空則種子
    * （`_enabled` 種子值固定 true，對應原本 `hfyyManage.ts` 無條件 setEnabled(true) 的效果）、
    * 有則回填；個別設定/勾選遊戲/範本/今日已花費皆是「DB 有什麼就回填什麼」，沒有種子分支

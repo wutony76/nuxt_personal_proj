@@ -52,5 +52,14 @@ export const loginHistoryService = {
    */
   snapshotAll: (): LoginHistoryEntry[] => {
     return Array.from(byUser.values()).flat()
+  },
+
+  /**
+   * 刪除會員時呼叫（見 openspec/changes/add-delete-member/design.md 第 1b 節）。純記憶體操作，
+   * DB 的 `login_history` 既有列刻意保留當歷史稽核，不受影響。
+   * @param userId 被刪除的帳號
+   */
+  remove: (userId: string): void => {
+    byUser.delete(userId)
   }
 }

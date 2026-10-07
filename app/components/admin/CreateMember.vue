@@ -63,7 +63,11 @@ const state = reactive({
   loginError: '',
   loginRows: [] as AdminMemberLoginRecord[],
   searchQuery: '',
-  filterRole: 'all' as 'all' | UserRole
+  filterRole: 'all' as 'all' | UserRole,
+  removingId: '' as string,
+  removeError: '',
+  /** 待二次確認的會員 id；再次點擊同一顆刪除按鈕才會真的送出刪除 */
+  confirmingId: '' as string
 })
 
 const selected = computed(() => state.users.find((u) => u.id === state.selectedId) ?? null)
@@ -82,6 +86,8 @@ const filteredUsers = computed(() => {
 
 const _handlers = {
   roleLabel: (role: UserRole) => roleDefs.value.find((r) => r.id === role)?.name ?? role,
+  /** 不可刪除自己、不可直接刪除管理員帳號（見 add-delete-member/design.md 保護規則） */
+  canDelete: (row: AdminAccessUser) => row.id !== me.value?.id && row.role !== 'admin',
   canSetRole: (row: AdminAccessUser, next: UserRole) => {
     if (row.role === next) return false
     if (next !== 'admin' && row.id === me.value?.id) return false
@@ -330,6 +336,22 @@ const _actions = {
       state.loginError = (e as { message?: string })?.message ?? '載入登入紀錄失敗'
       state.loginStatus = 'error'
     }
+  },
+  remove: async (id: string) => {
+    if (state.removingId) return
+    state.removingId = id
+    state.removeError = ''
+    try {
+      await api.admin.deleteMember(id)
+      if (state.selectedId === id) state.selectedId = ''
+      await _actions.fetch()
+    } catch (e: unknown) {
+      state.removeError = (e as { data?: { message?: string }; message?: string })?.data?.message
+        ?? (e as { message?: string })?.message
+        ?? '刪除失敗'
+    } finally {
+      state.removingId = ''
+    }
   }
 }
 
@@ -337,6 +359,7 @@ const click = {
   select: (id: string) => {
     state.selectedId = id
     state.tab = 'info'
+    state.confirmingId = ''
     _actions.resetInfoEdit()
   },
   setTab: (tab: DetailTab) => {
@@ -347,9 +370,18 @@ const click = {
         state.selectedId = first.id
       }
     }
+    state.confirmingId = ''
     _actions.resetInfoEdit()
   },
   submit: () => _actions.create(),
+  remove: (id: string) => {
+    if (state.confirmingId !== id) {
+      state.confirmingId = id
+      return
+    }
+    state.confirmingId = ''
+    _actions.remove(id)
+  },
   startEmailEdit: () => {
     _actions.resetInfoEdit()
     state.emailEditing = true
@@ -459,7 +491,24 @@ watch(
         <div v-if="state.tab === 'info'" class="acm-info">
           <template v-if="selected">
             <div class="acm-info-card">
-              <div class="acm-info-name">{{ selected.name }}</div>
+              <div class="acm-info-head">
+                <div class="acm-info-name">{{ selected.name }}</div>
+                <fieldset v-if="_handlers.canDelete(selected)" class="admin-fieldset-reset" :disabled="isDemo"
+                  :title="isDemo ? '唯讀模式，只有查看權限' : undefined">
+                  <button type="button" class="admin-btn admin-btn-ghost acm-delete"
+                    :class="{ 'is-confirming': state.confirmingId === selected.id }"
+                    :disabled="state.removingId === selected.id" @click="click.remove(selected.id)">
+                    {{
+                      state.removingId === selected.id
+                        ? '刪除中…'
+                        : state.confirmingId === selected.id
+                          ? '再次點擊確認刪除'
+                          : '刪除會員'
+                    }}
+                  </button>
+                </fieldset>
+              </div>
+              <p v-if="state.removeError" class="acm-error">{{ state.removeError }}</p>
               <div class="acm-info-row">
                 <span class="acm-info-k">User ID</span>
                 <span class="admin-num">{{ selected.id }}</span>
@@ -899,9 +948,35 @@ watch(
   flex-shrink: 0;
 }
 
+.acm-info-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .acm-info-name {
   font-size: 18px;
   font-weight: 700;
+}
+
+.acm-delete {
+  flex-shrink: 0;
+  color: #b91c1c;
+  border: 1px solid #b91c1c;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, #dc2626 12%, var(--paper));
+  }
+
+  &.is-confirming {
+    background: #b91c1c;
+    color: var(--paper);
+
+    &:hover:not(:disabled) {
+      background: #991b1b;
+    }
+  }
 }
 
 .acm-info-row {

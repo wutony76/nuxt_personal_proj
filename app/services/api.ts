@@ -1947,6 +1947,10 @@ export const api = {
       $fetch<{ changes: AdminMemberBalanceChange[] }>(`/api/admin/members/${id}/balance-changes`),
     memberLoginHistory: (id: string) =>
       $fetch<{ logins: AdminMemberLoginRecord[] }>(`/api/admin/members/${id}/login-history`),
+    deleteMember: (id: string) =>
+      $fetch<{ ok: boolean }>(`/api/admin/members/${id}`, {
+        method: 'DELETE'
+      }),
     games: {
       updateRetroRates: (key: RetroGameKey, payload: { coinRate: number; coinCapPerRun: number; coinDailyCap: number }) =>
         $fetch<RetroGameRateInfo>(`/api/admin/games/retro/${key}/rates`, { method: 'PUT', body: payload }),
