@@ -46,11 +46,12 @@ export const adminRetroGameRatesService = {
     }
 
     if (isDbEnabled()) {
+      // coinRate 是 numeric 欄位，drizzle 型別要求 string，不能直接塞 number。
       await getDb().insert(retroGameRatesTable)
-        .values({ gameKey: key, coinRate, coinCapPerRun, coinDailyCap })
+        .values({ gameKey: key, coinRate: String(coinRate), coinCapPerRun, coinDailyCap })
         .onConflictDoUpdate({
           target: retroGameRatesTable.gameKey,
-          set: { coinRate, coinCapPerRun, coinDailyCap, updatedAt: new Date() }
+          set: { coinRate: String(coinRate), coinCapPerRun, coinDailyCap, updatedAt: new Date() }
         })
     }
 

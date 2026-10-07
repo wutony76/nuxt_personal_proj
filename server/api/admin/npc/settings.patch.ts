@@ -17,14 +17,14 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<Body>(event)
 
   if (typeof body?.enabled === 'boolean') {
-    npc.setEnabled(body.enabled)
+    await npc.setEnabled(body.enabled)
   }
   if (body?.schedule && typeof body.schedule === 'object') {
     const patch: Partial<NpcSchedule> = {}
     for (const [field, value] of Object.entries(body.schedule)) {
       if (value !== undefined) (patch as Record<string, number>)[field] = Number(value)
     }
-    npc.updateSchedule(patch)
+    await npc.updateSchedule(patch)
   }
 
   return {

@@ -43,6 +43,13 @@
       "when": 1791348545372,
       "tag": "0005_sparkling_warstar",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791349416556,
+      "tag": "0006_lean_marvex",
+      "breakpoints": true
     }
   ]
 }

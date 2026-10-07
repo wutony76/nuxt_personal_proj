@@ -82,11 +82,12 @@ export const adminToyShopService = {
     }
 
     if (isDbEnabled()) {
+      // multiplier/difficulty 是 numeric 欄位，drizzle 型別要求 string，不能直接塞 number。
       await getDb().insert(toyShopGamesTable)
-        .values({ slug, multiplier, difficulty, enabled: _gameEnabled[slug] ?? true })
+        .values({ slug, multiplier: String(multiplier), difficulty: String(difficulty), enabled: _gameEnabled[slug] ?? true })
         .onConflictDoUpdate({
           target: toyShopGamesTable.slug,
-          set: { multiplier, difficulty, updatedAt: new Date() }
+          set: { multiplier: String(multiplier), difficulty: String(difficulty), updatedAt: new Date() }
         })
     }
 
@@ -103,8 +104,9 @@ export const adminToyShopService = {
     }
 
     if (isDbEnabled()) {
+      // multiplier/difficulty 是 numeric 欄位，drizzle 型別要求 string，不能直接塞 number。
       await getDb().insert(toyShopGamesTable)
-        .values({ slug, multiplier: _odds[slug] ?? 1, difficulty: _difficulty[slug] ?? 1, enabled })
+        .values({ slug, multiplier: String(_odds[slug] ?? 1), difficulty: String(_difficulty[slug] ?? 1), enabled })
         .onConflictDoUpdate({
           target: toyShopGamesTable.slug,
           set: { enabled, updatedAt: new Date() }

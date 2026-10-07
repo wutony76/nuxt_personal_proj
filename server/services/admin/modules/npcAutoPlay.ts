@@ -7,6 +7,15 @@ import { buildBgBetPayload } from './npcBgPayload'
 import { buildTwBetPayload } from './npcTwPayload'
 import { playRandomToy } from './npcToyPlay'
 import { encodePassword } from 'serv/utils/encrypt'
+import { isDbEnabled, getDb } from 'serv/services/db'
+import {
+  npcSettings as npcSettingsTable,
+  npcGamePresets as npcGamePresetsTable,
+  npcMemberSettings as npcMemberSettingsTable,
+  npcMemberGames as npcMemberGamesTable,
+  npcDailySpent as npcDailySpentTable
+} from 'serv/services/db/schema'
+import { and, eq } from 'drizzle-orm'
 
 export type NpcGameCategory = GameCategory | 'toys'
 
@@ -286,6 +295,75 @@ function _compositeKey(category: string, key: string): string {
   return `${category}:${key}`
 }
 
+/** numeric 欄位一律轉字串：drizzle 的 numeric() 欄位型別是 string，直接塞 number 會型別不符。 */
+function _toDbSchedule(schedule: NpcSchedule) {
+  return {
+    tickIntervalSec: schedule.tickIntervalSec,
+    retroScoreMinPct: String(schedule.retroScoreMinPct),
+    retroScoreMaxPct: String(schedule.retroScoreMaxPct),
+    bgWeight: String(schedule.bgWeight),
+    retroWeight: String(schedule.retroWeight),
+    twWeight: String(schedule.twWeight),
+    toysWeight: String(schedule.toysWeight),
+    bgBetAmountMin: String(schedule.bgBetAmountMin),
+    bgBetAmountMax: String(schedule.bgBetAmountMax)
+  }
+}
+
+function _fromDbSchedule(row: typeof npcSettingsTable.$inferSelect): NpcSchedule {
+  return {
+    tickIntervalSec: row.tickIntervalSec,
+    retroScoreMinPct: Number(row.retroScoreMinPct),
+    retroScoreMaxPct: Number(row.retroScoreMaxPct),
+    bgWeight: Number(row.bgWeight),
+    retroWeight: Number(row.retroWeight),
+    twWeight: Number(row.twWeight),
+    toysWeight: Number(row.toysWeight),
+    bgBetAmountMin: Number(row.bgBetAmountMin),
+    bgBetAmountMax: Number(row.bgBetAmountMax)
+  }
+}
+
+function _toDbMemberSetting(userId: string, setting: NpcMemberSetting) {
+  return {
+    userId,
+    dailyMaxSpend: String(setting.dailyMaxSpend),
+    topUpAmount: String(setting.topUpAmount),
+    retroScoreMinPct: String(setting.retroScoreMinPct),
+    retroScoreMaxPct: String(setting.retroScoreMaxPct),
+    bgWeight: String(setting.bgWeight),
+    retroWeight: String(setting.retroWeight),
+    twWeight: String(setting.twWeight),
+    toysWeight: String(setting.toysWeight),
+    bgBetAmountMin: String(setting.bgBetAmountMin),
+    bgBetAmountMax: String(setting.bgBetAmountMax),
+    activeTimeSlots: setting.activeTimeSlots,
+    actionIntervalSec: setting.actionIntervalSec,
+    actionJitterChancePct: String(setting.actionJitterChancePct),
+    actionJitterMaxSec: String(setting.actionJitterMaxSec),
+    updatedAt: new Date()
+  }
+}
+
+function _fromDbMemberSetting(row: typeof npcMemberSettingsTable.$inferSelect): NpcMemberSetting {
+  return {
+    dailyMaxSpend: Number(row.dailyMaxSpend),
+    topUpAmount: Number(row.topUpAmount),
+    retroScoreMinPct: Number(row.retroScoreMinPct),
+    retroScoreMaxPct: Number(row.retroScoreMaxPct),
+    bgWeight: Number(row.bgWeight),
+    retroWeight: Number(row.retroWeight),
+    twWeight: Number(row.twWeight),
+    toysWeight: Number(row.toysWeight),
+    bgBetAmountMin: Number(row.bgBetAmountMin),
+    bgBetAmountMax: Number(row.bgBetAmountMax),
+    activeTimeSlots: row.activeTimeSlots as string[],
+    actionIntervalSec: row.actionIntervalSec,
+    actionJitterChancePct: Number(row.actionJitterChancePct),
+    actionJitterMaxSec: Number(row.actionJitterMaxSec)
+  }
+}
+
 /**
  * 隨機挑單字庫裡 2 個不同的單字組合成候選名稱；如果跟現有帳號名稱重複，
  * 後面直接加上遞增數字（2、3、4…）直到不重複為止。
@@ -365,7 +443,7 @@ function _randomSharePick<T>(items: T[], minPct: number, maxPct: number): T[] {
  * 並把原型的分類權重直接存成這個 NPC 的個別設定（不留給 `_memberSettingOf()`
  * 退回全域權重，否則所有 NPC 權重又會變回一樣）。
  */
-function _assignArchetype(userId: string): void {
+async function _assignArchetype(userId: string): Promise<void> {
   const archetype = _pickArchetype()
   const catalog = _fullCatalog().filter((g) => SUPPORTED_CATEGORIES.has(g.category))
 
@@ -376,10 +454,29 @@ function _assignArchetype(userId: string): void {
     _randomSharePick(itemsInCategory, minPct, maxPct)
       .forEach((g) => allowed.add(_compositeKey(g.category, g.key)))
   }
-  _allowedGamesByUser.set(userId, allowed)
 
   const base = _memberSettingOf(userId)
-  _memberSettings.set(userId, { ...base, ...archetype.categoryWeights })
+  const setting: NpcMemberSetting = { ...base, ...archetype.categoryWeights }
+
+  if (isDbEnabled()) {
+    const db = getDb()
+    const row = _toDbMemberSetting(userId, setting)
+    const { userId: _omit, ...setFields } = row
+    await db.insert(npcMemberSettingsTable).values(row)
+      .onConflictDoUpdate({ target: npcMemberSettingsTable.userId, set: setFields })
+    await db.delete(npcMemberGamesTable).where(eq(npcMemberGamesTable.userId, userId))
+    if (allowed.size > 0) {
+      await db.insert(npcMemberGamesTable).values(
+        [...allowed].map((compositeKey) => {
+          const [category, key] = compositeKey.split(':') as [string, string]
+          return { userId, category, key }
+        })
+      )
+    }
+  }
+
+  _allowedGamesByUser.set(userId, allowed)
+  _memberSettings.set(userId, setting)
 }
 
 function _dateKey(d: Date = new Date()): string {
@@ -392,9 +489,22 @@ function _spentToday(userId: string): number {
   return rec.amount
 }
 
-function _addSpent(userId: string, amount: number): void {
+/**
+ * write-through（見 migrate-npc-settings-postgres/design.md 第 3f 節）。高頻：`tick()` 的同步
+ * 路徑呼叫端一律 fire-and-forget（`void _addSpent(...).catch(...)`），不讓 tick() 被迫改 async；
+ * `testPlayAll()` 本來就是 async，直接 `await`。
+ */
+async function _addSpent(userId: string, amount: number): Promise<void> {
   const today = _dateKey()
   const rec = _dailySpent.get(userId)
+  const nextAmount = (!rec || rec.dateKey !== today) ? amount : rec.amount + amount
+
+  if (isDbEnabled()) {
+    await getDb().insert(npcDailySpentTable)
+      .values({ userId, dateKey: today, amount: String(nextAmount) })
+      .onConflictDoUpdate({ target: npcDailySpentTable.userId, set: { dateKey: today, amount: String(nextAmount), updatedAt: new Date() } })
+  }
+
   if (!rec || rec.dateKey !== today) {
     _dailySpent.set(userId, { dateKey: today, amount })
   } else {
@@ -512,14 +622,21 @@ function _allowedKeysOf(userId: string, category: NpcGameCategory): string[] {
 export const npcAutoPlayService = {
   isEnabled: (): boolean => _enabled,
 
-  setEnabled: (enabled: boolean): boolean => {
+  /** write-through（見 migrate-npc-settings-postgres/design.md 第 3a 節） */
+  setEnabled: async (enabled: boolean): Promise<boolean> => {
+    if (isDbEnabled()) {
+      await getDb().insert(npcSettingsTable)
+        .values({ id: 'default', enabled, ..._toDbSchedule(_schedule), nameWords: _nameWords })
+        .onConflictDoUpdate({ target: npcSettingsTable.id, set: { enabled } })
+    }
     _enabled = enabled
     return _enabled
   },
 
   getSchedule: (): NpcSchedule => ({ ..._schedule }),
 
-  updateSchedule: (patch: Partial<NpcSchedule>): NpcSchedule => {
+  /** write-through（見 migrate-npc-settings-postgres/design.md 第 3a 節） */
+  updateSchedule: async (patch: Partial<NpcSchedule>): Promise<NpcSchedule> => {
     const next: NpcSchedule = { ..._schedule, ...patch }
     for (const [field, value] of Object.entries(next)) {
       if (!Number.isFinite(value) || (value as number) < 0) {
@@ -536,6 +653,13 @@ export const npcAutoPlayService = {
       throw createError({ statusCode: 400, message: 'BG 彩票單注金額下限不可高於上限。' })
     }
     _assertPlayWeights(next)
+
+    if (isDbEnabled()) {
+      await getDb().insert(npcSettingsTable)
+        .values({ id: 'default', enabled: _enabled, ..._toDbSchedule(next), nameWords: _nameWords })
+        .onConflictDoUpdate({ target: npcSettingsTable.id, set: _toDbSchedule(next) })
+    }
+
     _schedule = next
     return { ..._schedule }
   },
@@ -550,8 +674,11 @@ export const npcAutoPlayService = {
 
   listNameWords: (): string[] => [..._nameWords],
 
-  /** 設定「自動新增」用的單字庫（整份取代），至少要 2 個單字才能組合出名稱 */
-  setNameWords: (words: string[]): string[] => {
+  /**
+   * 設定「自動新增」用的單字庫（整份取代），至少要 2 個單字才能組合出名稱
+   * （write-through，見 migrate-npc-settings-postgres/design.md 第 3a 節）
+   */
+  setNameWords: async (words: string[]): Promise<string[]> => {
     if (!Array.isArray(words)) {
       throw createError({ statusCode: 400, message: '單字清單格式不正確。' })
     }
@@ -559,6 +686,13 @@ export const npcAutoPlayService = {
     if (cleaned.length < 2) {
       throw createError({ statusCode: 400, message: '單字庫至少需要 2 個單字才能組合出名稱。' })
     }
+
+    if (isDbEnabled()) {
+      await getDb().insert(npcSettingsTable)
+        .values({ id: 'default', enabled: _enabled, ..._toDbSchedule(_schedule), nameWords: cleaned })
+        .onConflictDoUpdate({ target: npcSettingsTable.id, set: { nameWords: cleaned } })
+    }
+
     _nameWords = cleaned
     return [..._nameWords]
   },
@@ -587,11 +721,12 @@ export const npcAutoPlayService = {
     // 20 個 NPC 全部都玩全部遊戲，後台「資料統計／會員」的每款遊戲人數會失真地
     // 平均分散（見 fix-npc-game-diversity 的 proposal.md）。管理員之後仍可在
     // 「NPC 管理」面板手動調整這裡抽到的結果。
-    _assignArchetype(user.id)
+    await _assignArchetype(user.id)
     return user
   },
 
-  setMemberGameAllowed: (userId: string, category: NpcGameCategory, key: string, allowed: boolean): string[] => {
+  /** write-through（見 migrate-npc-settings-postgres/design.md 第 3c 節） */
+  setMemberGameAllowed: async (userId: string, category: NpcGameCategory, key: string, allowed: boolean): Promise<string[]> => {
     if (adminAccessService.roleOf(userId) !== 'npc') {
       throw createError({ statusCode: 400, message: '此會員不是 NPC 角色。' })
     }
@@ -600,6 +735,20 @@ export const npcAutoPlayService = {
     if (!SUPPORTED_CATEGORIES.has(category)) {
       throw createError({ statusCode: 400, message: '此分類尚未支援 NPC 自動遊玩。' })
     }
+
+    if (isDbEnabled()) {
+      const db = getDb()
+      if (allowed) {
+        await db.insert(npcMemberGamesTable).values({ userId, category, key }).onConflictDoNothing()
+      } else {
+        await db.delete(npcMemberGamesTable).where(and(
+          eq(npcMemberGamesTable.userId, userId),
+          eq(npcMemberGamesTable.category, category),
+          eq(npcMemberGamesTable.key, key)
+        ))
+      }
+    }
+
     const set = _allowedGamesOf(userId)
     const compositeKey = _compositeKey(category, key)
     if (allowed) set.add(compositeKey)
@@ -607,28 +756,52 @@ export const npcAutoPlayService = {
     return [...set]
   },
 
-  /** 快捷選擇：把某個 NPC 在某分類底下、所有已支援的遊戲一次全選或全不選 */
-  setMemberGamesBulk: (userId: string, category: NpcGameCategory, allowed: boolean): string[] => {
+  /**
+   * 快捷選擇：把某個 NPC 在某分類底下、所有已支援的遊戲一次全選或全不選
+   * （write-through，見 migrate-npc-settings-postgres/design.md 第 3c 節）
+   */
+  setMemberGamesBulk: async (userId: string, category: NpcGameCategory, allowed: boolean): Promise<string[]> => {
     if (adminAccessService.roleOf(userId) !== 'npc') {
       throw createError({ statusCode: 400, message: '此會員不是 NPC 角色。' })
     }
     if (!SUPPORTED_CATEGORIES.has(category)) {
       throw createError({ statusCode: 400, message: '此分類尚未支援 NPC 自動遊玩。' })
     }
-    const set = _allowedGamesOf(userId)
     const keysInCategory = _fullCatalog()
       .filter((g) => g.category === category)
-      .map((g) => _compositeKey(g.category, g.key))
-    if (allowed) keysInCategory.forEach((k) => set.add(k))
-    else keysInCategory.forEach((k) => set.delete(k))
+      .map((g) => g.key)
+
+    if (isDbEnabled()) {
+      const db = getDb()
+      if (allowed) {
+        if (keysInCategory.length > 0) {
+          await db.insert(npcMemberGamesTable)
+            .values(keysInCategory.map((key) => ({ userId, category, key })))
+            .onConflictDoNothing()
+        }
+      } else {
+        await db.delete(npcMemberGamesTable).where(and(
+          eq(npcMemberGamesTable.userId, userId),
+          eq(npcMemberGamesTable.category, category)
+        ))
+      }
+    }
+
+    const set = _allowedGamesOf(userId)
+    const compositeKeysInCategory = keysInCategory.map((key) => _compositeKey(category, key))
+    if (allowed) compositeKeysInCategory.forEach((k) => set.add(k))
+    else compositeKeysInCategory.forEach((k) => set.delete(k))
     return [...set]
   },
 
   listGamePresets: (): NpcGamePreset[] =>
     [..._gamePresets.values()].sort((a, b) => b.createdAt - a.createdAt),
 
-  /** 把一組遊戲勾選（通常是目前某個 NPC 的 allowedGames）保存成一個可重複套用的命名範本 */
-  saveGamePreset: (name: string, allowedGames: string[]): NpcGamePreset => {
+  /**
+   * 把一組遊戲勾選（通常是目前某個 NPC 的 allowedGames）保存成一個可重複套用的命名範本
+   * （write-through，見 migrate-npc-settings-postgres/design.md 第 3d 節）
+   */
+  saveGamePreset: async (name: string, allowedGames: string[]): Promise<NpcGamePreset> => {
     const trimmed = name.trim()
     if (!trimmed) throw createError({ statusCode: 400, message: '請輸入保存的名稱。' })
     if (!Array.isArray(allowedGames)) {
@@ -642,24 +815,52 @@ export const npcAutoPlayService = {
     const filtered = [...new Set(allowedGames)].filter((k) => validKeys.has(k))
     const id = `preset-${++_gamePresetSeq}`
     const preset: NpcGamePreset = { id, name: trimmed, allowedGames: filtered, createdAt: Date.now() }
+
+    if (isDbEnabled()) {
+      await getDb().insert(npcGamePresetsTable).values({
+        id, name: preset.name, allowedGames: preset.allowedGames, createdAt: new Date(preset.createdAt)
+      })
+    }
+
     _gamePresets.set(id, preset)
     return preset
   },
 
-  /** 快選：把某個保存範本的遊戲勾選整份套用到指定 NPC，取代它原本的勾選 */
-  applyGamePreset: (userId: string, presetId: string): string[] => {
+  /**
+   * 快選：把某個保存範本的遊戲勾選整份套用到指定 NPC，取代它原本的勾選
+   * （write-through，見 migrate-npc-settings-postgres/design.md 第 3c 節）
+   */
+  applyGamePreset: async (userId: string, presetId: string): Promise<string[]> => {
     if (adminAccessService.roleOf(userId) !== 'npc') {
       throw createError({ statusCode: 400, message: '此會員不是 NPC 角色。' })
     }
     const preset = _gamePresets.get(presetId)
     if (!preset) throw createError({ statusCode: 404, message: '找不到這個保存的設定。' })
+
+    if (isDbEnabled()) {
+      const db = getDb()
+      await db.delete(npcMemberGamesTable).where(eq(npcMemberGamesTable.userId, userId))
+      if (preset.allowedGames.length > 0) {
+        await db.insert(npcMemberGamesTable).values(
+          preset.allowedGames.map((compositeKey) => {
+            const [category, key] = compositeKey.split(':') as [string, string]
+            return { userId, category, key }
+          })
+        )
+      }
+    }
+
     const set = _allowedGamesOf(userId)
     set.clear()
     preset.allowedGames.forEach((k) => set.add(k))
     return [...set]
   },
 
-  deleteGamePreset: (presetId: string): void => {
+  /** write-through（見 migrate-npc-settings-postgres/design.md 第 3d 節） */
+  deleteGamePreset: async (presetId: string): Promise<void> => {
+    if (isDbEnabled()) {
+      await getDb().delete(npcGamePresetsTable).where(eq(npcGamePresetsTable.id, presetId))
+    }
     _gamePresets.delete(presetId)
   },
 
@@ -692,7 +893,8 @@ export const npcAutoPlayService = {
         }
       }),
 
-  setMemberSetting: (userId: string, patch: {
+  /** write-through（見 migrate-npc-settings-postgres/design.md 第 3e 節） */
+  setMemberSetting: async (userId: string, patch: {
     dailyMaxSpend?: number
     topUpAmount?: number
     retroScoreMinPct?: number
@@ -707,7 +909,7 @@ export const npcAutoPlayService = {
     actionIntervalSec?: number
     actionJitterChancePct?: number
     actionJitterMaxSec?: number
-  }): NpcMemberSetting => {
+  }): Promise<NpcMemberSetting> => {
     if (adminAccessService.roleOf(userId) !== 'npc') {
       throw createError({ statusCode: 400, message: '此會員不是 NPC 角色。' })
     }
@@ -803,6 +1005,14 @@ export const npcAutoPlayService = {
       current.actionJitterMaxSec = patch.actionJitterMaxSec
     }
     _assertPlayWeights(current)
+
+    if (isDbEnabled()) {
+      const row = _toDbMemberSetting(userId, current)
+      const { userId: _omit, ...setFields } = row
+      await getDb().insert(npcMemberSettingsTable).values(row)
+        .onConflictDoUpdate({ target: npcMemberSettingsTable.userId, set: setFields })
+    }
+
     _memberSettings.set(userId, current)
     return { ...current }
   },
@@ -826,6 +1036,67 @@ export const npcAutoPlayService = {
         // 單一 NPC 這次行動失敗（例如遊戲目前不開盤），略過即可，不影響其他 NPC
       }
       _scheduleNextAction(userId, now)
+    }
+  },
+
+  /**
+   * 開機回填（見 migrate-npc-settings-postgres/design.md 第 3g 節）：全域設定空則種子
+   * （`_enabled` 種子值固定 true，對應原本 `hfyyManage.ts` 無條件 setEnabled(true) 的效果）、
+   * 有則回填；個別設定/勾選遊戲/範本/今日已花費皆是「DB 有什麼就回填什麼」，沒有種子分支
+   * （`_allowedGamesOf()`/`_memberSettingOf()` 原本的 fallback 邏輯本來就會接手空值情況）。
+   */
+  rehydrateOrSeed: async (): Promise<void> => {
+    if (!isDbEnabled()) return
+    const db = getDb()
+
+    const settingsRow = await db.select().from(npcSettingsTable)
+      .where(eq(npcSettingsTable.id, 'default')).then((rows) => rows[0])
+    if (!settingsRow) {
+      await db.insert(npcSettingsTable).values({
+        id: 'default', enabled: true, ..._toDbSchedule(_schedule), nameWords: _nameWords
+      })
+      _enabled = true
+    } else {
+      _enabled = settingsRow.enabled
+      _schedule = _fromDbSchedule(settingsRow)
+      _nameWords = settingsRow.nameWords as string[]
+    }
+
+    const presetRows = await db.select().from(npcGamePresetsTable)
+    _gamePresets.clear()
+    let maxSeq = 0
+    for (const row of presetRows) {
+      _gamePresets.set(row.id, {
+        id: row.id,
+        name: row.name,
+        allowedGames: row.allowedGames as string[],
+        createdAt: row.createdAt.getTime()
+      })
+      const m = /^preset-(\d+)$/.exec(row.id)
+      if (m) maxSeq = Math.max(maxSeq, Number(m[1]))
+    }
+    _gamePresetSeq = maxSeq
+
+    const [memberSettingRows, memberGameRows] = await Promise.all([
+      db.select().from(npcMemberSettingsTable),
+      db.select().from(npcMemberGamesTable)
+    ])
+    _memberSettings.clear()
+    for (const row of memberSettingRows) _memberSettings.set(row.userId, _fromDbMemberSetting(row))
+    _allowedGamesByUser.clear()
+    for (const row of memberGameRows) {
+      if (!_allowedGamesByUser.has(row.userId)) _allowedGamesByUser.set(row.userId, new Set())
+      _allowedGamesByUser.get(row.userId)!.add(_compositeKey(row.category, row.key))
+    }
+
+    // 今日已花費：只回填 date_key 等於今天的列（比照 retro_daily_grants 的
+    // rehydrateTodayDailyGrantsFromDb()，跨日的舊資料視為「今天還沒花」）
+    const today = _dateKey()
+    const spentRows = await db.select().from(npcDailySpentTable)
+    _dailySpent.clear()
+    for (const row of spentRows) {
+      if (row.dateKey !== today) continue
+      _dailySpent.set(row.userId, { dateKey: row.dateKey, amount: Number(row.amount) })
     }
   }
 }
@@ -899,7 +1170,7 @@ function _playRandomRetro(userId: string): void {
   const key = keys[Math.floor(Math.random() * keys.length)] as string
   const game = (Storage.retroGames.instances as Record<string, {
     maxReasonableScore: () => number
-    actions: { record: (userId: string, input: { score: number }) => unknown }
+    actions: { record: (userId: string, input: { score: number }) => Promise<unknown> }
   } | undefined>)[key]
   if (!game) return
 
@@ -934,7 +1205,9 @@ function _playRandomBg(userId: string): void {
   const game = (Storage.games as Record<string, { playBets: (payload: unknown, user: unknown) => unknown } | undefined>)[key]
   if (!game) return
   game.playBets(payload, user)
-  _addSpent(userId, amount)
+  void _addSpent(userId, amount).catch((error) => {
+    console.error('NPC.playRandomBg.addSpent.failed', userId, error)
+  })
 }
 
 function _playRandomTw(userId: string): void {
@@ -955,7 +1228,9 @@ function _playRandomTw(userId: string): void {
   const game = (Storage.games as Record<string, { playBets: (payload: unknown, user: unknown) => unknown } | undefined>)[key]
   if (!game) return
   game.playBets(payload, user)
-  _addSpent(userId, betAmount)
+  void _addSpent(userId, betAmount).catch((error) => {
+    console.error('NPC.playRandomTw.addSpent.failed', userId, error)
+  })
 }
 
 export type TestPlayResultItem = {
@@ -1014,7 +1289,7 @@ export async function testPlayAll(userId: string): Promise<TestPlayResultItem[]>
           continue
         }
         game.playBets(payload, user)
-        _addSpent(userId, amount)
+        await _addSpent(userId, amount)
         results.push({ compositeKey, category: cat, key, name, status: 'ok', note: `bet: ${amount} coin` })
 
       } else if (cat === 'tw') {
@@ -1031,7 +1306,7 @@ export async function testPlayAll(userId: string): Promise<TestPlayResultItem[]>
           continue
         }
         game.playBets(built.payload, user)
-        _addSpent(userId, built.betAmount)
+        await _addSpent(userId, built.betAmount)
         results.push({ compositeKey, category: cat, key, name, status: 'ok', note: `bet: ${built.betAmount} coin` })
 
       } else if (cat === 'toys') {
@@ -1041,7 +1316,7 @@ export async function testPlayAll(userId: string): Promise<TestPlayResultItem[]>
         if (spent === null) {
           results.push({ compositeKey, category: cat, key, name, status: 'skipped', note: '玩法未開放或餘額不足' })
         } else {
-          _addSpent(userId, spent)
+          await _addSpent(userId, spent)
           results.push({ compositeKey, category: cat, key, name, status: 'ok', note: `bet: ${spent} coin` })
         }
       } else {
@@ -1067,5 +1342,9 @@ function _playRandomToys(userId: string): void {
   _topUpIfNeeded(userId, minBet, setting)
 
   const spent = playRandomToy(userId, keys)
-  if (spent !== null && spent > 0) _addSpent(userId, spent)
+  if (spent !== null && spent > 0) {
+    void _addSpent(userId, spent).catch((error) => {
+      console.error('NPC.playRandomToys.addSpent.failed', userId, error)
+    })
+  }
 }

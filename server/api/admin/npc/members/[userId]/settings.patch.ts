@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
   const userId = getRouterParam(event, 'userId') ?? ''
   const body = await readBody<Body>(event)
 
-  return Storage.manager.admin.npcAutoPlay.setMemberSetting(userId, {
+  return await Storage.manager.admin.npcAutoPlay.setMemberSetting(userId, {
     dailyMaxSpend: body?.dailyMaxSpend !== undefined ? Number(body.dailyMaxSpend) : undefined,
     topUpAmount: body?.topUpAmount !== undefined ? Number(body.topUpAmount) : undefined,
     retroScoreMinPct: body?.retroScoreMinPct !== undefined ? Number(body.retroScoreMinPct) : undefined,

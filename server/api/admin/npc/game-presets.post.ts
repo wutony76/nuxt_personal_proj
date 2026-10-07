@@ -16,5 +16,5 @@ export default defineEventHandler(async (event) => {
   const name = typeof body?.name === 'string' ? body.name : ''
   const allowedGames = Array.isArray(body?.allowedGames) ? body.allowedGames.map(String) : []
 
-  return Storage.manager.admin.npcAutoPlay.saveGamePreset(name, allowedGames)
+  return await Storage.manager.admin.npcAutoPlay.saveGamePreset(name, allowedGames)
 })

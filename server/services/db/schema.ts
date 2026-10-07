@@ -194,3 +194,77 @@ export const chatSchedules = pgTable('chat_schedules', {
   createdByName: text('created_by_name').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull()
 })
+
+/**
+ * NPC 全域設定，固定 1 列（id='default'），見
+ * openspec/changes/migrate-npc-settings-postgres/design.md 第 1 節。
+ */
+export const npcSettings = pgTable('npc_settings', {
+  id: text('id').primaryKey().default('default'),
+  enabled: boolean('enabled').notNull(),
+  tickIntervalSec: integer('tick_interval_sec').notNull(),
+  retroScoreMinPct: numeric('retro_score_min_pct').notNull(),
+  retroScoreMaxPct: numeric('retro_score_max_pct').notNull(),
+  bgWeight: numeric('bg_weight').notNull(),
+  retroWeight: numeric('retro_weight').notNull(),
+  twWeight: numeric('tw_weight').notNull(),
+  toysWeight: numeric('toys_weight').notNull(),
+  bgBetAmountMin: numeric('bg_bet_amount_min').notNull(),
+  bgBetAmountMax: numeric('bg_bet_amount_max').notNull(),
+  nameWords: jsonb('name_words').notNull()
+})
+
+/** NPC 遊戲勾選範本。 */
+export const npcGamePresets = pgTable('npc_game_presets', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  allowedGames: jsonb('allowed_games').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull()
+})
+
+/**
+ * 每個 NPC 的個別設定，全列寫入（不是 override-only，見 design.md 第 2 節：
+ * `_assignArchetype()` 在 NPC 建立當下就會寫入完整一列，這張表實務上是密集的）。
+ */
+export const npcMemberSettings = pgTable('npc_member_settings', {
+  userId: text('user_id').primaryKey().references(() => members.id, { onDelete: 'cascade' }),
+  dailyMaxSpend: numeric('daily_max_spend').notNull(),
+  topUpAmount: numeric('top_up_amount').notNull(),
+  retroScoreMinPct: numeric('retro_score_min_pct').notNull(),
+  retroScoreMaxPct: numeric('retro_score_max_pct').notNull(),
+  bgWeight: numeric('bg_weight').notNull(),
+  retroWeight: numeric('retro_weight').notNull(),
+  twWeight: numeric('tw_weight').notNull(),
+  toysWeight: numeric('toys_weight').notNull(),
+  bgBetAmountMin: numeric('bg_bet_amount_min').notNull(),
+  bgBetAmountMax: numeric('bg_bet_amount_max').notNull(),
+  activeTimeSlots: jsonb('active_time_slots').notNull(),
+  actionIntervalSec: integer('action_interval_sec').notNull(),
+  actionJitterChancePct: numeric('action_jitter_chance_pct').notNull(),
+  actionJitterMaxSec: numeric('action_jitter_max_sec').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+/**
+ * 每個 NPC 勾選的遊戲，稀疏表示法：一列存在＝允許（跟 `role_game_perms`「列存在＝關閉」
+ * 相反語意，見 design.md 第 1 節）。
+ */
+export const npcMemberGames = pgTable('npc_member_games', {
+  userId: text('user_id').notNull().references(() => members.id, { onDelete: 'cascade' }),
+  category: text('category').notNull(),
+  key: text('key').notNull()
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.category, table.key] })
+])
+
+/**
+ * NPC 每日已花費，PK 只用 user_id（不是 `(user_id, date_key)`）：跟記憶體的
+ * `Map<userId, {dateKey, amount}>` 語意一致，每人只有「當前這一天」一筆計數器，跨日覆蓋，
+ * 不像 `retro_daily_grants` 保留逐日歷史，見 design.md 第 1 節。
+ */
+export const npcDailySpent = pgTable('npc_daily_spent', {
+  userId: text('user_id').primaryKey().references(() => members.id, { onDelete: 'cascade' }),
+  dateKey: text('date_key').notNull(),
+  amount: numeric('amount').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})

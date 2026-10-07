@@ -77,6 +77,7 @@ export default class HFYYManage {
     // try/catch 裡，失敗就記 log 退回「只有 Storage.init() 種的 2 筆硬編碼 admin」繼續開機，
     // 絕不能讓 DB 連線問題卡住後面的遊戲 tick 迴圈／定時同步排程啟動（見
     // openspec/changes/harden-postgres-for-production/validation.md 的後續追蹤紀錄）。
+    let dbInitSucceeded = false
     try {
       await this.roleDefs.rehydrateOrSeed()
       // 角色遊戲權限開關沒有種子概念（空 DB 天然對應「全部開啟」的記憶體預設值），直接回填即可，
@@ -140,6 +141,14 @@ export default class HFYYManage {
       if (!hasAdmin) {
         await this.access.seedMissingAdmin()
       }
+
+      // NPC 設定：空則種子（_enabled 固定 true）、有則回填，見
+      // openspec/changes/migrate-npc-settings-postgres/design.md 第 3g 節。放在 members
+      // 回填/種子分支之後——雖然這裡只是 SELECT，但 npc_member_settings/npc_member_games/
+      // npc_daily_spent 都有 FK 指向 members.id，跟既有「members 先、附屬設定後」的順序
+      // 保持一致，閱讀起來更合理。
+      await this.npcAutoPlay.rehydrateOrSeed()
+      dbInitSucceeded = true
     } catch (error) {
       console.error(
         'BOOT.admin-db-init.failed —— 開機時無法連線/查詢 Postgres（DATABASE_URL 有設定但 DB 當下' +
@@ -149,7 +158,12 @@ export default class HFYYManage {
       )
     }
 
-    // 不管上面成功與否都要執行：NPC 自動遊玩預設開啟，不能讓 DB 問題連這個也卡住
-    this.npcAutoPlay.setEnabled(true)
+    // DB 未啟用，或啟用了但開機回填失敗（DB 連不上）：維持「NPC 自動遊玩預設開啟」的既有安全
+    // 預設值，不能讓 DB 問題連這個也卡住。DB 啟用且回填成功時，尊重 rehydrateOrSeed() 從 DB
+    // 讀回的 _enabled 值（新環境一樣會是 true，但既有環境若管理員手動關閉過，重啟後必須維持
+    // 關閉，見 migrate-npc-settings-postgres/design.md 第 4 節）。
+    if (!isDbEnabled() || !dbInitSucceeded) {
+      await this.npcAutoPlay.setEnabled(true)
+    }
   }
 }

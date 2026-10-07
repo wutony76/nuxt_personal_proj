@@ -16,6 +16,6 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<Body>(event)
   const presetId = typeof body?.presetId === 'string' ? body.presetId : ''
 
-  const allowedGames = Storage.manager.admin.npcAutoPlay.applyGamePreset(userId, presetId)
+  const allowedGames = await Storage.manager.admin.npcAutoPlay.applyGamePreset(userId, presetId)
   return { allowedGames }
 })

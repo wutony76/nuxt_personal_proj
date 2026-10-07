@@ -14,6 +14,6 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<Body>(event)
   const words = Array.isArray(body?.words) ? body.words.map(String) : []
 
-  const nameWords = Storage.manager.admin.npcAutoPlay.setNameWords(words)
+  const nameWords = await Storage.manager.admin.npcAutoPlay.setNameWords(words)
   return { nameWords }
 })

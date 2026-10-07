@@ -21,6 +21,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'allowed 必須是 boolean。' })
   }
 
-  const allowedGames = Storage.manager.admin.npcAutoPlay.setMemberGameAllowed(userId, category, key, body.allowed)
+  const allowedGames = await Storage.manager.admin.npcAutoPlay.setMemberGameAllowed(userId, category, key, body.allowed)
   return { allowedGames }
 })
