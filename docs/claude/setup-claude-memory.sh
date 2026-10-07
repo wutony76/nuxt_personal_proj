@@ -376,11 +376,10 @@ EOF
 cat > "$MEMORY_DIR/project_postgres_migration_plan.md" << 'EOF'
 ---
 name: project-postgres-migration-plan
-description: Postgres+Docker 持久化遷移規劃分三個 OpenSpec change（Phase 1/2/3），全部已實作完成並驗證通過
+description: Postgres+Docker 持久化遷移（Phase 1/2/3）與正式環境種子資料強化皆已實作完成並驗證通過
 metadata:
   type: project
 ---
-
 使用者決定把目前完全純記憶體（重啟全歸零）的架構導入 PostgreSQL（Docker 部署），拆成三個獨立 OpenSpec
 change，**全部已實作完成並驗證通過（2026-10-06）**：
 
@@ -423,11 +422,26 @@ change，**全部已實作完成並驗證通過（2026-10-06）**：
   - 重啟會遺失「進行中期別」的 orders（配額驗證對那期重新從 0 算），刻意取捨，Phase 3 design.md
     已記錄為已知限制
 
-**後續規劃（2026-10-07，純規劃未執行）**：`openspec/changes/harden-postgres-for-production/` ——
-上線前把 Phase 2 開機種子邏輯（寫死 admin 密碼 `admin@example.com`/`123456`、自動產生 5 筆測試+20 筆
-NPC 假帳號）改成環境變數可控（`SEED_DEMO_DATA`/`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`，未設定時
-fallback 回現況、向下相容），並整理一份部署檢查清單文件（密碼/防火牆/備份）。這是使用者問「真正上線
-資料庫要怎麼建立」後延伸出的規劃，只到 proposal/design/tasks，**尚未實作**。
+**`openspec/changes/harden-postgres-for-production/`（2026-10-07，已實作完成並驗證通過）**：
+上線前把 Phase 2 開機種子邏輯（原本寫死 admin 密碼 `admin@example.com`/`123456`、自動產生 5 筆
+測試+20 筆 NPC 假帳號）改成環境變數可控：
+
+- `SEED_DEMO_DATA`（預設 true）：`false` 時正式環境不會自動產生測試/NPC 假帳號
+- `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`：種子 admin 帳號（`U0xA000001`）改讀這兩個環境變數
+- **新增 `hasExistingAdmin()` 獨立判斷**（使用者明確要求）：跟「DB 有沒有任何 member」是兩個不同
+  判斷，修正了一個真實存在的缺口——原本 admin 建立綁死在「DB 是否已有任何會員」的分支下，若 DB
+  已有一般會員但沒有任何 admin（例如 admin 被誤刪），開機永遠不會補建，後台會永遠進不去。現在
+  `hasExistingAdmin()` 在既有的 `hasExistingDbMembers()`/`rehydrateFromDb()` 分支執行後獨立再檢查
+  一次，沒有 admin 就呼叫 `seedMissingAdmin()` 補建
+- **實作階段的設計調整**：`seedMissingAdmin()` 原規劃吃 `ids: string[]` 參數、重用記憶體裡現有的
+  帳號資料，但發現 `rehydrateFromDb()` 會整個重建 `Storage.account`，不保證特定 id 還在記憶體裡
+  ——改成不吃參數、直接用環境變數現場組一筆並對 DB 做 upsert（`ON CONFLICT DO UPDATE SET
+  is_admin = true`），不依賴記憶體現況
+- 另外整理了 `docs/deployment/postgres-production-checklist.md` 部署檢查清單（密碼/防火牆/備份/
+  監控/開機自我檢查）
+
+已用三種情境實測驗證：全新 DB + 自訂帳密（只產生 2 筆 admin）、「有會員無 admin」邊界情況（重啟
+自動補建）、未設定新環境變數（行為與現狀一致）。
 
 **Why:** 架構決策分階段是為了控制風險——Phase 1 先打地基，Phase 2/3 各自選擇適合自己資料特性的同步
 策略。使用者每個 Phase 完成後都明確回覆「好的」確認才繼續下一個。
@@ -465,7 +479,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [OpenSpec 流程擴充為 6 階段](project_openspec_workflow_6stages.md) — 新增 Validation、Engineering Evidence 兩份文件與範本（僅文件層級，未動 CLI schema）
 - [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
 - [台彩7款玩法全數完工](project_tw_lottery_suite_complete.md) — P3/P4/BINGO 補完，含期別helper重構/quota/組彩分級假設等已知待辦
-- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — 三個 Phase 全部已實作完成並驗證通過
+- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — 三個 Phase + 正式環境種子資料強化皆已實作完成並驗證通過
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
