@@ -21,6 +21,12 @@
   - [Q6. 權限檢查的 hydration 修法，為什麼用 `isHydrating`，不用 `useAsyncData` 包住 guard？](#q6-權限檢查的-hydration-修法為什麼用-ishydrating不用-useasyncdata-包住-guard)
 - [時區與測試](#時區與測試)
   - [Q7. 為什麼在 worker thread 改 `TZ` 無效？為什麼測試要用 UTC 跑？](#q7-為什麼在-worker-thread-改-tz-無效為什麼測試要用-utc-跑)
+- [部署與維運](#部署與維運)
+  - [Q8. 為什麼這個專案只能跑 1 個 Node process？](#q8-為什麼這個專案只能跑-1-個-node-process)
+  - [Q9. 為什麼 production 一定要 HTTPS？](#q9-為什麼-production-一定要-https)
+  - [Q10. 為什麼 `import 'crypto-js/enc-base64'` 在 dev 正常，production 卻啟動失敗？](#q10-為什麼-import-crypto-jsenc-base64-在-dev-正常production-卻啟動失敗)
+  - [Q11. 為什麼用 Cloud SQL Auth Proxy，不直接連資料庫 IP？](#q11-為什麼用-cloud-sql-auth-proxy不直接連資料庫-ip)
+  - [Q12. 部署失敗怎麼自動回滾？為什麼 migration 要跟上一版相容？](#q12-部署失敗怎麼自動回滾為什麼-migration-要跟上一版相容)
 
 ---
 
@@ -304,3 +310,144 @@ if (nuxtApp.isHydrating && (checked.value || (authInitialized.value && !isLogged
   改動範圍大、風險高。全域固定時區已經涵蓋，這次先把最核心的開獎計算改成不依賴時區，並用測試鎖住。
 - **為什麼共用函式不放進 base class？**
   base class 會載入整個伺服器服務圖，放進去就無法單獨寫單元測試。獨立的純函式沒有相依，測試可以直接 import。
+
+---
+
+## 部署與維運
+
+### Q8. 為什麼這個專案只能跑 1 個 Node process？
+
+**30 秒回答**
+
+開獎排程、WebSocket 連線和部分遊戲狀態都存在 process 的記憶體裡。開兩個 process，各自會有一份狀態和一組排程：同一期可能被結算兩次，使用者連到不同 process 會看到不同資料，聊天室訊息也只會送給連到同一個 process 的人。所以部署時固定只跑 1 個，水平擴展要先把狀態移到外部（資料庫、Redis）才行。
+
+**完整說明**
+
+| 狀態 | 存在哪裡 | 多 process 的後果 |
+|---|---|---|
+| 開獎與結算排程 | `server/plugins/init.ts` 的背景迴圈 | 每個 process 都跑一份，重複結算 |
+| 彩票當期狀態、彩池 | 記憶體 | 各 process 數字不同 |
+| WebSocket 連線 | 各 process 自己持有 | 廣播只送到同一個 process 的連線 |
+| 會員、權限、遊戲紀錄 | 資料庫（有設定 `DATABASE_URL` 時） | 不受影響 |
+
+這也影響平台選擇：Cloud Run 這類會自動擴縮的服務，必須設定最少、最多都是 1 台，並開啟 CPU 常駐（否則沒有請求時背景排程會停），費用因此比 VM 高。
+
+**在這個專案**
+
+- [deploy/gcp-vm/ecosystem.config.cjs](../../deploy/gcp-vm/ecosystem.config.cjs)：`exec_mode: 'fork'`、`instances: 1`。
+
+**可能的追問**
+
+- **如果要擴展到多台怎麼做？**
+  排程改成只在一個 leader 執行（或用外部排程器），即時狀態移到 Redis，WebSocket 廣播透過 Redis pub/sub 轉發到所有 process。
+
+---
+
+### Q9. 為什麼 production 一定要 HTTPS？
+
+**30 秒回答**
+
+登入 cookie 在 production 設了 `secure: true`，瀏覽器只會在 HTTPS 連線下儲存和送出這個 cookie。如果用純 HTTP 部署，登入 API 會回成功，但 cookie 存不下來，下一個請求就變回未登入。所以部署架構裡用 Caddy 自動申請 Let's Encrypt 憑證提供 HTTPS。
+
+**完整說明**
+
+```ts
+// server/services/auth.ts
+{ httpOnly: true, sameSite: 'lax', secure: isProduction, ... }
+```
+
+| 屬性 | 作用 |
+|---|---|
+| `secure` | 只在 HTTPS 傳送，避免 cookie 在網路上被竊聽 |
+| `httpOnly` | JavaScript 讀不到，降低 XSS 偷 cookie 的風險 |
+| `sameSite: 'lax'` | 跨站請求不帶 cookie，降低 CSRF 風險 |
+
+dev 環境是 `http://localhost`，所以 `secure` 只在 production 開啟。
+
+**在這個專案**
+
+- [deploy/gcp-vm/Caddyfile.template](../../deploy/gcp-vm/Caddyfile.template)：Caddy 反向代理並自動處理憑證；Node 只聽 `127.0.0.1`，外部無法繞過 HTTPS 直接連線。
+- 沒有網域時可以用 `sslip.io`（例如 `34-82-1-2.sslip.io`），一樣能申請憑證。
+
+---
+
+### Q10. 為什麼 `import 'crypto-js/enc-base64'` 在 dev 正常，production 卻啟動失敗？
+
+**30 秒回答**
+
+dev 和前端打包由 Vite 處理，Vite 會自動補上副檔名。production 的 `.output` 由 Node 直接以 ESM 載入，而 `crypto-js` 是沒有 `exports` 欄位的舊式套件，Node 在 ESM 模式下不會替子路徑補 `.js`，所以找不到檔案。補上 `.js` 後兩邊都能解析。這個問題存在了兩天沒被發現，因為 CI 只做 build、不會實際啟動，所以我另外在 CI 加了 production 啟動的 smoke test。
+
+**完整說明**
+
+| 環境 | 誰負責解析 import | `crypto-js/enc-base64` |
+|---|---|---|
+| `nuxt dev` | Vite | 自動找到 `enc-base64.js` ✅ |
+| 前端打包 | Vite / Rollup | 同上 ✅ |
+| production server（`.output`） | Node ESM | 不補副檔名，`ERR_MODULE_NOT_FOUND` ❌ |
+
+- 新式套件會在 `package.json` 用 `exports` 明確宣告子路徑，Node 就能正確解析。
+- 舊式套件只有 `main` 欄位，ESM 匯入子路徑時必須寫出完整檔名。
+
+**在這個專案**
+
+- [server/utils/encrypt.js](../../server/utils/encrypt.js)：4 個 import 補上 `.js`。
+- [.github/workflows/ci.yml](../../.github/workflows/ci.yml)：build job 增加 smoke test，啟動 production 產物並確認首頁有回應。
+- 是用 Docker 模擬部署時發現的，接著在 Mac 上用同一份產物重現，確認不是平台差異。
+
+**可能的追問**
+
+- **為什麼 build 成功卻執行失敗？**
+  build 只負責打包和追蹤相依檔案，不會實際執行 import 解析；問題要到 Node 載入時才會出現。所以「能 build」不等於「能跑」，CI 需要實際啟動驗證。
+
+---
+
+### Q11. 為什麼用 Cloud SQL Auth Proxy，不直接連資料庫 IP？
+
+**30 秒回答**
+
+直接連公開 IP 要在 Cloud SQL 開放 IP 白名單，還要自己處理 TLS 憑證；資料庫暴露在網路上。Auth Proxy 跑在 VM 本機，用 VM 的服務帳戶向 Google 驗證，連線自動加密，應用程式只要連 `127.0.0.1:5432`。權限由 IAM 控管（`roles/cloudsql.client`），VM 上也不用放任何金鑰檔。
+
+**完整說明**
+
+| 做法 | 驗證方式 | 加密 | 缺點 |
+|---|---|---|---|
+| 公開 IP + 白名單 | IP + 資料庫密碼 | 要自己設定 TLS | 資料庫暴露在網路上；IP 變了要改白名單 |
+| 私有 IP（VPC） | 網路隔離 + 密碼 | 依設定 | 要設定 VPC peering，步驟較多 |
+| **Auth Proxy** | IAM 服務帳戶 + 密碼 | 自動 | 多一個常駐服務 |
+
+**在這個專案**
+
+- [deploy/gcp-vm/cloud-sql-proxy.service.template](../../deploy/gcp-vm/cloud-sql-proxy.service.template)：以 systemd 常駐，`DynamicUser=yes` 不需要特定系統帳號。
+- `DATABASE_URL=postgres://portfolio:密碼@127.0.0.1:5432/portfolio`，應用程式不需要知道 Cloud SQL 在哪裡。
+
+---
+
+### Q12. 部署失敗怎麼自動回滾？為什麼 migration 要跟上一版相容？
+
+**30 秒回答**
+
+每次部署都解壓到新的版本目錄，用 `current` 這個 symlink 指向目前執行的版本。切換後做健康檢查，失敗就把 `current` 指回上一版再重啟。但 migration 在切換前就套用了，回滾只換回程式，資料庫維持新的結構，所以 migration 要寫成舊版程式也能運作，例如先新增欄位，確定不會回滾後才刪除舊欄位。
+
+**完整說明**
+
+```
+releases/A  ← current（舊版）
+releases/B  新版：解壓 → migration → current 指向 B → 健康檢查
+                                            ├─ 成功：保留，清理更舊的版本
+                                            └─ 失敗：current 指回 A，重啟
+```
+
+- **migration 在切換前執行**：migration 失敗時不會切換，舊版繼續服務。
+- **用 `pm2 delete` + `start`，不用 `reload`**：reload 不保證會換成新的程式路徑，可能繼續跑舊版目錄。代價是重啟期間約數秒無法服務。
+- **第一次部署沒有上一版**：腳本會先確認 `current` 是否存在，避免誤把新版本當成「上一版」重啟。這是在 Docker 模擬部署時抓到的 bug。
+
+**在這個專案**
+
+- [deploy/gcp-vm/remote-deploy.sh](../../deploy/gcp-vm/remote-deploy.sh)
+- 模擬驗證：部署一個啟動即拋錯的版本，健康檢查失敗後自動回到上一版，首頁回應 200。
+
+**可能的追問**
+
+- **怎麼做到零停機部署？**
+  開兩個 port 輪流使用（blue-green），新版本健康檢查通過後再切換 Caddy 的轉發目標。但這個專案的狀態在記憶體裡，兩個版本同時運作會重複執行排程，需要先處理 Q8 的問題。
+

@@ -15,7 +15,7 @@ export function seedPassword(envName: 'SEED_ADMIN_PASSWORD' | 'SEED_OWNER_PASSWO
   const value = process.env[envName]
   if (value) return value
   if (process.env.NODE_ENV === 'production') {
-    throw new Error(`production 環境必須設定 ${envName}，不能使用預設密碼（見 docs/Deployment/gcp-vm.md）`)
+    throw new Error(`production 環境必須設定 ${envName}，不能使用預設密碼（見 docs/deployment/gcp-vm.md）`)
   }
   return DEV_DEFAULT_PASSWORD
 }

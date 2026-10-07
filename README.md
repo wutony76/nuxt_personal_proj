@@ -123,6 +123,11 @@ npm run dev
 [`harden-postgres-for-production/`](openspec/changes/harden-postgres-for-production) 四份規劃
 文件，完整記錄了架構決策、資料表設計與驗證過程。
 
+## 部署
+
+線上 Demo 部署在 Google Cloud：e2-micro VM + Cloud SQL Postgres，Caddy 提供 HTTPS，GitHub Actions 手動觸發部署、失敗自動回滾。
+步驟見 [`docs/deployment/gcp-vm.md`](docs/deployment/gcp-vm.md)。
+
 ## 測試
 
 純函式的單元測試使用 Vitest（[`test/unit/`](test/unit)），以 `TZ=UTC` 執行，確認結果與主機時區無關：

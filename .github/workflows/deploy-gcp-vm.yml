@@ -6,7 +6,7 @@ name: Deploy (GCP VM)
 # e2-micro 只有 1GB 記憶體，nuxt build 容易記憶體不足；而且在相同平台 build 才能確保
 # 產物裡的相依套件可以直接在 VM 上執行。
 #
-# 需要的 Repository secrets（設定方式見 docs/Deployment/gcp-vm.md）：
+# 需要的 Repository secrets（設定方式見 docs/deployment/gcp-vm.md）：
 #   GCP_VM_HOST         VM 的外部 IP 或網域
 #   GCP_VM_USER         SSH 使用者名稱
 #   GCP_VM_SSH_KEY      部署用 SSH 私鑰

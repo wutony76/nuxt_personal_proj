@@ -159,6 +159,8 @@ nano /srv/portfolio/shared/.env
 
 - production 沒設定這兩個密碼會拒絕啟動，避免沿用公開的預設密碼。
 - 這兩個密碼只在資料庫還沒有會員的**第一次啟動**時寫入，之後要改密碼請從後台修改。
+- `SEED_DEMO_DATA` 維持 `true`：作品集 Demo 需要 `test04` 唯讀帳號讓訪客瀏覽後台。
+  一般正式產品應設為 `false`，其他資料庫上線檢查項目見 [postgres-production-checklist.md](postgres-production-checklist.md)。
 
 確認 Cloud SQL Auth Proxy 正常：
 

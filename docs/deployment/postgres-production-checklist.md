@@ -9,7 +9,10 @@
 - [ ] `.env` 的 `POSTGRES_PASSWORD` 已換成正式密碼，不是 `.env.example` 裡的範例值 `portfolio`
 - [ ] `.env` 的 `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` 已設定為正式管理帳號，不是預設的
       `admin@example.com`/`123456`
-- [ ] `.env` 的 `SEED_DEMO_DATA=false`（正式環境不應該自動產生 5 筆測試帳號 + 20 筆 NPC 假會員）
+- [ ] `.env` 的 `SEED_OWNER_PASSWORD`（`hfyy@cc.cc` 的密碼）已設定。這個帳號也在管理員白名單內；
+      production 沒設定這兩個密碼會拒絕啟動（見 `server/config/seedAccounts.ts`）
+- [ ] `.env` 的 `SEED_DEMO_DATA=false`（正式環境不應該自動產生 5 筆測試帳號 + 20 筆 NPC 假會員）。
+      例外：作品集公開 Demo 需要 `test04` 唯讀帳號給訪客瀏覽後台，維持 `true`（見 `gcp-vm.md`）
 - [ ] 首次開機後，用正式管理帳號登入一次確認可用；之後若要再調整密碼，走後台「重設密碼」
       （`PATCH /api/admin/members/:id`），不要直接改 `.env` 重啟（重啟不會重新套用已經寫進 DB
       的帳號資料，`SEED_ADMIN_PASSWORD` 只在 DB 完全沒有 admin 時才會被拿來用一次）
