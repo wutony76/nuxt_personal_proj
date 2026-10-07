@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="container-type:inline-size;width:100%;">
+  <div style="position:relative;background:#170E29;border:1cqw solid #FF2E88;box-shadow:0 0 0 1px #0E0818,0 0 34px rgba(255,46,136,0.45),0 30px 60px rgba(0,0,0,0.6);display:flex;flex-direction:column;overflow:hidden;color:#F1EDE4;font-family:'Archivo','Noto Sans TC',sans-serif;">
+    <div style="position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(#FF2E88 0.4cqw, transparent 0.55cqw);background-size:3cqw 3cqw;opacity:0.14;-webkit-mask-image:linear-gradient(200deg,#000 0%,transparent 45%);mask-image:linear-gradient(200deg,#000 0%,transparent 45%);"></div>
+    <div style="position:relative;display:flex;justify-content:space-between;align-items:center;padding:2.4cqw 4cqw;background:#FF2E88;color:#0E0818;font-family:'Space Mono',monospace;font-size:3cqw;font-weight:700;letter-spacing:0.06em;">
+      <span>SCRATCH CITY</span>
+      <span>No.001 · NIGHT EDITION</span>
+    </div>
+    <div style="position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;padding:6cqw 6cqw 0;">
+      <div style="font-family:'Space Mono',monospace;font-size:3cqw;font-weight:700;letter-spacing:0.28em;color:#2DE2FF;">★ TODAY ONLY · 今日限定 ★</div>
+      <div style="font-family:'Anton',sans-serif;font-size:17cqw;line-height:0.95;letter-spacing:0.04em;margin-top:2cqw;">JACKPOT</div>
+      <div style="font-family:'Anton',sans-serif;font-size:16cqw;line-height:1.05;color:#FFD400;font-variant-numeric:tabular-nums;animation:scPulse 2.4s ease-in-out infinite;">$1,000,000</div>
+      <div style="font-family:'Noto Sans TC',sans-serif;font-weight:700;font-size:3.4cqw;letter-spacing:0.3em;color:#A89BC4;margin-top:1cqw;">頭獎 一百萬美元</div>
+    </div>
+    <div style="position:relative;margin:5cqw 6cqw 0;height:30cqw;border:0.5cqw dashed #4A3870;background:#0E0818;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+      <div style="font-family:'Space Mono',monospace;font-size:3cqw;font-weight:700;letter-spacing:0.3em;color:#FF2E88;">YOU WIN · 你贏了</div>
+      <div style="font-family:'Anton',sans-serif;font-size:15cqw;line-height:1;color:#FFD400;">$100</div>
+      <canvas ref="{{ canvasRef }}" style="position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;"></canvas>
+    </div>
+    <div style="height:9cqw;display:flex;align-items:center;justify-content:center;">
+      <sc-if value="{{ revealed }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ again }}" style="all:unset;cursor:pointer;font-family:'Space Mono',monospace;font-weight:700;font-size:3cqw;letter-spacing:0.2em;color:#FF2E88;" style-hover="color:#F1EDE4;">↺ SCRATCH AGAIN · 再刮一次</button>
+      </sc-if>
+    </div>
+    <div style="position:relative;display:flex;align-items:center;gap:3cqw;padding:2.6cqw 4cqw;background:#F1EDE4;color:#0E0818;">
+      <div style="width:26cqw;height:7cqw;flex-shrink:0;background:repeating-linear-gradient(90deg,#0E0818 0 0.5cqw,transparent 0.5cqw 0.9cqw,#0E0818 0.9cqw 1.6cqw,transparent 1.6cqw 2.1cqw,#0E0818 2.1cqw 2.4cqw,transparent 2.4cqw 3.2cqw);"></div>
+      <div style="flex:1;font-family:'Space Mono',monospace;font-size:2.5cqw;line-height:1.35;">SN 001-00001-NYC<br>VALID 18+ ONLY</div>
+      <div style="font-family:'Anton',sans-serif;font-size:9cqw;line-height:1;">$10</div>
+    </div>
+    <div style="position:absolute;left:-2.6cqw;bottom:13cqw;width:5.2cqw;height:5.2cqw;border-radius:50%;background:#0E0818;"></div>
+    <div style="position:absolute;right:-2.6cqw;bottom:13cqw;width:5.2cqw;height:5.2cqw;border-radius:50%;background:#0E0818;"></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:440,&quot;height&quot;:620},&quot;onWin&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(x:number,y:number)=&gt;void&quot;}}">
+class Component extends DCLogic {
+  state = { revealed: false };
+  canvasRef = React.createRef();
+  componentDidMount() {
+    const go = () => {
+      if (!window.ScratchEngine) { this._t = setTimeout(go, 60); return; }
+      const c = this.canvasRef.current;
+      if (!c) return;
+      this.eng = window.ScratchEngine.attach(c, {
+        label: 'SCRATCH HERE', sub: '刮開這裡 · TRY ME', brush: 30, threshold: 0.5,
+        onReveal: () => {
+          this.setState({ revealed: true });
+          const r = c.getBoundingClientRect();
+          this.props.onWin && this.props.onWin(r.left + r.width / 2, r.top + r.height / 2);
+        }
+      });
+    };
+    this._raf = requestAnimationFrame(go);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); clearTimeout(this._t); this.eng && this.eng.destroy(); }
+  renderVals() {
+    return {
+      revealed: this.state.revealed,
+      again: () => { this.setState({ revealed: false }); this.eng && this.eng.reset(); }
+    };
+  }
+}
+</script>
+</body>
+</html>
