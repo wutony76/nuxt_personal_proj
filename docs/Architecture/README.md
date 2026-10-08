@@ -50,6 +50,12 @@
   - 量測方法、完整數據與更正紀錄見
     [`docs/Engineering Evidence/ssr-performance-log.md`](../Engineering%20Evidence/ssr-performance-log.md)。
 
+## 部署架構
+
+線上 Demo 部署在 Google Cloud：e2-micro VM（Caddy + pm2 + Cloud SQL Auth Proxy + 刮刮樂試算 Python 服務）+ Cloud SQL PostgreSQL。
+架構圖、部署流程、開機順序與資料流向見 [`docs/deployment/architecture.md`](../deployment/architecture.md)，
+建置步驟見 [`docs/deployment/gcp-vm.md`](../deployment/gcp-vm.md)。
+
 ## 頂層目錄
 
 ```

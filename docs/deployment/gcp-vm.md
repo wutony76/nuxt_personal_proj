@@ -2,6 +2,8 @@
 
 把這個專案部署成一台公開的作品集 Demo。
 
+完整架構圖（執行架構、部署流程、開機順序、資料流向）見 [architecture.md](architecture.md)。
+
 ```
 使用者 ──HTTPS──▶ Caddy（:443，自動憑證）──▶ Node / Nitro（127.0.0.1:3000，pm2 管理）
                                                   │
