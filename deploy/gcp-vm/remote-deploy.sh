@@ -17,6 +17,10 @@ APP_DIR="${APP_DIR:-/srv/portfolio}"
 ENV_FILE="$APP_DIR/shared/.env"
 RELEASE_DIR="$APP_DIR/releases/$RELEASE_ID"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/}"
+# e2-micro 共享 CPU 冷啟動差異大：一般約 12 秒，CPU burst 額度用完時實測慢到 106 秒（種子帳號的
+# bcrypt 雜湊）。預設等 180 秒，避免把正常版本誤判為失敗而回滾
+HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-180}"
+HEALTH_INTERVAL_SECONDS=2
 KEEP_RELEASES=3
 
 log() { printf '==> %s\n' "$*"; }
@@ -27,11 +31,12 @@ start_app() {
 }
 
 health_check() {
-  for _ in $(seq 1 30); do
+  local attempts=$(( HEALTH_TIMEOUT_SECONDS / HEALTH_INTERVAL_SECONDS ))
+  for _ in $(seq 1 "$attempts"); do
     if curl -sf -o /dev/null "$HEALTH_URL"; then
       return 0
     fi
-    sleep 2
+    sleep "$HEALTH_INTERVAL_SECONDS"
   done
   return 1
 }

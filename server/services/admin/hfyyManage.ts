@@ -156,9 +156,13 @@ export default class HFYYManage {
       // 「重啟後所有人 coin 變回 UsersClass 建構子寫死的 100000」這個既有痛點。只回填 coin，
       // 交易明細（wallet_balance_changes）/台彩中獎事件（tw_payout_events）刻意不回填記憶體，
       // 比照 login_history 既有 precedent，只當永久備份，查詢路徑改合併查詢。
-      const walletRows = await getDb().select().from(walletCoinTable)
-      for (const row of walletRows) {
-        ;(Storage.get.user(row.userId) as { coin?: number }).coin = Number(row.coin)
+      // 跟上面其他回填函式一樣先檢查 isDbEnabled()：純記憶體模式下直接 getDb() 會拋錯，
+      // 落入下面的 catch 印出誤導的「DB 連不上」訊息（見 fix-vm-deploy-boot-issues）。
+      if (isDbEnabled()) {
+        const walletRows = await getDb().select().from(walletCoinTable)
+        for (const row of walletRows) {
+          ;(Storage.get.user(row.userId) as { coin?: number }).coin = Number(row.coin)
+        }
       }
 
       // 6hc-cd 限額 P2 開機回填（全站預設/玩家覆寫 + 兩個 write-through counter），見

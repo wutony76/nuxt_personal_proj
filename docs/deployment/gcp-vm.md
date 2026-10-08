@@ -203,6 +203,8 @@ GitHub → Actions → **Deploy (GCP VM)** → Run workflow。
 
 workflow 會依序執行：單元測試 → build → 打包 → 上傳 → 在 VM 上套用 migration → 切換版本 → 健康檢查。健康檢查失敗時會自動回滾到上一版。
 
+健康檢查預設最多等 180 秒。e2-micro 是共享 CPU，冷啟動時間差異很大：實測一般約 12 秒，CPU burst 額度用完時（例如剛安裝完套件）曾慢到 106 秒（主要是種子帳號的 bcrypt 雜湊）。等待時間太短會把正常版本誤判為失敗並回滾。需要調整時，在 VM 上以 `HEALTH_TIMEOUT_SECONDS=秒數` 執行 `remote-deploy.sh`。
+
 ### 9. 驗證
 
 - [ ] 打開 `https://你的網域`，瀏覽器顯示安全連線
@@ -232,3 +234,4 @@ workflow 會依序執行：單元測試 → build → 打包 → 上傳 → 在 
 - **production 模式的 E2E 不穩定**：production build 下約 34 項 E2E 失敗，集中在「強制結算後注單仍為 pending」，dev 模式全過。屬既有問題，尚未追查，見 `docs/Engineering Evidence/refactor-tw-draw-schedule-taipei-tz.md`。
 - **刮刮樂試算頁**：依賴本機 Python 服務（`SCRATCH_PY_API_BASE`），VM 上沒有這個服務，該頁面無法使用。
 - **資料不會全部保留**：接了資料庫後，會員、角色權限、遊戲紀錄、注單報表等會保留；彩票當期狀態等仍在記憶體，重啟後重置。
+- **不接資料庫的部署方式**：略過步驟 2、3 與 `setup-vm.sh` 的 Cloud SQL Auth Proxy，`.env` 的 `DATABASE_URL` 留空即可（migration 會自動略過）。所有資料只存在記憶體，每次重啟或部署都會歸零，適合先快速上線展示。
