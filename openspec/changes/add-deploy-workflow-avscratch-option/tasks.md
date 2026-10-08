@@ -8,10 +8,10 @@
 ## 2. 驗證
 
 - [x] actionlint（`deploy-gcp-vm.yml` 無警告）
-- [ ] 實際 Run workflow 勾選
-- [ ] 實際 Run workflow 不勾選
+- [x] 實際 Run workflow 勾選
+- [ ] 實際 Run workflow 不勾選（未單獨執行，見 validation.md）
 
 ## 3. 交付
 
-- [ ] validation.md、Engineering Evidence
-- [ ] commit
+- [x] validation.md、Engineering Evidence
+- [x] commit
