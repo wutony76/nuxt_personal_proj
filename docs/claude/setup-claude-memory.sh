@@ -593,6 +593,20 @@ async，風險極高且不符合這個專案的規模（個人作品集 Demo，�
 指定的優先序批次（遊戲設定→聊天室排程→NPC設定）+ 後續主動要求的刪除會員功能 +「都幫我一起
 完善處理」的剩餘 5 項 + 事後追問「db 還未處理的部分」挖出的會員異動明細缺口，已全數完成。
 
+**2026-10-08 總驗證（使用者要求「總驗證改DB後的功能，加上點擊測試」）**：環境無瀏覽器自動化
+工具，以 API 層級模擬點擊流程（直接呼叫每個管理後台互動實際觸發的 API，依真實使用順序）
+涵蓋全部 12 個 DB 持久化領域（角色權限/全域遊戲開關/會員CRUD/NPC設定與個別遊戲開關/復古
+遊戲與柑仔店設定/Pac-Man迷宮樣板/聊天排程/6hc-cd限額/報表4條查詢路徑），48 項斷言全數通過；
+重啟伺服器驗證 write-through 設定正確回填、override-only 表（retro_game_rates/
+toy_shop_games）正確回退程式碼預設值；直接查 Postgres 確認批次同步表（game_orders/
+retro_game_history/pool_audit_*/login_history/wallet_balance_changes/wallet_coin/
+tw_payout_events/retro_daily_grants）持續有新資料寫入，時間戳與 NPC 背景活動一致；
+`wallet_balance_changes` 的 22 個 source 分組與 `fix-member-balance-history-tw-gap` 記錄的
+22 個來源數字吻合。完整 `npm test`（38 支）：35 支一次通過，3 支（kl10/kl8/pk10-cd）個別
+重跑後 100% 通過——同一批既有的期別邊界時序 flakiness，與 DB 遷移無關。測試過程中建立的
+自訂角色/NPC會員/排程/樣板/組合全數清理，retro_game_rates 與 toy_shop_games 兩張 override-only
+表也確認沒有殘留測試列。結論：所有已完成的 DB 遷移功能經過這次獨立總驗證，行為正確、無回歸。
+
 **Why:** 架構決策分階段是為了控制風險——Phase 1 先打地基，Phase 2/3 各自選擇適合自己資料特性的同步
 策略。使用者每個 Phase 完成後都明確回覆「好的」確認才繼續下一個。
 
@@ -645,7 +659,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [OpenSpec 流程擴充為 6 階段](project_openspec_workflow_6stages.md) — 新增 Validation、Engineering Evidence 兩份文件與範本（僅文件層級，未動 CLI schema）
 - [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
 - [台彩7款玩法全數完工](project_tw_lottery_suite_complete.md) — P3/P4/BINGO 補完，含期別helper重構/quota/組彩分級假設等已知待辦
-- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — 全部盤點項目皆已實作完成並驗證通過（含會員異動明細補台彩來源），盤點清單全數完成
+- [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — 全部盤點項目已完成並驗證通過，2026-10-08 再做一次 API 點擊流程總驗證+重啟+回歸測試全數通過
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
