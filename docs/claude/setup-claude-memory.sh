@@ -664,6 +664,7 @@ metadata:
 - 管理員密碼是隨機產生的，只存在 VM 的 `/srv/portfolio/shared/.env`（不要寫進對話或 repo）
 - 部署方式：**GitHub Actions**（2026-10-08 已設定 4 個 Secrets 並實際部署成功）。流程：`git push` → Actions → Deploy (GCP VM) → Run workflow（需使用者在網頁點，本機沒有 gh CLI）。部署金鑰是本機 `~/.ssh/portfolio_deploy`（VM authorized_keys 註解 `github-actions-deploy`）。備用：本機 Docker `--platform linux/amd64 node:22.22.2-bookworm` build 後 scp + `remote-deploy.sh`
 - VM 上 `~/hfyy` 是使用者自己的 repo clone（605MB），部署沒用到，未經同意不要刪
+- **刮刮樂試算 Python 服務**（2026-10-08 起）：`py3_AVScratch_proj`（https://github.com/wutony76/py3_AVScratch_proj，私有 repo，本機在 `~/SelfCode/Self/git_proj/py3_AVScratch_proj`）部署在 VM `/srv/avscratch/{app,venv}`，systemd `avscratch`（gunicorn 只綁 127.0.0.1:8000，MemoryMax 400M，約 150MB）。必須用 Python 3.10 + Pillow 9.5（程式用 ImageDraw.textsize，Pillow 10 已移除），由 uv 安裝。更新方式：本機 `AVSCRATCH_DIR=... VM=wutony76@8.231.244.199 bash deploy/gcp-vm/avscratch/deploy-avscratch.sh`（部署 HEAD 已 commit 內容，VM 沒有 rsync）。VM 磁碟剩約 1.6G
 - e2-micro 冷啟動差異大（12 秒～106 秒），健康檢查已改為 180 秒（`fix-vm-deploy-boot-issues`，commit eb2c682）。接 DB 後：空 DB 首次開機種子寫入約 3 分 20 秒（已做完），之後從 DB 回填約 30 秒
 
 **Why:** 之後要更新線上版本、查 log 或排查問題時，需要知道連線方式與目前的部署形態。
