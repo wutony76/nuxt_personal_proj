@@ -7,19 +7,21 @@
 #   DOMAIN=portfolio.example.com \
 #   bash setup-vm.sh
 #
+# 不接資料庫（純記憶體模式）時省略 INSTANCE_CONNECTION_NAME，會略過 Cloud SQL Auth Proxy。
+#
 # 會安裝與設定：swap、Node.js 22、pm2（開機自動啟動）、Caddy（HTTPS 反向代理）、
-# Cloud SQL Auth Proxy（systemd），並建立 /srv/portfolio 目錄與 .env 範本。
+# Cloud SQL Auth Proxy（systemd，pm2 排在它之後啟動），並建立 /srv/portfolio 目錄與 .env 範本。
 # 重複執行是安全的：已存在的設定會略過或覆寫成相同內容，不會覆蓋已填好的 .env。
 set -euo pipefail
 
-: "${INSTANCE_CONNECTION_NAME:?請設定 INSTANCE_CONNECTION_NAME，格式為 專案ID:區域:執行個體名稱}"
+INSTANCE_CONNECTION_NAME="${INSTANCE_CONNECTION_NAME:-}"
 : "${DOMAIN:?請設定 DOMAIN，例如 portfolio.example.com 或 34-82-1-2.sslip.io}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR=/srv/portfolio
 NODE_MAJOR=22
 # 版本請對照 https://github.com/GoogleCloudPlatform/cloud-sql-proxy/releases 更新
-CLOUD_SQL_PROXY_VERSION=v2.14.1
+CLOUD_SQL_PROXY_VERSION=v2.26.0
 SWAP_SIZE=2G
 
 log() { printf '\n==> %s\n' "$*"; }
@@ -69,16 +71,24 @@ sudo caddy validate --config /etc/caddy/Caddyfile
 sudo systemctl reload caddy || sudo systemctl restart caddy
 
 log "6/7 Cloud SQL Auth Proxy（${CLOUD_SQL_PROXY_VERSION}）"
-if [[ ! -x /usr/local/bin/cloud-sql-proxy ]] || ! /usr/local/bin/cloud-sql-proxy --version | grep -q "${CLOUD_SQL_PROXY_VERSION#v}"; then
-  sudo curl -fsSL -o /usr/local/bin/cloud-sql-proxy \
-    "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/${CLOUD_SQL_PROXY_VERSION}/cloud-sql-proxy.linux.amd64"
-  sudo chmod +x /usr/local/bin/cloud-sql-proxy
+if [[ -z "$INSTANCE_CONNECTION_NAME" ]]; then
+  echo "未設定 INSTANCE_CONNECTION_NAME，略過（純記憶體模式，.env 的 DATABASE_URL 請留空）"
+else
+  if [[ ! -x /usr/local/bin/cloud-sql-proxy ]] || ! /usr/local/bin/cloud-sql-proxy --version | grep -q "${CLOUD_SQL_PROXY_VERSION#v}"; then
+    sudo curl -fsSL -o /usr/local/bin/cloud-sql-proxy \
+      "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/${CLOUD_SQL_PROXY_VERSION}/cloud-sql-proxy.linux.amd64"
+    sudo chmod +x /usr/local/bin/cloud-sql-proxy
+  fi
+  sed "s/__INSTANCE_CONNECTION_NAME__/${INSTANCE_CONNECTION_NAME}/g" "$SCRIPT_DIR/cloud-sql-proxy.service.template" \
+    | sudo tee /etc/systemd/system/cloud-sql-proxy.service >/dev/null
+  # 開機時讓 pm2 排在 proxy 之後啟動，避免網站啟動時連不到 DB 而退回純記憶體模式
+  sudo mkdir -p "/etc/systemd/system/pm2-${USER}.service.d"
+  printf '[Unit]\nAfter=cloud-sql-proxy.service\nWants=cloud-sql-proxy.service\n' \
+    | sudo tee "/etc/systemd/system/pm2-${USER}.service.d/cloud-sql-proxy.conf" >/dev/null
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now cloud-sql-proxy
+  sudo systemctl restart cloud-sql-proxy
 fi
-sed "s/__INSTANCE_CONNECTION_NAME__/${INSTANCE_CONNECTION_NAME}/g" "$SCRIPT_DIR/cloud-sql-proxy.service.template" \
-  | sudo tee /etc/systemd/system/cloud-sql-proxy.service >/dev/null
-sudo systemctl daemon-reload
-sudo systemctl enable --now cloud-sql-proxy
-sudo systemctl restart cloud-sql-proxy
 
 log "7/7 應用程式目錄與 .env"
 sudo mkdir -p "$APP_DIR/releases" "$APP_DIR/shared"
@@ -93,6 +103,6 @@ fi
 
 log "完成"
 echo "- $ENV_HINT"
-echo "- Cloud SQL Auth Proxy 狀態：sudo systemctl status cloud-sql-proxy"
+[[ -n "$INSTANCE_CONNECTION_NAME" ]] && echo "- Cloud SQL Auth Proxy 狀態：sudo systemctl status cloud-sql-proxy"
 echo "- Caddy 會在第一次有人連到 https://${DOMAIN} 時自動申請憑證（需先完成 DNS 設定）"
 echo "- 接著到 GitHub Actions 執行 Deploy (GCP VM) workflow 部署應用程式"

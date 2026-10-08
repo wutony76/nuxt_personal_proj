@@ -88,6 +88,14 @@ gcloud sql instances describe portfolio-db --format='value(connectionName)'
 - 一定要指定 `--edition=ENTERPRISE`。主控台預設是 Enterprise Plus，最低規格貴很多。
 - `--backup-start-time=19:00` 是 UTC，等於台灣時間凌晨 3 點自動備份。
 
+**改用主控台建立時**（實際部署時的做法）：
+
+- 不要選建立頁上方的「**免費試用 Cloud SQL 30 天**」：那是 Enterprise Plus、8 vCPU / 64GB，30 天後要升級付費才能繼續使用，規格也遠超過需求。
+- 選「Enterprise」版本、預設設定選「**沙箱**」。「正式環境」範本會預設開啟高可用性（多一台備援機，費用約兩倍）與較大的機器。
+- 資料庫版本 PostgreSQL 16、單一可用區、共用核心 1 vCPU / 0.614GB、HDD 10GB；「連線」保留公開 IP，不需要加授權網路（Auth Proxy 不需要）。
+- 建議另外開啟「刪除保護」。
+- 資料庫名稱、使用者名稱可以自訂，`DATABASE_URL` 對應修改即可。
+
 ### 3. 建立 VM 用的服務帳戶
 
 ```bash
@@ -119,6 +127,24 @@ gcloud compute instances create portfolio-vm \
 ```
 
 免費額度的條件：e2-micro、us-west1／us-central1／us-east1、標準磁碟 30GB 以內，每個帳單帳戶限 1 台。
+
+**VM 是用主控台建立的**：預設的「存取權範圍」不含 Cloud SQL，Auth Proxy 會出現
+`Error 403: Request had insufficient authentication scopes`（`ACCESS_TOKEN_SCOPE_INSUFFICIENT`）。
+使用自訂服務帳戶時，主控台的編輯頁可能不會顯示存取權範圍選項，改在 Cloud Shell 執行（需要停機，請先把外部 IP 升級為靜態，避免開機後 IP 改變）：
+
+```bash
+gcloud compute instances stop 執行個體名稱 --zone=$ZONE
+gcloud compute instances set-service-account 執行個體名稱 --zone=$ZONE \
+  --service-account=服務帳戶@$PROJECT_ID.iam.gserviceaccount.com \
+  --scopes=cloud-platform
+gcloud compute instances start 執行個體名稱 --zone=$ZONE
+```
+
+在 VM 上確認（應該看到 `https://www.googleapis.com/auth/cloud-platform`）：
+
+```bash
+curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/scopes
+```
 
 ### 5. 設定網域
 
@@ -167,6 +193,9 @@ nano /srv/portfolio/shared/.env
 ```bash
 sudo systemctl status cloud-sql-proxy
 ```
+
+- 不接資料庫時省略 `INSTANCE_CONNECTION_NAME`，`setup-vm.sh` 會略過 Auth Proxy，`.env` 的 `DATABASE_URL` 留空即可。
+- 接上全新的空資料庫後，第一次啟動要寫入種子帳號與 NPC，e2-micro 實測約 3 分鐘才完成初始化（網站在這段期間已可回應）；之後的啟動從資料庫回填，約 30 秒。
 
 ### 7. 設定 GitHub Actions 的部署金鑰
 
