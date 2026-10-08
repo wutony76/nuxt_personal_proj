@@ -655,7 +655,7 @@ metadata:
 
 2026-10-08 專案首次實機上線：**https://8-231-244-199.sslip.io**
 
-- VM：GCP `hfyy-instance-1`，us-west1-b，e2-micro，Ubuntu 24.04，外部 IP `8.231.244.199`
+- VM：GCP `hfyy-instance-1`，us-west1-b，e2-micro，Ubuntu 24.04，外部 IP `8.231.244.199`（靜態，名稱 hfyy-home）。開機磁碟 **pd-balanced 30GB**（2026-10-08 由 10GB 加大，不在免費額度內，約 US$3/月），root ext4 約 29G。VM 上的 gcloud（服務帳戶 fatyoyo，scope cloud-platform）可直接 `gcloud compute disks resize`，加大後跑 `sudo growpart /dev/sda 1 && sudo resize2fs /dev/sda1`，不用停機
 - SSH：`ssh wutony76@8.231.244.199`（本機 `~/.ssh/id_rsa`，公鑰已加到 VM 的 SSH 金鑰）
 - 架構：Caddy（sslip.io 自動 HTTPS）→ pm2 `portfolio`（127.0.0.1:3000）；`/srv/portfolio/{releases,current,shared/.env}`
 - **資料庫：Cloud SQL**（2026-10-08 從純記憶體模式切換）：執行個體 `hfyy-db`（Enterprise、PG16、us-west1-b、無 HA），連線名稱 `fatdemo-260226001:us-west1:hfyy-db`，資料庫 `HFYY-DATABASE`，使用者 `portfolio`（密碼使用者自訂，含 `\` `)`，URL 需編碼成 %5C %29）。VM 上 systemd `cloud-sql-proxy`（v2.26.0，127.0.0.1:5432，已 enable），pm2 unit 有 drop-in 讓它排在 proxy 之後啟動。VM 服務帳戶 `fatyoyo@fatdemo-260226001.iam.gserviceaccount.com` 有 cloudsql.client；存取權範圍必須是 cloud-platform，主控台找不到選項，是用 Cloud Shell `gcloud compute instances set-service-account ... --scopes=cloud-platform`（需停機）才改成功。純記憶體模式的舊 .env 備份在 `/srv/portfolio/shared/.env.bak-memory-mode`
@@ -664,7 +664,7 @@ metadata:
 - 管理員密碼是隨機產生的，只存在 VM 的 `/srv/portfolio/shared/.env`（不要寫進對話或 repo）
 - 部署方式：**GitHub Actions**（2026-10-08 已設定 4 個 Secrets 並實際部署成功）。流程：`git push` → Actions → Deploy (GCP VM) → Run workflow（需使用者在網頁點，本機沒有 gh CLI）。部署金鑰是本機 `~/.ssh/portfolio_deploy`（VM authorized_keys 註解 `github-actions-deploy`）。備用：本機 Docker `--platform linux/amd64 node:22.22.2-bookworm` build 後 scp + `remote-deploy.sh`
 - VM 上原本的 `~/hfyy`（舊 repo clone，605MB）已於 2026-10-08 依使用者要求刪除
-- **刮刮樂試算 Python 服務**（2026-10-08 起）：`py3_AVScratch_proj`（https://github.com/wutony76/py3_AVScratch_proj，私有 repo，本機在 `~/SelfCode/Self/git_proj/py3_AVScratch_proj`）部署在 VM `/srv/avscratch/{app,venv}`，systemd `avscratch`（gunicorn 只綁 127.0.0.1:8000，MemoryMax 400M，約 150MB）。必須用 Python 3.10 + Pillow 9.5（程式用 ImageDraw.textsize，Pillow 10 已移除），由 uv 安裝。更新方式：本機 `AVSCRATCH_DIR=... VM=wutony76@8.231.244.199 bash deploy/gcp-vm/avscratch/deploy-avscratch.sh`（部署 HEAD 已 commit 內容，VM 沒有 rsync）。VM 磁碟剩約 2.2G
+- **刮刮樂試算 Python 服務**（2026-10-08 起）：`py3_AVScratch_proj`（https://github.com/wutony76/py3_AVScratch_proj，私有 repo，本機在 `~/SelfCode/Self/git_proj/py3_AVScratch_proj`）部署在 VM `/srv/avscratch/{app,venv}`，systemd `avscratch`（gunicorn 只綁 127.0.0.1:8000，MemoryMax 400M，約 150MB）。必須用 Python 3.10 + Pillow 9.5（程式用 ImageDraw.textsize，Pillow 10 已移除），由 uv 安裝。更新方式：本機 `AVSCRATCH_DIR=... VM=wutony76@8.231.244.199 bash deploy/gcp-vm/avscratch/deploy-avscratch.sh`（部署 HEAD 已 commit 內容，VM 沒有 rsync）。VM 磁碟剩約 22G
 - e2-micro 冷啟動差異大（12 秒～106 秒），健康檢查已改為 180 秒（`fix-vm-deploy-boot-issues`，commit eb2c682）。接 DB 後：空 DB 首次開機種子寫入約 3 分 20 秒（已做完），之後從 DB 回填約 30 秒
 
 **Why:** 之後要更新線上版本、查 log 或排查問題時，需要知道連線方式與目前的部署形態。
