@@ -245,6 +245,36 @@ workflow 會依序執行：單元測試 → build → 打包 → 上傳 → 在 
 
 ---
 
+## 刮刮樂試算服務（選用）
+
+後台「刮刮樂試算」（`/admin/game-simulator`）會轉呼叫另一個 repo 的 Python 服務
+[`py3_AVScratch_proj`](https://github.com/wutony76/py3_AVScratch_proj)（Django，私有 repo）。
+不部署這個服務，網站其他功能不受影響，只有試算頁無法使用。
+
+```
+Nuxt（/api/admin/game-simulator/scratch*，需登入）─▶ gunicorn 127.0.0.1:8000 ─▶ py3_AVScratch_proj
+```
+
+在**本機**執行（第一次安裝與之後更新都是這一行）：
+
+```bash
+AVSCRATCH_DIR=/path/to/py3_AVScratch_proj VM=使用者@VM的IP \
+  bash deploy/gcp-vm/avscratch/deploy-avscratch.sh
+```
+
+- 部署的是 `py3_AVScratch_proj` **HEAD 已 commit 的內容**（`git archive`），未 commit 的修改不會上傳。
+- VM 上用 `uv` 安裝 Python 3.10 與固定版本套件：程式碼使用 `ImageDraw.textsize()`（Pillow 10 已移除），
+  必須用 Pillow 9.5，而 Pillow 9.5 不支援 Ubuntu 24.04 內建的 Python 3.12。
+- 服務只綁 `127.0.0.1:8000`，不對外開放（Django 設定為 `DEBUG=True`、`ALLOWED_HOSTS=['*']`）。
+- systemd 服務 `avscratch`，開機自動啟動，記憶體上限 400MB（實測約 150MB）。
+- Nuxt 預設就呼叫 `http://127.0.0.1:8000`，不需設定 `SCRATCH_PY_API_BASE`。
+
+| 情境 | 做法 |
+|---|---|
+| 查看狀態 / log | `sudo systemctl status avscratch`、`sudo journalctl -u avscratch -n 50` |
+| 重啟 | `sudo systemctl restart avscratch` |
+| 確認服務 | `curl -s http://127.0.0.1:8000/api/scratch/info` |
+
 ## 日常維運
 
 | 情境 | 做法 |
@@ -261,6 +291,5 @@ workflow 會依序執行：單元測試 → build → 打包 → 上傳 → 在 
 ## 上線前的已知事項
 
 - **production 模式的 E2E 不穩定**：production build 下約 34 項 E2E 失敗，集中在「強制結算後注單仍為 pending」，dev 模式全過。屬既有問題，尚未追查，見 `docs/Engineering Evidence/refactor-tw-draw-schedule-taipei-tz.md`。
-- **刮刮樂試算頁**：依賴本機 Python 服務（`SCRATCH_PY_API_BASE`），VM 上沒有這個服務，該頁面無法使用。
 - **資料不會全部保留**：接了資料庫後，會員、角色權限、遊戲紀錄、注單報表等會保留；彩票當期狀態等仍在記憶體，重啟後重置。
 - **不接資料庫的部署方式**：略過步驟 2、3 與 `setup-vm.sh` 的 Cloud SQL Auth Proxy，`.env` 的 `DATABASE_URL` 留空即可（migration 會自動略過）。所有資料只存在記憶體，每次重啟或部署都會歸零，適合先快速上線展示。

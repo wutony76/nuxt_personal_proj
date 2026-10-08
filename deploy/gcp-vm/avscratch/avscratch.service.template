@@ -1,0 +1,25 @@
+# 刮刮樂試算 Python 服務（py3_AVScratch_proj）的 systemd 服務。
+# setup-avscratch.sh 會替換 __USER__ 後放到 /etc/systemd/system/avscratch.service。
+#
+# - 只綁 127.0.0.1：Django 設定是 DEBUG=True、ALLOWED_HOSTS=['*']，不能對外；
+#   只透過 Nuxt 需登入的代理 API（/api/admin/game-simulator/scratch*）存取
+# - WorkingDirectory 必須是專案根目錄：字型以相對路徑 msjhbd.ttc 載入
+# - PYTHONPATH 照專案 README（packages/ 內有 BTrees stub 等本地套件）
+[Unit]
+Description=AVScratch scratch card simulator (Django)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=__USER__
+WorkingDirectory=/srv/avscratch/app
+Environment=PYTHONPATH=packages:scratch:.
+Environment=DJANGO_SETTINGS_MODULE=admin_site.settings
+ExecStart=/srv/avscratch/venv/bin/gunicorn admin_site.wsgi:application --bind 127.0.0.1:8000 --workers 1 --timeout 120
+Restart=always
+RestartSec=5
+# e2-micro 只有 1GB 記憶體，超過就終止並自動重啟，避免拖垮網站
+MemoryMax=400M
+
+[Install]
+WantedBy=multi-user.target
