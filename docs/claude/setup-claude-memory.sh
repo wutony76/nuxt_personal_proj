@@ -645,7 +645,7 @@ EOF
 cat > "$MEMORY_DIR/project_gcp_vm_deployed.md" << 'EOF'
 ---
 name: project-gcp-vm-deployed
-description: 專案已部署到 GCP VM（hfyy-instance-1，8.231.244.199，純記憶體模式），含 SSH 帳號、網址、部署方式與待辦
+description: 專案已部署到 GCP VM（hfyy-instance-1，8.231.244.199），2026-10-08 起接 Cloud SQL（hfyy-db / HFYY-DATABASE），含 SSH、網址、部署方式與待辦
 metadata:
   node_type: memory
   type: project
@@ -658,15 +658,17 @@ metadata:
 - VM：GCP `hfyy-instance-1`，us-west1-b，e2-micro，Ubuntu 24.04，外部 IP `8.231.244.199`
 - SSH：`ssh wutony76@8.231.244.199`（本機 `~/.ssh/id_rsa`，公鑰已加到 VM 的 SSH 金鑰）
 - 架構：Caddy（sslip.io 自動 HTTPS）→ pm2 `portfolio`（127.0.0.1:3000）；`/srv/portfolio/{releases,current,shared/.env}`
-- **純記憶體模式**：使用者選擇先不接資料庫，`.env` 的 `DATABASE_URL` 留空，重啟/部署資料歸零
+- **資料庫：Cloud SQL**（2026-10-08 從純記憶體模式切換）：執行個體 `hfyy-db`（Enterprise、PG16、us-west1-b、無 HA），連線名稱 `fatdemo-260226001:us-west1:hfyy-db`，資料庫 `HFYY-DATABASE`，使用者 `portfolio`（密碼使用者自訂，含 `\` `)`，URL 需編碼成 %5C %29）。VM 上 systemd `cloud-sql-proxy`（v2.26.0，127.0.0.1:5432，已 enable），pm2 unit 有 drop-in 讓它排在 proxy 之後啟動。VM 服務帳戶 `fatyoyo@fatdemo-260226001.iam.gserviceaccount.com` 有 cloudsql.client；存取權範圍必須是 cloud-platform，主控台找不到選項，是用 Cloud Shell `gcloud compute instances set-service-account ... --scopes=cloud-platform`（需停機）才改成功。純記憶體模式的舊 .env 備份在 `/srv/portfolio/shared/.env.bak-memory-mode`
+- 本機 Docker Postgres 也改成同一組帳密與 `HFYY-DATABASE`（本機 .env 已更新，舊的 `portfolio` 資料庫仍保留未刪）
+- 已知限制：login_history、遊戲紀錄等走 SyncScheduler 每 5 分鐘批次同步，沒有關機前 flush，重啟/部署會遺失最近 5 分鐘內的這類資料；members 等 write-through 資料不受影響
 - 管理員密碼是隨機產生的，只存在 VM 的 `/srv/portfolio/shared/.env`（不要寫進對話或 repo）
 - 部署方式：**GitHub Actions**（2026-10-08 已設定 4 個 Secrets 並實際部署成功）。流程：`git push` → Actions → Deploy (GCP VM) → Run workflow（需使用者在網頁點，本機沒有 gh CLI）。部署金鑰是本機 `~/.ssh/portfolio_deploy`（VM authorized_keys 註解 `github-actions-deploy`）。備用：本機 Docker `--platform linux/amd64 node:22.22.2-bookworm` build 後 scp + `remote-deploy.sh`
 - VM 上 `~/hfyy` 是使用者自己的 repo clone（605MB），部署沒用到，未經同意不要刪
-- e2-micro 冷啟動差異大（12 秒～106 秒），健康檢查已改為 180 秒（`fix-vm-deploy-boot-issues`，commit eb2c682）
+- e2-micro 冷啟動差異大（12 秒～106 秒），健康檢查已改為 180 秒（`fix-vm-deploy-boot-issues`，commit eb2c682）。接 DB 後：空 DB 首次開機種子寫入約 3 分 20 秒（已做完），之後從 DB 回填約 30 秒
 
 **Why:** 之後要更新線上版本、查 log 或排查問題時，需要知道連線方式與目前的部署形態。
 
-**How to apply:** 部署新版本先 push，再請使用者觸發 workflow，可在背景監看 VM 的 `/srv/portfolio/current` 是否換成 `*-<commit短碼>` 再驗證；待辦：IP 是否已改靜態未確認、要保留資料時改在 VM 用 Docker 跑 Postgres、縮短開機時的 bcrypt 種子雜湊時間。相關：[[project_postgres_migration_plan]]
+**How to apply:** 部署新版本先 push，再請使用者觸發 workflow，可在背景監看 VM 的 `/srv/portfolio/current` 是否換成 `*-<commit短碼>` 再驗證；待辦：IP 已改靜態（名稱 hfyy-home）；縮短開機時的 bcrypt 種子雜湊時間；SyncScheduler 關機前 flush；docs/deployment/gcp-vm.md 補 Cloud Shell 改存取權範圍的做法、setup-vm.sh 的 proxy 版本仍是 v2.14.1；CI 的 npm test 自 10/05 起持續失敗（推測是 dev server 啟動測試與 npm test 互相干擾，log 需登入才看得到，尚未確認）。相關：[[project_postgres_migration_plan]]
 EOF
 
 # ── MEMORY.md 索引 ────────────────────────────────────────────
@@ -688,7 +690,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
 - [台彩7款玩法全數完工](project_tw_lottery_suite_complete.md) — P3/P4/BINGO 補完，含期別helper重構/quota/組彩分級假設等已知待辦
 - [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — 全部盤點項目已完成並驗證通過，2026-10-08 再做一次 API 點擊流程總驗證+重啟+回歸測試全數通過
-- [GCP VM 已部署（純記憶體）](project_gcp_vm_deployed.md) — https://8-231-244-199.sslip.io，ssh wutony76@8.231.244.199，push 後用 GitHub Actions「Deploy (GCP VM)」手動觸發部署
+- [GCP VM 已部署（Cloud SQL）](project_gcp_vm_deployed.md) — https://8-231-244-199.sslip.io，DB 為 Cloud SQL hfyy-db/HFYY-DATABASE，ssh wutony76@8.231.244.199，push 後用 GitHub Actions「Deploy (GCP VM)」手動觸發部署
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
@@ -820,7 +822,7 @@ echo "  - 驗證改動用既有 dev server（直接用 6100）"
 echo "  - 「先幫我規劃」只寫 spec（不寫程式碼）"
 echo "  - OpenSpec 流程擴充為 6 階段（新增 Validation、Engineering Evidence）"
 echo "  - 六階段流程為強制要求（每次修改都要落地產出 docs/Architecture、docs/Engineering Evidence）"
-echo "  - GCP VM 已部署（純記憶體模式，8-231-244-199.sslip.io）"
+echo "  - GCP VM 已部署（Cloud SQL，8-231-244-199.sslip.io）"
 echo "  Agents："
 echo "  - my-reviewer（程式碼審查 + 補測試）"
 echo "  - my-create（新功能／組件建立）"
