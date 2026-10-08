@@ -10,7 +10,7 @@
 
 - [x] 本機 CI 條件 + 開關：`npm test` 全數通過，dev log 沒有 `START.TESTING.RUN`
 - [x] 不設開關：dev log 仍有 `START.TESTING.RUN`
-- [ ] push 後 CI `test` job 通過
+- [x] push 後 CI `test` job 通過
 
 ## 3. 交付
 

@@ -17,7 +17,9 @@
   - `test/unit/sync.test.ts` 4 項：實作前 4 項皆失敗（`stopAndFlush is not a function`），實作後全數通過
   - `npm run test:unit` 25/25 通過
   - 本機 dev server（接 Postgres）等啟動測試跑完後執行 `npm test`：38/38 通過
-- [ ] VM 實機（pm2 + Cloud SQL）：登入後立刻 `pm2 restart`，`login_history` 有寫入 — 待部署後驗證
+- [x] VM 實機（pm2 + Cloud SQL）：登入後立刻 `pm2 restart`，`login_history` 有寫入 — 實際結果（版本 `20261008091903-e4d5a18`，pm2 `kill_timeout` 15000）：
+  登入前 1 筆 → 登入後、重啟前仍 1 筆 → `pm2 restart` 後 **2 筆**；pm2 log 同一秒內出現
+  `SYNC.shutdown.flush.start` → `table=login_history rows=1` → `SYNC.shutdown.flush.done`
 
 ## 視覺驗證
 
@@ -40,6 +42,6 @@
 
 ## 結論
 
-- 是否通過：有條件通過（待 VM 實機驗證）
+- 是否通過：是
 - 已知限制或風險：`SIGKILL`、當機、VM 斷電等無法攔截的情況，仍可能遺失最多 5 分鐘的批次資料
-- 後續追蹤事項：部署後在 VM 上以 pm2 + Cloud SQL 實測
+- 後續追蹤事項：無
