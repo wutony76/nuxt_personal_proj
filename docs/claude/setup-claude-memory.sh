@@ -660,13 +660,13 @@ metadata:
 - 架構：Caddy（sslip.io 自動 HTTPS）→ pm2 `portfolio`（127.0.0.1:3000）；`/srv/portfolio/{releases,current,shared/.env}`
 - **純記憶體模式**：使用者選擇先不接資料庫，`.env` 的 `DATABASE_URL` 留空，重啟/部署資料歸零
 - 管理員密碼是隨機產生的，只存在 VM 的 `/srv/portfolio/shared/.env`（不要寫進對話或 repo）
-- 部署方式：GitHub Actions Secrets 尚未設定，目前是本機用 Docker `--platform linux/amd64 node:22.22.2-bookworm` build，scp release.tgz + `remote-deploy.sh` 到 VM 執行
+- 部署方式：**GitHub Actions**（2026-10-08 已設定 4 個 Secrets 並實際部署成功）。流程：`git push` → Actions → Deploy (GCP VM) → Run workflow（需使用者在網頁點，本機沒有 gh CLI）。部署金鑰是本機 `~/.ssh/portfolio_deploy`（VM authorized_keys 註解 `github-actions-deploy`）。備用：本機 Docker `--platform linux/amd64 node:22.22.2-bookworm` build 後 scp + `remote-deploy.sh`
 - VM 上 `~/hfyy` 是使用者自己的 repo clone（605MB），部署沒用到，未經同意不要刪
 - e2-micro 冷啟動差異大（12 秒～106 秒），健康檢查已改為 180 秒（`fix-vm-deploy-boot-issues`，commit eb2c682）
 
 **Why:** 之後要更新線上版本、查 log 或排查問題時，需要知道連線方式與目前的部署形態。
 
-**How to apply:** 部署新版本沿用上述 Docker build + remote-deploy.sh 流程；待辦：IP 是否已改靜態未確認、GitHub Actions Secrets、要保留資料時改在 VM 用 Docker 跑 Postgres、縮短開機時的 bcrypt 種子雜湊時間。相關：[[project_postgres_migration_plan]]
+**How to apply:** 部署新版本先 push，再請使用者觸發 workflow，可在背景監看 VM 的 `/srv/portfolio/current` 是否換成 `*-<commit短碼>` 再驗證；待辦：IP 是否已改靜態未確認、要保留資料時改在 VM 用 Docker 跑 Postgres、縮短開機時的 bcrypt 種子雜湊時間。相關：[[project_postgres_migration_plan]]
 EOF
 
 # ── MEMORY.md 索引 ────────────────────────────────────────────
@@ -688,7 +688,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
 - [台彩7款玩法全數完工](project_tw_lottery_suite_complete.md) — P3/P4/BINGO 補完，含期別helper重構/quota/組彩分級假設等已知待辦
 - [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — 全部盤點項目已完成並驗證通過，2026-10-08 再做一次 API 點擊流程總驗證+重啟+回歸測試全數通過
-- [GCP VM 已部署（純記憶體）](project_gcp_vm_deployed.md) — https://8-231-244-199.sslip.io，ssh wutony76@8.231.244.199，本機 Docker amd64 build + remote-deploy.sh 部署
+- [GCP VM 已部署（純記憶體）](project_gcp_vm_deployed.md) — https://8-231-244-199.sslip.io，ssh wutony76@8.231.244.199，push 後用 GitHub Actions「Deploy (GCP VM)」手動觸發部署
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
