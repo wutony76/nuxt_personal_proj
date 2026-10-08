@@ -316,3 +316,50 @@ export const twPayoutEvents = pgTable('tw_payout_events', {
   primaryKey({ columns: [table.source, table.orderId] }),
   index('idx_tw_payout_events_user_month').on(table.userId, table.createdAt)
 ])
+
+/**
+ * 6hc-cd 跨分頁單期總上限，全站預設，固定 1 列（id='default'），見
+ * openspec/changes/add-6hccd-quota-p2/design.md 第 1 節。`0` = 不限。
+ */
+export const sixhccdQuotaSettings = pgTable('sixhccd_quota_settings', {
+  id: text('id').primaryKey().default('default'),
+  crossTabIssueMax: numeric('cross_tab_issue_max').notNull()
+})
+
+/**
+ * 6hc-cd 跨分頁單期總上限的玩家個別覆寫，override-only 稀疏表：缺列＝套用全站預設值，見
+ * design.md 第 1 節。
+ */
+export const sixhccdMemberQuota = pgTable('sixhccd_member_quota', {
+  userId: text('user_id').primaryKey().references(() => members.id, { onDelete: 'cascade' }),
+  crossTabIssueMax: numeric('cross_tab_issue_max').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+/**
+ * 6hc-cd 每個玩家、每個分頁、每一期的累計投注額，write-through counter（原子累加，
+ * `.returning()` 回傳值才寫回記憶體），取代 `orders.get.issueTabCoin()` 的記憶體重算，
+ * 修正「重啟後當期已用額度歸零」，見 design.md 第 6 節。
+ */
+export const sixhccdTabIssueSpent = pgTable('sixhccd_tab_issue_spent', {
+  userId: text('user_id').notNull().references(() => members.id, { onDelete: 'cascade' }),
+  tabId: integer('tab_id').notNull(),
+  issue: text('issue').notNull(),
+  amount: numeric('amount').notNull().default('0'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.tabId, table.issue] })
+])
+
+/**
+ * 6hc-cd 每個玩家、每一期、跨所有分頁的累計投注額，write-through counter，取代
+ * `orders.get.members.issue()` 的記憶體重算，見 design.md 第 6 節。
+ */
+export const sixhccdIssueSpent = pgTable('sixhccd_issue_spent', {
+  userId: text('user_id').notNull().references(() => members.id, { onDelete: 'cascade' }),
+  issue: text('issue').notNull(),
+  amount: numeric('amount').notNull().default('0'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.issue] })
+])

@@ -27,6 +27,7 @@ import {
   creditTiersOf,
   findCreditTab
 } from '#shared/config/cd/helpers'
+import { sixhccdQuotaService } from './sixhccdQuota'
 
 type OpenCodeHistoryItem = {
   issue: string
@@ -429,14 +430,13 @@ export default class LHC_CD extends LOTTERY_BASE {
           }
         })
 
-        // 單期投注額：同一玩家、同一期、同一分頁的既有注單 + 本次送單（max = 0 視為不限）
-        const orders = this._get.orders() as unknown as {
-          get: { issueTabCoin: (issue: string, userId: string, tabId: number) => number }
-        }
+        // 單期投注額：同一玩家、同一期、同一分頁的既有注單 + 本次送單（max = 0 視為不限）。
+        // 讀 sixhccdQuotaService 的 write-through counter（不是記憶體重算），修正「重啟後
+        // 當期已用額度歸零」，見 add-6hccd-quota-p2/design.md 第 6 節。
         newByTab.forEach(({ playKey, coin: newCoin }, tabId) => {
           const quota = creditQuotaOf(playKey, tabId)
           if (!(quota.issue.max > 0)) return
-          const used = Number(orders?.get?.issueTabCoin?.(input.issue, input.userId, tabId) ?? 0)
+          const used = sixhccdQuotaService.tabIssueSpentOf(input.userId, tabId, input.issue)
           if (used + newCoin > quota.issue.max) {
             const tabName = findCreditTab(playKey, tabId)?.tabName ?? String(tabId)
             this.handle.rejectBet(
@@ -444,6 +444,19 @@ export default class LHC_CD extends LOTTERY_BASE {
             )
           }
         })
+
+        // 跨分頁單期總上限（P2，見 add-6hccd-quota-p2/design.md）：玩家覆寫優先，沒有覆寫
+        // 用全站預設，0 = 不限
+        const crossTabMax = sixhccdQuotaService.crossTabIssueMaxOf(input.userId)
+        if (crossTabMax > 0) {
+          const usedAll = sixhccdQuotaService.issueSpentOf(input.userId, input.issue)
+          const newAll = [...newByTab.values()].reduce((sum, v) => sum + v.coin, 0)
+          if (usedAll + newAll > crossTabMax) {
+            this.handle.rejectBet(
+              `本期跨分頁合計下注上限 ${_money(crossTabMax)}，本期已投注 ${_money(usedAll)}、本次 ${_money(newAll)}`
+            )
+          }
+        }
       },
       // 統一的拒單方式（文案放 message；statusMessage 會被 h3 消毒掉中文，不要用）
       rejectBet: (message: string) => {
@@ -850,6 +863,7 @@ export default class LHC_CD extends LOTTERY_BASE {
     })
 
     const orders = this._get.orders()
+    const perTabCoin = new Map<number, number>()
     rows.forEach((row) => {
       orders.add.record({
         issue: row.issue,
@@ -863,7 +877,11 @@ export default class LHC_CD extends LOTTERY_BASE {
         tiers: row.tiers // 連碼：下注時鎖定的命中檔次表
       })
       this.handle.appendBetHistory(row)
+      perTabCoin.set(row.select_tab_id, (perTabCoin.get(row.select_tab_id) ?? 0) + row.coin)
     })
+    // 累加 6hc-cd 限額 P2 的 write-through counter（per-tab + 跨分頁），見
+    // add-6hccd-quota-p2/design.md 第 6c 節
+    sixhccdQuotaService.addSpent(userId, issue, perTabCoin)
 
     return {
       orderId: rows[0]?.order_id ? String(rows[0].order_id).split('(')[0] : '',

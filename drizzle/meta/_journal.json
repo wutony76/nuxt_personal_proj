@@ -57,6 +57,13 @@
       "when": 1791356958773,
       "tag": "0007_wise_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791422390666,
+      "tag": "0008_flowery_sunspot",
+      "breakpoints": true
     }
   ]
 }

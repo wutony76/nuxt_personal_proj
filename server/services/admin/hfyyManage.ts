@@ -9,6 +9,7 @@ import { npcAutoPlayService } from './modules/npcAutoPlay'
 import { adminRetroGameRatesService } from './modules/retroGameRates'
 import { adminToyShopService } from './modules/toyShop'
 import { mazeTemplates } from 'serv/services/game/retro/mazeTemplates'
+import { sixhccdQuotaService } from 'serv/services/game/lottery/bg/sixhccdQuota'
 import { encodePassword } from 'serv/utils/encrypt'
 import { isDbEnabled, getDb } from 'serv/services/db'
 import { walletCoin as walletCoinTable } from 'serv/services/db/schema'
@@ -159,6 +160,10 @@ export default class HFYYManage {
       for (const row of walletRows) {
         ;(Storage.get.user(row.userId) as { coin?: number }).coin = Number(row.coin)
       }
+
+      // 6hc-cd 限額 P2 開機回填（全站預設/玩家覆寫 + 兩個 write-through counter），見
+      // add-6hccd-quota-p2/design.md 第 6d 節
+      await sixhccdQuotaService.rehydrateFromDb()
 
       dbInitSucceeded = true
     } catch (error) {

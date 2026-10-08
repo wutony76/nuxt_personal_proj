@@ -1,4 +1,5 @@
 import { adminPoolAuditService } from './modules/poolAudit'
+import { sixhccdQuotaService } from 'serv/services/game/lottery/bg/sixhccdQuota'
 
 /**
  * BG 彩票（六合彩／快3／PK10／時時彩／11選5…等信用盤＋官方盤）後台管理入口，
@@ -7,4 +8,5 @@ import { adminPoolAuditService } from './modules/poolAudit'
  */
 export default class HFYYLotteryBg {
   readonly poolAudit = adminPoolAuditService
+  readonly sixhccdQuota = sixhccdQuotaService
 }
