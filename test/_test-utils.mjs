@@ -133,8 +133,13 @@ export function createTestRunner({
    * 等真實遊戲回到「開盤中」再進行真實下注測試，避免測試腳本剛好跑在
    * 封盤／開獎中的過渡窗口而誤判為失敗（這不是程式邏輯錯誤，是遊戲週期本身的正常狀態）。
    * currentPath 例如 '/api/lottery/k3-cd/current'。
+   *
+   * 預設等 130 秒：bg 系列每期 7 分鐘，不開放下注的時間最長是「封盤→開獎完成」80 秒
+   * 加上下一期開頭「準備中」30 秒，共 110 秒（見 server/services/game/lottery/bg/base.ts
+   * 的 getStatusBySeconds）。原本只等 30 秒，CI 剛啟動就跑到這段時間時必定逾時失敗
+   * （見 openspec/changes/fix-ci-startup-test-interference）。
    */
-  async function waitForOpen(currentPath, { timeoutMs = 30000, intervalMs = 500 } = {}) {
+  async function waitForOpen(currentPath, { timeoutMs = 130000, intervalMs = 500 } = {}) {
     const deadline = Date.now() + timeoutMs
     let lastStatus = null
     while (Date.now() < deadline) {

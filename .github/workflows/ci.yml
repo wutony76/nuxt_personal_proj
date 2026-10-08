@@ -59,6 +59,10 @@ jobs:
       # 的 shell 結束後仍存活到後面的 step（同一個 job 共用同一台 VM），
       # 再用 curl 輪詢直到服務啟動完成（或逾時直接把 log 吐出來方便排查）。
       - name: Start dev server
+        env:
+          # 不跑 dev server 啟動時的自動測試，避免與下面的 npm test 同時用同一個帳號下注互相干擾
+          # （見 openspec/changes/fix-ci-startup-test-interference）
+          SKIP_STARTUP_TESTS: '1'
         run: |
           nohup npm run dev > dev-server.log 2>&1 &
           for i in $(seq 1 60); do

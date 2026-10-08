@@ -72,7 +72,10 @@ export default defineNitroPlugin(async (_nitroApp) => {
   //    而且每次 dev server (re)start（包含改檔案觸發的 Nitro 自動重啟）都會重新跑一次
   //    全部測試腳本（約數分鐘）。驗證完畢後應該把這個 if 區塊整個刪掉或註解掉，
   //    避免日常開發時每次存檔都要多等一輪測試。
-  if (process.env.NODE_ENV !== 'production') {
+  // SKIP_STARTUP_TESTS=1 時跳過：CI 會在 dev server 就緒後立刻跑 npm test，兩邊同時用同一個
+  // 帳號下注會讓餘額斷言互相干擾（見 openspec/changes/fix-ci-startup-test-interference）。
+  const skipStartupTests = process.env.SKIP_STARTUP_TESTS === '1'
+  if (process.env.NODE_ENV !== 'production' && !skipStartupTests) {
     void (async () => {
       console.log('***---START.TESTING.RUN')
       await new TestClass().bg()
@@ -80,5 +83,7 @@ export default defineNitroPlugin(async (_nitroApp) => {
       await new TestClass().retro()
       console.log('***---END.TESTING.RUN')
     })()
+  } else if (skipStartupTests) {
+    console.log('SKIP ---TESTING（SKIP_STARTUP_TESTS=1）')
   }
 })
