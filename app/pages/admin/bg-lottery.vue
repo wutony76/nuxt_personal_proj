@@ -5,8 +5,11 @@
  */
 import { reactive, computed, onMounted } from 'vue'
 import { api, type BgPoolReseedEvent, type BgFloorOverpayEvent, type BgPoolAuditSummary } from '~/services/api'
+import { useAdminAuth } from '~/composables/useAdminAuth'
 
 type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
+
+const { isDemo } = useAdminAuth()
 
 const LOTTERY_KEYS = [
   { key: '', label: '全部彩種' },
@@ -37,7 +40,7 @@ const state = reactive({
   stats: { reseedCount: 0, overpayCount: 0, totalOverpay: 0 },
   filterKey: '',
   filterRange: 'all' as 'all' | '7d' | '30d',
-  activeTab: 'overpay' as 'overpay' | 'reseed' | 'summary',
+  activeTab: 'overpay' as 'overpay' | 'reseed' | 'summary' | 'quota',
 })
 
 const _actions = {
@@ -146,6 +149,10 @@ onMounted(() => _actions.fetch())
               <span>各彩種摘要</span>
               <span class="admin-num abl-tab-count">{{ state.summary.length }}</span>
             </button>
+            <button type="button" class="abl-tab" :class="{ active: state.activeTab === 'quota' }"
+              @click="click.setTab('quota')">
+              <span>限額設定</span>
+            </button>
           </div>
 
           <!-- Tab: overpay events -->
@@ -238,6 +245,11 @@ onMounted(() => _actions.fetch())
                 </tr>
               </tbody>
             </table>
+          </template>
+
+          <!-- Tab: 6hc-cd quota settings -->
+          <template v-if="state.activeTab === 'quota'">
+            <AdminSixhccdQuotaPanel :is-demo="isDemo" />
           </template>
 
         </template>

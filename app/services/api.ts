@@ -1252,6 +1252,13 @@ export type BgPoolAuditResponse = {
   stats: { reseedCount: number; overpayCount: number; totalOverpay: number }
 }
 
+export type SixhccdQuotaMemberOverride = { userId: string; crossTabIssueMax: number }
+
+export type SixhccdQuotaSettings = {
+  globalCrossTabIssueMax: number
+  memberOverrides: SixhccdQuotaMemberOverride[]
+}
+
 export type BgReportSummaryGameItem = {
   key: string
   name: string
@@ -1967,7 +1974,18 @@ export const api = {
     },
     bgLottery: {
       poolAudit: (params?: { lotteryKey?: string; range?: '7d' | '30d' | 'all' }) =>
-        $fetch<BgPoolAuditResponse>('/api/admin/bg-lottery/pool-audit', { query: params })
+        $fetch<BgPoolAuditResponse>('/api/admin/bg-lottery/pool-audit', { query: params }),
+      sixhccdQuota: () => $fetch<SixhccdQuotaSettings>('/api/admin/bg-lottery/6hccd-quota'),
+      setSixhccdQuota: (crossTabIssueMax: number) =>
+        $fetch<{ crossTabIssueMax: number }>('/api/admin/bg-lottery/6hccd-quota', {
+          method: 'PATCH',
+          body: { crossTabIssueMax }
+        }),
+      setSixhccdMemberQuota: (userId: string, crossTabIssueMax: number | null) =>
+        $fetch<{ userId: string; crossTabIssueMax: number | null }>(
+          `/api/admin/bg-lottery/6hccd-quota/members/${userId}`,
+          { method: 'PATCH', body: { crossTabIssueMax } }
+        )
     },
     toyShop: {
       settings: () => $fetch<ToyShopSettings>('/api/admin/toy-shop/settings'),
