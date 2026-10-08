@@ -641,6 +641,34 @@ tw_payout_events/retro_daily_grants）持續有新資料寫入，時間戳與 NP
   明確提出，不要主動「順便修掉」
 EOF
 
+# ── 16. GCP VM 已部署（純記憶體） ──────────────────────────────
+cat > "$MEMORY_DIR/project_gcp_vm_deployed.md" << 'EOF'
+---
+name: project-gcp-vm-deployed
+description: 專案已部署到 GCP VM（hfyy-instance-1，8.231.244.199，純記憶體模式），含 SSH 帳號、網址、部署方式與待辦
+metadata:
+  node_type: memory
+  type: project
+  originSessionId: 4c46fe7a-f690-43fa-babf-a60ec567abe2
+  modified: 2026-10-08T06:58:38.681Z
+---
+
+2026-10-08 專案首次實機上線：**https://8-231-244-199.sslip.io**
+
+- VM：GCP `hfyy-instance-1`，us-west1-b，e2-micro，Ubuntu 24.04，外部 IP `8.231.244.199`
+- SSH：`ssh wutony76@8.231.244.199`（本機 `~/.ssh/id_rsa`，公鑰已加到 VM 的 SSH 金鑰）
+- 架構：Caddy（sslip.io 自動 HTTPS）→ pm2 `portfolio`（127.0.0.1:3000）；`/srv/portfolio/{releases,current,shared/.env}`
+- **純記憶體模式**：使用者選擇先不接資料庫，`.env` 的 `DATABASE_URL` 留空，重啟/部署資料歸零
+- 管理員密碼是隨機產生的，只存在 VM 的 `/srv/portfolio/shared/.env`（不要寫進對話或 repo）
+- 部署方式：GitHub Actions Secrets 尚未設定，目前是本機用 Docker `--platform linux/amd64 node:22.22.2-bookworm` build，scp release.tgz + `remote-deploy.sh` 到 VM 執行
+- VM 上 `~/hfyy` 是使用者自己的 repo clone（605MB），部署沒用到，未經同意不要刪
+- e2-micro 冷啟動差異大（12 秒～106 秒），健康檢查已改為 180 秒（`fix-vm-deploy-boot-issues`，commit eb2c682）
+
+**Why:** 之後要更新線上版本、查 log 或排查問題時，需要知道連線方式與目前的部署形態。
+
+**How to apply:** 部署新版本沿用上述 Docker build + remote-deploy.sh 流程；待辦：IP 是否已改靜態未確認、GitHub Actions Secrets、要保留資料時改在 VM 用 Docker 跑 Postgres、縮短開機時的 bcrypt 種子雜湊時間。相關：[[project_postgres_migration_plan]]
+EOF
+
 # ── MEMORY.md 索引 ────────────────────────────────────────────
 cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 # Memory Index
@@ -660,6 +688,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [六階段流程為強制要求](feedback_openspec_6stage_required.md) — 之後所有修改都要落地產出 docs/Architecture、docs/Engineering Evidence 文件，非一次性要求
 - [台彩7款玩法全數完工](project_tw_lottery_suite_complete.md) — P3/P4/BINGO 補完，含期別helper重構/quota/組彩分級假設等已知待辦
 - [Postgres 遷移規劃（Phase 1-3）](project_postgres_migration_plan.md) — 全部盤點項目已完成並驗證通過，2026-10-08 再做一次 API 點擊流程總驗證+重啟+回歸測試全數通過
+- [GCP VM 已部署（純記憶體）](project_gcp_vm_deployed.md) — https://8-231-244-199.sslip.io，ssh wutony76@8.231.244.199，本機 Docker amd64 build + remote-deploy.sh 部署
 EOF
 
 # ── Agents ───────────────────────────────────────────────────
@@ -776,7 +805,7 @@ tools: Read, Grep, Glob, Bash, Edit, Write
 AGENTEOF
 
 echo ""
-echo "✓ 設定完成，共 13 條記憶 + 2 個 Agents："
+echo "✓ 設定完成，共 14 條記憶 + 2 個 Agents："
 echo "  記憶："
 echo "  - 語言偏好：繁體中文"
 echo "  - git commit 訊息格式（「給我最新的 git commit」觸發）"
@@ -791,6 +820,7 @@ echo "  - 驗證改動用既有 dev server（直接用 6100）"
 echo "  - 「先幫我規劃」只寫 spec（不寫程式碼）"
 echo "  - OpenSpec 流程擴充為 6 階段（新增 Validation、Engineering Evidence）"
 echo "  - 六階段流程為強制要求（每次修改都要落地產出 docs/Architecture、docs/Engineering Evidence）"
+echo "  - GCP VM 已部署（純記憶體模式，8-231-244-199.sslip.io）"
 echo "  Agents："
 echo "  - my-reviewer（程式碼審查 + 補測試）"
 echo "  - my-create（新功能／組件建立）"
