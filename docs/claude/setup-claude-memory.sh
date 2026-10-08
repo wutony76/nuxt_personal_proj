@@ -177,50 +177,52 @@ EOF
 cat > "$MEMORY_DIR/project_quota_p2_pending.md" << 'EOF'
 ---
 name: project-quota-p2-pending
-description: 6hc-cd 投注限額 P2（跨分頁單期總上限+玩家層級覆寫）已規劃完成（add-6hccd-quota-p2），待使用者確認後實作
+description: 6hc-cd 投注限額 P2（跨分頁單期總上限+玩家層級覆寫）已實作完成並驗證通過，後台 UI 留到下一個 change
 metadata:
   node_type: memory
   type: project
 ---
 
-**狀態更新（2026-10-07）**：使用者主動重提此待辦，要求規劃（尚未要求實作）。已建立
-`openspec/changes/add-6hccd-quota-p2/`（proposal.md/design.md/tasks.md），關鍵設計結論：
+**已實作完成並驗證通過（2026-10-08）**：2026-10-07 使用者重提此待辦要求規劃，建立
+`openspec/changes/add-6hccd-quota-p2/`，確認三項設計決策後（種子值 `0`／後台 UI 本批不做／
+**重啟後當期已用額度歸零一併解決**）直接實作完成。
+
+關鍵設計：
 - enforcement **不需要新表**——`server/services/game/lottery/bg/orders.ts` 的
-  `get.members.issue(issue, userId)` 已經是「跨所有分頁、同玩家同期」的累計投注額計算器，
-  只是目前沒用在限額驗證上，只需在 `validateBetQuota()` 加一段檢查
-- 真正要新增的只有「上限數值」本身的持久化：`sixhccd_quota_settings`（全站預設，singleton，
-  比照 `toy_shop_settings`）+ `sixhccd_member_quota`（玩家覆寫，override-only 稀疏表，比照
-  `retro_game_rates`）
+  `get.members.issue(issue, userId)` 本來就是「跨所有分頁、同玩家同期」的累計投注額計算器，
+  只是原本沒用在限額驗證上
+- 新增 4 張表：`sixhccd_quota_settings`（全站預設，singleton，比照 `toy_shop_settings`）+
+  `sixhccd_member_quota`（玩家覆寫，override-only 稀疏表，比照 `retro_game_rates`）+
+  `sixhccd_tab_issue_spent`/`sixhccd_issue_spent`（兩個 write-through counter，比照
+  `retro_daily_grants` 的「原子累加 + `.returning()` 回填記憶體」模式）
 - 不擴充 `creditQuotaOf()`（shared 純函式，前後端共用，無法做 DB I/O）；跨分頁上限是獨立於
-  `CreditQuota` 之外的遊戲層級新概念
-- `game_orders` 批次同步只歸檔已結算期別（當期/前一期不同步），所以 enforcement 本來就該讀
-  記憶體不是讀 DB，`game_orders` 幫不上忙
-- 三項設計決策已確認（2026-10-07）：種子值 `0`（不限）／後台 UI 本批不做（留到下一個
-  change）／**重啟後當期已用額度歸零一併解決**——這點讓範圍變大：新增
-  `sixhccd_tab_issue_spent`/`sixhccd_issue_spent` 兩張 write-through counter 表（比照
-  `retro_daily_grants` 的「原子累加 + `.returning()` 回填記憶體」模式），既有 per-tab 單期
-  檢查（`orders.get.issueTabCoin()`）也要一起改讀新 counter，不是只加跨分頁這一層。寫入採
-  fire-and-forget（比照 `npcAutoPlay._addSpent()`），不讓下注流程等 DB。design.md 第 6 節
-  已有完整設計。**規劃已完成，尚未實作**，等使用者明確要求才開始寫程式碼。
+  `CreditQuota` 之外、在 `validateBetQuota()` 額外檢查的新概念
+- `6hcCd.ts` 的 `validateBetQuota()`：既有 per-tab 單期檢查改讀新 counter（取代
+  `orders.get.issueTabCoin()` 記憶體重算，順便修正「重啟後當期已用額度歸零」這個繼承的舊
+  限制），新增跨分頁總上限檢查；`playBets()` 建單成功後 fire-and-forget 累加兩個 counter，
+  不擋下注流程
+- 新增 3 支 admin API（`GET/PATCH /api/admin/bg-lottery/6hccd-quota`、
+  `PATCH .../members/[userId]`），**後台 UI 留到下一個 change**
 
-**原始待決事項（2026-08-06 記錄）**：6hc-cd 信用盤的投注限額目前只到「分頁層級」，由 `c_tema.js` / `c_zhengma.js` 各分頁的 `settings.quota` 提供，經 `shared/config/cd/helpers.ts` 的 `creditQuotaOf()` 讀取，伺端在 `server/services/game/lottery/bg/6hcCd.ts`（不是舊記錄寫的 `server/services/lottery6hcCd.ts`，該路徑不存在）的 `handle.validateBetQuota()` 驗證（擋在扣款與建單之前）。
+驗證：真實下注流程確認跨分頁合計超過上限正確拒單（訊息/數字精確吻合）、DB counter 正確
+寫入、重啟後設定值正確回填（settings 與 counter 共用同一個 `rehydrateFromDb()`）。
+`npm test` 全數通過，`test:6hc-cd`（涵蓋大量既有 per-tab 限額情境）改讀新 counter 後重跑仍
+56/56 全數通過，證實既有行為無回歸。DB enabled/disabled 兩種設定下皆測試過。
 
-**已實作**：單注上下限 `item.min` / `item.max`；單期上限 `issue.max`，以「同一玩家＋同一期＋**同一分頁**」累計（`orders.get.issueTabCoin()`），`max: 0` 視為不限。
+**原始待決事項（2026-08-06 記錄，已解決）**：6hc-cd 信用盤的投注限額當時只到「分頁層級」，
+由 `c_tema.js` / `c_zhengma.js` 各分頁的 `settings.quota` 提供，經
+`shared/config/cd/helpers.ts` 的 `creditQuotaOf()` 讀取，伺端在
+`server/services/game/lottery/bg/6hcCd.ts` 的 `handle.validateBetQuota()` 驗證（擋在扣款
+與建單之前）——單注上下限 `item.min`/`item.max`、單期上限 `issue.max`（同玩家+同期+同分頁
+累計）都已實作，缺的是跨分頁總上限與玩家層級限額（即上方已完成的這批）。
 
-**尚未實作（P2）**：
-- 跨分頁的單期總投注上限（例如同一期在 特碼A＋特碼B＋正碼A… 的合計上限）
-- 玩家層級限額（依帳號個別設定），需要在 user 資料結構（`server/services/storage.ts` / `users.ts`）新增欄位，並可能需要後台設定介面
+**Why:** 原本評估後決定先停在分頁層級，P2 涉及資料結構變更與營運設定，暫不投入；
+2026-10-07 使用者在完成整批 Postgres 持久化工作後主動重提，規劃並實作完成。
 
-**Why:** 原本評估後決定先停在分頁層級，P2 涉及資料結構變更與營運設定，暫不投入；2026-10-07
-使用者在完成整批 Postgres 持久化工作後主動重提，要求先規劃。
-
-**How to apply:** 已有完整規劃（`openspec/changes/add-6hccd-quota-p2/`），**不要主動開始
-Implementation**，等使用者明確要求才動工（見 [[feedback_plan_first_spec_only]]）。真的要
-實作時直接照 design.md 走，**不要延伸 `creditQuotaOf()` 的 fallback 鏈**（這是研究後修正的
-決策——`creditQuotaOf()` 是 shared 純函式、前後端共用、無法做 DB I/O，跨分頁上限應該是獨立
-於 `CreditQuota` 之外在 `validateBetQuota()` 額外檢查的新概念）。開工前務必先跟使用者確認
-proposal.md 列出的三項設計決策（全站預設種子值/UI 範圍/是否連帶解決重啟歸零限制）。相關
-待決項另見 [[project-jackpot-weight-zhengma]]。
+**How to apply:** 這份待辦已完成，不用再主動提起。若使用者之後要做後台 UI（下一個 change，
+`/admin/bg-lottery` 新分頁，比照 `NpcPanel.vue` 的「全域設定 + 逐會員覆寫列表」版面），
+直接接續 `openspec/changes/add-6hccd-quota-p2/design.md` 第 5 節的草案即可。相關待決項
+另見 [[project-jackpot-weight-zhengma]]。
 EOF
 
 # ── 8. 遊戲紀錄 coin 每日上限 ──────────────────────────────────
@@ -629,7 +631,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [SCSS 巢狀語法](feedback_scss_nesting.md) — 產生的 SCSS 一律使用巢狀語法，不平鋪展開
 - [專案規範強制遵循](feedback_project_spec.md) — 改 code 前讀 openspec/project.md；reactive 統一 state、私有邏輯封裝 _handlers/_actions/click、非同步三段狀態
 - [同步 setup script](feedback_sync_setup_script.md) — 新增/修改 agent 或記憶後，必須同步更新 ~/setup-claude-memory.sh 與 claude/setup-claude-memory.sh 兩個檔案
-- [6hc-cd 限額 P2](project_quota_p2_pending.md) — 跨分頁單期總上限+玩家層級覆寫已規劃完成（add-6hccd-quota-p2），待使用者確認後實作
+- [6hc-cd 限額 P2](project_quota_p2_pending.md) — 跨分頁單期總上限+玩家層級覆寫已實作完成並驗證通過，後台 UI 留到下一個 change
 - [遊戲紀錄 coin 每日上限](project_game_history_coin_reward.md) — 三款遊戲皆訂 100000；之後需要後台管理介面調整這些常數
 - [GAME 17-25 openspec 提案](project_pixel_games_17-25_proposals.md) — 8 款遊戲已全數實作、測試、commit 完成（Dino Run 不新增）
 - [驗證改動用既有 dev server](feedback_temp_dev_server_testing.md) — 不要另開 npm run dev -- --port N，直接用 6100，避免殭屍進程
