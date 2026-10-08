@@ -255,14 +255,37 @@ workflow 會依序執行：單元測試 → build → 打包 → 上傳 → 在 
 Nuxt（/api/admin/game-simulator/scratch*，需登入）─▶ gunicorn 127.0.0.1:8000 ─▶ py3_AVScratch_proj
 ```
 
-在**本機**執行（第一次安裝與之後更新都是這一行）：
+VM 直接從 GitHub 拉 `main` 最新版。repo 是私有的，第一次要設定 VM 的唯讀部署金鑰：
+
+1. 在 VM 產生金鑰並設定專用 Host 別名（github.com host key 請比對
+   [GitHub 官方指紋](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints)，
+   ED25519 為 `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`）：
+
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/avscratch_deploy -C "VM avscratch read-only" -N ""
+   ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
+   cat >> ~/.ssh/config <<'EOF'
+   Host github-avscratch
+     HostName github.com
+     User git
+     IdentityFile ~/.ssh/avscratch_deploy
+     IdentitiesOnly yes
+   EOF
+   cat ~/.ssh/avscratch_deploy.pub
+   ```
+
+2. 把公鑰加到 GitHub repo → Settings → **Deploy keys** → Add deploy key，**不要勾** Allow write access。
+3. 確認：`ssh -T git@github-avscratch` 會顯示 `Hi wutony76/py3_AVScratch_proj!`。
+
+之後在**本機**執行（第一次安裝與之後更新都是這一行）：
 
 ```bash
-AVSCRATCH_DIR=/path/to/py3_AVScratch_proj VM=使用者@VM的IP \
-  bash deploy/gcp-vm/avscratch/deploy-avscratch.sh
+VM=使用者@VM的IP bash deploy/gcp-vm/avscratch/deploy-avscratch.sh
 ```
 
-- 部署的是 `py3_AVScratch_proj` **HEAD 已 commit 的內容**（`git archive`），未 commit 的修改不會上傳。
+- 部署的是 GitHub `main` 的最新版：**記得先 push**，本機未 push 的 commit 不會上線。
+- 第一次會 `git clone`，之後是 `git fetch` + `git reset --hard origin/main`（VM 上不要手動改程式碼）。
+- 想測試還沒 push 的版本：加上 `AVSCRATCH_DIR=/path/to/py3_AVScratch_proj`，改為上傳本機 HEAD 已 commit 的內容。
 - VM 上用 `uv` 安裝 Python 3.10 與固定版本套件：程式碼使用 `ImageDraw.textsize()`（Pillow 10 已移除），
   必須用 Pillow 9.5，而 Pillow 9.5 不支援 Ubuntu 24.04 內建的 Python 3.12。
 - 服務只綁 `127.0.0.1:8000`，不對外開放（Django 設定為 `DEBUG=True`、`ALLOWED_HOSTS=['*']`）。

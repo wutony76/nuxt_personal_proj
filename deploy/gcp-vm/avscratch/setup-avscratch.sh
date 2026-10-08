@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# 在 VM 上安裝刮刮樂試算 Python 服務。由 deploy-avscratch.sh 上傳程式碼後呼叫，可重複執行。
+# 在 VM 上安裝刮刮樂試算 Python 服務。由 update-avscratch.sh（從 GitHub 拉）或 deploy-avscratch.sh（上傳本機）呼叫，可重複執行。
 #
 # 前提：/srv/avscratch/app 已有 py3_AVScratch_proj 的檔案（git 追蹤的檔案）。
 #
