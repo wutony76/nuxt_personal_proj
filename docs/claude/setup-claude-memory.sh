@@ -177,13 +177,21 @@ EOF
 cat > "$MEMORY_DIR/project_quota_p2_pending.md" << 'EOF'
 ---
 name: project-quota-p2-pending
-description: 6hc-cd 投注限額 P2（跨分頁單期總上限+玩家層級覆寫）已實作完成並驗證通過，後台 UI 留到下一個 change
+description: 6hc-cd 投注限額 P2（跨分頁單期總上限+玩家層級覆寫）後端+後台 UI 皆已實作完成並驗證通過
 metadata:
   node_type: memory
   type: project
 ---
 
-**已實作完成並驗證通過（2026-10-08）**：2026-10-07 使用者重提此待辦要求規劃，建立
+**後台 UI 已補完（2026-10-08）**：`openspec/changes/add-6hccd-quota-admin-ui/`，`/admin/bg-lottery`
+新增第 4 個分頁「限額設定」，掛載新元件 `app/components/admin/SixhccdQuotaPanel.vue`
+（全站預設值輸入框+儲存、可搜尋會員的逐會員覆寫列表，`isDemo` 唯讀鎖定），純前端串接既有
+3 支 API、無新增後端邏輯。驗證：API 資料流 17 項斷言全數通過（含「重新讀取確認落地」）；
+無瀏覽器自動化工具，分頁切換/按鈕點擊的畫面互動以程式碼走查確認，未實際點擊測試。
+`test:bg`/`test:6hc-cd`/`test:roles` 全數通過，無回歸。這個待辦**已全部完成**，不用再主動
+提起。
+
+**後端已實作完成並驗證通過（2026-10-08）**：2026-10-07 使用者重提此待辦要求規劃，建立
 `openspec/changes/add-6hccd-quota-p2/`，確認三項設計決策後（種子值 `0`／後台 UI 本批不做／
 **重啟後當期已用額度歸零一併解決**）直接實作完成。
 
@@ -219,10 +227,8 @@ metadata:
 **Why:** 原本評估後決定先停在分頁層級，P2 涉及資料結構變更與營運設定，暫不投入；
 2026-10-07 使用者在完成整批 Postgres 持久化工作後主動重提，規劃並實作完成。
 
-**How to apply:** 這份待辦已完成，不用再主動提起。若使用者之後要做後台 UI（下一個 change，
-`/admin/bg-lottery` 新分頁，比照 `NpcPanel.vue` 的「全域設定 + 逐會員覆寫列表」版面），
-直接接續 `openspec/changes/add-6hccd-quota-p2/design.md` 第 5 節的草案即可。相關待決項
-另見 [[project-jackpot-weight-zhengma]]。
+**How to apply:** 這份待辦（後端+後台 UI）已全部完成，不用再主動提起。相關待決項另見
+[[project-jackpot-weight-zhengma]]。
 EOF
 
 # ── 8. 遊戲紀錄 coin 每日上限 ──────────────────────────────────
@@ -631,7 +637,7 @@ cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
 - [SCSS 巢狀語法](feedback_scss_nesting.md) — 產生的 SCSS 一律使用巢狀語法，不平鋪展開
 - [專案規範強制遵循](feedback_project_spec.md) — 改 code 前讀 openspec/project.md；reactive 統一 state、私有邏輯封裝 _handlers/_actions/click、非同步三段狀態
 - [同步 setup script](feedback_sync_setup_script.md) — 新增/修改 agent 或記憶後，必須同步更新 ~/setup-claude-memory.sh 與 claude/setup-claude-memory.sh 兩個檔案
-- [6hc-cd 限額 P2](project_quota_p2_pending.md) — 跨分頁單期總上限+玩家層級覆寫已實作完成並驗證通過，後台 UI 留到下一個 change
+- [6hc-cd 限額 P2](project_quota_p2_pending.md) — 跨分頁單期總上限+玩家層級覆寫，後端+後台 UI 皆已完成並驗證通過
 - [遊戲紀錄 coin 每日上限](project_game_history_coin_reward.md) — 三款遊戲皆訂 100000；之後需要後台管理介面調整這些常數
 - [GAME 17-25 openspec 提案](project_pixel_games_17-25_proposals.md) — 8 款遊戲已全數實作、測試、commit 完成（Dino Run 不新增）
 - [驗證改動用既有 dev server](feedback_temp_dev_server_testing.md) — 不要另開 npm run dev -- --port N，直接用 6100，避免殭屍進程
@@ -764,7 +770,7 @@ echo "  - 修改後必須完善測試"
 echo "  - SCSS 巢狀語法"
 echo "  - 專案規範強制遵循（openspec/project.md）"
 echo "  - 同步 setup script（新增記憶或 agent 時立刻更新兩個 script）"
-echo "  - 6hc-cd 限額 P2（已規劃，待確認）"
+echo "  - 6hc-cd 限額 P2（後端+後台 UI 皆已完成並驗證通過）"
 echo "  - 遊戲紀錄 coin 每日上限（100000，待後台管理介面）"
 echo "  - GAME 17-25 openspec 提案（8 款已完成）"
 echo "  - 驗證改動用既有 dev server（直接用 6100）"
