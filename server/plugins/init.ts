@@ -12,7 +12,7 @@ import { registerWalletSyncSources } from '../services/walletSyncSource'
 import { rehydrateTodayDailyGrantsFromDb } from '../services/game/retro/history'
 import RETRO_GAME_BASE from '../services/game/retro/base'
 
-export default defineNitroPlugin(async (_nitroApp) => {
+export default defineNitroPlugin(async (nitroApp) => {
   console.log('')
   console.log('')
   console.log('')
@@ -46,8 +46,15 @@ export default defineNitroPlugin(async (_nitroApp) => {
     } catch (error) {
       console.error('BOOT.daily-grants-rehydrate.failed —— 開機回填今日配額計數器失敗，退回從 0 開始', error)
     }
-    new SyncScheduler().start()
+    const syncScheduler = new SyncScheduler().start()
     console.log('SUCCESS ---BASE>sync.scheduler.start')
+    // 關閉前最後同步一次（SIGTERM/SIGINT 時 Nitro 會呼叫 close hook），避免遺失距離上一輪
+    // 最多 5 分鐘的批次資料（見 openspec/changes/add-sync-flush-on-shutdown）
+    nitroApp.hooks.hook('close', async () => {
+      console.log('SYNC.shutdown.flush.start')
+      await syncScheduler.stopAndFlush()
+      console.log('SYNC.shutdown.flush.done')
+    })
   } else {
     console.log('SKIP ---BASE>sync.scheduler（DATABASE_URL 未設定，維持純記憶體模式）')
   }

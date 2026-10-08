@@ -18,6 +18,9 @@ module.exports = {
       instances: 1,
       // e2-micro 只有 1GB 記憶體；超過就重啟，避免整台 VM 卡死
       max_memory_restart: '700M',
+      // 關閉前會先把記憶體資料同步到 DB（Nitro close hook），pm2 預設 1.6 秒就強制終止，
+      // 來不及寫完（見 openspec/changes/add-sync-flush-on-shutdown）
+      kill_timeout: 15000,
       time: true,
       env: {
         NODE_ENV: 'production',

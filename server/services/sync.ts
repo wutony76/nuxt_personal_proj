@@ -89,13 +89,15 @@ async function runSyncTick(): Promise<void> {
 export class SyncScheduler {
   private isRunning = false
   private _timer: ReturnType<typeof setTimeout> | null = null
+  /** 進行中的那一輪；stopAndFlush() 要先等它完成，避免兩輪同時寫同一批資料 */
+  private _inFlight: Promise<void> | null = null
   private intervalMs: number
 
   constructor(intervalMs = 300_000) {
     this.intervalMs = intervalMs
   }
 
-  private async _circle(): Promise<void> {
+  private async _runTickSafely(): Promise<void> {
     try {
       await runSyncTick()
     } catch (error) {
@@ -103,6 +105,12 @@ export class SyncScheduler {
       // 確保就算 runSyncTick() 本身意外拋錯，也不會讓整個 timer 停擺。
       console.error('SYNC.tick.unexpected-error', error)
     }
+  }
+
+  private async _circle(): Promise<void> {
+    this._inFlight = this._runTickSafely()
+    await this._inFlight
+    this._inFlight = null
     if (!this.isRunning) return
     this._timer = setTimeout(() => this._circle(), this.intervalMs)
   }
@@ -120,5 +128,16 @@ export class SyncScheduler {
       clearTimeout(this._timer)
       this._timer = null
     }
+  }
+
+  /**
+   * 伺服器關閉前呼叫（Nitro `close` hook）：停止排程、等進行中的那一輪完成，再同步最後一次，
+   * 避免遺失距離上一輪最多 5 分鐘的資料（見 openspec/changes/add-sync-flush-on-shutdown）。
+   * 不會拋錯：每個來源的失敗都已在 runSyncTick() / _runTickSafely() 內處理。
+   */
+  async stopAndFlush(): Promise<void> {
+    this.stop()
+    if (this._inFlight) await this._inFlight
+    await this._runTickSafely()
   }
 }
