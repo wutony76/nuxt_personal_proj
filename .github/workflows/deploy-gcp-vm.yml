@@ -11,8 +11,16 @@ name: Deploy (GCP VM)
 #   GCP_VM_USER         SSH 使用者名稱
 #   GCP_VM_SSH_KEY      部署用 SSH 私鑰
 #   GCP_VM_KNOWN_HOSTS  VM 的 host key（ssh-keyscan 的輸出），避免中間人攻擊
+#
+# 勾選 update_avscratch 時，網站部署成功後會讓 VM 從 GitHub 拉 py3_AVScratch_proj 最新版
+# （刮刮樂試算服務，VM 需已設定唯讀 Deploy key，見 docs/deployment/gcp-vm.md）。
 on:
   workflow_dispatch:
+    inputs:
+      update_avscratch:
+        description: '同時更新刮刮樂試算服務（從 GitHub 拉 py3_AVScratch_proj 最新版）'
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-gcp-vm
@@ -63,3 +71,15 @@ jobs:
           RELEASE_ID="$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}"
           scp -i ~/.ssh/id_deploy release.tgz deploy/gcp-vm/remote-deploy.sh "$VM_USER@$VM_HOST:/tmp/"
           ssh -i ~/.ssh/id_deploy "$VM_USER@$VM_HOST" "bash /tmp/remote-deploy.sh '$RELEASE_ID' /tmp/release.tgz"
+
+      # 網站部署失敗時這一步會被略過（前一步失敗就不會繼續），避免在網站已回滾的狀態下又更新試算服務
+      - name: Update scratch simulator service (py3_AVScratch_proj)
+        if: ${{ inputs.update_avscratch }}
+        env:
+          VM_HOST: ${{ secrets.GCP_VM_HOST }}
+          VM_USER: ${{ secrets.GCP_VM_USER }}
+        run: |
+          ssh -i ~/.ssh/id_deploy "$VM_USER@$VM_HOST" 'mkdir -p ~/avscratch-setup'
+          scp -i ~/.ssh/id_deploy deploy/gcp-vm/avscratch/setup-avscratch.sh deploy/gcp-vm/avscratch/update-avscratch.sh \
+            deploy/gcp-vm/avscratch/avscratch.service.template "$VM_USER@$VM_HOST:~/avscratch-setup/"
+          ssh -i ~/.ssh/id_deploy "$VM_USER@$VM_HOST" 'bash ~/avscratch-setup/update-avscratch.sh'

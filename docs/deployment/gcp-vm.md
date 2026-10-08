@@ -286,6 +286,7 @@ VM=使用者@VM的IP bash deploy/gcp-vm/avscratch/deploy-avscratch.sh
 - 部署的是 GitHub `main` 的最新版：**記得先 push**，本機未 push 的 commit 不會上線。
 - 第一次會 `git clone`，之後是 `git fetch` + `git reset --hard origin/main`（VM 上不要手動改程式碼）。
 - 想測試還沒 push 的版本：加上 `AVSCRATCH_DIR=/path/to/py3_AVScratch_proj`，改為上傳本機 HEAD 已 commit 的內容。
+- 也可以在 GitHub Actions 部署網站時一起更新：Run workflow 時勾選「**同時更新刮刮樂試算服務**」，網站部署成功後會執行同樣的更新（網站部署失敗時不會執行）。
 - VM 上用 `uv` 安裝 Python 3.10 與固定版本套件：程式碼使用 `ImageDraw.textsize()`（Pillow 10 已移除），
   必須用 Pillow 9.5，而 Pillow 9.5 不支援 Ubuntu 24.04 內建的 Python 3.12。
 - 服務只綁 `127.0.0.1:8000`，不對外開放（Django 設定為 `DEBUG=True`、`ALLOWED_HOSTS=['*']`）。
