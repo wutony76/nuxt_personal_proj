@@ -660,7 +660,7 @@ metadata:
 - 架構：Caddy（sslip.io 自動 HTTPS）→ pm2 `portfolio`（127.0.0.1:3000）；`/srv/portfolio/{releases,current,shared/.env}`
 - **資料庫：Cloud SQL**（2026-10-08 從純記憶體模式切換）：執行個體 `hfyy-db`（Enterprise、PG16、us-west1-b、無 HA），連線名稱 `fatdemo-260226001:us-west1:hfyy-db`，資料庫 `HFYY-DATABASE`，使用者 `portfolio`（密碼使用者自訂，含 `\` `)`，URL 需編碼成 %5C %29）。VM 上 systemd `cloud-sql-proxy`（v2.26.0，127.0.0.1:5432，已 enable），pm2 unit 有 drop-in 讓它排在 proxy 之後啟動。VM 服務帳戶 `fatyoyo@fatdemo-260226001.iam.gserviceaccount.com` 有 cloudsql.client；存取權範圍必須是 cloud-platform，主控台找不到選項，是用 Cloud Shell `gcloud compute instances set-service-account ... --scopes=cloud-platform`（需停機）才改成功。純記憶體模式的舊 .env 備份在 `/srv/portfolio/shared/.env.bak-memory-mode`
 - 本機 Docker Postgres 也改成同一組帳密與 `HFYY-DATABASE`（本機 .env 已更新，舊的 `portfolio` 資料庫仍保留未刪）
-- 已知限制：login_history、遊戲紀錄等走 SyncScheduler 每 5 分鐘批次同步，沒有關機前 flush，重啟/部署會遺失最近 5 分鐘內的這類資料；members 等 write-through 資料不受影響
+- login_history、遊戲紀錄等走 SyncScheduler 每 5 分鐘批次同步；2026-10-08 起關閉前會 flush（Nitro close hook + pm2 kill_timeout 15s，`add-sync-flush-on-shutdown`，VM 實測通過）。只有 SIGKILL/當機/斷電才會遺失最多 5 分鐘
 - 管理員密碼是隨機產生的，只存在 VM 的 `/srv/portfolio/shared/.env`（不要寫進對話或 repo）
 - 部署方式：**GitHub Actions**（2026-10-08 已設定 4 個 Secrets 並實際部署成功）。流程：`git push` → Actions → Deploy (GCP VM) → Run workflow（需使用者在網頁點，本機沒有 gh CLI）。部署金鑰是本機 `~/.ssh/portfolio_deploy`（VM authorized_keys 註解 `github-actions-deploy`）。備用：本機 Docker `--platform linux/amd64 node:22.22.2-bookworm` build 後 scp + `remote-deploy.sh`
 - VM 上 `~/hfyy` 是使用者自己的 repo clone（605MB），部署沒用到，未經同意不要刪
@@ -668,7 +668,7 @@ metadata:
 
 **Why:** 之後要更新線上版本、查 log 或排查問題時，需要知道連線方式與目前的部署形態。
 
-**How to apply:** 部署新版本先 push，再請使用者觸發 workflow，可在背景監看 VM 的 `/srv/portfolio/current` 是否換成 `*-<commit短碼>` 再驗證；待辦：IP 已改靜態（名稱 hfyy-home）；縮短開機時的 bcrypt 種子雜湊時間；SyncScheduler 關機前 flush；docs/deployment/gcp-vm.md 補 Cloud Shell 改存取權範圍的做法、setup-vm.sh 的 proxy 版本仍是 v2.14.1；CI 的 npm test 自 10/05 起持續失敗（推測是 dev server 啟動測試與 npm test 互相干擾，log 需登入才看得到，尚未確認）。相關：[[project_postgres_migration_plan]]
+**How to apply:** 部署新版本先 push，再請使用者觸發 workflow，可在背景監看 VM 的 `/srv/portfolio/current` 是否換成 `*-<commit短碼>` 再驗證；IP 已改靜態（名稱 hfyy-home）。2026-10-08 已完成：CI 修正（`SKIP_STARTUP_TESTS=1` + waitForOpen 130s，CI 轉 passing）、關閉前 flush、setup-vm.sh/gcp-vm.md 依實際部署更新。剩餘待辦：縮短開機時的 bcrypt 種子雜湊時間；台彩 20:00～20:30 封盤時 CI 台彩測試仍可能逾時；GitHub API 匿名額度每小時 60 次，輪詢 CI 別每分鐘查（改看 badge：/actions/workflows/ci.yml/badge.svg）。相關：[[project_postgres_migration_plan]]
 EOF
 
 # ── MEMORY.md 索引 ────────────────────────────────────────────
